@@ -1,0 +1,31 @@
+{
+  "name": "@eveider/mobile",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "main": "index.js",
+  "scripts": {
+    "dev": "expo start",
+    "build": "tsc --noEmit",
+    "lint": "eslint App.tsx",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@eveider/config-ui": "workspace:*",
+    "@eveider/domain": "workspace:*",
+    "expo": "~52.0.46",
+    "expo-status-bar": "~2.0.1",
+    "react": "18.3.1",
+    "react-native": "0.76.9"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.27.4",
+    "@eveider/config-eslint": "workspace:*",
+    "@eveider/config-typescript": "workspace:*",
+    "@types/react": "~18.3.23",
+    "eslint": "^9.28.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.3"
+  }
+}
