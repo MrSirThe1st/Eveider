@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
     '@eveider/config-ui',
     '@eveider/ui',
   ],
+  serverExternalPackages: ['@prisma/client', 'prisma'],
 };
 
 export default nextConfig;

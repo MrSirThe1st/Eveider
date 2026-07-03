@@ -34,3 +34,5 @@ Project memory and product context. Read these before implementing features.
 | [templates/project-updates.md](templates/project-updates.md) | Append-only change log |
 | [ai/AGENT_RULES.md](ai/AGENT_RULES.md) | Agent workflow and standards |
 | [decisions/ADR-001.md](decisions/ADR-001.md) | Monorepo architecture and blueprint adoption |
+| [../setup/supabase.md](../setup/supabase.md) | Supabase project setup and env vars |
+| [../setup/auth.md](../setup/auth.md) | Phone OTP auth and first admin setup |

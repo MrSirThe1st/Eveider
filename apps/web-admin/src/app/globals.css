@@ -19,3 +19,17 @@ body {
   background: var(--color-background);
   color: var(--color-secondary);
 }
+
+.cabinet-cell {
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.cabinet-cell:not(:disabled):hover {
+  transform: scale(1.03);
+  box-shadow: 0 4px 12px rgba(18, 18, 18, 0.15);
+}
+
+.cabinet-cell:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}

@@ -1,0 +1,276 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  customer
+  courier
+  business
+  admin
+}
+
+enum BusinessStatus {
+  pending
+  active
+  suspended
+  blocked
+}
+
+enum ParcelStatus {
+  created
+  in_transit
+  delivered_to_locker
+  ready_for_pickup
+  collected
+}
+
+enum LockerStatus {
+  active
+  offline
+  full
+  archived
+}
+
+enum CompartmentSize {
+  small
+  medium
+  large
+}
+
+enum CompartmentStatus {
+  available
+  occupied
+  reserved
+}
+
+enum DeliveryStatus {
+  assigned
+  scanned
+  drop_off_pending
+  completed
+  failed
+}
+
+enum IssueType {
+  failed_delivery
+  locker_unavailable
+  parcel_problem
+  locker_system
+}
+
+enum IssueStatus {
+  open
+  in_progress
+  resolved
+}
+
+enum NotificationChannel {
+  sms
+  push
+  in_app
+}
+
+enum ParcelInviteStatus {
+  pending
+  accepted
+  expired
+}
+
+/// Profile linked to Supabase auth.users — authId stores auth user UUID.
+model User {
+  id         String   @id @default(uuid()) @db.Uuid
+  authId     String   @unique @map("auth_id") @db.Uuid
+  role       UserRole
+  email      String?  @unique
+  phone      String?
+  fullName   String?  @map("full_name")
+  businessId String?  @map("business_id") @db.Uuid
+  isBlocked  Boolean  @default(false) @map("is_blocked")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  business           Business?  @relation(fields: [businessId], references: [id])
+  customerParcels    Parcel[]   @relation("CustomerParcels")
+  courierDeliveries  Delivery[] @relation("CourierDeliveries")
+  reportedIssues     Issue[]    @relation("ReporterIssues")
+  notifications      Notification[]
+
+  @@index([role])
+  @@index([businessId])
+  @@map("users")
+}
+
+model Business {
+  id           String         @id @default(uuid()) @db.Uuid
+  name         String
+  status       BusinessStatus @default(pending)
+  contactEmail String?        @map("contact_email")
+  contactPhone String?        @map("contact_phone")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  users   User[]
+  parcels Parcel[]
+
+  @@index([status])
+  @@map("businesses")
+}
+
+model Locker {
+  id         String       @id @default(uuid()) @db.Uuid
+  code       String       @unique
+  name       String
+  address    String
+  latitude   Float?
+  longitude  Float?
+  rows       Int          @default(3)
+  columns    Int          @default(3)
+  status     LockerStatus @default(active)
+  archivedAt DateTime?    @map("archived_at")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  compartments Compartment[]
+  parcels      Parcel[]
+  issues       Issue[]
+
+  @@index([status])
+  @@map("lockers")
+}
+
+model Compartment {
+  id        String            @id @default(uuid()) @db.Uuid
+  lockerId  String            @map("locker_id") @db.Uuid
+  label     String
+  size      CompartmentSize   @default(medium)
+  status    CompartmentStatus @default(available)
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  locker Locker  @relation(fields: [lockerId], references: [id])
+  parcel Parcel?
+
+  @@unique([lockerId, label])
+  @@index([status])
+  @@map("compartments")
+}
+
+model Parcel {
+  id             String       @id @default(uuid()) @db.Uuid
+  reference      String
+  status         ParcelStatus @default(created)
+  businessId     String       @map("business_id") @db.Uuid
+  customerId     String?      @map("customer_id") @db.Uuid
+  recipientPhone String       @map("recipient_phone")
+  recipientName  String?      @map("recipient_name")
+  lockerId       String?      @map("locker_id") @db.Uuid
+  compartmentId  String?      @unique @map("compartment_id") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  business    Business     @relation(fields: [businessId], references: [id])
+  customer    User?        @relation("CustomerParcels", fields: [customerId], references: [id])
+  locker      Locker?      @relation(fields: [lockerId], references: [id])
+  compartment Compartment? @relation(fields: [compartmentId], references: [id])
+  deliveries  Delivery[]
+  pickupPin   PickupPin?
+  issues      Issue[]
+  notifications Notification[]
+  invite      ParcelInvite?
+
+  @@unique([businessId, reference])
+  @@index([status])
+  @@index([businessId])
+  @@index([customerId])
+  @@map("parcels")
+}
+
+model Delivery {
+  id          String         @id @default(uuid()) @db.Uuid
+  parcelId    String         @map("parcel_id") @db.Uuid
+  courierId   String         @map("courier_id") @db.Uuid
+  status      DeliveryStatus @default(assigned)
+  scannedAt   DateTime?      @map("scanned_at")
+  completedAt DateTime?      @map("completed_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  parcel  Parcel @relation(fields: [parcelId], references: [id])
+  courier User   @relation("CourierDeliveries", fields: [courierId], references: [id])
+
+  @@index([courierId, status])
+  @@index([parcelId])
+  @@map("deliveries")
+}
+
+model PickupPin {
+  id        String    @id @default(uuid()) @db.Uuid
+  parcelId  String    @unique @map("parcel_id") @db.Uuid
+  code      String
+  expiresAt DateTime? @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  parcel Parcel @relation(fields: [parcelId], references: [id], onDelete: Cascade)
+
+  @@map("pickup_pins")
+}
+
+model Notification {
+  id        String              @id @default(uuid()) @db.Uuid
+  userId    String?             @map("user_id") @db.Uuid
+  parcelId  String?             @map("parcel_id") @db.Uuid
+  channel   NotificationChannel
+  message   String
+  sentAt    DateTime?           @map("sent_at")
+  createdAt DateTime            @default(now()) @map("created_at")
+
+  user   User?   @relation(fields: [userId], references: [id])
+  parcel Parcel? @relation(fields: [parcelId], references: [id])
+
+  @@index([userId])
+  @@index([parcelId])
+  @@map("notifications")
+}
+
+model Issue {
+  id          String      @id @default(uuid()) @db.Uuid
+  type        IssueType
+  status      IssueStatus @default(open)
+  parcelId    String?     @map("parcel_id") @db.Uuid
+  lockerId    String?     @map("locker_id") @db.Uuid
+  reporterId  String      @map("reporter_id") @db.Uuid
+  description String?
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  parcel   Parcel? @relation(fields: [parcelId], references: [id])
+  locker   Locker? @relation(fields: [lockerId], references: [id])
+  reporter User    @relation("ReporterIssues", fields: [reporterId], references: [id])
+
+  @@index([status])
+  @@index([parcelId])
+  @@map("issues")
+}
+
+model ParcelInvite {
+  id         String             @id @default(uuid()) @db.Uuid
+  token      String             @unique @default(uuid()) @db.Uuid
+  parcelId   String             @unique @map("parcel_id") @db.Uuid
+  phone      String
+  email      String?
+  status     ParcelInviteStatus @default(pending)
+  expiresAt  DateTime           @map("expires_at")
+  acceptedAt DateTime?          @map("accepted_at")
+  createdAt  DateTime           @default(now()) @map("created_at")
+
+  parcel Parcel @relation(fields: [parcelId], references: [id], onDelete: Cascade)
+
+  @@index([phone])
+  @@index([status])
+  @@map("parcel_invites")
+}

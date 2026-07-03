@@ -3,12 +3,18 @@
   "private": true,
   "packageManager": "pnpm@9.15.4",
   "scripts": {
-    "dev": "turbo dev",
+    "dev": "turbo dev --filter=@eveider/web-admin --filter=@eveider/mobile",
     "build": "turbo build",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
-    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
+    "db:migrate": "pnpm --filter @eveider/data-access db:migrate",
+    "db:deploy": "pnpm --filter @eveider/data-access db:deploy",
+    "db:studio": "pnpm --filter @eveider/data-access db:studio",
+    "db:generate": "pnpm --filter @eveider/data-access db:generate",
+    "db:seed": "pnpm --filter @eveider/data-access db:seed",
+    "postinstall": "pnpm db:generate"
   },
   "devDependencies": {
     "prettier": "^3.5.3",

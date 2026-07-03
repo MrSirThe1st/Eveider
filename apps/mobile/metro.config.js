@@ -4,11 +4,13 @@ const path = require('path');
 const projectRoot = __dirname;
 const monorepoRoot = path.resolve(projectRoot, '../..');
 
+// Load environment variables from the monorepo root
+require('@expo/env').load(monorepoRoot);
+
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(projectRoot);
 
-config.watchFolders = [monorepoRoot];
-config.resolver.disableHierarchicalLookup = true;
+config.watchFolders = [...config.watchFolders, monorepoRoot];
 config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, 'node_modules'),
   path.resolve(monorepoRoot, 'node_modules'),

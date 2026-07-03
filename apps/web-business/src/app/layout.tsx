@@ -3,8 +3,8 @@ import type { ReactNode } from 'react';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Eveider Entreprises',
-  description: 'Portail entreprises Eveider',
+  title: 'Eveider',
+  description: 'Réseau de casiers intelligents — entreprises, opérations, clients et coursiers',
 };
 
 export default function RootLayout({

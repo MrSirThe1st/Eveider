@@ -7,19 +7,38 @@
     "scheme": "eveider",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "plugins": [],
     "splash": {
       "resizeMode": "contain",
       "backgroundColor": "#F5F6F7"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.eveider.app"
+      "bundleIdentifier": "com.eveider.app",
+      "associatedDomains": []
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#F5F6F7"
       },
-      "package": "com.eveider.app"
+      "package": "com.eveider.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": false,
+          "data": [
+            {
+              "scheme": "eveider",
+              "host": "invite",
+              "pathPrefix": "/"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "web": {
+      "bundler": "metro"
     }
   }
 }
