@@ -1,6 +1,7 @@
 import { PARCEL_STATUS_LABELS, type ParcelStatus } from '@eveider/domain';
 import type { Notification, Parcel, PrismaClient } from '@prisma/client';
 import { AccessDeniedError, assertCustomerRole, type DataAccessContext } from '../context.js';
+import { sendParcelStatusWhatsApp } from '../messaging/parcel-whatsapp.js';
 
 export type CustomerNotification = Notification & {
   parcel: { id: string; reference: string } | null;
@@ -54,23 +55,30 @@ export class NotificationRepository {
     if (!parcel) return;
 
     const userId = await this.resolveCustomerUserId(parcel);
-    if (!userId) return;
+    if (userId) {
+      const message = this.buildMessage(parcel.reference, newStatus, parcel.locker?.name);
 
-    const message = this.buildMessage(parcel.reference, newStatus, parcel.locker?.name);
+      const duplicate = await this.db.notification.findFirst({
+        where: { userId, parcelId, message, channel: 'in_app' },
+      });
+      if (!duplicate) {
+        await this.db.notification.create({
+          data: {
+            userId,
+            parcelId,
+            channel: 'in_app',
+            message,
+          },
+        });
+      }
+    }
 
-    const duplicate = await this.db.notification.findFirst({
-      where: { userId, parcelId, message, channel: 'in_app' },
-    });
-    if (duplicate) return;
-
-    await this.db.notification.create({
-      data: {
-        userId,
-        parcelId,
-        channel: 'in_app',
-        message,
-      },
-    });
+    // Phone-first WhatsApp — works even if the recipient has no app account yet.
+    try {
+      await sendParcelStatusWhatsApp(this.db, parcelId, newStatus);
+    } catch (error) {
+      console.error('[eveider:whatsapp] unexpected error', { parcelId, newStatus, error });
+    }
   }
 
   async listForCustomer(ctx: DataAccessContext): Promise<CustomerNotification[]> {

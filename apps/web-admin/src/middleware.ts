@@ -8,8 +8,8 @@ export async function middleware(request: NextRequest) {
   const isPublic =
     pathname === '/' || PUBLIC_PREFIXES.some((path) => pathname.startsWith(path));
 
-  // Session ping uses getSession only — skip middleware refresh to avoid double-rotation.
-  if (pathname === '/api/auth/session') {
+  // Public API routes — no session redirect (external callers, no cookies).
+  if (pathname === '/api/auth/session' || pathname.startsWith('/api/webhooks/')) {
     return NextResponse.next();
   }
 

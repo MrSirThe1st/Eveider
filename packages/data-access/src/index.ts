@@ -15,6 +15,12 @@ export { StatsRepository, type DashboardStats, type AnalyticsReport } from './re
 export { ParcelInviteRepository } from './repositories/parcel-invite.repository.js';
 export { buildInviteLinks, getInviteConfig } from './invitations/invite-links.js';
 export { sendInvitation } from './invitations/invitation.service.js';
+export {
+  getWhatsAppConfig,
+  normalizeWhatsAppPhone,
+  sendWhatsAppTemplate,
+  sendParcelStatusWhatsApp,
+} from './messaging/index.js';
 
 import { prisma } from './client.js';
 import { BusinessRepository } from './repositories/business.repository.js';
