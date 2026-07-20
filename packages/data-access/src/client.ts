@@ -11,8 +11,8 @@ function appendParam(url: string, key: string, value: string): string {
 /**
  * Normalise Supabase Postgres URLs for Prisma.
  *
- * - Session pooler (port 5432): preferred for Next.js dev
- * - Transaction pooler (port 6543): needs `pgbouncer=true` and connection_limit=1
+ * - Session pooler (port 5432): preferred for Next.js / Prisma
+ * - Transaction pooler (port 6543): only for serverless with PRISMA_USE_TRANSACTION_POOLER=1
  *
  * Override pool size with PRISMA_CONNECTION_LIMIT (default 10 on session pooler).
  */
@@ -22,18 +22,26 @@ function resolveDatabaseUrl(): string | undefined {
 
   let resolved = url;
   const isSupabasePooler = resolved.includes('pooler.supabase.com');
+  const forceTransactionPooler = process.env.PRISMA_USE_TRANSACTION_POOLER === '1';
   const isTransactionPooler = isSupabasePooler && resolved.includes(':6543');
 
-  if (isTransactionPooler) {
-    resolved = appendParam(resolved, 'pgbouncer', 'true');
-    resolved = appendParam(resolved, 'connection_limit', '1');
-
+  // Prisma + Next.js need concurrent connections. Auto-rewrite transaction → session
+  // unless the caller explicitly opts into transaction mode.
+  if (isTransactionPooler && !forceTransactionPooler) {
+    resolved = resolved.replace(':6543/', ':5432/');
     if (process.env.NODE_ENV === 'development') {
       console.warn(
-        '[@eveider/data-access] DATABASE_URL uses Supabase transaction pooler (:6543). ' +
-          'This often causes pool timeouts with Prisma. Switch to session pooler (:5432) in Supabase → Settings → Database → Connection string → Session mode.',
+        '[@eveider/data-access] Rewrote DATABASE_URL :6543 → :5432 (session pooler). ' +
+          'Set PRISMA_USE_TRANSACTION_POOLER=1 to keep transaction mode.',
       );
     }
+  }
+
+  const stillTransactionPooler = isSupabasePooler && resolved.includes(':6543');
+
+  if (stillTransactionPooler) {
+    resolved = appendParam(resolved, 'pgbouncer', 'true');
+    resolved = appendParam(resolved, 'connection_limit', '1');
   } else if (isSupabasePooler) {
     const limit = process.env.PRISMA_CONNECTION_LIMIT ?? '10';
     resolved = appendParam(resolved, 'connection_limit', limit);
