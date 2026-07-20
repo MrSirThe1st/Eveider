@@ -1,7 +1,7 @@
 import { fail, ok, selectParcelLockerSchema } from '@eveider/api-contracts';
 import { createRepositories } from '@eveider/data-access';
 import { NextResponse } from 'next/server';
-import { toCustomerParcelDto } from '@/lib/customer-parcel-presenter';
+import { buildCustomerParcelDto } from '@/lib/customer-parcel-response';
 import { requireCustomerSession, withMobileCors } from '@/lib/mobile-session';
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -37,7 +37,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     );
 
     return withMobileCors(
-      NextResponse.json(ok({ parcel: toCustomerParcelDto(parcel) })),
+      NextResponse.json(ok({ parcel: await buildCustomerParcelDto(parcel) })),
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur serveur';

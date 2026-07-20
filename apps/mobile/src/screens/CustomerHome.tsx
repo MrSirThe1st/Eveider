@@ -8,6 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { ParcelJourneyHero } from '../components/ParcelJourneyHero';
@@ -20,16 +21,39 @@ import { ReportIssueForm } from '../components/ReportIssueForm';
 import { SuccessBanner } from '../components/SuccessBanner';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useHideTabBar } from '../navigation/useHideTabBar';
-import { fetchCustomerParcel, fetchCustomerParcels, fetchCustomerLockers, assignCustomerParcelLocker, reportCustomerIssue, type CustomerLocker, type CustomerParcel } from '../lib/api';
+import { fetchCustomerParcel, fetchCustomerParcels, fetchCustomerLockers, assignCustomerParcelLocker, reportCustomerIssue, fetchPickupPaymentProviders, fetchPickupPaymentStatus, initiatePickupPayment, fetchProfile, type CustomerLocker, type CustomerParcel, type PaymentProvider } from '../lib/api';
 import { LockerMapView, LockerSelectPanel, getCurrentCoordinates } from '../components/LockerMapView';
 import { pickFeaturedParcel } from '../lib/parcel-journey';
 
 type CustomerScreen =
   | { name: 'list' }
   | { name: 'detail'; parcelId: string }
+  | { name: 'payment'; parcelId: string }
   | { name: 'pickup'; parcelId: string }
   | { name: 'report'; parcelId: string }
   | { name: 'select-locker'; parcelId: string };
+
+function canShowPickupPin(parcel: CustomerParcel): boolean {
+  if (parcel.status !== 'ready_for_pickup') return false;
+  if (!parcel.pickupPayment?.required) return true;
+  return parcel.pickupPayment.status === 'completed';
+}
+
+function needsPickupPayment(parcel: CustomerParcel): boolean {
+  return (
+    parcel.status === 'ready_for_pickup' &&
+    Boolean(parcel.pickupPayment?.required) &&
+    parcel.pickupPayment?.status !== 'completed'
+  );
+}
+
+function openPickupFlow(parcel: CustomerParcel, setScreen: (screen: CustomerScreen) => void) {
+  if (needsPickupPayment(parcel)) {
+    setScreen({ name: 'payment', parcelId: parcel.id });
+    return;
+  }
+  setScreen({ name: 'pickup', parcelId: parcel.id });
+}
 
 type CustomerHomeProps = {
   initialParcelId?: string;
@@ -49,6 +73,11 @@ export function CustomerHome({ initialParcelId }: CustomerHomeProps) {
   const [selectedLockerId, setSelectedLockerId] = useState('');
   const [lockersLoading, setLockersLoading] = useState(false);
   const [assigningLocker, setAssigningLocker] = useState(false);
+  const [paymentProviders, setPaymentProviders] = useState<PaymentProvider[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState('');
+  const [paymentPhone, setPaymentPhone] = useState('');
+  const [paying, setPaying] = useState(false);
+  const [paymentMessage, setPaymentMessage] = useState<string | null>(null);
 
   const loadList = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -101,14 +130,55 @@ export function CustomerHome({ initialParcelId }: CustomerHomeProps) {
       void loadList();
     } else if (screen.name === 'detail' || screen.name === 'report') {
       void loadParcel(screen.parcelId);
+    } else if (screen.name === 'payment' || screen.name === 'pickup') {
+      void loadParcel(screen.parcelId);
     } else if (screen.name === 'select-locker') {
       void loadParcel(screen.parcelId);
       void loadNearestLockers();
     }
   }, [screen, loadList, loadParcel, loadNearestLockers]);
 
+  useEffect(() => {
+    if (screen.name !== 'payment') return;
+
+    void (async () => {
+      const [providersResult, profileResult] = await Promise.all([
+        fetchPickupPaymentProviders(),
+        fetchProfile(),
+      ]);
+
+      if (providersResult.success) {
+        setPaymentProviders(providersResult.data.providers);
+        setSelectedProvider(providersResult.data.providers[0]?.id ?? '');
+      }
+
+      if (profileResult.success) {
+        setPaymentPhone(profileResult.data.phone ?? '');
+      }
+    })();
+  }, [screen]);
+
+  useEffect(() => {
+    if (screen.name !== 'payment') return;
+    if (!parcel || parcel.id !== screen.parcelId) return;
+    if (parcel.pickupPayment?.status !== 'processing') return;
+
+    const interval = setInterval(() => {
+      void fetchPickupPaymentStatus(screen.parcelId).then((result) => {
+        if (result.success) {
+          setParcel(result.data.parcel);
+          if (result.data.payment.status === 'completed') {
+            setPaymentMessage('Paiement confirmé. Votre code de retrait est disponible.');
+          }
+        }
+      });
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [screen, parcel]);
+
   function goBack() {
-    if (screen.name === 'pickup') {
+    if (screen.name === 'pickup' || screen.name === 'payment') {
       setScreen({ name: 'detail', parcelId: screen.parcelId });
       return;
     }
@@ -239,7 +309,7 @@ export function CustomerHome({ initialParcelId }: CustomerHomeProps) {
                 onPressDetail={() => setScreen({ name: 'detail', parcelId: featuredParcel.id })}
                 onPressPickup={
                   featuredParcel.status === 'ready_for_pickup'
-                    ? () => setScreen({ name: 'pickup', parcelId: featuredParcel.id })
+                    ? () => openPickupFlow(featuredParcel, setScreen)
                     : undefined
                 }
               />
@@ -276,6 +346,124 @@ export function CustomerHome({ initialParcelId }: CustomerHomeProps) {
     );
   }
 
+  if (screen.name === 'payment') {
+    if (!parcel || parcel.id !== screen.parcelId) {
+      if (!loading) void loadParcel(screen.parcelId);
+      return (
+        <View style={styles.container}>
+          <ScreenHeader mode="CLIENT" title="PAIEMENT RETRAIT" onBack={goBack} />
+          <ActivityIndicator color={colors.secondary} />
+        </View>
+      );
+    }
+
+    const feeLabel =
+      parcel.pickupPayment?.amount && parcel.pickupPayment.currency
+        ? `${parcel.pickupPayment.amount} ${parcel.pickupPayment.currency}`
+        : '—';
+    const paymentStatus = parcel.pickupPayment?.status ?? 'none';
+    const paymentComplete = paymentStatus === 'completed';
+
+    return (
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.detailContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <ScreenHeader mode="CLIENT" title="PAIEMENT RETRAIT" onBack={goBack} />
+
+        {paymentMessage ? <SuccessBanner message={paymentMessage} onDismiss={() => setPaymentMessage(null)} /> : null}
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+
+        <View style={styles.detailSection}>
+          <Text style={styles.sectionLabel}>COLIS</Text>
+          <Text style={styles.detailText}>{parcel.reference}</Text>
+          <Text style={styles.detailSubtext}>{parcel.businessName}</Text>
+        </View>
+
+        <View style={styles.detailSection}>
+          <Text style={styles.sectionLabel}>FRAIS DE RETRAIT</Text>
+          <Text style={styles.detailText}>{feeLabel}</Text>
+          <Text style={styles.detailSubtext}>
+            Paiement mobile money requis avant d&apos;afficher le code PIN au casier.
+          </Text>
+        </View>
+
+        {paymentComplete ? (
+          <PrimaryButton
+            label="VOIR LE CODE DE RETRAIT"
+            onPress={() => setScreen({ name: 'pickup', parcelId: parcel.id })}
+          />
+        ) : (
+          <>
+            <View style={styles.detailSection}>
+              <Text style={styles.sectionLabel}>OPÉRATEUR</Text>
+              {paymentProviders.map((provider) => (
+                <Pressable
+                  key={provider.id}
+                  onPress={() => setSelectedProvider(provider.id)}
+                  style={[
+                    styles.providerOption,
+                    selectedProvider === provider.id && styles.providerOptionSelected,
+                  ]}
+                >
+                  <Text style={styles.providerOptionText}>{provider.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <View style={styles.detailSection}>
+              <Text style={styles.sectionLabel}>NUMÉRO MOBILE MONEY</Text>
+              <TextInput
+                value={paymentPhone}
+                onChangeText={setPaymentPhone}
+                placeholder="+243800000000"
+                placeholderTextColor={colors.border}
+                keyboardType="phone-pad"
+                style={styles.phoneInput}
+              />
+            </View>
+
+            {paymentStatus === 'processing' ? (
+              <Text style={styles.detailSubtext}>
+                Paiement en cours de traitement… Cette page se mettra à jour automatiquement.
+              </Text>
+            ) : null}
+
+            {parcel.pickupPayment?.failureReason ? (
+              <Text style={styles.error}>{parcel.pickupPayment.failureReason}</Text>
+            ) : null}
+
+            <PrimaryButton
+              label={paying ? 'PAIEMENT EN COURS…' : 'PAYER ET DÉBLOQUER LE PIN'}
+              disabled={paying || !selectedProvider || !paymentPhone.trim()}
+              onPress={() => {
+                setPaying(true);
+                setError(null);
+                void initiatePickupPayment(parcel.id, {
+                  provider: selectedProvider,
+                  phoneNumber: paymentPhone.trim(),
+                }).then((result) => {
+                  setPaying(false);
+                  if (!result.success) {
+                    setError(result.error);
+                    return;
+                  }
+                  setParcel(result.data.parcel);
+                  if (result.data.payment.status === 'completed') {
+                    setPaymentMessage('Paiement confirmé. Votre code de retrait est disponible.');
+                  } else {
+                    setPaymentMessage('Demande de paiement envoyée. Confirmez sur votre téléphone si demandé.');
+                  }
+                });
+              }}
+            />
+          </>
+        )}
+      </ScrollView>
+    );
+  }
+
   if (screen.name === 'pickup') {
     if (!parcel || parcel.id !== screen.parcelId) {
       if (!loading) void loadParcel(screen.parcelId);
@@ -283,6 +471,23 @@ export function CustomerHome({ initialParcelId }: CustomerHomeProps) {
         <View style={styles.container}>
           <ScreenHeader mode="CLIENT" title="CODE DE RETRAIT" onBack={goBack} />
           <ActivityIndicator color={colors.secondary} />
+        </View>
+      );
+    }
+
+    if (needsPickupPayment(parcel)) {
+      return (
+        <View style={styles.container}>
+          <ScreenHeader mode="CLIENT" title="CODE DE RETRAIT" onBack={goBack} />
+          <View style={styles.detailContent}>
+            <Text style={styles.detailSubtext}>
+              Le paiement mobile money est requis avant d&apos;afficher le code PIN.
+            </Text>
+            <PrimaryButton
+              label="PROCÉDER AU PAIEMENT"
+              onPress={() => setScreen({ name: 'payment', parcelId: parcel.id })}
+            />
+          </View>
         </View>
       );
     }
@@ -432,8 +637,8 @@ export function CustomerHome({ initialParcelId }: CustomerHomeProps) {
 
       {parcel.status === 'ready_for_pickup' ? (
         <PrimaryButton
-          label="VOIR LE CODE DE RETRAIT"
-          onPress={() => setScreen({ name: 'pickup', parcelId: parcel.id })}
+          label={needsPickupPayment(parcel) ? 'PAYER ET RETIRER' : 'VOIR LE CODE DE RETRAIT'}
+          onPress={() => openPickupFlow(parcel, setScreen)}
         />
       ) : null}
 
@@ -654,5 +859,33 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.secondary,
     lineHeight: 20,
+  },
+  providerOption: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.button,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginTop: 8,
+    backgroundColor: colors.surface,
+  },
+  providerOptionSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.background,
+  },
+  providerOptionText: {
+    fontWeight: '600',
+    color: colors.secondary,
+  },
+  phoneInput: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.button,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: colors.secondary,
+    backgroundColor: colors.surface,
   },
 });

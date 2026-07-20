@@ -6,3 +6,4 @@ export * from './user.repository.js';
 export * from './issue.repository.js';
 export * from './notification.repository.js';
 export * from './parcel-invite.repository.js';
+export * from '../payments/index.js';

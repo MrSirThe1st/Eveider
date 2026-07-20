@@ -21,6 +21,13 @@ export {
   sendWhatsAppTemplate,
   sendParcelStatusWhatsApp,
 } from './messaging/index.js';
+export {
+  PaymentRepository,
+  getPawaPayConfig,
+  listPawaPayDepositProviders,
+  DRC_DEPOSIT_PROVIDERS,
+  type PickupPaymentSummary,
+} from './payments/index.js';
 
 import { prisma } from './client.js';
 import { BusinessRepository } from './repositories/business.repository.js';
@@ -31,6 +38,7 @@ import { IssueRepository } from './repositories/issue.repository.js';
 import { NotificationRepository } from './repositories/notification.repository.js';
 import { StatsRepository } from './repositories/stats.repository.js';
 import { ParcelInviteRepository } from './repositories/parcel-invite.repository.js';
+import { PaymentRepository } from './payments/payment.repository.js';
 import { OnboardingService } from './auth/onboarding.service.js';
 import { UserRepository } from './repositories/user.repository.js';
 
@@ -39,6 +47,7 @@ export function createRepositories() {
   const businesses = new BusinessRepository(prisma);
   const notifications = new NotificationRepository(prisma);
   const invites = new ParcelInviteRepository(prisma);
+  const payments = new PaymentRepository(prisma);
 
   return {
     users,
@@ -49,6 +58,7 @@ export function createRepositories() {
     issues: new IssueRepository(prisma),
     notifications,
     invites,
+    payments,
     stats: new StatsRepository(prisma),
     onboarding: new OnboardingService(users, businesses, prisma),
   };

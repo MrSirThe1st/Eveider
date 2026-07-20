@@ -2,6 +2,23 @@ import type { DeliveryStatus, IssueStatus, IssueType, ParcelStatus, UserRole } f
 import { apiFetch } from './api-fetch';
 import { supabase } from './supabase';
 
+export type PickupPaymentStatus = 'none' | 'pending' | 'processing' | 'completed' | 'failed';
+
+export type PickupPayment = {
+  required: boolean;
+  status: PickupPaymentStatus;
+  amount: string | null;
+  currency: string | null;
+  provider: string | null;
+  depositId: string | null;
+  failureReason: string | null;
+};
+
+export type PaymentProvider = {
+  id: string;
+  label: string;
+};
+
 export type CustomerParcel = {
   id: string;
   reference: string;
@@ -18,6 +35,7 @@ export type CustomerParcel = {
   } | null;
   compartmentLabel: string | null;
   pickupPin: string | null;
+  pickupPayment: PickupPayment | null;
   deliveryStatus: DeliveryStatus | null;
   createdAt: string;
   updatedAt: string;
@@ -59,19 +77,22 @@ async function getAccessToken(): Promise<string | null> {
 
 async function customerFetch<T>(
   path: string,
-  options?: RequestInit,
+  options?: RequestInit & { timeoutMs?: number },
 ): Promise<ApiResult<T>> {
   const token = await getAccessToken();
   if (!token) {
     return { success: false, error: 'Non authentifié' };
   }
 
+  const { timeoutMs, ...fetchOptions } = options ?? {};
+
   return apiFetch<T>(path, {
-    ...options,
+    ...fetchOptions,
+    timeoutMs: timeoutMs ?? (fetchOptions.method === 'POST' ? 45_000 : 12_000),
     headers: {
       Authorization: `Bearer ${token}`,
-      ...(options?.body ? { 'Content-Type': 'application/json' } : {}),
-      ...options?.headers,
+      ...(fetchOptions.body ? { 'Content-Type': 'application/json' } : {}),
+      ...fetchOptions.headers,
     },
   });
 }
@@ -127,6 +148,35 @@ export async function fetchCustomerParcels() {
 
 export async function fetchCustomerParcel(id: string) {
   return customerFetch<{ parcel: CustomerParcel }>(`/api/customer/parcels/${id}`);
+}
+
+export async function fetchPickupPaymentProviders() {
+  return customerFetch<{
+    amount: string;
+    currency: string;
+    country: string;
+    providers: PaymentProvider[];
+  }>('/api/payments/pawapay/providers');
+}
+
+export async function fetchPickupPaymentStatus(parcelId: string) {
+  return customerFetch<{ payment: PickupPayment; parcel: CustomerParcel }>(
+    `/api/customer/parcels/${parcelId}/payment`,
+  );
+}
+
+export async function initiatePickupPayment(
+  parcelId: string,
+  input: { provider: string; phoneNumber?: string },
+) {
+  return customerFetch<{
+    pawapayStatus: string;
+    payment: PickupPayment;
+    parcel: CustomerParcel;
+  }>(`/api/customer/parcels/${parcelId}/payment`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
 }
 
 export type UserProfile = {

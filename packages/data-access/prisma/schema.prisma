@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -81,6 +82,13 @@ enum ParcelInviteStatus {
   expired
 }
 
+enum PaymentStatus {
+  pending
+  processing
+  completed
+  failed
+}
+
 /// Profile linked to Supabase auth.users — authId stores auth user UUID.
 model User {
   id         String   @id @default(uuid()) @db.Uuid
@@ -99,6 +107,7 @@ model User {
   courierDeliveries  Delivery[] @relation("CourierDeliveries")
   reportedIssues     Issue[]    @relation("ReporterIssues")
   notifications      Notification[]
+  parcelPayments     ParcelPayment[]
 
   @@index([role])
   @@index([businessId])
@@ -182,6 +191,7 @@ model Parcel {
   issues      Issue[]
   notifications Notification[]
   invite      ParcelInvite?
+  payments    ParcelPayment[]
 
   @@unique([businessId, reference])
   @@index([status])
@@ -273,4 +283,28 @@ model ParcelInvite {
   @@index([phone])
   @@index([status])
   @@map("parcel_invites")
+}
+
+model ParcelPayment {
+  id            String        @id @default(uuid()) @db.Uuid
+  parcelId      String        @map("parcel_id") @db.Uuid
+  userId        String?       @map("user_id") @db.Uuid
+  depositId     String        @unique @map("deposit_id") @db.Uuid
+  amount        String
+  currency      String
+  provider      String
+  phoneNumber   String        @map("phone_number")
+  status        PaymentStatus @default(pending)
+  pawapayStatus String?       @map("pawapay_status")
+  failureReason String?       @map("failure_reason")
+  completedAt   DateTime?     @map("completed_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  parcel Parcel @relation(fields: [parcelId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id])
+
+  @@index([parcelId, status])
+  @@index([status])
+  @@map("parcel_payments")
 }

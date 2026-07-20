@@ -9,7 +9,11 @@ export async function middleware(request: NextRequest) {
     pathname === '/' || PUBLIC_PREFIXES.some((path) => pathname.startsWith(path));
 
   // Public API routes — no session redirect (external callers, no cookies).
-  if (pathname === '/api/auth/session' || pathname.startsWith('/api/webhooks/')) {
+  if (
+    pathname === '/api/auth/session' ||
+    pathname.startsWith('/api/webhooks/') ||
+    pathname.startsWith('/api/payments/pawapay/callback/')
+  ) {
     return NextResponse.next();
   }
 

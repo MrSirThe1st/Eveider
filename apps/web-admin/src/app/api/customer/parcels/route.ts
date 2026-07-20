@@ -1,7 +1,7 @@
 import { fail, ok } from '@eveider/api-contracts';
 import { createRepositories } from '@eveider/data-access';
 import { NextResponse } from 'next/server';
-import { toCustomerParcelDto } from '@/lib/customer-parcel-presenter';
+import { buildCustomerParcelDto } from '@/lib/customer-parcel-response';
 import { requireCustomerSession, withMobileCors } from '@/lib/mobile-session';
 
 export async function OPTIONS() {
@@ -21,7 +21,9 @@ export async function GET(request: Request) {
     const items = await parcels.listForCustomer(auth.session.ctx);
 
     return withMobileCors(
-      NextResponse.json(ok({ parcels: items.map(toCustomerParcelDto) })),
+      NextResponse.json(
+        ok({ parcels: await Promise.all(items.map((parcel) => buildCustomerParcelDto(parcel))) }),
+      ),
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur serveur';
