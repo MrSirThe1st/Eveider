@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius, shadows, borders, webCardStyle } from '@eveider/config-ui';
+import { colors, borders, webCardStyle } from '@eveider/config-ui';
 import Link from 'next/link';
 import type { DashboardStats } from '@/components/admin-dashboard-types';
 

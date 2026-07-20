@@ -17,7 +17,7 @@ export function ParcelStatusBadge({ status }: ParcelStatusBadgeProps) {
         letterSpacing: '0.08em',
         padding: '0.35rem 0.65rem',
         borderRadius: radius.badge,
-        border: `2px solid ${colors.border}`,
+        border: `${borders.width}px solid ${colors.border}`,
         background: fill,
         color: colors.secondary,
         textTransform: 'uppercase',
