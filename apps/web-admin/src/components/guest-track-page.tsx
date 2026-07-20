@@ -55,7 +55,6 @@ export function GuestTrackPage() {
     if (ref && ph && !parcel && !loading) {
       void lookup(ref, ph);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot prefetch from URL
   }, []);
 
   async function lookup(refValue = reference, phoneValue = phone) {

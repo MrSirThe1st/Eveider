@@ -1,6 +1,6 @@
 import type { UserRole } from '@eveider/domain';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, StyleSheet, View } from 'react-native';
 import { colors } from '@eveider/config-ui';
 import { apiFetch } from './src/lib/api-fetch';
@@ -13,7 +13,13 @@ import { MobileTabs } from './src/navigation/MobileTabs';
 
 type AppState =
   | { kind: 'loading' }
-  | { kind: 'auth'; inviteToken?: string; invitePreview?: InvitePreview }
+  | {
+      kind: 'auth';
+      inviteToken?: string;
+      invitePreview?: InvitePreview;
+      /** Supabase session exists but Eveider profile row is missing. */
+      needsProfile?: boolean;
+    }
   | { kind: 'home'; role: UserRole; initialParcelId?: string };
 
 const MOBILE_ROLES = ['customer', 'courier'] as const;
@@ -24,19 +30,21 @@ async function fetchMe(accessToken: string) {
   });
 }
 
-function isAuthError(message: string) {
+function isMissingProfile(message: string) {
+  return message.toLowerCase().includes('introuvable');
+}
+
+/** Invalid/expired token — safe to clear session. Do NOT match "profil introuvable". */
+function isInvalidSession(message: string) {
   const lower = message.toLowerCase();
-  return (
-    lower.includes('non authentifié') ||
-    lower.includes('authentifi') ||
-    lower.includes('accès refusé') ||
-    lower.includes('profil')
-  );
+  return lower.includes('non authentifié') || lower.includes('invalid jwt') || lower.includes('jwt expired');
 }
 
 export default function App() {
   const [state, setState] = useState<AppState>({ kind: 'loading' });
   const [pendingInviteToken, setPendingInviteToken] = useState<string | null>(null);
+  /** While AuthScreen is creating the Eveider profile, ignore restoreSession sign-out races. */
+  const authInProgressRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
@@ -52,6 +60,10 @@ export default function App() {
     }
 
     async function restoreSession(accessToken: string, inviteToken?: string | null) {
+      if (authInProgressRef.current) {
+        return;
+      }
+
       if (inviteToken) {
         const accepted = await acceptInvite(inviteToken, accessToken);
         if (!accepted.success && mounted) {
@@ -84,7 +96,22 @@ export default function App() {
         return;
       }
 
-      if (!meResult.success && isAuthError(meResult.error)) {
+      // Profile not created yet — keep Supabase session so AuthScreen can onboard → home.
+      if (!meResult.success && isMissingProfile(meResult.error)) {
+        if (mounted) {
+          const inviteContext = inviteToken ? await loadInviteContext(inviteToken) : null;
+          setState({
+            kind: 'auth',
+            inviteToken: inviteContext?.token,
+            invitePreview: inviteContext?.preview ?? undefined,
+            needsProfile: true,
+          });
+        }
+        return;
+      }
+
+      // Dead token only — never sign out on network / missing-profile errors.
+      if (!meResult.success && isInvalidSession(meResult.error) && !authInProgressRef.current) {
         await supabase.auth.signOut();
         if (mounted) {
           const inviteContext = inviteToken ? await loadInviteContext(inviteToken) : null;
@@ -97,18 +124,17 @@ export default function App() {
         return;
       }
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session && mounted) {
-        const inviteContext = inviteToken ? await loadInviteContext(inviteToken) : null;
-        setState({
-          kind: 'auth',
-          inviteToken: inviteContext?.token,
-          invitePreview: inviteContext?.preview ?? undefined,
-        });
-      }
-    }
+  // Network / transient: stay on auth without destroying the session.
+  if (mounted) {
+    const inviteContext = inviteToken ? await loadInviteContext(inviteToken) : null;
+    setState({
+      kind: 'auth',
+      inviteToken: inviteContext?.token,
+      invitePreview: inviteContext?.preview ?? undefined,
+      needsProfile: true,
+    });
+  }
+}
 
     async function bootstrap() {
       try {
@@ -175,11 +201,14 @@ export default function App() {
       if (!mounted) return;
 
       if (event === 'SIGNED_OUT' || !session) {
+        if (authInProgressRef.current) return;
         setState({ kind: 'auth' });
         return;
       }
 
       if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
+        // AuthScreen owns the signup/login → onboard → home path while in progress.
+        if (authInProgressRef.current) return;
         await restoreSession(session.access_token, pendingInviteToken);
       }
     });
@@ -206,9 +235,14 @@ export default function App() {
         <AuthScreen
           inviteToken={state.inviteToken}
           invitePreview={state.invitePreview}
-          onAuthenticated={(role, parcelId) =>
-            setState({ kind: 'home', role, initialParcelId: parcelId })
-          }
+          initialMode={state.needsProfile ? 'complete' : undefined}
+          onAuthBusyChange={(busy) => {
+            authInProgressRef.current = busy;
+          }}
+          onAuthenticated={(role, parcelId) => {
+            authInProgressRef.current = false;
+            setState({ kind: 'home', role, initialParcelId: parcelId });
+          }}
         />
         <StatusBar style="dark" />
       </>

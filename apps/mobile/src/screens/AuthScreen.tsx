@@ -1,11 +1,11 @@
 import { colors, radius, spacing, borders } from '@eveider/config-ui';
 import type { UserRole } from '@eveider/domain';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { PasswordInput } from '../components/PasswordInput';
 import { acceptInvite } from '../lib/invite';
 import { apiFetch } from '../lib/api-fetch';
-import { supabase } from '../lib/supabase';
+import { authApiUrl, supabase } from '../lib/supabase';
 
 type AuthMode = 'login' | 'register' | 'complete';
 
@@ -17,11 +17,23 @@ type AuthScreenProps = {
     recipientName: string | null;
     parcel: { id: string; reference: string; locker: string | null };
   };
+  /** Open directly on profile completion (session exists, profile missing). */
+  initialMode?: AuthMode;
+  /** Prevents App.tsx from signing the user out mid-signup. */
+  onAuthBusyChange?: (busy: boolean) => void;
   onAuthenticated: (role: UserRole, parcelId?: string) => void;
 };
 
-export function AuthScreen({ inviteToken, invitePreview, onAuthenticated }: AuthScreenProps) {
-  const [mode, setMode] = useState<AuthMode>(inviteToken ? 'register' : 'login');
+export function AuthScreen({
+  inviteToken,
+  invitePreview,
+  initialMode,
+  onAuthBusyChange,
+  onAuthenticated,
+}: AuthScreenProps) {
+  const [mode, setMode] = useState<AuthMode>(
+    initialMode ?? (inviteToken ? 'register' : 'login'),
+  );
   const [role, setRole] = useState<UserRole>(inviteToken ? 'customer' : 'customer');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,11 +41,23 @@ export function AuthScreen({ inviteToken, invitePreview, onAuthenticated }: Auth
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function getAccessToken() {
+  useEffect(() => {
+    if (initialMode) setMode(initialMode);
+  }, [initialMode]);
+
+  function setBusy(busy: boolean) {
+    onAuthBusyChange?.(busy);
+    setLoading(busy);
+  }
+
+  async function resolveToken(preferred?: string | null) {
+    if (preferred) return preferred;
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    return session?.access_token ?? '';
+    if (session?.access_token) return session.access_token;
+    const { data } = await supabase.auth.refreshSession();
+    return data.session?.access_token ?? '';
   }
 
   async function callOnboard(token: string, onboardRole: UserRole) {
@@ -45,159 +69,171 @@ export function AuthScreen({ inviteToken, invitePreview, onAuthenticated }: Auth
       },
       body: JSON.stringify({
         role: onboardRole,
-        email,
+        email: email.trim() || undefined,
         phone: phone.trim() || undefined,
         inviteToken,
       }),
     });
   }
 
-  async function finishAuth(accessToken: string, userRole: UserRole) {
+  /** Normal path: session + Eveider profile → home. */
+  async function enterApp(token: string, userRole: UserRole) {
     if (inviteToken) {
-      await acceptInvite(inviteToken, accessToken);
+      await acceptInvite(inviteToken, token);
     }
+    setBusy(false);
     onAuthenticated(userRole, invitePreview?.parcel.id);
   }
 
-  async function handleLogin() {
-    setLoading(true);
-    setError(null);
-
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (signInError) {
-      setLoading(false);
-      setError(signInError.message);
-      return;
-    }
-
-    const token = await getAccessToken();
+  /**
+   * Ensure Eveider profile exists then go home.
+   * This is signup/login as the user expects: create/login → home.
+   */
+  async function ensureProfileAndEnter(token: string, onboardRole: UserRole) {
     const meResult = await apiFetch<{ profile: { role: UserRole } }>('/api/auth/me', {
       headers: { Authorization: `Bearer ${token}` },
     });
 
     if (meResult.success) {
-      setLoading(false);
-      await finishAuth(token, meResult.data.profile.role);
+      await enterApp(token, meResult.data.profile.role);
       return;
     }
 
-    if (meResult.error.includes('introuvable')) {
-      setLoading(false);
-      setMode('complete');
+    if (!meResult.error.toLowerCase().includes('introuvable')) {
+      setBusy(false);
       setError(
-        'Compte Supabase trouvé mais profil Eveider manquant. Complétez l’inscription ci-dessous.',
+        `${meResult.error}\n\nImpossible de joindre l’API (${authApiUrl}). ` +
+          'Lancez web-admin et vérifiez EXPO_PUBLIC_AUTH_API_URL, puis réessayez.',
       );
       return;
     }
 
-    setLoading(false);
-    setError(meResult.error);
-    await supabase.auth.signOut();
+    if (onboardRole === 'customer' && !phone.trim()) {
+      setBusy(false);
+      setMode('complete');
+      setError('Indiquez le téléphone destinataire, puis validez.');
+      return;
+    }
+
+    const onboardResult = await callOnboard(token, onboardRole);
+    if (!onboardResult.success) {
+      setBusy(false);
+      setMode('complete');
+      setError(onboardResult.error);
+      return;
+    }
+
+    await enterApp(token, onboardResult.data.role);
+  }
+
+  async function handleLogin() {
+    setError(null);
+    setBusy(true);
+
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+
+    if (signInError) {
+      setBusy(false);
+      setError(signInError.message);
+      return;
+    }
+
+    const token = await resolveToken(data.session?.access_token);
+    if (!token) {
+      setBusy(false);
+      setError('Session vide après connexion. Réessayez.');
+      return;
+    }
+
+    await ensureProfileAndEnter(token, role);
   }
 
   async function handleRegister() {
     if (role === 'customer' && !phone.trim()) {
-      setError('Téléphone requis pour retrouver vos colis');
+      setError('Téléphone requis pour les comptes client');
       return;
     }
 
-    setLoading(true);
     setError(null);
+    setBusy(true);
 
-    const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+    });
+
+    let token = data.session?.access_token ?? '';
 
     if (signUpError) {
-      const alreadyExists =
-        /already|registered|exists|déjà/i.test(signUpError.message) ||
-        signUpError.message.toLowerCase().includes('user already');
+      const alreadyExists = /already|registered|exists|déjà/i.test(signUpError.message);
 
-      // Supabase user may already exist from a previous attempt where onboard failed.
-      if (alreadyExists) {
-        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-        if (signInError) {
-          setLoading(false);
-          setError(
-            'Ce compte existe déjà. Connectez-vous avec le même email/mot de passe, ou finalisez le profil.',
-          );
-          setMode('login');
-          return;
-        }
-
-        const token = await getAccessToken();
-        const meResult = await apiFetch<{ profile: { role: UserRole } }>('/api/auth/me', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (meResult.success) {
-          setLoading(false);
-          await finishAuth(token, meResult.data.profile.role);
-          return;
-        }
-
-        setLoading(false);
-        setMode('complete');
-        setError(
-          'Compte trouvé mais profil Eveider incomplet. Appuyez sur FINALISER (vérifiez aussi EXPO_PUBLIC_AUTH_API_URL).',
-        );
+      if (!alreadyExists) {
+        setBusy(false);
+        setError(signUpError.message);
         return;
       }
 
-      setLoading(false);
-      setError(signUpError.message);
-      return;
+      // Account already in Supabase → just sign in and finish profile if needed.
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (signInError) {
+        setBusy(false);
+        setError('Ce compte existe déjà. Utilisez CONNEXION avec le même mot de passe.');
+        setMode('login');
+        return;
+      }
+      token = signInData.session?.access_token ?? '';
     }
 
-    if (!data.session) {
-      setLoading(false);
+    token = await resolveToken(token);
+    if (!token) {
+      setBusy(false);
       setError(
-        'Compte créé mais connexion impossible. Désactivez la confirmation email dans Supabase (Auth → Providers → Email).',
+        'Compte Auth créé mais session absente. Désactivez « Confirm email » dans Supabase Auth, puis connectez-vous.',
       );
       return;
     }
 
-    const token = await getAccessToken();
-    const onboardResult = await callOnboard(token, role);
-
-    setLoading(false);
-    if (!onboardResult.success) {
-      // Keep Supabase session so the user can retry FINALISER without "already exists".
-      setMode('complete');
-      setError(
-        `${onboardResult.error}\n\nLe compte Auth a été créé. Corrigez l’URL API si besoin, puis appuyez sur FINALISER.`,
-      );
-      return;
-    }
-
-    await finishAuth(token, onboardResult.data.role);
+    await ensureProfileAndEnter(token, role);
   }
 
   async function handleCompleteProfile() {
     if (role === 'customer' && !phone.trim()) {
-      setError('Téléphone requis pour retrouver vos colis');
+      setError('Téléphone requis pour les comptes client');
       return;
     }
 
-    setLoading(true);
     setError(null);
+    setBusy(true);
 
-    const token = await getAccessToken();
+    let token = await resolveToken();
+    if (!token && email.trim() && password) {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (error) {
+        setBusy(false);
+        setError(error.message);
+        setMode('login');
+        return;
+      }
+      token = data.session?.access_token ?? '';
+    }
+
     if (!token) {
-      setLoading(false);
+      setBusy(false);
       setError('Session expirée — reconnectez-vous.');
       setMode('login');
       return;
     }
 
-    const onboardResult = await callOnboard(token, role);
-
-    setLoading(false);
-    if (!onboardResult.success) {
-      setError(onboardResult.error);
-      return;
-    }
-
-    await finishAuth(token, onboardResult.data.role);
+    await ensureProfileAndEnter(token, role);
   }
 
   function switchToLogin() {
@@ -216,63 +252,44 @@ export function AuthScreen({ inviteToken, invitePreview, onAuthenticated }: Auth
     return (
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.form}>
-          <Text style={styles.eyebrow}>{isComplete ? 'COMPLÉTER LE PROFIL' : 'INSCRIPTION'}</Text>
+          <Text style={styles.eyebrow}>{isComplete ? 'FINALISER LE COMPTE' : 'INSCRIPTION'}</Text>
 
           {invitePreview ? (
             <View style={styles.inviteBanner}>
               <Text style={styles.inviteTitle}>{invitePreview.business}</Text>
               <Text style={styles.inviteText}>
-                vous a envoyé le colis {invitePreview.parcel.reference}. Créez votre compte avec le
-                numéro {invitePreview.recipientPhone}.
+                vous a envoyé le colis {invitePreview.parcel.reference}. Utilisez le numéro{' '}
+                {invitePreview.recipientPhone}.
               </Text>
             </View>
           ) : null}
 
-          {!isComplete && !inviteToken ? (
-            <>
-              <Text style={styles.title}>CHOISIR LE RÔLE</Text>
-              <Pressable
-                style={[styles.roleButton, role === 'customer' && styles.roleButtonActive]}
-                onPress={() => setRole('customer')}
-              >
-                <Text style={styles.roleText}>CLIENT</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.roleButton, role === 'courier' && styles.roleButtonActive]}
-                onPress={() => setRole('courier')}
-              >
-                <Text style={styles.roleText}>COURSIER</Text>
-              </Pressable>
-            </>
-          ) : isComplete ? (
+          {isComplete ? (
             <Text style={styles.hintBlock}>
-              Votre email est déjà enregistré dans Supabase. Choisissez un rôle et un téléphone pour
-              créer le profil Eveider.
+              Choisissez CLIENT ou COURSIER, puis validez pour ouvrir l’app.
             </Text>
           ) : null}
 
-          {!isComplete ? (
-            <>
-              <Text style={styles.label}>EMAIL</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="vous@exemple.cd"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-              <Text style={styles.label}>MOT DE PASSE</Text>
-              <PasswordInput
-                placeholder="8 caractères minimum"
-                value={password}
-                onChangeText={setPassword}
-                autoComplete="new-password"
-              />
-            </>
-          ) : null}
+          <Text style={styles.label}>EMAIL</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="vous@exemple.cd"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+          />
 
-          {!isComplete && !inviteToken ? (
+          <Text style={styles.label}>MOT DE PASSE</Text>
+          <PasswordInput
+            placeholder="8 caractères minimum"
+            value={password}
+            onChangeText={setPassword}
+            autoComplete={isComplete ? 'current-password' : 'new-password'}
+          />
+
+          {!inviteToken ? (
             <>
               <Text style={styles.label}>RÔLE</Text>
               <View style={styles.roleRow}>
@@ -314,16 +331,14 @@ export function AuthScreen({ inviteToken, invitePreview, onAuthenticated }: Auth
             }}
           >
             <Text style={styles.primaryButtonText}>
-              {loading
-                ? 'CHARGEMENT...'
-                : isComplete
-                  ? 'FINALISER LE PROFIL'
-                  : 'CRÉER LE COMPTE'}
+              {loading ? 'CHARGEMENT…' : isComplete ? 'OUVRIR L’APP' : 'CRÉER LE COMPTE'}
             </Text>
           </Pressable>
 
           <Pressable onPress={switchToLogin}>
-            <Text style={styles.link}>{isComplete ? '← Retour connexion' : 'Déjà un compte ? Connexion'}</Text>
+            <Text style={styles.link}>
+              {isComplete ? '← Retour connexion' : 'Déjà un compte ? Connexion'}
+            </Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -354,6 +369,22 @@ export function AuthScreen({ inviteToken, invitePreview, onAuthenticated }: Auth
           autoComplete="current-password"
         />
 
+        <Text style={styles.label}>RÔLE (si profil à créer)</Text>
+        <View style={styles.roleRow}>
+          <Pressable
+            style={[styles.roleChip, role === 'customer' && styles.roleChipActive]}
+            onPress={() => setRole('customer')}
+          >
+            <Text style={styles.roleText}>CLIENT</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.roleChip, role === 'courier' && styles.roleChipActive]}
+            onPress={() => setRole('courier')}
+          >
+            <Text style={styles.roleText}>COURSIER</Text>
+          </Pressable>
+        </View>
+
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <Pressable
@@ -362,7 +393,7 @@ export function AuthScreen({ inviteToken, invitePreview, onAuthenticated }: Auth
           onPress={() => void handleLogin()}
         >
           <Text style={styles.primaryButtonText}>
-            {loading ? 'CHARGEMENT...' : 'SE CONNECTER'}
+            {loading ? 'CHARGEMENT…' : 'SE CONNECTER'}
           </Text>
         </Pressable>
 
@@ -372,7 +403,7 @@ export function AuthScreen({ inviteToken, invitePreview, onAuthenticated }: Auth
 
         <Pressable
           onPress={() => {
-            const base = process.env.EXPO_PUBLIC_AUTH_API_URL?.replace(/\/$/, '') || 'http://localhost:3000';
+            const base = authApiUrl.replace(/\/$/, '');
             void Linking.openURL(`${base}/suivi`);
           }}
         >
@@ -399,14 +430,8 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 1,
-    marginBottom: 16,
-    color: colors.secondary,
-  },
-  title: {
-    fontSize: 18,
     fontWeight: '700',
+    letterSpacing: 1,
     marginBottom: 16,
     color: colors.secondary,
   },
@@ -415,97 +440,96 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     color: colors.secondary,
+    lineHeight: 20,
   },
   inviteBanner: {
     marginBottom: 16,
     padding: 14,
     borderRadius: radius.card,
     borderWidth: borders.width,
-    borderColor: colors.primary,
+    borderColor: colors.border,
     backgroundColor: colors.background,
   },
   inviteTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: colors.secondary,
-    marginBottom: 6,
   },
   inviteText: {
+    marginTop: 6,
     fontSize: 13,
     fontWeight: '500',
     color: colors.secondary,
     lineHeight: 18,
   },
   label: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-    marginBottom: 6,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    marginBottom: 8,
     marginTop: 12,
     color: colors.secondary,
   },
   input: {
-    height: 48,
+    height: spacing.buttonHeight,
     borderWidth: borders.width,
     borderColor: colors.border,
     borderRadius: radius.button,
-    paddingHorizontal: 12,
-    backgroundColor: colors.background,
+    paddingHorizontal: 14,
     fontWeight: '500',
-  },
-  roleButton: {
-    padding: 16,
-    borderWidth: borders.width,
-    borderColor: colors.border,
-    borderRadius: radius.card,
-    marginBottom: 12,
+    color: colors.secondary,
     backgroundColor: colors.surface,
-  },
-  roleButtonActive: {
-    borderColor: colors.primary,
   },
   roleRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
   },
   roleChip: {
     flex: 1,
-    padding: 12,
+    height: 44,
     borderWidth: borders.width,
     borderColor: colors.border,
-    borderRadius: radius.card,
-  },
-  roleChipActive: {
-    borderColor: colors.primary,
-  },
-  roleText: {
-    fontWeight: '600',
-    textAlign: 'center',
-    color: colors.secondary,
-  },
-  primaryButton: {
-    height: spacing.buttonHeight,
-    backgroundColor: colors.primary,
     borderRadius: radius.button,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.surface,
+  },
+  roleChipActive: {
+    backgroundColor: colors.primary,
+  },
+  roleText: {
+    fontWeight: '700',
+    fontSize: 12,
+    letterSpacing: 0.6,
+    color: colors.secondary,
+  },
+  primaryButton: {
     marginTop: 20,
+    height: spacing.buttonHeight,
+    backgroundColor: colors.primary,
+    borderWidth: borders.width,
+    borderColor: colors.border,
+    borderRadius: radius.button,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   primaryButtonText: {
-    fontWeight: '600',
+    fontWeight: '700',
+    letterSpacing: 0.6,
     color: colors.secondary,
-    letterSpacing: 0.5,
-  },
-  error: {
-    color: colors.danger,
-    marginTop: 12,
-    fontWeight: '500',
-    fontSize: 13,
   },
   link: {
     marginTop: 16,
     textAlign: 'center',
     fontWeight: '600',
+    fontSize: 13,
     color: colors.secondary,
+  },
+  error: {
+    marginTop: 12,
+    color: colors.danger,
+    fontWeight: '600',
+    fontSize: 13,
+    lineHeight: 18,
   },
 });
