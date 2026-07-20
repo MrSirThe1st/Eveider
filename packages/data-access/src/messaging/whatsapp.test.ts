@@ -156,7 +156,8 @@ describe('sendParcelStatusWhatsApp', () => {
     );
   });
 
-  it('sends arrived template including PIN', async () => {
+  it('sends arrived template with app pickup link', async () => {
+    process.env.INVITE_WEB_BASE_URL = 'https://www.eveider.com';
     parcelFindUnique.mockResolvedValue({
       id: 'parcel-1',
       reference: 'PK-001',
@@ -165,7 +166,7 @@ describe('sendParcelStatusWhatsApp', () => {
       customerId: null,
       business: { name: 'Boutique Kin' },
       locker: { name: 'GOMBE', address: 'Ave 1' },
-      pickupPin: { code: '482913' },
+      invite: { token: 'abc-123' },
     });
     notificationFindFirst.mockResolvedValue(null);
     fetchMock.mockResolvedValue({
@@ -183,7 +184,7 @@ describe('sendParcelStatusWhatsApp', () => {
       'Marc',
       'PK-001',
       'GOMBE',
-      '482913',
+      'https://www.eveider.com/invite/abc-123',
     ]);
   });
 });

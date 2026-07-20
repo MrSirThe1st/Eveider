@@ -1,5 +1,6 @@
 import type { ParcelStatus } from '@eveider/domain';
 import type { PrismaClient } from '@prisma/client';
+import { buildParcelPickupLink } from '../invitations/invite-links.js';
 import { getWhatsAppConfig } from './whatsapp-config.js';
 import { sendWhatsAppTemplate } from './whatsapp-client.js';
 
@@ -27,7 +28,7 @@ export async function sendParcelStatusWhatsApp(
     include: {
       business: { select: { name: true } },
       locker: { select: { name: true, address: true } },
-      pickupPin: { select: { code: true } },
+      invite: { select: { token: true } },
     },
   });
   if (!parcel?.recipientPhone) return;
@@ -58,7 +59,7 @@ export async function sendParcelStatusWhatsApp(
           customerName,
           parcel.reference,
           lockerLabel,
-          parcel.pickupPin?.code ?? '------',
+          buildParcelPickupLink(parcel.invite?.token),
         ];
 
   const result = await sendWhatsAppTemplate({

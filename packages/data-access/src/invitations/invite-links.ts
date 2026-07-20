@@ -22,3 +22,12 @@ export function buildInviteLinks(token: string): InviteLinks {
     webLink: `${webBaseUrl}/invite/${token}`,
   };
 }
+
+/** Web link for parcel pickup flow (invite if available, otherwise login). */
+export function buildParcelPickupLink(inviteToken?: string | null): string {
+  const { webBaseUrl } = getInviteConfig();
+  if (inviteToken) {
+    return `${webBaseUrl}/invite/${inviteToken}`;
+  }
+  return `${webBaseUrl}/connexion`;
+}
