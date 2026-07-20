@@ -307,9 +307,9 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
                 style={{
                   height: spacing.buttonHeight,
                   padding: '0 1.25rem',
-                  background: colors.primary,
+                  background: 'transparent',
                   color: colors.secondary,
-                  border: 'none',
+                  border: `2px solid ${colors.border}`,
                   borderRadius: radius.button,
                   fontWeight: 600,
                   fontSize: '0.75rem',
@@ -342,9 +342,9 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
                   style={{
                     height: spacing.buttonHeight,
                     padding: '0 1.25rem',
-                    background: colors.primary,
+                    background: 'transparent',
                     color: colors.secondary,
-                    border: 'none',
+                    border: `2px solid ${colors.border}`,
                     borderRadius: radius.button,
                     fontWeight: 600,
                     fontSize: '0.75rem',

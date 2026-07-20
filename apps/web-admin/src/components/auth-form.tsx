@@ -198,10 +198,18 @@ export function AuthForm({ mode, businessName, redirectParam, onAuthenticated }:
       <button
         type="submit"
         disabled={loading}
-        className="nb-btn nb-btn-primary"
         style={{
           marginTop: '1.5rem',
           width: '100%',
+          height: spacing.buttonHeight,
+          background: 'transparent',
+          color: colors.secondary,
+          border: `${borders.width}px solid ${colors.border}`,
+          borderRadius: radius.button,
+          boxShadow: 'none',
+          fontWeight: 700,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
           cursor: loading ? 'wait' : 'pointer',
           opacity: loading ? 0.7 : 1,
         }}

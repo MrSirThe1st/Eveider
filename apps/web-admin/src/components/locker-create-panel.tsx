@@ -405,9 +405,9 @@ export function LockerCreatePanel({
         style={{
           width: '100%',
           height: spacing.buttonHeight,
-          background: colors.primary,
+          background: 'transparent',
           color: colors.secondary,
-          border: 'none',
+          border: `2px solid ${colors.border}`,
           borderRadius: radius.button,
           fontWeight: 700,
           cursor: saving ? 'wait' : 'pointer',

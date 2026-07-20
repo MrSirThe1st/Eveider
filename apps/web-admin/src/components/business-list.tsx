@@ -112,9 +112,9 @@ export function BusinessList() {
             style={{
               height: spacing.buttonHeight,
               padding: '0 1.5rem',
-              background: colors.primary,
+              background: 'transparent',
               color: colors.secondary,
-              border: 'none',
+              border: `2px solid ${colors.border}`,
               borderRadius: radius.button,
               fontWeight: 600,
               letterSpacing: '0.04em',
@@ -209,9 +209,9 @@ export function BusinessList() {
                           onClick={() => void updateStatus(business.id, status)}
                           style={{
                             padding: '0.45rem 0.75rem',
-                            background: colors.primary,
+                            background: 'transparent',
                             color: colors.secondary,
-                            border: 'none',
+                            border: `2px solid ${colors.border}`,
                             borderRadius: radius.button,
                             fontWeight: 600,
                             fontSize: '0.6875rem',

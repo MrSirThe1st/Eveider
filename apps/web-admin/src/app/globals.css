@@ -91,6 +91,19 @@ body {
   background: var(--color-background);
 }
 
+/* Admin / business portals only — outline buttons (landing keeps filled .nb-btn) */
+.portal-shell .nb-btn-primary,
+.portal-shell .nb-btn-secondary {
+  background: transparent;
+  color: var(--color-secondary);
+  box-shadow: none;
+}
+
+.portal-shell .nb-btn-primary:hover,
+.portal-shell .nb-btn-secondary:hover {
+  background: var(--color-background);
+}
+
 .cabinet-cell {
   transition: transform 0.1s ease;
 }

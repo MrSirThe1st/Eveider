@@ -65,9 +65,9 @@ export function LockerList() {
             style={{
               height: spacing.buttonHeight,
               padding: '0 1.5rem',
-              background: colors.primary,
+              background: 'transparent',
               color: colors.secondary,
-              border: 'none',
+              border: `2px solid ${colors.border}`,
               borderRadius: radius.button,
               fontWeight: 600,
               letterSpacing: '0.04em',

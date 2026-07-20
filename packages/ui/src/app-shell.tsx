@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius, shadows, borders, spacing, webCardStyle } from '@eveider/config-ui';
+import { colors, radius, borders } from '@eveider/config-ui';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -67,6 +67,7 @@ export function AppShell({
 
   return (
     <div
+      className="portal-shell"
       style={{
         minHeight: '100vh',
         background: colors.background,
@@ -165,8 +166,10 @@ export function AppShell({
                   borderRadius: radius.button,
                   textDecoration: 'none',
                   color: colors.secondary,
-                  background: active ? colors.primary : 'transparent',
-                  border: active ? `${borders.width}px solid ${colors.border}` : `${borders.width}px solid transparent`,
+                  background: 'transparent',
+                  border: active
+                    ? `${borders.width}px solid ${colors.border}`
+                    : `${borders.width}px solid transparent`,
                   fontWeight: 700,
                   fontSize: '0.6875rem',
                   letterSpacing: '0.06em',
@@ -212,10 +215,10 @@ export function AppShell({
               height: 36,
               border: `${borders.width}px solid ${colors.border}`,
               borderRadius: radius.button,
-              background: colors.background,
+              background: 'transparent',
               color: colors.secondary,
               cursor: 'pointer',
-              boxShadow: shadows.hard,
+              boxShadow: 'none',
             }}
           >
             {collapsed ? <IconChevronRight /> : <IconChevronLeft />}

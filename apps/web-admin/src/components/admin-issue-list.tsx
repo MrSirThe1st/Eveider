@@ -129,8 +129,8 @@ export function AdminIssueList() {
             style={{
               marginTop: '0.75rem',
               padding: '0.625rem 1rem',
-              background: colors.primary,
-              border: 'none',
+              background: 'transparent',
+              border: `2px solid ${colors.border}`,
               borderRadius: radius.button,
               fontWeight: 600,
               cursor: 'pointer',
@@ -209,8 +209,8 @@ export function AdminIssueList() {
                     style={{
                       marginTop: '0.75rem',
                       padding: '0.5rem 0.875rem',
-                      background: colors.primary,
-                      border: 'none',
+                      background: 'transparent',
+                      border: `2px solid ${colors.border}`,
                       borderRadius: radius.button,
                       fontWeight: 600,
                       fontSize: '0.6875rem',

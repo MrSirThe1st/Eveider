@@ -79,3 +79,20 @@ export const webCardStyle = {
   borderRadius: radius.card,
   boxShadow: shadows.hard,
 } as const;
+
+/**
+ * Portal (admin / business) button — outline only.
+ * No fill, no hard shadow; keep 2px high-contrast border.
+ * Landing / marketing CTAs should keep filled green + hard shadow.
+ */
+export const webPortalButtonStyle = {
+  background: 'transparent',
+  color: colors.secondary,
+  border: `${borders.width}px ${borders.style} ${borders.color}`,
+  borderRadius: radius.button,
+  boxShadow: 'none',
+  fontWeight: 700,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase' as const,
+  cursor: 'pointer',
+} as const;

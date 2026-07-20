@@ -40,7 +40,7 @@ export function FilterChipGroup<T extends string>({
               padding: '0.5rem 0.875rem',
               borderRadius: radius.button,
               border: `${borders.width}px solid ${colors.border}`,
-              background: active ? colors.primary : colors.surface,
+              background: 'transparent',
               color: colors.secondary,
               fontWeight: 700,
               fontSize: '0.6875rem',
@@ -48,7 +48,8 @@ export function FilterChipGroup<T extends string>({
               textTransform: 'uppercase',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
-              boxShadow: active ? 'none' : shadows.hard,
+              boxShadow: 'none',
+              opacity: active ? 1 : 0.72,
             }}
           >
             {item.label}

@@ -401,9 +401,9 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
                         style={{
                           height: spacing.buttonHeight,
                           padding: '0 1.25rem',
-                          background: colors.primary,
+                          background: 'transparent',
                           color: colors.secondary,
-                          border: 'none',
+                          border: `2px solid ${colors.border}`,
                           borderRadius: radius.button,
                           fontWeight: 700,
                           fontSize: '0.8125rem',
