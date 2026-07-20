@@ -1,7 +1,7 @@
 import { colors, radius, spacing, borders } from '@eveider/config-ui';
 import type { UserRole } from '@eveider/domain';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { PasswordInput } from '../components/PasswordInput';
 import { acceptInvite } from '../lib/invite';
 import { apiFetch } from '../lib/api-fetch';
@@ -108,6 +108,41 @@ export function AuthScreen({ inviteToken, invitePreview, onAuthenticated }: Auth
     const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
 
     if (signUpError) {
+      const alreadyExists =
+        /already|registered|exists|déjà/i.test(signUpError.message) ||
+        signUpError.message.toLowerCase().includes('user already');
+
+      // Supabase user may already exist from a previous attempt where onboard failed.
+      if (alreadyExists) {
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) {
+          setLoading(false);
+          setError(
+            'Ce compte existe déjà. Connectez-vous avec le même email/mot de passe, ou finalisez le profil.',
+          );
+          setMode('login');
+          return;
+        }
+
+        const token = await getAccessToken();
+        const meResult = await apiFetch<{ profile: { role: UserRole } }>('/api/auth/me', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (meResult.success) {
+          setLoading(false);
+          await finishAuth(token, meResult.data.profile.role);
+          return;
+        }
+
+        setLoading(false);
+        setMode('complete');
+        setError(
+          'Compte trouvé mais profil Eveider incomplet. Appuyez sur FINALISER (vérifiez aussi EXPO_PUBLIC_AUTH_API_URL).',
+        );
+        return;
+      }
+
       setLoading(false);
       setError(signUpError.message);
       return;
@@ -126,8 +161,11 @@ export function AuthScreen({ inviteToken, invitePreview, onAuthenticated }: Auth
 
     setLoading(false);
     if (!onboardResult.success) {
-      setError(onboardResult.error);
-      await supabase.auth.signOut();
+      // Keep Supabase session so the user can retry FINALISER without "already exists".
+      setMode('complete');
+      setError(
+        `${onboardResult.error}\n\nLe compte Auth a été créé. Corrigez l’URL API si besoin, puis appuyez sur FINALISER.`,
+      );
       return;
     }
 
@@ -276,7 +314,11 @@ export function AuthScreen({ inviteToken, invitePreview, onAuthenticated }: Auth
             }}
           >
             <Text style={styles.primaryButtonText}>
-              {loading ? 'CHARGEMENT...' : isComplete ? 'FINALISER' : 'CRÉER LE COMPTE'}
+              {loading
+                ? 'CHARGEMENT...'
+                : isComplete
+                  ? 'FINALISER LE PROFIL'
+                  : 'CRÉER LE COMPTE'}
             </Text>
           </Pressable>
 
@@ -326,6 +368,15 @@ export function AuthScreen({ inviteToken, invitePreview, onAuthenticated }: Auth
 
         <Pressable onPress={switchToRegister}>
           <Text style={styles.link}>Créer un compte</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => {
+            const base = process.env.EXPO_PUBLIC_AUTH_API_URL?.replace(/\/$/, '') || 'http://localhost:3000';
+            void Linking.openURL(`${base}/suivi`);
+          }}
+        >
+          <Text style={styles.link}>Suivre un colis sans compte →</Text>
         </Pressable>
       </View>
     </ScrollView>

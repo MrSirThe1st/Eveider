@@ -8,7 +8,7 @@ const REFRESH_INTERVAL_MS = 4 * 60 * 1000;
 const EXPIRY_BUFFER_MS = 5 * 60 * 1000;
 const LOGOUT_AFTER_FAILURES = 2;
 
-const PUBLIC_PATHS = ['/', '/connexion', '/inscription'];
+const PUBLIC_PATHS = ['/', '/connexion', '/inscription', '/suivi', '/invite'];
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));

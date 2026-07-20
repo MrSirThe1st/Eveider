@@ -1,6 +1,7 @@
 'use client';
 
 import { colors, radius, shadows, spacing, borders, webCardStyle } from '@eveider/config-ui';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 type InvitePreview = {
@@ -37,13 +38,11 @@ export function InviteLanding({ token }: InviteLandingProps) {
       .finally(() => setLoading(false));
   }, [token]);
 
-  const deepLink = `eveider://invite/${token}`;
-
   if (loading) {
     return (
       <main style={pageStyle}>
         <p style={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-          Chargement de votre invitation…
+          Chargement de votre colis…
         </p>
       </main>
     );
@@ -53,12 +52,19 @@ export function InviteLanding({ token }: InviteLandingProps) {
     return (
       <main style={pageStyle}>
         <section style={cardStyle}>
-          <h1 style={titleStyle}>INVITATION INVALIDE</h1>
-          <p style={{ margin: 0, fontWeight: 500, color: colors.textMuted }}>{error ?? 'Lien expiré ou déjà utilisé.'}</p>
+          <h1 style={titleStyle}>LIEN INVALIDE</h1>
+          <p style={{ margin: '0 0 1.25rem', fontWeight: 500, color: colors.textMuted }}>
+            {error ?? 'Lien expiré ou déjà utilisé.'}
+          </p>
+          <Link href="/suivi" style={primaryButtonStyle}>
+            SUIVRE UN COLIS
+          </Link>
         </section>
       </main>
     );
   }
+
+  const trackHref = `/suivi?ref=${encodeURIComponent(invite.parcel.reference)}&phone=${encodeURIComponent(invite.recipientPhone)}`;
 
   return (
     <main style={pageStyle}>
@@ -75,23 +81,25 @@ export function InviteLanding({ token }: InviteLandingProps) {
         >
           COLIS EVEIDER
         </p>
-        <h1 style={titleStyle}>{invite.business.toUpperCase()} VOUS A ENVOYÉ UN COLIS</h1>
+        <h1 style={titleStyle}>
+          {invite.business.toUpperCase()} VOUS A ENVOYÉ UN COLIS
+        </h1>
         <p style={{ margin: '0 0 1.5rem', fontWeight: 500, color: colors.textMuted }}>
           Référence {invite.parcel.reference}
           {invite.parcel.locker ? ` · Casier ${invite.parcel.locker}` : ''}
         </p>
 
-        <p style={{ margin: '0 0 1rem', fontSize: '0.9375rem', fontWeight: 500, lineHeight: 1.5 }}>
-          Téléchargez l&apos;application Eveider et créez votre compte avec le numéro{' '}
-          <strong>{invite.recipientPhone}</strong>.
+        <p style={{ margin: '0 0 1.5rem', fontSize: '0.9375rem', fontWeight: 500, lineHeight: 1.5 }}>
+          Suivez votre colis, payez le retrait et révélez votre code PIN — <strong>sans créer de compte</strong>.
+          Utilisez le numéro <strong>{invite.recipientPhone}</strong>.
         </p>
 
-        <a href={deepLink} style={primaryButtonStyle}>
-          OUVRIR DANS L&apos;APP
+        <a href={trackHref} style={primaryButtonStyle}>
+          SUIVRE MON COLIS SUR LE WEB
         </a>
 
-        <p style={{ margin: '1rem 0 0', fontSize: '0.75rem', color: colors.textMuted, wordBreak: 'break-all' }}>
-          {deepLink}
+        <p style={{ margin: '1.25rem 0 0', fontSize: '0.75rem', color: colors.textMuted, textAlign: 'center' }}>
+          Compte app optionnel pour l&apos;historique et les notifications.
         </p>
       </section>
     </main>

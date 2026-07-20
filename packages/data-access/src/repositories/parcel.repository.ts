@@ -11,6 +11,7 @@ import { BusinessRepository } from './business.repository.js';
 import { NotificationRepository } from './notification.repository.js';
 import { ParcelInviteRepository } from './parcel-invite.repository.js';
 import { UserRepository } from './user.repository.js';
+import { phonesMatch } from '../tracking/guest-track.js';
 
 export type ParcelWithLocker = Parcel & { locker: Locker | null; business: Business };
 
@@ -229,6 +230,30 @@ export class ParcelRepository {
     });
     if (!parcel) return null;
     this.assertReadAccess(ctx, parcel);
+    return parcel;
+  }
+
+  /**
+   * Public guest lookup — reference + recipient phone (no account).
+   * Reference is unique per business, so we match phone among candidates.
+   */
+  async findForGuestTracking(reference: string, phone: string): Promise<CustomerParcel | null> {
+    const ref = reference.trim();
+    const candidates = await this.db.parcel.findMany({
+      where: { reference: { equals: ref, mode: 'insensitive' } },
+      include: customerParcelInclude,
+      orderBy: { updatedAt: 'desc' },
+      take: 25,
+    });
+    return candidates.find((parcel) => phonesMatch(parcel.recipientPhone, phone)) ?? null;
+  }
+
+  async findByIdForGuestTracking(parcelId: string, phone: string): Promise<CustomerParcel | null> {
+    const parcel = await this.db.parcel.findUnique({
+      where: { id: parcelId },
+      include: customerParcelInclude,
+    });
+    if (!parcel || !phonesMatch(parcel.recipientPhone, phone)) return null;
     return parcel;
   }
 

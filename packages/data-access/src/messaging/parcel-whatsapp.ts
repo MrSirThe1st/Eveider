@@ -59,7 +59,10 @@ export async function sendParcelStatusWhatsApp(
           customerName,
           parcel.reference,
           lockerLabel,
-          buildParcelPickupLink(parcel.invite?.token),
+          buildParcelPickupLink(parcel.invite?.token, {
+            reference: parcel.reference,
+            phone: parcel.recipientPhone,
+          }),
         ];
 
   const result = await sendWhatsAppTemplate({

@@ -117,10 +117,10 @@ export function LandingPage() {
     event.preventDefault();
     const ref = trackingRef.trim();
     if (ref) {
-      window.location.href = `/connexion?ref=${encodeURIComponent(ref)}`;
+      window.location.href = `/suivi?ref=${encodeURIComponent(ref)}`;
       return;
     }
-    window.location.href = '/connexion';
+    window.location.href = '/suivi';
   }
 
   function closeMenus() {

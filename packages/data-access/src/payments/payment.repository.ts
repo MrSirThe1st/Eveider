@@ -12,6 +12,7 @@ import {
   mapPawaPayDepositStatus,
   type PawaPayDepositCallback,
 } from './pawapay-client.js';
+import { phonesMatch } from '../tracking/guest-track.js';
 
 export type PickupPaymentSummary = {
   required: boolean;
@@ -197,6 +198,141 @@ export class PaymentRepository {
     }
     this.assertCustomerParcelAccess(ctx, parcel.customerId, parcel.recipientPhone);
 
+    return this.refreshPickupPaymentForParcel(parcelId);
+  }
+
+  /** Guest track — verify phone matches parcel, no customer session. */
+  async initiateGuestPickupPayment(
+    parcelId: string,
+    recipientPhone: string,
+    input: InitiatePickupPaymentInput,
+  ): Promise<InitiatePickupPaymentResult> {
+    const config = getPawaPayConfig();
+    if (!config) {
+      throw new Error('Paiement mobile indisponible pour le moment');
+    }
+    if (!isDrcDepositProvider(input.provider)) {
+      throw new Error('Opérateur mobile invalide');
+    }
+
+    const parcel = await this.db.parcel.findUnique({
+      where: { id: parcelId },
+      select: {
+        id: true,
+        status: true,
+        recipientPhone: true,
+      },
+    });
+    if (!parcel || !phonesMatch(parcel.recipientPhone, recipientPhone)) {
+      throw new Error('Colis introuvable');
+    }
+
+    if (parcel.status !== 'ready_for_pickup') {
+      throw new Error('Le paiement n’est disponible que pour un colis prêt au retrait');
+    }
+
+    const existingCompleted = await this.db.parcelPayment.findFirst({
+      where: { parcelId, status: 'completed' },
+    });
+    if (existingCompleted) {
+      throw new Error('Ce colis a déjà été payé');
+    }
+
+    const inFlight = await this.db.parcelPayment.findFirst({
+      where: { parcelId, status: { in: ['pending', 'processing'] } },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (inFlight) {
+      const synced = await this.syncPaymentStatus(inFlight);
+      if (synced.status === 'completed') {
+        throw new Error('Ce colis a déjà été payé');
+      }
+      if (synced.status === 'processing' || synced.status === 'pending') {
+        return {
+          payment: synced,
+          pawapayStatus: synced.pawapayStatus ?? 'PROCESSING',
+        };
+      }
+    }
+
+    const phoneNumber = normalizePawaPayPhone(input.phoneNumber ?? parcel.recipientPhone);
+    if (phoneNumber.length < 8) {
+      throw new Error('Numéro mobile money invalide');
+    }
+
+    const depositId = crypto.randomUUID();
+    const payment = await this.db.parcelPayment.create({
+      data: {
+        parcelId,
+        userId: null,
+        depositId,
+        amount: config.pickupFeeAmount,
+        currency: config.pickupFeeCurrency,
+        provider: input.provider,
+        phoneNumber,
+        status: 'pending',
+      },
+    });
+
+    const result = await initiatePawaPayDeposit({
+      depositId,
+      amount: config.pickupFeeAmount,
+      currency: config.pickupFeeCurrency,
+      phoneNumber,
+      provider: input.provider,
+    });
+
+    if (!result.ok) {
+      await this.db.parcelPayment.update({
+        where: { id: payment.id },
+        data: {
+          status: 'failed',
+          pawapayStatus: 'FAILED',
+          failureReason: result.error,
+        },
+      });
+      throw new Error(result.error);
+    }
+
+    const mappedStatus = mapPawaPayDepositStatus(result.status);
+    const updated = await this.db.parcelPayment.update({
+      where: { id: payment.id },
+      data: {
+        status: mappedStatus,
+        pawapayStatus: result.status,
+        completedAt: mappedStatus === 'completed' ? new Date() : null,
+      },
+    });
+
+    if (mappedStatus === 'processing') {
+      const synced = await this.syncPaymentStatus(updated);
+      return {
+        payment: synced,
+        pawapayStatus: synced.pawapayStatus ?? result.status,
+      };
+    }
+
+    return {
+      payment: updated,
+      pawapayStatus: result.status,
+    };
+  }
+
+  async refreshGuestPickupPayment(
+    parcelId: string,
+    recipientPhone: string,
+  ): Promise<PickupPaymentSummary> {
+    const parcel = await this.db.parcel.findUnique({
+      where: { id: parcelId },
+      select: { recipientPhone: true },
+    });
+    if (!parcel || !phonesMatch(parcel.recipientPhone, recipientPhone)) {
+      throw new Error('Colis introuvable');
+    }
+    return this.refreshPickupPaymentForParcel(parcelId);
+  }
+
+  private async refreshPickupPaymentForParcel(parcelId: string): Promise<PickupPaymentSummary> {
     const latest = await this.db.parcelPayment.findFirst({
       where: { parcelId },
       orderBy: { createdAt: 'desc' },

@@ -13,8 +13,14 @@ export { IssueRepository, type IssueWithRelations } from './repositories/issue.r
 export { NotificationRepository, type CustomerNotification } from './repositories/notification.repository.js';
 export { StatsRepository, type DashboardStats, type AnalyticsReport } from './repositories/stats.repository.js';
 export { ParcelInviteRepository } from './repositories/parcel-invite.repository.js';
-export { buildInviteLinks, getInviteConfig, buildParcelPickupLink } from './invitations/invite-links.js';
+export { buildInviteLinks, getInviteConfig, buildParcelPickupLink, buildParcelTrackLink } from './invitations/invite-links.js';
 export { sendInvitation } from './invitations/invitation.service.js';
+export {
+  createGuestTrackToken,
+  verifyGuestTrackToken,
+  normalizeTrackPhone,
+  phonesMatch,
+} from './tracking/guest-track.js';
 export {
   getWhatsAppConfig,
   normalizeWhatsAppPhone,
