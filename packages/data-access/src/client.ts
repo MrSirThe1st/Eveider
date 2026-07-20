@@ -14,7 +14,9 @@ function appendParam(url: string, key: string, value: string): string {
  * - Session pooler (port 5432): preferred for Next.js / Prisma
  * - Transaction pooler (port 6543): only for serverless with PRISMA_USE_TRANSACTION_POOLER=1
  *
- * Override pool size with PRISMA_CONNECTION_LIMIT (default 10 on session pooler).
+ * Supabase free-tier session pool is tiny (~15 clients total across all apps).
+ * Keep Prisma's per-process pool low (default 3) so HMR / multiple processes don't
+ * blow the shared limit. Override with PRISMA_CONNECTION_LIMIT.
  */
 function resolveDatabaseUrl(): string | undefined {
   const url = process.env.DATABASE_URL;
@@ -43,7 +45,7 @@ function resolveDatabaseUrl(): string | undefined {
     resolved = appendParam(resolved, 'pgbouncer', 'true');
     resolved = appendParam(resolved, 'connection_limit', '1');
   } else if (isSupabasePooler) {
-    const limit = process.env.PRISMA_CONNECTION_LIMIT ?? '10';
+    const limit = process.env.PRISMA_CONNECTION_LIMIT ?? '3';
     resolved = appendParam(resolved, 'connection_limit', limit);
   }
 
@@ -62,6 +64,5 @@ export const prisma =
     ...(databaseUrl ? { datasources: { db: { url: databaseUrl } } } : {}),
   });
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
-}
+// Always reuse one client per process (dev HMR + serverless isolates).
+globalForPrisma.prisma = prisma;
