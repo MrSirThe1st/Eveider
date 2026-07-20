@@ -2,7 +2,7 @@ import type { ParcelInvite, PrismaClient } from '@prisma/client';
 import { AccessDeniedError, assertBusinessScope, type DataAccessContext } from '../context.js';
 import {
   getInviteExpiryDate,
-  recordSimulatedDelivery,
+  recordInviteDelivery,
   sendInvitation,
 } from '../invitations/invitation.service.js';
 import { buildInviteLinks } from '../invitations/invite-links.js';
@@ -182,7 +182,7 @@ export class ParcelInviteRepository {
       parcelReference: parcel.reference,
     });
 
-    await recordSimulatedDelivery(this.db, parcelId, delivery.message);
+    await recordInviteDelivery(this.db, parcelId, delivery);
 
     const links = buildInviteLinks(invite.token);
     return {
@@ -211,7 +211,7 @@ export class ParcelInviteRepository {
       parcelReference,
     });
 
-    await recordSimulatedDelivery(this.db, parcelId, delivery.message);
+    await recordInviteDelivery(this.db, parcelId, delivery);
 
     const links = buildInviteLinks(invite.token);
     return {

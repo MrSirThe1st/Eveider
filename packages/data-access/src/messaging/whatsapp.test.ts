@@ -28,11 +28,13 @@ describe('whatsapp-config', () => {
     process.env.WHATSAPP_ACCESS_TOKEN = 'token';
     process.env.WHATSAPP_PHONE_NUMBER_ID = '123';
     process.env.WHATSAPP_PARCEL_IN_TRANSIT_TEMPLATE = 'eveider_parcel_in_transit';
+    process.env.WHATSAPP_PARCEL_INVITE_TEMPLATE = 'eveider_parcel_invite';
 
     expect(getWhatsAppConfig()).toMatchObject({
       accessToken: 'token',
       phoneNumberId: '123',
       inTransitTemplate: 'eveider_parcel_in_transit',
+      inviteTemplate: 'eveider_parcel_invite',
     });
   });
 });

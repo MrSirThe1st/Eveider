@@ -6,6 +6,7 @@ export type WhatsAppConfig = {
   templateLanguage: string;
   inTransitTemplate: string;
   arrivedTemplate: string;
+  inviteTemplate: string;
 };
 
 /** Returns null when WhatsApp is not configured (local/dev without credentials). */
@@ -24,6 +25,8 @@ export function getWhatsAppConfig(): WhatsAppConfig | null {
       process.env.WHATSAPP_PARCEL_IN_TRANSIT_TEMPLATE?.trim() || 'eveider_parcel_in_transit',
     arrivedTemplate:
       process.env.WHATSAPP_PARCEL_ARRIVED_TEMPLATE?.trim() || 'eveider_parcel_arrived',
+    inviteTemplate:
+      process.env.WHATSAPP_PARCEL_INVITE_TEMPLATE?.trim() || 'eveider_parcel_invite',
   };
 }
 
