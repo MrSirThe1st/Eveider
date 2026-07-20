@@ -1,10 +1,11 @@
-import { colors } from '@eveider/config-ui';
+import { colors, borders } from '@eveider/config-ui';
 import { useNavigation } from '@react-navigation/native';
 import { useEffect } from 'react';
 
 export const DEFAULT_TAB_BAR_STYLE = {
-  backgroundColor: colors.background,
-  borderTopWidth: 0,
+  backgroundColor: colors.surface,
+  borderTopWidth: borders.width,
+  borderTopColor: colors.border,
   elevation: 0,
   shadowOpacity: 0,
   height: 64,

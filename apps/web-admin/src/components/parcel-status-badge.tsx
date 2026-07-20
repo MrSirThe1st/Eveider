@@ -1,30 +1,26 @@
-import { colors, radius } from '@eveider/config-ui';
+import { colors, radius, borders, PARCEL_STATUS_FILLS } from '@eveider/config-ui';
 import { PARCEL_STATUS_LABELS, type ParcelStatus } from '@eveider/domain';
-
-const STATUS_COLORS: Record<ParcelStatus, string> = {
-  created: colors.secondary,
-  in_transit: colors.info,
-  delivered_to_locker: colors.info,
-  ready_for_pickup: colors.primary,
-  collected: colors.primary,
-};
 
 type ParcelStatusBadgeProps = {
   status: ParcelStatus;
 };
 
 export function ParcelStatusBadge({ status }: ParcelStatusBadgeProps) {
+  const fill = PARCEL_STATUS_FILLS[status];
+
   return (
     <span
       style={{
         display: 'inline-block',
-        fontSize: '0.6875rem',
-        fontWeight: 600,
-        letterSpacing: '0.06em',
-        padding: '0.35rem 0.6rem',
-        borderRadius: radius.button,
-        border: `1px solid ${colors.border}`,
-        color: STATUS_COLORS[status],
+        fontSize: '0.625rem',
+        fontWeight: 700,
+        letterSpacing: '0.08em',
+        padding: '0.35rem 0.65rem',
+        borderRadius: radius.badge,
+        border: `2px solid ${colors.border}`,
+        background: fill,
+        color: colors.secondary,
+        textTransform: 'uppercase',
       }}
     >
       {PARCEL_STATUS_LABELS[status]}

@@ -1,4 +1,4 @@
-import { colors, radius } from '@eveider/config-ui';
+import { colors, radius, borders } from '@eveider/config-ui';
 import { Feather } from '@expo/vector-icons';
 import { useState } from 'react';
 import {
@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
   },
   input: {
     height: 48,
-    borderWidth: 1,
+    borderWidth: borders.width,
     borderColor: colors.border,
     borderRadius: radius.button,
     paddingLeft: 12,

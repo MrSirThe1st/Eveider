@@ -84,7 +84,7 @@ export function LockerPicker({ lockers, selectedLockerId, onSelectLocker }: Lock
               width: '100%',
               height: 44,
               padding: '0 12px 0 38px',
-              border: `1px solid ${colors.border}`,
+              border: `2px solid ${colors.border}`,
               borderRadius: radius.button,
               fontWeight: 600,
               fontSize: '0.8125rem',

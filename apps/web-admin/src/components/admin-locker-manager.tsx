@@ -27,7 +27,7 @@ const inputStyle: React.CSSProperties = {
   marginTop: '0.35rem',
   height: 42,
   padding: '0 10px',
-  border: `1px solid ${colors.border}`,
+  border: `2px solid ${colors.border}`,
   borderRadius: radius.button,
   fontWeight: 500,
 };
@@ -264,7 +264,7 @@ export function AdminLockerManager() {
         <div
           style={{
             background: colors.surface,
-            border: `1px solid ${colors.border}`,
+            border: `2px solid ${colors.border}`,
             borderRadius: radius.card,
             padding: '1.25rem',
           }}
@@ -303,7 +303,7 @@ export function AdminLockerManager() {
                     height: 38,
                     background: colors.surface,
                     color: colors.secondary,
-                    border: `1px solid ${colors.border}`,
+                    border: `2px solid ${colors.border}`,
                     borderRadius: radius.button,
                     fontWeight: 600,
                     cursor: searching ? 'wait' : 'pointer',
@@ -321,7 +321,7 @@ export function AdminLockerManager() {
                   </p>
                   <div
                     style={{
-                      border: `1px solid ${colors.border}`,
+                      border: `2px solid ${colors.border}`,
                       borderRadius: radius.button,
                       overflow: 'hidden',
                     }}
@@ -341,7 +341,7 @@ export function AdminLockerManager() {
                             border: 'none',
                             borderBottom:
                               index < searchResults.length - 1
-                                ? `1px solid ${colors.border}`
+                                ? `2px solid ${colors.border}`
                                 : 'none',
                             background: isSelected ? '#E8FCE8' : colors.surface,
                             color: colors.secondary,
@@ -410,7 +410,7 @@ export function AdminLockerManager() {
                       fontSize: '0.6875rem',
                       fontWeight: 600,
                       letterSpacing: '0.08em',
-                      borderBottom: `1px solid ${colors.border}`,
+                      borderBottom: `2px solid ${colors.border}`,
                     }}
                   >
                     {heading}
@@ -421,22 +421,22 @@ export function AdminLockerManager() {
             <tbody>
               {lockers.map((locker) => (
                 <tr key={locker.id}>
-                  <td style={{ padding: '0.75rem', borderBottom: `1px solid ${colors.border}`, fontWeight: 700 }}>
+                  <td style={{ padding: '0.75rem', borderBottom: `2px solid ${colors.border}`, fontWeight: 700 }}>
                     {locker.code}
                   </td>
-                  <td style={{ padding: '0.75rem', borderBottom: `1px solid ${colors.border}`, fontWeight: 600 }}>
+                  <td style={{ padding: '0.75rem', borderBottom: `2px solid ${colors.border}`, fontWeight: 600 }}>
                     {locker.name}
                   </td>
-                  <td style={{ padding: '0.75rem', borderBottom: `1px solid ${colors.border}` }}>
+                  <td style={{ padding: '0.75rem', borderBottom: `2px solid ${colors.border}` }}>
                     {locker.statusLabel}
                   </td>
-                  <td style={{ padding: '0.75rem', borderBottom: `1px solid ${colors.border}` }}>
+                  <td style={{ padding: '0.75rem', borderBottom: `2px solid ${colors.border}` }}>
                     {locker.rows}×{locker.columns}
                   </td>
-                  <td style={{ padding: '0.75rem', borderBottom: `1px solid ${colors.border}` }}>
+                  <td style={{ padding: '0.75rem', borderBottom: `2px solid ${colors.border}` }}>
                     {locker.compartmentCounts.available} / {locker.compartmentCounts.total}
                   </td>
-                  <td style={{ padding: '0.75rem', borderBottom: `1px solid ${colors.border}` }}>
+                  <td style={{ padding: '0.75rem', borderBottom: `2px solid ${colors.border}` }}>
                     <a href={`/tableau-de-bord/casiers/${locker.id}`} style={{ fontWeight: 600 }}>
                       DÉTAIL →
                     </a>

@@ -18,7 +18,7 @@ const inputStyle: React.CSSProperties = {
   marginTop: '0.5rem',
   height: 48,
   padding: '0 12px',
-  border: `1px solid ${colors.border}`,
+  border: `2px solid ${colors.border}`,
   borderRadius: radius.button,
   fontWeight: 500,
 };
@@ -145,7 +145,7 @@ export function AuthForm({ mode, businessName, redirectParam, onAuthenticated }:
       onSubmit={handleSubmit}
       style={{
         background: colors.surface,
-        border: `1px solid ${colors.border}`,
+        border: `2px solid ${colors.border}`,
         borderRadius: radius.card,
         padding: '2rem',
         width: '100%',

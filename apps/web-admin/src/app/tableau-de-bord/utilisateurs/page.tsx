@@ -174,7 +174,7 @@ export default function UsersPage() {
             flex: '0 1 320px',
             height: 44,
             padding: '0 12px',
-            border: `1px solid ${colors.border}`,
+            border: `2px solid ${colors.border}`,
             borderRadius: radius.button,
             fontWeight: 600,
             fontSize: '0.8125rem',
@@ -190,7 +190,7 @@ export default function UsersPage() {
       <div
         style={{
           background: colors.surface,
-          border: `1px solid ${colors.border}`,
+          border: `2px solid ${colors.border}`,
           borderRadius: radius.card,
           overflow: 'hidden',
         }}
@@ -213,7 +213,7 @@ export default function UsersPage() {
             }}
           >
             <thead>
-              <tr style={{ borderBottom: `1px solid ${colors.border}`, background: colors.background }}>
+              <tr style={{ borderBottom: `2px solid ${colors.border}`, background: colors.background }}>
                 <th style={{ padding: '1rem', fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.08em' }}>
                   NOM
                 </th>
@@ -239,7 +239,7 @@ export default function UsersPage() {
                 <tr
                   key={user.id}
                   style={{
-                    borderBottom: `1px solid ${colors.border}`,
+                    borderBottom: `2px solid ${colors.border}`,
                     backgroundColor: user.isBlocked ? 'rgba(229, 57, 53, 0.02)' : 'transparent',
                   }}
                 >
@@ -294,7 +294,7 @@ export default function UsersPage() {
                             color: colors.secondary,
                             textDecoration: 'none',
                             padding: '6px 12px',
-                            border: `1px solid ${colors.border}`,
+                            border: `2px solid ${colors.border}`,
                             borderRadius: '4px',
                           }}
                         >

@@ -96,7 +96,7 @@ export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
       <section
         style={{
           background: colors.surface,
-          border: `1px solid ${colors.border}`,
+          border: `2px solid ${colors.border}`,
           borderRadius: radius.card,
           padding: '2rem',
         }}

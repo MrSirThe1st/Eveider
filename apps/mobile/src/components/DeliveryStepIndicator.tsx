@@ -1,4 +1,4 @@
-import { colors, radius } from '@eveider/config-ui';
+import { colors, radius, borders } from '@eveider/config-ui';
 import type { DeliveryStatus } from '@eveider/domain';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: borders.width,
     borderColor: colors.border,
     borderRadius: radius.card,
     padding: 16,

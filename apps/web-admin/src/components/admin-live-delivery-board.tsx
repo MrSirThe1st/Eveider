@@ -61,7 +61,7 @@ const selectStyle: React.CSSProperties = {
   minWidth: 180,
   height: spacing.buttonHeight,
   padding: '0 0.75rem',
-  border: `1px solid ${colors.border}`,
+  border: `2px solid ${colors.border}`,
   borderRadius: radius.button,
   fontWeight: 500,
   background: colors.surface,
@@ -248,7 +248,7 @@ export function AdminLiveDeliveryBoard() {
           style={{
             padding: '1rem 1.25rem',
             background: colors.surface,
-            border: `1px solid ${colors.border}`,
+            border: `2px solid ${colors.border}`,
             borderRadius: radius.card,
           }}
         >
@@ -337,7 +337,7 @@ export function AdminLiveDeliveryBoard() {
               marginTop: '1rem',
               height: spacing.buttonHeight,
               padding: '0 1.25rem',
-              border: `1px solid ${colors.border}`,
+              border: `2px solid ${colors.border}`,
               borderRadius: radius.button,
               fontWeight: 600,
               cursor: 'pointer',
@@ -370,7 +370,7 @@ export function AdminLiveDeliveryBoard() {
                         fontSize: '0.6875rem',
                         fontWeight: 600,
                         letterSpacing: '0.08em',
-                        borderBottom: `1px solid ${colors.border}`,
+                        borderBottom: `2px solid ${colors.border}`,
                       }}
                     >
                       {heading}
@@ -382,7 +382,7 @@ export function AdminLiveDeliveryBoard() {
             <tbody>
               {deliveries.map((delivery) => (
                 <tr key={delivery.id}>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: `1px solid ${colors.border}` }}>
+                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: `2px solid ${colors.border}` }}>
                     <Link
                       href={`/tableau-de-bord/colis/${delivery.parcel.id}`}
                       style={{ fontWeight: 700, color: colors.secondary, textDecoration: 'none' }}
@@ -390,10 +390,10 @@ export function AdminLiveDeliveryBoard() {
                       {delivery.parcel.reference}
                     </Link>
                   </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: `1px solid ${colors.border}` }}>
+                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: `2px solid ${colors.border}` }}>
                     <DeliveryStatusBadge status={delivery.status} />
                   </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: `1px solid ${colors.border}` }}>
+                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: `2px solid ${colors.border}` }}>
                     <Link
                       href={`/tableau-de-bord/utilisateurs/${delivery.courier.id}`}
                       style={{ fontWeight: 500, color: colors.secondary, textDecoration: 'none' }}
@@ -401,10 +401,10 @@ export function AdminLiveDeliveryBoard() {
                       {courierLabel(delivery.courier)}
                     </Link>
                   </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: `1px solid ${colors.border}`, fontWeight: 500 }}>
+                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: `2px solid ${colors.border}`, fontWeight: 500 }}>
                     {delivery.parcel.business.name}
                   </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: `1px solid ${colors.border}`, fontWeight: 500 }}>
+                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: `2px solid ${colors.border}`, fontWeight: 500 }}>
                     {delivery.parcel.locker ? (
                       <Link
                         href={`/tableau-de-bord/casiers/${delivery.parcel.locker.id}`}
@@ -416,15 +416,15 @@ export function AdminLiveDeliveryBoard() {
                       '—'
                     )}
                   </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: `1px solid ${colors.border}`, fontWeight: 500 }}>
+                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: `2px solid ${colors.border}`, fontWeight: 500 }}>
                     {delivery.parcel.recipientName ?? '—'}
                     <br />
                     <span style={{ fontSize: '0.8125rem', opacity: 0.75 }}>{delivery.parcel.recipientPhone}</span>
                   </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: `1px solid ${colors.border}`, fontWeight: 500, whiteSpace: 'nowrap' }}>
+                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: `2px solid ${colors.border}`, fontWeight: 500, whiteSpace: 'nowrap' }}>
                     {formatDateTime(delivery.updatedAt)}
                   </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: `1px solid ${colors.border}` }}>
+                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: `2px solid ${colors.border}` }}>
                     <Link
                       href={`/tableau-de-bord/colis/${delivery.parcel.id}`}
                       style={{

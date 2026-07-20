@@ -1,4 +1,4 @@
-import { colors } from '@eveider/config-ui';
+import { colors, radius, borders, PARCEL_STATUS_FILLS } from '@eveider/config-ui';
 import { Feather } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { CustomerParcel } from '../lib/api';
@@ -10,9 +10,15 @@ type ParcelJourneyHeroProps = {
   parcel: CustomerParcel;
   onPressDetail: () => void;
   onPressPickup?: () => void;
+  pickupActionLabel?: string;
 };
 
-export function ParcelJourneyHero({ parcel, onPressDetail, onPressPickup }: ParcelJourneyHeroProps) {
+export function ParcelJourneyHero({
+  parcel,
+  onPressDetail,
+  onPressPickup,
+  pickupActionLabel = 'VOIR LE CODE DE RETRAIT',
+}: ParcelJourneyHeroProps) {
   const journey = getParcelJourney(parcel);
   const isReady = parcel.status === 'ready_for_pickup';
   const lastStepIndex = journey.steps.length - 1;
@@ -25,7 +31,7 @@ export function ParcelJourneyHero({ parcel, onPressDetail, onPressPickup }: Parc
 
       <Pressable onPress={onPressDetail} style={styles.header}>
         <Text style={styles.headline}>{journey.headline}</Text>
-        <View style={styles.statusPill}>
+        <View style={[styles.statusPill, { backgroundColor: PARCEL_STATUS_FILLS[parcel.status] }]}>
           <Text style={styles.statusText}>{parcel.statusLabel}</Text>
         </View>
       </Pressable>
@@ -85,7 +91,7 @@ export function ParcelJourneyHero({ parcel, onPressDetail, onPressPickup }: Parc
 
       <View style={styles.actions}>
         {isReady && onPressPickup ? (
-          <PrimaryButton label="VOIR LE CODE DE RETRAIT" onPress={onPressPickup} />
+          <PrimaryButton label={pickupActionLabel} onPress={onPressPickup} />
         ) : (
           <Pressable onPress={onPressDetail} style={styles.detailLinkWrap}>
             <Text style={styles.detailLink}>Voir le détail du colis</Text>
@@ -115,15 +121,16 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
     color: colors.secondary,
-    letterSpacing: 0.2,
+    letterSpacing: 0.4,
     lineHeight: 28,
     textAlign: 'center',
+    textTransform: 'uppercase',
   },
   statusPill: {
     paddingHorizontal: 12,
     paddingVertical: 5,
-    borderRadius: 999,
-    borderWidth: 1,
+    borderRadius: radius.badge,
+    borderWidth: borders.width,
     borderColor: colors.border,
   },
   statusText: {
@@ -151,7 +158,8 @@ const styles = StyleSheet.create({
   stepConnector: {
     flex: 1,
     height: 2,
-    backgroundColor: colors.border,
+    backgroundColor: colors.textMuted,
+    opacity: 0.35,
   },
   stepConnectorSpacer: {
     backgroundColor: 'transparent',
@@ -182,7 +190,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.3,
     textAlign: 'center',
-    color: colors.border,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
   },
   stepLabelDone: {
     color: colors.secondary,

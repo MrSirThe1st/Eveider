@@ -1,6 +1,7 @@
-import { colors, radius } from '@eveider/config-ui';
+import { colors, radius, borders, nativeShadow } from '@eveider/config-ui';
 import { StyleSheet, Text, View } from 'react-native';
 import type { CustomerParcel } from '../lib/api';
+import { pickupCardHint } from '../lib/pickup-payment';
 import { ParcelStatusBadge } from './ParcelStatusBadge';
 
 type ParcelCardProps = {
@@ -15,10 +16,11 @@ function formatDate(iso: string) {
 }
 
 export function ParcelCard({ parcel }: ParcelCardProps) {
-  const isReady = parcel.status === 'ready_for_pickup';
+  const needsPayment =
+    Boolean(parcel.pickupPayment?.required) && parcel.pickupPayment?.status !== 'completed';
 
   return (
-    <View style={[styles.card, isReady && styles.highlight]}>
+    <View style={styles.card}>
       <View style={styles.header}>
         <Text style={styles.reference}>{parcel.reference}</Text>
         <ParcelStatusBadge status={parcel.status} />
@@ -29,8 +31,10 @@ export function ParcelCard({ parcel }: ParcelCardProps) {
       <Text style={styles.locker}>
         {parcel.locker ? parcel.locker.name : 'Casier non assigné'}
       </Text>
-      {parcel.status === 'ready_for_pickup' ? (
-        <Text style={styles.pinHint}>CODE DE RETRAIT DISPONIBLE</Text>
+      {pickupCardHint(parcel) ? (
+        <Text style={[styles.pinHint, needsPayment && styles.paymentHint]}>
+          {pickupCardHint(parcel)}
+        </Text>
       ) : null}
     </View>
   );
@@ -39,14 +43,11 @@ export function ParcelCard({ parcel }: ParcelCardProps) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: borders.width,
     borderColor: colors.border,
     borderRadius: radius.card,
     padding: 16,
-  },
-  highlight: {
-    borderWidth: 2,
-    borderColor: colors.primary,
+    ...nativeShadow.hard,
   },
   header: {
     flexDirection: 'row',
@@ -59,24 +60,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     letterSpacing: 0.5,
     color: colors.secondary,
+    textTransform: 'uppercase',
   },
   meta: {
-    marginTop: 6,
+    marginTop: 8,
     fontSize: 13,
     fontWeight: '500',
-    color: colors.secondary,
+    color: colors.textMuted,
   },
   locker: {
     marginTop: 4,
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
     color: colors.secondary,
+    letterSpacing: 0.2,
   },
   pinHint: {
     marginTop: 10,
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.5,
-    color: colors.primary,
+    color: colors.secondary,
+    textTransform: 'uppercase',
+  },
+  paymentHint: {
+    color: colors.secondary,
   },
 });

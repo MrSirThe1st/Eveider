@@ -1,4 +1,4 @@
-import { colors, radius } from '@eveider/config-ui';
+import { colors, radius, borders } from '@eveider/config-ui';
 import { formatDistanceKm, KINSHASA_CENTER } from '@eveider/domain';
 import * as Location from 'expo-location';
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -82,7 +82,7 @@ export const lockerMapStyles = StyleSheet.create({
   container: {
     borderRadius: radius.card,
     overflow: 'hidden',
-    borderWidth: 1,
+    borderWidth: borders.width,
     borderColor: colors.border,
   },
   list: {
@@ -90,7 +90,7 @@ export const lockerMapStyles = StyleSheet.create({
     marginTop: 12,
   },
   card: {
-    borderWidth: 1,
+    borderWidth: borders.width,
     borderColor: colors.border,
     borderRadius: radius.card,
     padding: 14,

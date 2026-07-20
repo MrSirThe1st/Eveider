@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius, spacing } from '@eveider/config-ui';
+import { colors, radius, spacing, shadows, borders } from '@eveider/config-ui';
 import type { UserRole } from '@eveider/domain';
 import { PasswordInput } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
@@ -23,11 +23,12 @@ const inputStyle: React.CSSProperties = {
   display: 'block',
   width: '100%',
   marginTop: '0.5rem',
-  height: 48,
+  height: spacing.buttonHeight,
   padding: '0 12px',
-  border: `1px solid ${colors.border}`,
+  border: `${borders.width}px solid ${colors.border}`,
   borderRadius: radius.button,
   fontWeight: 500,
+  fontSize: '1rem',
 };
 
 export function AuthForm({ mode, businessName, redirectParam, onAuthenticated }: AuthFormProps) {
@@ -148,15 +149,18 @@ export function AuthForm({ mode, businessName, redirectParam, onAuthenticated }:
     <form
       onSubmit={handleSubmit}
       style={{
-        background: colors.surface,
-        border: `1px solid ${colors.border}`,
-        borderRadius: radius.card,
+        ...{
+          background: colors.surface,
+          border: `${borders.width}px solid ${colors.border}`,
+          borderRadius: radius.card,
+          boxShadow: shadows.hard,
+        },
         padding: '2rem',
         width: '100%',
         maxWidth: 400,
       }}
     >
-      <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.08em' }}>
+      <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
         {mode === 'register' ? 'INSCRIPTION' : 'CONNEXION'}
       </p>
 
@@ -194,17 +198,12 @@ export function AuthForm({ mode, businessName, redirectParam, onAuthenticated }:
       <button
         type="submit"
         disabled={loading}
+        className="nb-btn nb-btn-primary"
         style={{
           marginTop: '1.5rem',
           width: '100%',
-          height: spacing.buttonHeight,
-          background: colors.primary,
-          color: colors.secondary,
-          border: 'none',
-          borderRadius: radius.button,
-          fontWeight: 600,
-          letterSpacing: '0.04em',
           cursor: loading ? 'wait' : 'pointer',
+          opacity: loading ? 0.7 : 1,
         }}
       >
         {loading ? 'CHARGEMENT...' : mode === 'register' ? "CRÉER LE COMPTE" : 'SE CONNECTER'}

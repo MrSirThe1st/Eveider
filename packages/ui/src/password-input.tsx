@@ -41,7 +41,7 @@ export function PasswordInput({
           width: '100%',
           height: 48,
           padding: '0 44px 0 12px',
-          border: `1px solid ${colors.border}`,
+          border: `2px solid ${colors.border}`,
           borderRadius: radius.button,
           fontWeight: 500,
         }}

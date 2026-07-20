@@ -1,4 +1,4 @@
-import { colors, radius, spacing } from '@eveider/config-ui';
+import { colors, radius, spacing, borders } from '@eveider/config-ui';
 import type { UserRole } from '@eveider/domain';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
   },
   form: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: borders.width,
     borderColor: colors.border,
     borderRadius: radius.card,
     padding: 24,
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     padding: 14,
     borderRadius: radius.card,
-    borderWidth: 1,
+    borderWidth: borders.width,
     borderColor: colors.primary,
     backgroundColor: colors.background,
   },
@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
   },
   input: {
     height: 48,
-    borderWidth: 1,
+    borderWidth: borders.width,
     borderColor: colors.border,
     borderRadius: radius.button,
     paddingHorizontal: 12,
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
   },
   roleButton: {
     padding: 16,
-    borderWidth: 1,
+    borderWidth: borders.width,
     borderColor: colors.border,
     borderRadius: radius.card,
     marginBottom: 12,
@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
   roleChip: {
     flex: 1,
     padding: 12,
-    borderWidth: 1,
+    borderWidth: borders.width,
     borderColor: colors.border,
     borderRadius: radius.card,
   },

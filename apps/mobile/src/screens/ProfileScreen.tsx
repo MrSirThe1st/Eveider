@@ -1,5 +1,5 @@
 import type { UserRole } from '@eveider/domain';
-import { colors, radius } from '@eveider/config-ui';
+import { colors, radius, borders } from '@eveider/config-ui';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   },
   identityCard: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: borders.width,
     borderColor: colors.border,
     borderRadius: radius.card,
     padding: 24,

@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius } from '@eveider/config-ui';
+import { colors, radius, shadows, borders, webCardStyle } from '@eveider/config-ui';
 import Link from 'next/link';
 import type { DashboardStats } from '@/components/admin-dashboard-types';
 
@@ -14,10 +14,8 @@ type KpiCardProps = {
 
 function KpiCard({ label, value, hint, href, accent }: KpiCardProps) {
   const cardStyle = {
-    background: colors.surface,
-    border: `1px solid ${accent ? colors.primary : colors.border}`,
-    borderWidth: accent ? 2 : 1,
-    borderRadius: radius.card,
+    ...webCardStyle,
+    border: `${borders.width}px solid ${accent ? colors.primary : colors.border}`,
     padding: '1.25rem 1rem',
     minWidth: 140,
     flex: '1 1 140px',

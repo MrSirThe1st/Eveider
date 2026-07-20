@@ -17,7 +17,7 @@ const inputStyle: React.CSSProperties = {
   marginTop: '0.5rem',
   height: 48,
   padding: '0 12px',
-  border: `1px solid ${colors.border}`,
+  border: `2px solid ${colors.border}`,
   borderRadius: radius.button,
   fontWeight: 500,
 };
@@ -226,7 +226,7 @@ export function CreateParcelForm() {
             marginBottom: '1.25rem',
             padding: '1rem',
             background: colors.surface,
-            border: `1px solid ${colors.border}`,
+            border: `2px solid ${colors.border}`,
             borderRadius: radius.card,
             fontSize: '0.8125rem',
           }}
@@ -245,7 +245,7 @@ export function CreateParcelForm() {
       <section
         style={{
           background: colors.surface,
-          border: `1px solid ${colors.border}`,
+          border: `2px solid ${colors.border}`,
           borderRadius: radius.card,
           padding: '2rem',
           marginBottom: '1.25rem',
@@ -313,7 +313,7 @@ export function CreateParcelForm() {
       <section
         style={{
           background: colors.surface,
-          border: `1px solid ${colors.border}`,
+          border: `2px solid ${colors.border}`,
           borderRadius: radius.card,
           padding: '2rem',
           marginBottom: '1.5rem',
@@ -345,7 +345,7 @@ export function CreateParcelForm() {
               style={{
                 height: 36,
                 padding: '0 1rem',
-                border: `1px solid ${colors.border}`,
+                border: `2px solid ${colors.border}`,
                 borderRadius: radius.button,
                 background: colors.surface,
                 fontWeight: 600,
@@ -375,7 +375,7 @@ export function CreateParcelForm() {
             style={{
               marginTop: '1.75rem',
               paddingTop: '1.5rem',
-              borderTop: `1px solid ${colors.border}`,
+              borderTop: `2px solid ${colors.border}`,
             }}
           >
             <p style={{ margin: '0 0 0.35rem', fontWeight: 700, fontSize: '0.875rem' }}>

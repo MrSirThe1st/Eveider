@@ -44,7 +44,7 @@ export function ServiceCard({
     <article
       style={{
         background: colors.surface,
-        border: `1px solid ${colors.border}`,
+        border: `2px solid ${colors.border}`,
         borderRadius: radius.card,
         padding: '1.75rem',
         display: 'flex',
@@ -71,7 +71,7 @@ export function ServiceCard({
               fontWeight: 600,
               letterSpacing: '0.06em',
               padding: '0.25rem 0.5rem',
-              border: `1px solid ${colors.border}`,
+              border: `2px solid ${colors.border}`,
               borderRadius: 6,
               color: colors.secondary,
             }}
@@ -107,7 +107,7 @@ export function ServiceCard({
               background: action.variant === 'primary' ? colors.primary : colors.surface,
               color: colors.secondary,
               border:
-                action.variant === 'primary' ? 'none' : `1px solid ${colors.border}`,
+                action.variant === 'primary' ? 'none' : `2px solid ${colors.border}`,
             };
 
             if (action.external) {

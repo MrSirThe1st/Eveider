@@ -42,7 +42,7 @@ export default function InscriptionPage() {
       <div
         style={{
           background: colors.surface,
-          border: `1px solid ${colors.border}`,
+          border: `2px solid ${colors.border}`,
           borderRadius: radius.card,
           padding: '1.5rem',
           width: '100%',
@@ -63,7 +63,7 @@ export default function InscriptionPage() {
               marginTop: '0.5rem',
               height: 48,
               padding: '0 12px',
-              border: `1px solid ${colors.border}`,
+              border: `2px solid ${colors.border}`,
               borderRadius: radius.button,
               fontWeight: 500,
             }}

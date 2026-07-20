@@ -72,7 +72,7 @@ function StatCard({ label, value, color = colors.secondary }: { label: string; v
     <div
       style={{
         background: colors.surface,
-        border: `1px solid ${colors.border}`,
+        border: `2px solid ${colors.border}`,
         borderRadius: radius.card,
         padding: '1.25rem',
         flex: '1 1 180px',
@@ -220,7 +220,7 @@ export function CourierProfileDetail({ courierId }: CourierDetailProps) {
       <section
         style={{
           background: colors.surface,
-          border: `1px solid ${colors.border}`,
+          border: `2px solid ${colors.border}`,
           borderRadius: radius.card,
           padding: '1.5rem',
           marginBottom: '1.5rem',
@@ -278,13 +278,13 @@ export function CourierProfileDetail({ courierId }: CourierDetailProps) {
       <section
         style={{
           background: colors.surface,
-          border: `1px solid ${colors.border}`,
+          border: `2px solid ${colors.border}`,
           borderRadius: radius.card,
           overflow: 'hidden',
           marginBottom: '2rem',
         }}
       >
-        <div style={{ padding: '1.25rem 1.5rem', borderBottom: `1px solid ${colors.border}`, background: colors.background }}>
+        <div style={{ padding: '1.25rem 1.5rem', borderBottom: `2px solid ${colors.border}`, background: colors.background }}>
           <h3 style={{ margin: 0, fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.08em' }}>
             HISTORIQUE DES LIVRAISONS
           </h3>
@@ -296,7 +296,7 @@ export function CourierProfileDetail({ courierId }: CourierDetailProps) {
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
             <thead>
-              <tr style={{ borderBottom: `1px solid ${colors.border}` }}>
+              <tr style={{ borderBottom: `2px solid ${colors.border}` }}>
                 <th style={{ padding: '1rem', fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.08em' }}>COLIS</th>
                 <th style={{ padding: '1rem', fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.08em' }}>ENTREPRISE</th>
                 <th style={{ padding: '1rem', fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.08em' }}>CASIER</th>
@@ -306,7 +306,7 @@ export function CourierProfileDetail({ courierId }: CourierDetailProps) {
             </thead>
             <tbody>
               {deliveries.map((delivery) => (
-                <tr key={delivery.id} style={{ borderBottom: `1px solid ${colors.border}` }}>
+                <tr key={delivery.id} style={{ borderBottom: `2px solid ${colors.border}` }}>
                   <td style={{ padding: '1rem', fontWeight: 700 }}>
                     <Link
                       href={`/tableau-de-bord/colis/${delivery.parcel.id}`}

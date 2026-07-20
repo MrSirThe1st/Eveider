@@ -1,4 +1,4 @@
-import { colors, radius } from '@eveider/config-ui';
+import { colors, radius, borders } from '@eveider/config-ui';
 import { Feather } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -55,7 +55,7 @@ export function ProfileMenuItem({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: borders.width,
     borderColor: colors.border,
     borderRadius: radius.card,
     marginBottom: 8,

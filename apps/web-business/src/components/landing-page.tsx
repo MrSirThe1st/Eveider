@@ -80,7 +80,7 @@ export function LandingPage() {
       {/* Header */}
       <header
         style={{
-          borderBottom: `1px solid ${colors.border}`,
+          borderBottom: `2px solid ${colors.border}`,
           background: 'rgba(255, 255, 255, 0.8)',
           backdropFilter: 'blur(12px)',
           position: 'sticky',
@@ -194,7 +194,7 @@ export function LandingPage() {
               className="card-hover"
               style={{
                 background: '#FFFFFF',
-                border: `1px solid ${colors.border}`,
+                border: `2px solid ${colors.border}`,
                 borderRadius: radius.card,
                 padding: '2rem',
                 display: 'flex',
@@ -225,7 +225,7 @@ export function LandingPage() {
               className="card-hover"
               style={{
                 background: '#FFFFFF',
-                border: `1px solid ${colors.border}`,
+                border: `2px solid ${colors.border}`,
                 borderRadius: radius.card,
                 padding: '2rem',
                 display: 'flex',
@@ -253,7 +253,7 @@ export function LandingPage() {
               className="card-hover"
               style={{
                 background: 'rgba(255, 255, 255, 0.6)',
-                border: `1px solid ${colors.border}`,
+                border: `2px solid ${colors.border}`,
                 borderRadius: radius.card,
                 padding: '2rem',
                 display: 'flex',
@@ -280,7 +280,7 @@ export function LandingPage() {
               className="card-hover"
               style={{
                 background: 'rgba(255, 255, 255, 0.6)',
-                border: `1px solid ${colors.border}`,
+                border: `2px solid ${colors.border}`,
                 borderRadius: radius.card,
                 padding: '2rem',
                 display: 'flex',
@@ -309,7 +309,7 @@ export function LandingPage() {
       {/* Footer */}
       <footer
         style={{
-          borderTop: `1px solid ${colors.border}`,
+          borderTop: `2px solid ${colors.border}`,
           background: '#FFFFFF',
           padding: '2rem 1.5rem',
         }}

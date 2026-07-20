@@ -1,4 +1,4 @@
-import { colors, radius } from '@eveider/config-ui';
+import { colors, radius, borders } from '@eveider/config-ui';
 import type { IssueType } from '@eveider/domain';
 import { ISSUE_TYPE_LABELS } from '@eveider/domain';
 import { useState } from 'react';
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   typeChip: {
-    borderWidth: 1,
+    borderWidth: borders.width,
     borderColor: colors.border,
     borderRadius: radius.button,
     paddingHorizontal: 12,
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   },
   input: {
     minHeight: 120,
-    borderWidth: 1,
+    borderWidth: borders.width,
     borderColor: colors.border,
     borderRadius: radius.card,
     padding: 14,

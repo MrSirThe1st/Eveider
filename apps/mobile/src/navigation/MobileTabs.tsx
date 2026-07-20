@@ -35,12 +35,12 @@ export function MobileTabs({ role, initialParcelId }: MobileTabsProps) {
       screenOptions={{
         headerShown: false,
         tabBarStyle: DEFAULT_TAB_BAR_STYLE,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.secondary,
+        tabBarActiveTintColor: colors.secondary,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: {
-          fontSize: 8,
-          fontWeight: '400',
-          letterSpacing: 0.5,
+          fontSize: 9,
+          fontWeight: '700',
+          letterSpacing: 0.6,
         },
       }}
     >

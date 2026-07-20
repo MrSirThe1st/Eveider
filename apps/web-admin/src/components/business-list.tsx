@@ -130,7 +130,7 @@ export function BusinessList() {
         <section
           style={{
             background: colors.surface,
-            border: `1px solid ${colors.border}`,
+            border: `2px solid ${colors.border}`,
             borderRadius: radius.card,
             padding: '2.5rem',
             textAlign: 'center',
@@ -161,7 +161,7 @@ export function BusinessList() {
                   key={business.id}
                   style={{
                     background: colors.surface,
-                    border: `1px solid ${colors.border}`,
+                    border: `2px solid ${colors.border}`,
                     borderRadius: radius.card,
                     padding: '1.25rem 1.5rem',
                   }}
@@ -195,7 +195,7 @@ export function BusinessList() {
                       style={{
                         marginTop: '1rem',
                         paddingTop: '1rem',
-                        borderTop: `1px solid ${colors.border}`,
+                        borderTop: `2px solid ${colors.border}`,
                         display: 'flex',
                         flexWrap: 'wrap',
                         gap: '0.5rem',

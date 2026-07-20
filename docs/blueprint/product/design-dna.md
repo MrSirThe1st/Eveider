@@ -1,15 +1,15 @@
 # Pickup Locker Design DNA
 
-Visual and interaction standards for Eveider. All surfaces — mobile, business portal, admin, and marketing website — share this system.
+Visual and interaction standards for Eveider. All surfaces — mobile, business portal, admin, and marketing website — share this **Industrial Neo-Brutalist** system, inspired by [InPost](https://inpost.co.uk/) logistics UI.
 
-Implementation tokens should live in `packages/config-ui` (or equivalent) and mirror values here exactly.
+Implementation tokens live in `packages/config-ui` and mirror values here exactly.
 
 ## Visual Personality
 
 Imagine if:
 
-- The Courier Guy
-- Tesla's software UI
+- InPost parcel tracking & locker networks
+- The Courier Guy operational branding
 - Modern airport wayfinding systems
 - Industrial logistics equipment
 
@@ -22,12 +22,11 @@ The result must feel:
 - Operational
 - Reliable
 - Industrial
-- Modern
+- High-contrast (readable in sunlight / warehouse)
 
-**Never:** playful, cute, startup-ish, or "AI generated".
+**Never:** playful, cute, startup-ish, glassmorphism, gradient heroes, or "AI generated".
 
-**Target reaction:** *"This is the software behind a serious logistics network."*  
-Not: *"This is a startup trying to become a logistics network."*
+**Target reaction:** *"This is the software behind a serious logistics network."*
 
 ---
 
@@ -35,28 +34,43 @@ Not: *"This is a startup trying to become a logistics network."*
 
 | Token | Hex | Usage |
 |-------|-----|-------|
-| Primary brand | `#09D40B` | Active, ready, available, completed — use sparingly |
-| Secondary | `#121212` | Primary text, strong UI chrome |
+| Primary brand | `#09D40B` | Main CTAs, active nav, ready/available states — **max ~5% of screen** |
+| Secondary | `#121212` | Primary text, borders, heavy headers |
 | Surface | `#FFFFFF` | Cards, panels, primary content areas |
-| Background | `#F5F6F7` | Page / screen background |
-| Border | `#E7EAEC` | Card borders, dividers |
+| Background | `#F5F6F7` | Page / screen background (concrete canvas) |
+| Border | `#121212` | **All** structural borders — cards, inputs, buttons |
+| Text muted | `#475569` | Body secondary copy, inactive labels |
 | Success | `#09D40B` | Same as primary — positive operational state |
-| Warning | `#FFB800` | Attention required, non-blocking |
+| Warning | `#FFB800` | Attention required (e.g. livré au casier) |
 | Danger | `#E53935` | Failure, blocked, critical |
-| Info | `#1677FF` | Informational states, links |
+| Info | `#1677FF` | Informational states |
 
 ### Color Distribution
 
 | Share | Color | Role |
 |-------|-------|------|
 | 60% | White | Surfaces, cards, content |
-| 25% | Light grey (`#F5F6F7`, borders) | Background, structure |
-| 10% | Black (`#121212`) | Typography, emphasis |
-| 5% | Green (`#09D40B`) | Meaning only — rare |
+| 25% | Light grey (`#F5F6F7`) | Background, structure |
+| 10% | Black (`#121212`) | Typography, borders, emphasis |
+| 5% | Green (`#09D40B`) | Meaning only — CTAs & ready states |
 
-**Green means something.** When users see green, they immediately know: ready, active, available, completed. Do not use green decoratively.
+**Green means something.** Use it like InPost uses yellow — sparingly, for action and status. Do not use green decoratively.
 
-**Avoid:** gradient backgrounds, purple accents, glassmorphism, blurred panels, animated blobs, abstract SaaS illustrations.
+**Avoid:** `#E7EAEC` soft 1px borders, gradient backgrounds, purple accents, glassmorphism, blurred panels, diffuse drop shadows (`box-shadow: 0 4px 12px rgba(...)`).
+
+---
+
+## Borders & Shadows
+
+| Property | Value |
+|----------|-------|
+| Border width | `2px` |
+| Border color | `#121212` |
+| Border style | `solid` |
+| Card shadow | `3px 3px 0 #121212` (hard offset block) or none |
+| Diffuse blur shadow | **Forbidden** |
+
+Every card, container, button, and input uses `border: 2px solid #121212`.
 
 ---
 
@@ -64,77 +78,64 @@ Not: *"This is a startup trying to become a logistics network."*
 
 | Property | Value |
 |----------|-------|
-| Font family | **Inter** |
-| Weights allowed | 500, 600, 700 only |
-| Weights forbidden | 300, 400, 800, 900 |
+| Font family | **Inter** (500, 600, 700) |
+| Operational headings & labels | ALL CAPS, `font-weight: 700`, letter-spacing |
+| Body copy | Sentence case, `font-weight: 500` |
 
-Bold operational typography — same discipline as The Courier Guy.
+---
 
-### Heading Style
+## Corners
 
-Headings and card titles use **ALL CAPS** (French: same rule — majuscules for operational labels).
+| Element | Radius |
+|---------|--------|
+| Cards, buttons, inputs | `8px` max |
+| Status badges | Pill (`border-radius: 999px`) — small badges only |
 
-| Correct | Wrong |
-|---------|-------|
-| TRACK YOUR PARCEL | Track your parcel |
-| READY FOR COLLECTION | Ready for Collection |
-| SUIVEZ VOTRE COLIS | Suivez votre colis |
-| PRÊT POUR RETRAIT | Prêt pour retrait |
-
-Sentence-case is allowed for body copy and long-form marketing paragraphs only.
+**Avoid:** rounded-full primary buttons, floating cards without borders.
 
 ---
 
 ## Cards
 
-Cards are the heart of the system. They should feel like **physical operational panels** — airport check-in kiosks, parcel counters, control panels.
+Cards feel like **physical operational panels** — parcel counters, kiosk screens.
 
 | Property | Value |
 |----------|-------|
 | Background | `#FFFFFF` |
-| Radius | `12px` |
-| Border | `1px solid #E7EAEC` |
-| Shadow | Very subtle — never floating |
-
-**Never:** glassmorphism, heavy elevation, blurred backgrounds.
-
-### Example (customer PIN card)
-
-```
-┌─────────────────────┐
- PRÊT POUR RETRAIT
-
- Colis :
- PK-28473
-
- Casier :
- Mall East
-
- PIN :
- 4831
-
- [RETIRER LE COLIS]
-└─────────────────────┘
-```
+| Radius | `8px` |
+| Border | `2px solid #121212` |
+| Shadow | `3px 3px 0 #121212` |
 
 ---
 
 ## Buttons
 
-### Primary
+### Primary CTA
 
 | Property | Value |
 |----------|-------|
 | Background | `#09D40B` |
-| Text | `#121212` |
+| Text | `#121212`, ALL CAPS, `font-weight: 700` |
 | Height | `52px` |
-| Radius | `10px` |
-| Font weight | `600` |
-| Label style | ALL CAPS preferred for primary actions |
+| Border | `2px solid #121212` |
+| Radius | `8px` |
+| Shadow | `3px 3px 0 #121212` optional |
 
-Buttons must feel **solid** — not pill-shaped, not futuristic capsules.
+### Secondary
 
-Secondary and destructive buttons use white/grey surfaces with `#121212` or `#E53935` text; green remains reserved for forward / success actions.
+White surface, `2px solid #121212` border, black uppercase text, hard shadow.
+
+---
+
+## Status Badges
+
+Black-outlined pills (`2px solid #121212`) with status-specific fills:
+
+| Status | Fill |
+|--------|------|
+| PRÊT POUR RETRAIT | `#09D40B` |
+| LIVRÉ AU CASIER | `#FFB800` |
+| Other | `#FFFFFF` or `#F5F6F7` |
 
 ---
 
@@ -142,118 +143,33 @@ Secondary and destructive buttons use white/grey surfaces with `#121212` or `#E5
 
 | Property | Value |
 |----------|-------|
-| Library | **Lucide Icons** |
+| Library | **Lucide Icons** (web), Feather (mobile) |
 | Stroke width | `2` |
 
-Preferred icons: Package, MapPin, Truck, Lock, Shield, CheckCircle.
+---
 
-**No** illustrations, mascots, emoji-style graphics, or custom cartoon assets.
+## Marketing Website (InPost-inspired)
+
+- Hero: large ALL CAPS headline + **tracking input** with green "SUIVRE MON COLIS" CTA
+- Feature cards: white, 2px border, hard shadow, 8px radius
+- No glass header, no gradient text, no dot-grid backgrounds
+- Green used only for CTAs and live-status dots
 
 ---
 
 ## Surface-Specific Feel
 
-### Customer Mobile App
+### Customer Mobile
 
-On open, the **first thing visible is parcel status** — not promotions, banners, or announcements.
+Live parcel control panel. Status → Parcel → Action.
 
-The app is a **live parcel control panel**.
+### Courier Mobile
 
-**Screen structure**
+Industrial handheld scanner — large buttons, high contrast, minimal decoration.
 
-1. Header
-2. Current parcel status card
-3. Quick actions
-4. Recent activity
+### Admin / Business Portal
 
-**Visual hierarchy:** Status → Parcel → Action. Everything else is secondary.
-
-### Courier Mobile App
-
-Tougher, almost **industrial**. Think warehouse handheld scanner — not a consumer lifestyle app.
-
-- Large buttons
-- Large scan area
-- Big status indicators
-- Very little decoration
-- High contrast for outdoor / warehouse use
-
-### Admin Dashboard
-
-Strongest Courier Guy inspiration.
-
-```
-┌──────┬──────┬──────┬──────┐
-│ Parc │ Lock │ Fail │ Live │
-└──────┴──────┴──────┴──────┘
-```
-
-- Large KPI row at top
-- Data tables below — operations teams trust tables
-- Filters, operational feeds, maps, status indicators
-- Avoid excessive charts; prefer scannable tabular data
-
-### Business Portal
-
-Same design DNA as admin — operational B2B workspace, not SaaS marketing UI. Tables, filters, clear parcel submission forms. White cards on grey background.
-
-### Marketing Website
-
-**Not** a SaaS startup landing page.
-
-| Use | Avoid |
-|-----|-------|
-| Large photography (real lockers, parcels, locations) | Abstract illustrations, 3D renders |
-| Black typography, green actions | Gradient heroes, purple palettes |
-| Strong spacing, large sections | Glass cards, animated blobs |
-
-#### Landing hero pattern
-
-- White background
-- Large ALL CAPS headline
-- Generous whitespace
-- Real locker photography on the right — no illustration
-
-**Example (French — primary market)**
-
-```
-RETIREZ VOS COLIS.
-À TOUT MOMENT.
-
-Casiers sécurisés à travers le Congo.
-
-[TROUVER UN CASIER]  [SOLUTIONS ENTREPRISES]
-```
-
----
-
-## Market & Locale
-
-Eveider operates in the **Democratic Republic of Congo (RDC)**.
-
-| Aspect | Standard |
-|--------|----------|
-| Primary UI language | **French** |
-| Secondary language | English (internal docs, agent rules — not default user UI) |
-| Currencies | **USD** (`$`) and **Franc congolais** (`FC` / `CDF`) |
-| Currency display | Show both when pricing/fees apply; use locale-appropriate formatting (e.g. `1 250 FC`, `$12.00`) |
-| Date / time | Format for DRC users; 24h clock acceptable for operational UI |
-
-All user-facing copy in apps, portal, admin, SMS templates, and public website defaults to **French**. Status labels and button text follow ALL CAPS rules where specified above.
-
-French terminology aligns with [brand.md](brand.md#glossaire-français-ui).
-
----
-
-## Photography & Imagery
-
-Use only:
-
-- Real locker hardware
-- Real parcels and handoff moments
-- Real Congolese locations and urban context where possible
-
-Never stock "startup team high-fiving" or generic logistics clip-art.
+Operational workspace — KPI tiles with hard borders, scannable tables, filter chips with block shadows.
 
 ---
 

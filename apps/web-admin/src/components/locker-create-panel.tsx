@@ -23,7 +23,7 @@ const inputStyle: React.CSSProperties = {
   marginTop: '0.35rem',
   height: 42,
   padding: '0 10px',
-  border: `1px solid ${colors.border}`,
+  border: `2px solid ${colors.border}`,
   borderRadius: radius.button,
   fontWeight: 500,
 };
@@ -292,7 +292,7 @@ export function LockerCreatePanel({
         style={{
           marginBottom: '1rem',
           padding: '1rem',
-          border: `1px solid ${colors.border}`,
+          border: `2px solid ${colors.border}`,
           borderRadius: radius.card,
           background: colors.background,
         }}
@@ -312,7 +312,7 @@ export function LockerCreatePanel({
               style={{
                 padding: '0.35rem 0.65rem',
                 borderRadius: radius.button,
-                border: `1px solid ${colors.border}`,
+                border: `2px solid ${colors.border}`,
                 background: colors.surface,
                 fontWeight: 600,
                 fontSize: '0.6875rem',

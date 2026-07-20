@@ -1,5 +1,6 @@
-import { colors, radius } from '@eveider/config-ui';
-import { PARCEL_STATUS_LABELS, type ParcelStatus } from '@eveider/domain';
+import { colors, radius, borders, nativeShadow, PARCEL_STATUS_FILLS } from '@eveider/config-ui';
+import type { ParcelStatus } from '@eveider/domain';
+import { PARCEL_STATUS_LABELS } from '@eveider/domain';
 import { StyleSheet, Text, View } from 'react-native';
 
 type ParcelStatusBadgeProps = {
@@ -8,7 +9,7 @@ type ParcelStatusBadgeProps = {
 
 export function ParcelStatusBadge({ status }: ParcelStatusBadgeProps) {
   return (
-    <View style={styles.badge}>
+    <View style={[styles.badge, { backgroundColor: PARCEL_STATUS_FILLS[status] }]}>
       <Text style={styles.text}>{PARCEL_STATUS_LABELS[status]}</Text>
     </View>
   );
@@ -16,16 +17,17 @@ export function ParcelStatusBadge({ status }: ParcelStatusBadgeProps) {
 
 const styles = StyleSheet.create({
   badge: {
-    borderWidth: 1,
+    borderWidth: borders.width,
     borderColor: colors.border,
-    borderRadius: radius.button,
-    paddingHorizontal: 8,
+    borderRadius: radius.badge,
+    paddingHorizontal: 10,
     paddingVertical: 4,
   },
   text: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.5,
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.6,
     color: colors.secondary,
+    textTransform: 'uppercase',
   },
 });

@@ -52,7 +52,7 @@ export function LockerCard({ locker, selected, onSelect }: LockerCardProps) {
       }}
       style={{
         background: isFull ? colors.background : colors.surface,
-        border: selected ? `2px solid ${colors.primary}` : `1px solid ${colors.border}`,
+        border: selected ? `2px solid ${colors.primary}` : `2px solid ${colors.border}`,
         borderRadius: radius.card,
         padding: '1.25rem',
         cursor: isFull ? 'not-allowed' : 'pointer',
@@ -134,7 +134,7 @@ export function LockerCard({ locker, selected, onSelect }: LockerCardProps) {
           gap: '0.5rem',
           marginTop: 'auto',
           paddingTop: '0.75rem',
-          borderTop: `1px solid ${colors.border}`,
+          borderTop: `2px solid ${colors.border}`,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>

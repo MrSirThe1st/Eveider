@@ -21,7 +21,7 @@ export function CompartmentStatusBadge({ status }: CompartmentStatusBadgeProps) 
         letterSpacing: '0.06em',
         padding: '0.3rem 0.5rem',
         borderRadius: radius.button,
-        border: `1px solid ${colors.border}`,
+        border: `2px solid ${colors.border}`,
         color: STATUS_COLORS[status],
       }}
     >

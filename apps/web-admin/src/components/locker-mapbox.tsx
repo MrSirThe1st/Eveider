@@ -90,7 +90,7 @@ export function LockerMapbox({
       <div
         style={{
           height,
-          border: `1px solid ${colors.border}`,
+          border: `2px solid ${colors.border}`,
           borderRadius: 12,
           display: 'flex',
           alignItems: 'center',
@@ -108,7 +108,7 @@ export function LockerMapbox({
   }
 
   return (
-    <div style={{ height, borderRadius: 12, overflow: 'hidden', border: `1px solid ${colors.border}` }}>
+    <div style={{ height, borderRadius: 12, overflow: 'hidden', border: `2px solid ${colors.border}` }}>
       <Map
         ref={mapRef}
         mapboxAccessToken={token}

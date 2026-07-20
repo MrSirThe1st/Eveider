@@ -1,4 +1,4 @@
-import { colors, radius } from '@eveider/config-ui';
+import { colors, radius, borders } from '@eveider/config-ui';
 import type { DeliveryStatus } from '@eveider/domain';
 import { StyleSheet, Text, View } from 'react-native';
 import type { CourierDelivery } from '../lib/api';
@@ -47,7 +47,7 @@ export function DeliveryCard({ delivery, highlight }: DeliveryCardProps) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: borders.width,
     borderColor: colors.border,
     borderRadius: radius.card,
     padding: 16,

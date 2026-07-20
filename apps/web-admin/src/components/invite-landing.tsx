@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius } from '@eveider/config-ui';
+import { colors, radius, shadows, spacing, borders, webCardStyle } from '@eveider/config-ui';
 import { useEffect, useState } from 'react';
 
 type InvitePreview = {
@@ -42,7 +42,9 @@ export function InviteLanding({ token }: InviteLandingProps) {
   if (loading) {
     return (
       <main style={pageStyle}>
-        <p style={{ fontWeight: 500 }}>Chargement de votre invitation…</p>
+        <p style={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          Chargement de votre invitation…
+        </p>
       </main>
     );
   }
@@ -51,8 +53,8 @@ export function InviteLanding({ token }: InviteLandingProps) {
     return (
       <main style={pageStyle}>
         <section style={cardStyle}>
-          <h1 style={titleStyle}>Invitation invalide</h1>
-          <p style={{ margin: 0, fontWeight: 500 }}>{error ?? 'Lien expiré ou déjà utilisé.'}</p>
+          <h1 style={titleStyle}>INVITATION INVALIDE</h1>
+          <p style={{ margin: 0, fontWeight: 500, color: colors.textMuted }}>{error ?? 'Lien expiré ou déjà utilisé.'}</p>
         </section>
       </main>
     );
@@ -61,16 +63,25 @@ export function InviteLanding({ token }: InviteLandingProps) {
   return (
     <main style={pageStyle}>
       <section style={cardStyle}>
-        <p style={{ margin: '0 0 0.5rem', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.1em' }}>
+        <p
+          style={{
+            margin: '0 0 0.5rem',
+            fontSize: '0.6875rem',
+            fontWeight: 700,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            color: colors.textMuted,
+          }}
+        >
           COLIS EVEIDER
         </p>
-        <h1 style={titleStyle}>{invite.business} vous a envoyé un colis</h1>
-        <p style={{ margin: '0 0 1.5rem', fontWeight: 500, opacity: 0.85 }}>
+        <h1 style={titleStyle}>{invite.business.toUpperCase()} VOUS A ENVOYÉ UN COLIS</h1>
+        <p style={{ margin: '0 0 1.5rem', fontWeight: 500, color: colors.textMuted }}>
           Référence {invite.parcel.reference}
           {invite.parcel.locker ? ` · Casier ${invite.parcel.locker}` : ''}
         </p>
 
-        <p style={{ margin: '0 0 1rem', fontSize: '0.875rem' }}>
+        <p style={{ margin: '0 0 1rem', fontSize: '0.9375rem', fontWeight: 500, lineHeight: 1.5 }}>
           Téléchargez l&apos;application Eveider et créez votre compte avec le numéro{' '}
           <strong>{invite.recipientPhone}</strong>.
         </p>
@@ -79,7 +90,7 @@ export function InviteLanding({ token }: InviteLandingProps) {
           OUVRIR DANS L&apos;APP
         </a>
 
-        <p style={{ margin: '1rem 0 0', fontSize: '0.75rem', opacity: 0.65, wordBreak: 'break-all' }}>
+        <p style={{ margin: '1rem 0 0', fontSize: '0.75rem', color: colors.textMuted, wordBreak: 'break-all' }}>
           {deepLink}
         </p>
       </section>
@@ -99,28 +110,33 @@ const pageStyle: React.CSSProperties = {
 const cardStyle: React.CSSProperties = {
   width: '100%',
   maxWidth: 480,
-  background: colors.surface,
-  border: `1px solid ${colors.border}`,
-  borderRadius: radius.card,
+  ...webCardStyle,
   padding: '2rem',
 };
 
 const titleStyle: React.CSSProperties = {
   margin: '0 0 1rem',
-  fontSize: '1.5rem',
+  fontSize: '1.375rem',
   fontWeight: 700,
-  letterSpacing: '0.02em',
+  letterSpacing: '0.04em',
   color: colors.secondary,
+  textTransform: 'uppercase',
+  lineHeight: 1.2,
 };
 
 const primaryButtonStyle: React.CSSProperties = {
   display: 'block',
   textAlign: 'center',
-  padding: '0.875rem 1.25rem',
+  height: spacing.buttonHeight,
+  lineHeight: `${spacing.buttonHeight}px`,
+  padding: '0 1.25rem',
   background: colors.primary,
   color: colors.secondary,
+  border: `${borders.width}px solid ${colors.border}`,
   borderRadius: radius.button,
   fontWeight: 700,
-  letterSpacing: '0.04em',
+  letterSpacing: '0.06em',
   textDecoration: 'none',
+  textTransform: 'uppercase',
+  boxShadow: shadows.hard,
 };

@@ -25,9 +25,10 @@ export function PageHeader({ title, description, action }: PageHeaderProps) {
             margin: 0,
             fontSize: '1.375rem',
             fontWeight: 700,
-            letterSpacing: '0.02em',
+            letterSpacing: '0.06em',
             color: colors.secondary,
             lineHeight: 1.2,
+            textTransform: 'uppercase',
           }}
         >
           {title}
@@ -38,8 +39,7 @@ export function PageHeader({ title, description, action }: PageHeaderProps) {
               margin: '0.4rem 0 0',
               fontSize: '0.875rem',
               fontWeight: 500,
-              color: colors.secondary,
-              opacity: 0.68,
+              color: colors.textMuted,
               lineHeight: 1.45,
               maxWidth: 560,
             }}

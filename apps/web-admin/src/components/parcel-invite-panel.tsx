@@ -91,7 +91,7 @@ export function ParcelInvitePanel({ parcelId, initialInvite }: ParcelInvitePanel
         style={{
           marginTop: '1.25rem',
           background: colors.surface,
-          border: `1px solid ${colors.border}`,
+          border: `2px solid ${colors.border}`,
           borderRadius: radius.card,
           padding: '1.5rem',
         }}
@@ -110,7 +110,7 @@ export function ParcelInvitePanel({ parcelId, initialInvite }: ParcelInvitePanel
       style={{
         marginTop: '1.25rem',
         background: colors.surface,
-        border: `1px solid ${colors.border}`,
+        border: `2px solid ${colors.border}`,
         borderRadius: radius.card,
         padding: '1.5rem',
       }}
@@ -119,8 +119,8 @@ export function ParcelInvitePanel({ parcelId, initialInvite }: ParcelInvitePanel
         INVITATION DESTINATAIRE
       </p>
       <p style={{ margin: '0 0 1rem', fontSize: '0.8125rem', opacity: 0.75 }}>
-        Le destinataire n&apos;a pas encore de compte Eveider. Partagez le lien ci-dessous (SMS /
-        WhatsApp simulé en console serveur pour l&apos;instant).
+        Le destinataire n&apos;a pas encore de compte Eveider. Une invitation WhatsApp est envoyée
+        automatiquement à la création du colis ; vous pouvez aussi partager le lien ci-dessous.
       </p>
 
       <p style={{ margin: '0 0 1rem', fontWeight: 600 }}>
@@ -150,7 +150,7 @@ export function ParcelInvitePanel({ parcelId, initialInvite }: ParcelInvitePanel
               marginTop: '0.5rem',
               height: 36,
               padding: '0 1rem',
-              border: `1px solid ${colors.border}`,
+              border: `2px solid ${colors.border}`,
               borderRadius: radius.button,
               background: colors.surface,
               fontWeight: 600,
@@ -183,7 +183,7 @@ export function ParcelInvitePanel({ parcelId, initialInvite }: ParcelInvitePanel
               marginTop: '0.5rem',
               height: 36,
               padding: '0 1rem',
-              border: `1px solid ${colors.border}`,
+              border: `2px solid ${colors.border}`,
               borderRadius: radius.button,
               background: colors.surface,
               fontWeight: 600,

@@ -207,7 +207,7 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
       <section
         style={{
           background: colors.surface,
-          border: `1px solid ${colors.border}`,
+          border: `2px solid ${colors.border}`,
           borderRadius: radius.card,
           padding: '2rem',
         }}
@@ -270,7 +270,7 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
           </div>
         </dl>
 
-        <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: `1px solid ${colors.border}` }}>
+        <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: `2px solid ${colors.border}` }}>
           <p style={{ margin: '0 0 1rem', fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em' }}>
             LIVRAISON COURSIER
           </p>
@@ -288,7 +288,7 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
                   minWidth: 220,
                   height: spacing.buttonHeight,
                   padding: '0 0.75rem',
-                  border: `1px solid ${colors.border}`,
+                  border: `2px solid ${colors.border}`,
                   borderRadius: radius.button,
                   fontWeight: 500,
                 }}
@@ -328,7 +328,7 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
         </div>
 
         {nextStatuses.length > 0 ? (
-          <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: `1px solid ${colors.border}` }}>
+          <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: `2px solid ${colors.border}` }}>
             <p style={{ margin: '0 0 1rem', fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em' }}>
               AVANCER LE STATUT
             </p>

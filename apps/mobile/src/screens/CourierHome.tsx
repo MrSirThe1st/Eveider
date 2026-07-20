@@ -1,4 +1,4 @@
-import { colors, radius, spacing } from '@eveider/config-ui';
+import { colors, radius, spacing, borders } from '@eveider/config-ui';
 import type { DeliveryStatus } from '@eveider/domain';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
   detailSection: {
     marginBottom: 24,
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: borders.width,
     borderColor: colors.border,
     borderRadius: radius.card,
     padding: 16,
@@ -604,7 +604,7 @@ const styles = StyleSheet.create({
   },
   scanCard: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: borders.width,
     borderColor: colors.border,
     borderRadius: radius.card,
     padding: 24,
@@ -650,7 +650,7 @@ const styles = StyleSheet.create({
   },
   reportButton: {
     marginTop: 16,
-    borderWidth: 1,
+    borderWidth: borders.width,
     borderColor: colors.border,
     borderRadius: radius.button,
     paddingVertical: 14,
@@ -665,7 +665,7 @@ const styles = StyleSheet.create({
   },
   directionsButton: {
     marginTop: 12,
-    borderWidth: 1,
+    borderWidth: borders.width,
     borderColor: colors.primary,
     borderRadius: radius.button,
     paddingVertical: 12,

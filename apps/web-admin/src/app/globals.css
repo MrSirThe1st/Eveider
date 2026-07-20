@@ -3,7 +3,12 @@
   --color-secondary: #121212;
   --color-surface: #ffffff;
   --color-background: #f5f6f7;
-  --color-border: #e7eaec;
+  --color-border: #121212;
+  --color-text-muted: #475569;
+  --border-width: 2px;
+  --radius-card: 8px;
+  --radius-button: 8px;
+  --shadow-hard: 3px 3px 0 #121212;
   --font-family: Inter, system-ui, sans-serif;
 }
 
@@ -20,13 +25,79 @@ body {
   color: var(--color-secondary);
 }
 
+/* Neo-Brutalist utility classes */
+.nb-card {
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-hard);
+}
+
+.nb-input {
+  display: block;
+  width: 100%;
+  height: 52px;
+  padding: 0 1rem;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-button);
+  background: var(--color-surface);
+  color: var(--color-secondary);
+  font-family: var(--font-family);
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+.nb-input:focus {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 0;
+}
+
+.nb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 52px;
+  padding: 0 1.25rem;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-button);
+  font-family: var(--font-family);
+  font-weight: 700;
+  font-size: 0.8125rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.nb-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+
+.nb-btn-primary {
+  background: var(--color-primary);
+  color: var(--color-secondary);
+  box-shadow: var(--shadow-hard);
+}
+
+.nb-btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-secondary);
+  box-shadow: var(--shadow-hard);
+}
+
+.nb-btn-secondary:hover {
+  background: var(--color-background);
+}
+
 .cabinet-cell {
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  transition: transform 0.1s ease;
 }
 
 .cabinet-cell:not(:disabled):hover {
-  transform: scale(1.03);
-  box-shadow: 0 4px 12px rgba(18, 18, 18, 0.15);
+  transform: translate(-1px, -1px);
+  box-shadow: 2px 2px 0 var(--color-border);
 }
 
 .cabinet-cell:focus-visible {

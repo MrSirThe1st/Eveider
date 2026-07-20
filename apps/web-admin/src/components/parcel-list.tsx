@@ -105,7 +105,7 @@ export function ParcelList() {
         <section
           style={{
             background: colors.surface,
-            border: `1px solid ${colors.border}`,
+            border: `2px solid ${colors.border}`,
             borderRadius: radius.card,
             padding: '2.5rem',
             textAlign: 'center',
@@ -154,7 +154,7 @@ export function ParcelList() {
                 style={{
                   display: 'block',
                   background: colors.surface,
-                  border: `1px solid ${colors.border}`,
+                  border: `2px solid ${colors.border}`,
                   borderRadius: radius.card,
                   padding: '1.25rem 1.5rem',
                   textDecoration: 'none',

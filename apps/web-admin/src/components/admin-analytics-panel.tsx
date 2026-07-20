@@ -18,7 +18,7 @@ function RateCard({ label, value, hint }: { label: string; value: string; hint: 
     <article
       style={{
         background: colors.surface,
-        border: `1px solid ${colors.border}`,
+        border: `2px solid ${colors.border}`,
         borderRadius: radius.card,
         padding: '1.25rem 1rem',
         flex: '1 1 200px',
@@ -82,7 +82,7 @@ export function AdminAnalyticsPanel({ analytics }: AdminAnalyticsPanelProps) {
       <div
         style={{
           background: colors.surface,
-          border: `1px solid ${colors.border}`,
+          border: `2px solid ${colors.border}`,
           borderRadius: radius.card,
           padding: '1.25rem',
           marginBottom: '1.5rem',
@@ -175,7 +175,7 @@ function RankingTable({
     <div
       style={{
         background: colors.surface,
-        border: `1px solid ${colors.border}`,
+        border: `2px solid ${colors.border}`,
         borderRadius: radius.card,
         padding: '1.25rem',
       }}

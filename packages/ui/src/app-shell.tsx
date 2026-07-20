@@ -1,6 +1,6 @@
 'use client';
 
-import { colors } from '@eveider/config-ui';
+import { colors, radius, shadows, borders, spacing, webCardStyle } from '@eveider/config-ui';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -72,7 +72,6 @@ export function AppShell({
         background: colors.background,
         display: 'flex',
         opacity: ready ? 1 : 0.98,
-        transition: 'opacity 120ms ease',
       }}
     >
       <aside
@@ -80,7 +79,7 @@ export function AppShell({
           width: sidebarWidth,
           flexShrink: 0,
           background: colors.surface,
-          borderRight: `1px solid ${colors.border}`,
+          borderRight: `${borders.width}px solid ${colors.border}`,
           display: 'flex',
           flexDirection: 'column',
           position: 'sticky',
@@ -93,7 +92,7 @@ export function AppShell({
         <div
           style={{
             padding: collapsed ? '1.25rem 0' : '1.25rem 1rem',
-            borderBottom: `1px solid ${colors.border}`,
+            borderBottom: `${borders.width}px solid ${colors.border}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: collapsed ? 'center' : 'flex-start',
@@ -117,10 +116,10 @@ export function AppShell({
                 style={{
                   margin: 0,
                   fontSize: '0.6875rem',
-                  fontWeight: 600,
+                  fontWeight: 700,
                   letterSpacing: '0.12em',
-                  color: colors.secondary,
-                  opacity: 0.65,
+                  color: colors.textMuted,
+                  textTransform: 'uppercase',
                 }}
               >
                 EVEIDER
@@ -132,6 +131,7 @@ export function AppShell({
                   fontWeight: 700,
                   letterSpacing: '0.06em',
                   color: colors.secondary,
+                  textTransform: 'uppercase',
                 }}
               >
                 {brand}
@@ -162,14 +162,15 @@ export function AppShell({
                   gap: '0.75rem',
                   padding: collapsed ? '0.75rem 0' : '0.75rem 0.875rem',
                   justifyContent: collapsed ? 'center' : 'flex-start',
-                  borderRadius: 10,
+                  borderRadius: radius.button,
                   textDecoration: 'none',
                   color: colors.secondary,
-                  background: active ? 'rgba(9, 212, 11, 0.14)' : 'transparent',
-                  fontWeight: active ? 700 : 600,
-                  fontSize: '0.75rem',
-                  letterSpacing: '0.05em',
-                  transition: 'background 150ms ease',
+                  background: active ? colors.primary : 'transparent',
+                  border: active ? `${borders.width}px solid ${colors.border}` : `${borders.width}px solid transparent`,
+                  fontWeight: 700,
+                  fontSize: '0.6875rem',
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
                 }}
               >
                 <span style={{ display: 'flex', flexShrink: 0, opacity: active ? 1 : 0.72 }}>
@@ -188,7 +189,7 @@ export function AppShell({
             height: 56,
             flexShrink: 0,
             background: colors.surface,
-            borderBottom: `1px solid ${colors.border}`,
+            borderBottom: `${borders.width}px solid ${colors.border}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -209,11 +210,12 @@ export function AppShell({
               justifyContent: 'center',
               width: 36,
               height: 36,
-              border: `1px solid ${colors.border}`,
-              borderRadius: 8,
+              border: `${borders.width}px solid ${colors.border}`,
+              borderRadius: radius.button,
               background: colors.background,
               color: colors.secondary,
               cursor: 'pointer',
+              boxShadow: shadows.hard,
             }}
           >
             {collapsed ? <IconChevronRight /> : <IconChevronLeft />}
@@ -222,19 +224,11 @@ export function AppShell({
           <button
             type="button"
             onClick={() => void onSignOut()}
+            className="nb-btn nb-btn-secondary"
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.5rem 0.875rem',
-              border: `1px solid ${colors.border}`,
-              borderRadius: 8,
-              background: colors.surface,
-              fontWeight: 600,
+              height: 36,
               fontSize: '0.6875rem',
-              letterSpacing: '0.06em',
-              cursor: 'pointer',
-              color: colors.secondary,
+              padding: '0 0.875rem',
             }}
           >
             {signOutLabel}

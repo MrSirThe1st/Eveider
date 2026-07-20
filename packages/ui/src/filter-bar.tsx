@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius } from '@eveider/config-ui';
+import { colors, radius, shadows, borders } from '@eveider/config-ui';
 import type { ReactNode } from 'react';
 
 export type FilterChipItem<T extends string> = {
@@ -39,16 +39,16 @@ export function FilterChipGroup<T extends string>({
             style={{
               padding: '0.5rem 0.875rem',
               borderRadius: radius.button,
-              border: `1px solid ${active ? colors.primary : colors.border}`,
+              border: `${borders.width}px solid ${colors.border}`,
               background: active ? colors.primary : colors.surface,
               color: colors.secondary,
-              fontWeight: 600,
+              fontWeight: 700,
               fontSize: '0.6875rem',
               letterSpacing: '0.06em',
+              textTransform: 'uppercase',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
-              boxShadow: active ? 'inset 0 0 0 1px rgba(18,18,18,0.04)' : 'none',
-              transition: 'background 120ms ease, border-color 120ms ease',
+              boxShadow: active ? 'none' : shadows.hard,
             }}
           >
             {item.label}
@@ -69,9 +69,12 @@ export function FilterBar({ label, children, hint }: FilterBarProps) {
   return (
     <section
       style={{
-        background: colors.surface,
-        border: `1px solid ${colors.border}`,
-        borderRadius: radius.card,
+        ...{
+          background: colors.surface,
+          border: `${borders.width}px solid ${colors.border}`,
+          borderRadius: radius.card,
+          boxShadow: shadows.hard,
+        },
         padding: '1rem 1.125rem',
         marginBottom: '1.5rem',
       }}
@@ -93,7 +96,7 @@ export function FilterBar({ label, children, hint }: FilterBarProps) {
             fontWeight: 700,
             letterSpacing: '0.1em',
             color: colors.secondary,
-            opacity: 0.7,
+            textTransform: 'uppercase',
           }}
         >
           {label}
@@ -104,8 +107,7 @@ export function FilterBar({ label, children, hint }: FilterBarProps) {
               margin: 0,
               fontSize: '0.75rem',
               fontWeight: 500,
-              color: colors.secondary,
-              opacity: 0.55,
+              color: colors.textMuted,
             }}
           >
             {hint}

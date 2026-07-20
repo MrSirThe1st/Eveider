@@ -23,7 +23,7 @@ export function DeliveryStatusBadge({ status }: DeliveryStatusBadgeProps) {
         letterSpacing: '0.06em',
         padding: '0.35rem 0.6rem',
         borderRadius: radius.button,
-        border: `1px solid ${colors.border}`,
+        border: `2px solid ${colors.border}`,
         color: STATUS_COLORS[status],
       }}
     >

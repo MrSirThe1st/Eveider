@@ -19,7 +19,7 @@ const inputStyle: React.CSSProperties = {
   marginTop: '0.5rem',
   height: 48,
   padding: '0 12px',
-  border: `1px solid ${colors.border}`,
+  border: `2px solid ${colors.border}`,
   borderRadius: radius.button,
   fontWeight: 500,
 };
@@ -101,7 +101,7 @@ export function CreateParcelForm() {
       onSubmit={(event) => void handleSubmit(event)}
       style={{
         background: colors.surface,
-        border: `1px solid ${colors.border}`,
+        border: `2px solid ${colors.border}`,
         borderRadius: radius.card,
         padding: '2rem',
         maxWidth: 560,

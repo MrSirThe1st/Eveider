@@ -1,4 +1,4 @@
-import { colors, radius, spacing } from '@eveider/config-ui';
+import { colors, radius, spacing, borders, nativeShadow } from '@eveider/config-ui';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -24,6 +24,7 @@ import { useHideTabBar } from '../navigation/useHideTabBar';
 import { fetchCustomerParcel, fetchCustomerParcels, fetchCustomerLockers, assignCustomerParcelLocker, reportCustomerIssue, fetchPickupPaymentProviders, fetchPickupPaymentStatus, initiatePickupPayment, fetchProfile, type CustomerLocker, type CustomerParcel, type PaymentProvider } from '../lib/api';
 import { LockerMapView, LockerSelectPanel, getCurrentCoordinates } from '../components/LockerMapView';
 import { pickFeaturedParcel } from '../lib/parcel-journey';
+import { pickupActionLabel, needsPickupPayment } from '../lib/pickup-payment';
 
 type CustomerScreen =
   | { name: 'list' }
@@ -33,21 +34,10 @@ type CustomerScreen =
   | { name: 'report'; parcelId: string }
   | { name: 'select-locker'; parcelId: string };
 
-function canShowPickupPin(parcel: CustomerParcel): boolean {
-  if (parcel.status !== 'ready_for_pickup') return false;
-  if (!parcel.pickupPayment?.required) return true;
-  return parcel.pickupPayment.status === 'completed';
-}
-
-function needsPickupPayment(parcel: CustomerParcel): boolean {
-  return (
-    parcel.status === 'ready_for_pickup' &&
-    Boolean(parcel.pickupPayment?.required) &&
-    parcel.pickupPayment?.status !== 'completed'
-  );
-}
-
-function openPickupFlow(parcel: CustomerParcel, setScreen: (screen: CustomerScreen) => void) {
+function openPickupFlow(
+  parcel: CustomerParcel,
+  setScreen: (screen: CustomerScreen) => void,
+) {
   if (needsPickupPayment(parcel)) {
     setScreen({ name: 'payment', parcelId: parcel.id });
     return;
@@ -168,7 +158,7 @@ export function CustomerHome({ initialParcelId }: CustomerHomeProps) {
         if (result.success) {
           setParcel(result.data.parcel);
           if (result.data.payment.status === 'completed') {
-            setPaymentMessage('Paiement confirmé. Votre code de retrait est disponible.');
+            setScreen({ name: 'pickup', parcelId: screen.parcelId });
           }
         }
       });
@@ -312,6 +302,7 @@ export function CustomerHome({ initialParcelId }: CustomerHomeProps) {
                     ? () => openPickupFlow(featuredParcel, setScreen)
                     : undefined
                 }
+                pickupActionLabel={pickupActionLabel(featuredParcel)}
               />
             ) : (
               <View style={styles.emptyState}>
@@ -451,10 +442,10 @@ export function CustomerHome({ initialParcelId }: CustomerHomeProps) {
                   }
                   setParcel(result.data.parcel);
                   if (result.data.payment.status === 'completed') {
-                    setPaymentMessage('Paiement confirmé. Votre code de retrait est disponible.');
-                  } else {
-                    setPaymentMessage('Demande de paiement envoyée. Confirmez sur votre téléphone si demandé.');
+                    setScreen({ name: 'pickup', parcelId: parcel.id });
+                    return;
                   }
+                  setPaymentMessage('Demande de paiement envoyée. Confirmez sur votre téléphone si demandé.');
                 });
               }}
             />
@@ -637,7 +628,7 @@ export function CustomerHome({ initialParcelId }: CustomerHomeProps) {
 
       {parcel.status === 'ready_for_pickup' ? (
         <PrimaryButton
-          label={needsPickupPayment(parcel) ? 'PAYER ET RETIRER' : 'VOIR LE CODE DE RETRAIT'}
+          label={pickupActionLabel(parcel)}
           onPress={() => openPickupFlow(parcel, setScreen)}
         />
       ) : null}
@@ -768,10 +759,11 @@ const styles = StyleSheet.create({
   detailSection: {
     marginBottom: 24,
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: borders.width,
     borderColor: colors.border,
     borderRadius: radius.card,
     padding: 16,
+    ...nativeShadow.hard,
   },
   sectionLabel: {
     fontSize: 10,
@@ -792,12 +784,13 @@ const styles = StyleSheet.create({
   },
   pinCard: {
     backgroundColor: colors.surface,
-    borderWidth: 2,
-    borderColor: colors.primary,
+    borderWidth: borders.width,
+    borderColor: colors.border,
     borderRadius: radius.card,
     padding: 32,
     alignItems: 'center',
     marginBottom: 24,
+    ...nativeShadow.hard,
   },
   pinLabel: {
     fontSize: 10,
@@ -840,12 +833,13 @@ const styles = StyleSheet.create({
   },
   reportButton: {
     marginTop: 16,
-    borderWidth: 1,
+    borderWidth: borders.width,
     borderColor: colors.border,
     borderRadius: radius.button,
     paddingVertical: 14,
     alignItems: 'center',
     backgroundColor: colors.surface,
+    ...nativeShadow.hard,
   },
   reportButtonText: {
     fontWeight: '600',
@@ -861,7 +855,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   providerOption: {
-    borderWidth: 1,
+    borderWidth: borders.width,
     borderColor: colors.border,
     borderRadius: radius.button,
     paddingVertical: 14,
@@ -879,7 +873,7 @@ const styles = StyleSheet.create({
   },
   phoneInput: {
     marginTop: 8,
-    borderWidth: 1,
+    borderWidth: borders.width,
     borderColor: colors.border,
     borderRadius: radius.button,
     paddingHorizontal: 16,
