@@ -1,12 +1,14 @@
 import { fail, listIssuesQuerySchema, ok } from '@eveider/api-contracts';
-import { createRepositories } from '@eveider/data-access';
 import { NextResponse } from 'next/server';
-import { toIssueDto } from '@/lib/issue-presenter';
+import { createRequestTimer } from '@/lib/perf/request-timer';
 import { requireAdminSession } from '@/lib/session';
+import { listIssues } from '@/server/issues';
 
 export async function GET(request: Request) {
-  const auth = await requireAdminSession();
+  const perf = createRequestTimer('GET /api/issues');
+  const auth = await requireAdminSession(perf);
   if ('error' in auth) {
+    perf.flush(auth.status);
     return NextResponse.json(fail(auth.error), { status: auth.status });
   }
 
@@ -16,19 +18,23 @@ export async function GET(request: Request) {
   });
 
   if (!query.success) {
+    perf.flush(400);
     return NextResponse.json(fail('Filtre de statut invalide'), { status: 400 });
   }
 
   try {
-    const { issues } = createRepositories();
-    const items = await issues.listAll(
-      auth.session.ctx,
-      query.data.status ? { status: query.data.status } : undefined,
+    const issues = await perf.measure('db.issues.list', () =>
+      listIssues(
+        auth.session.ctx,
+        query.data.status ? { status: query.data.status } : undefined,
+      ),
     );
 
-    return NextResponse.json(ok({ issues: items.map(toIssueDto) }));
+    perf.flush(200);
+    return NextResponse.json(ok({ issues }));
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur serveur';
+    perf.flush(500);
     return NextResponse.json(fail(message), { status: 500 });
   }
 }

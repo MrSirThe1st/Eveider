@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius, spacing } from '@eveider/config-ui';
+import { colors, radius, spacing, webSecondaryButtonStyle } from '@eveider/config-ui';
 import {
   COMPARTMENT_SIZE_FULL_LABELS,
   COMPARTMENT_STATUSES,
@@ -10,39 +10,22 @@ import {
   canTransitionCompartment,
   canTransitionLocker,
   type CompartmentStatus,
-  type CompartmentSize,
   type LockerStatus,
 } from '@eveider/domain';
+import { LoadingSpinner } from '@eveider/ui';
 import Link from 'next/link';
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { CompartmentStatusBadge } from '@/components/compartment-status-badge';
 import { FlashBanner } from '@/components/flash-banner';
 import { LockerCompartmentCabinet } from '@/components/locker-compartment-cabinet';
 import { LockerStatusBadge } from '@/components/locker-status-badge';
-
-type CompartmentItem = {
-  id: string;
-  label: string;
-  size: CompartmentSize;
-  status: CompartmentStatus;
-};
-
-type LockerDetailData = {
-  id: string;
-  code: string;
-  name: string;
-  address: string;
-  rows: number;
-  columns: number;
-  status: LockerStatus;
-  compartmentCounts: {
-    available: number;
-    occupied: number;
-    reserved: number;
-    total: number;
-  };
-  compartments: CompartmentItem[];
-};
+import {
+  type LockerDetailData,
+  lockerDetailQueryKey,
+  useLockerDetailQuery,
+} from '@/hooks/queries/use-locker-detail-query';
+import { lockersQueryKey } from '@/hooks/queries/use-lockers-query';
 
 function getNextLockerStatuses(current: LockerStatus): LockerStatus[] {
   return LOCKER_STATUSES.filter((status) => canTransitionLocker(current, status));
@@ -85,41 +68,25 @@ function StatItem({ label, value }: { label: string; value: string | number }) {
 }
 
 export function LockerDetail({ lockerId }: LockerDetailProps) {
-  const [locker, setLocker] = useState<LockerDetailData | null>(null);
+  const queryClient = useQueryClient();
+  const { data: locker, isLoading, isError, error: queryError } = useLockerDetailQuery(lockerId);
   const [selectedCompartmentId, setSelectedCompartmentId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [updatingLocker, setUpdatingLocker] = useState(false);
   const [updatingCompartmentId, setUpdatingCompartmentId] = useState<string | null>(null);
 
-  async function loadLocker() {
-    setLoading(true);
-    setError(null);
+  const loading = isLoading && !locker;
+  const error = isError
+    ? queryError instanceof Error
+      ? queryError.message
+      : 'Impossible de charger le casier.'
+    : null;
 
-    try {
-      const response = await fetch(`/api/lockers/${lockerId}`, { cache: 'no-store' });
-      const result = await response.json();
-
-      if (!result.success) {
-        setError(result.error ?? 'Casier introuvable');
-        setLocker(null);
-        return;
-      }
-
-      setLocker(result.data.locker);
-    } catch {
-      setError('Impossible de charger le casier.');
-      setLocker(null);
-    } finally {
-      setLoading(false);
-    }
+  function updateLockerCache(nextLocker: LockerDetailData) {
+    queryClient.setQueryData(lockerDetailQueryKey(lockerId), nextLocker);
+    void queryClient.invalidateQueries({ queryKey: lockersQueryKey() });
   }
-
-  useEffect(() => {
-    void loadLocker();
-  }, [lockerId]);
 
   useEffect(() => {
     if (!locker) return;
@@ -159,7 +126,7 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
         return;
       }
 
-      setLocker(result.data.locker);
+      updateLockerCache(result.data.locker);
       setSuccessMessage(`Statut casier : ${LOCKER_STATUS_LABELS[nextStatus]}`);
     } catch {
       setActionError('Impossible de mettre à jour le casier.');
@@ -189,7 +156,7 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
         return;
       }
 
-      setLocker(result.data.locker);
+      updateLockerCache(result.data.locker);
       setSuccessMessage(`Compartiment mis à jour : ${COMPARTMENT_STATUS_LABELS[nextStatus]}`);
     } catch {
       setActionError('Impossible de mettre à jour le compartiment.');
@@ -199,20 +166,7 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
   }
 
   if (loading) {
-    return (
-      <div
-        style={{
-          padding: '3rem',
-          textAlign: 'center',
-          fontWeight: 600,
-          letterSpacing: '0.06em',
-          color: colors.secondary,
-          opacity: 0.6,
-        }}
-      >
-        CHARGEMENT DU CASIER…
-      </div>
-    );
+    return <LoadingSpinner label="Chargement du casier…" />;
   }
 
   if (error || !locker) {
@@ -399,15 +353,11 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
                           void advanceCompartmentStatus(selectedCompartment.id, status)
                         }
                         style={{
+                          ...webSecondaryButtonStyle,
                           height: spacing.buttonHeight,
                           padding: '0 1.25rem',
-                          background: 'transparent',
-                          color: colors.secondary,
-                          border: `2px solid ${colors.border}`,
-                          borderRadius: radius.button,
                           fontWeight: 700,
                           fontSize: '0.8125rem',
-                          letterSpacing: '0.06em',
                           cursor:
                             updatingCompartmentId === selectedCompartment.id ? 'wait' : 'pointer',
                           textAlign: 'left',

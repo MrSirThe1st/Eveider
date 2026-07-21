@@ -1,6 +1,15 @@
 'use client';
 
-import { colors, radius, spacing } from '@eveider/config-ui';
+import {
+  colors,
+  spacing,
+  borderSubtle,
+  webCardStyle,
+  webInputStyle,
+  webPrimaryButtonStyle,
+  webSecondaryButtonStyle,
+} from '@eveider/config-ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -11,15 +20,20 @@ import { FlashBanner } from '@/components/flash-banner';
 import { LockerPicker } from '@/components/locker-picker';
 import type { LockerOption } from '@/components/locker-card';
 
-const inputStyle: React.CSSProperties = {
-  display: 'block',
-  width: '100%',
-  marginTop: '0.5rem',
-  height: 48,
-  padding: '0 12px',
-  border: `2px solid ${colors.border}`,
-  borderRadius: radius.button,
-  fontWeight: 500,
+const inputStyle: React.CSSProperties = webInputStyle;
+
+const labelStyle: React.CSSProperties = {
+  fontWeight: 600,
+  fontSize: '0.875rem',
+  color: colors.secondary,
+};
+
+const sectionTitleStyle: React.CSSProperties = {
+  margin: '0 0 1.5rem',
+  fontSize: '1.125rem',
+  fontWeight: 700,
+  letterSpacing: '-0.01em',
+  color: colors.secondary,
 };
 
 type LockerCompartmentsResponse = {
@@ -29,6 +43,7 @@ type LockerCompartmentsResponse = {
 
 export function CreateParcelForm() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [reference, setReference] = useState('');
   const [recipientName, setRecipientName] = useState('');
   const [recipientPhone, setRecipientPhone] = useState('');
@@ -192,6 +207,9 @@ export function CreateParcelForm() {
         return;
       }
 
+      void queryClient.invalidateQueries({ queryKey: ['parcels'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+
       const parcelRef = reference.trim();
       if (result.data!.recipientStatus === 'invited' && result.data!.invite) {
         setCreatedInvite(result.data!.invite);
@@ -223,15 +241,13 @@ export function CreateParcelForm() {
       {createdInvite ? (
         <div
           style={{
+            ...webCardStyle,
             marginBottom: '1.25rem',
             padding: '1rem',
-            background: colors.surface,
-            border: `2px solid ${colors.border}`,
-            borderRadius: radius.card,
             fontSize: '0.8125rem',
           }}
         >
-          <p style={{ margin: '0 0 0.5rem', fontWeight: 700 }}>LIEN D&apos;INVITATION (simulation)</p>
+          <p style={{ margin: '0 0 0.5rem', fontWeight: 600 }}>Lien d&apos;invitation (simulation)</p>
           <p style={{ margin: '0 0 0.35rem', wordBreak: 'break-all' }}>
             <strong>Web :</strong> {createdInvite.webLink}
           </p>
@@ -244,19 +260,15 @@ export function CreateParcelForm() {
 
       <section
         style={{
-          background: colors.surface,
-          border: `2px solid ${colors.border}`,
-          borderRadius: radius.card,
+          ...webCardStyle,
           padding: '2rem',
           marginBottom: '1.25rem',
         }}
       >
-        <p style={{ margin: '0 0 1.5rem', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.1em' }}>
-          DESTINATAIRE
-        </p>
+        <h2 style={sectionTitleStyle}>Destinataire</h2>
 
         <label style={{ display: 'block' }}>
-          <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>RÉFÉRENCE / N° COMMANDE</span>
+          <span style={labelStyle}>Référence / n° commande</span>
           <input
             type="text"
             name="reference"
@@ -265,12 +277,12 @@ export function CreateParcelForm() {
             placeholder="CMD-2026-001"
             required
             disabled={loading || !!success}
-            style={inputStyle}
+            style={{ ...inputStyle, marginTop: '0.5rem' }}
           />
         </label>
 
         <label style={{ display: 'block', marginTop: '1.25rem' }}>
-          <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>NOM DESTINATAIRE</span>
+          <span style={labelStyle}>Nom destinataire</span>
           <input
             type="text"
             name="recipientName"
@@ -278,12 +290,12 @@ export function CreateParcelForm() {
             onChange={(e) => setRecipientName(e.target.value)}
             placeholder="Jean Mukendi"
             disabled={loading || !!success}
-            style={inputStyle}
+            style={{ ...inputStyle, marginTop: '0.5rem' }}
           />
         </label>
 
         <label style={{ display: 'block', marginTop: '1.25rem' }}>
-          <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>TÉLÉPHONE DESTINATAIRE</span>
+          <span style={labelStyle}>Téléphone destinataire</span>
           <input
             type="tel"
             name="recipientPhone"
@@ -292,12 +304,12 @@ export function CreateParcelForm() {
             placeholder="+243800000000"
             required
             disabled={loading || !!success}
-            style={inputStyle}
+            style={{ ...inputStyle, marginTop: '0.5rem' }}
           />
         </label>
 
         <label style={{ display: 'block', marginTop: '1.25rem' }}>
-          <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>EMAIL DESTINATAIRE (optionnel)</span>
+          <span style={labelStyle}>Email destinataire (optionnel)</span>
           <input
             type="email"
             name="recipientEmail"
@@ -305,16 +317,14 @@ export function CreateParcelForm() {
             onChange={(e) => setRecipientEmail(e.target.value)}
             placeholder="client@exemple.cd"
             disabled={loading || !!success}
-            style={inputStyle}
+            style={{ ...inputStyle, marginTop: '0.5rem' }}
           />
         </label>
       </section>
 
       <section
         style={{
-          background: colors.surface,
-          border: `2px solid ${colors.border}`,
-          borderRadius: radius.card,
+          ...webCardStyle,
           padding: '2rem',
           marginBottom: '1.5rem',
         }}
@@ -330,10 +340,8 @@ export function CreateParcelForm() {
           }}
         >
           <div>
-            <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.1em' }}>
-              CASIER & COMPARTIMENT
-            </p>
-            <p style={{ margin: '0.5rem 0 0', fontSize: '0.8125rem', opacity: 0.75, maxWidth: 520 }}>
+            <h2 style={{ ...sectionTitleStyle, marginBottom: '0.5rem' }}>Casier & compartiment</h2>
+            <p style={{ margin: 0, fontSize: '0.875rem', color: colors.textMuted, maxWidth: 520 }}>
               Choisissez un casier puis un compartiment libre (S, M ou L). Laissez vide pour que le
               client choisisse dans l’app mobile.
             </p>
@@ -343,17 +351,13 @@ export function CreateParcelForm() {
               type="button"
               onClick={handleClearLocker}
               style={{
+                ...webSecondaryButtonStyle,
                 height: 36,
                 padding: '0 1rem',
-                border: `2px solid ${colors.border}`,
-                borderRadius: radius.button,
-                background: colors.surface,
-                fontWeight: 600,
-                fontSize: '0.75rem',
-                cursor: 'pointer',
+                fontSize: '0.8125rem',
               }}
             >
-              EFFACER LA SÉLECTION
+              Effacer la sélection
             </button>
           ) : null}
         </div>
@@ -375,7 +379,7 @@ export function CreateParcelForm() {
             style={{
               marginTop: '1.75rem',
               paddingTop: '1.5rem',
-              borderTop: `2px solid ${colors.border}`,
+              borderTop: borderSubtle(),
             }}
           >
             <p style={{ margin: '0 0 0.35rem', fontWeight: 700, fontSize: '0.875rem' }}>
@@ -425,20 +429,16 @@ export function CreateParcelForm() {
         type="submit"
         disabled={loading || !!success}
         style={{
+          ...webPrimaryButtonStyle,
           width: '100%',
           maxWidth: 560,
           height: spacing.buttonHeight,
-          background: 'transparent',
-          color: colors.secondary,
-          border: `2px solid ${colors.border}`,
-          borderRadius: radius.button,
-          fontWeight: 600,
-          letterSpacing: '0.04em',
+          fontSize: '0.9375rem',
           cursor: loading || success ? 'wait' : 'pointer',
           opacity: loading || success ? 0.7 : 1,
         }}
       >
-        {loading ? 'CRÉATION EN COURS…' : success ? 'COLIS CRÉÉ' : 'CRÉER LE COLIS'}
+        {loading ? 'Création en cours…' : success ? 'Colis créé' : 'Créer le colis'}
       </button>
     </form>
   );

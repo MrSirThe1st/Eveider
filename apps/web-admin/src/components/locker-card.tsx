@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius } from '@eveider/config-ui';
+import { colors, borderStrong, borderSubtle, webCardStyle } from '@eveider/config-ui';
 import { LockerSizeSummary } from '@/components/compartment-select-grid';
 
 export type LockerOption = {
@@ -25,16 +25,16 @@ type LockerCardProps = {
 export function LockerCard({ locker, selected, onSelect }: LockerCardProps) {
   const isFull = locker.availableCompartments === 0;
 
-  let statusText = `${locker.availableCompartments} LIBRES`;
+  let statusText = `${locker.availableCompartments} libres`;
   let statusColor: string = colors.success;
   let statusBg = 'rgba(9, 212, 11, 0.1)';
 
   if (locker.availableCompartments === 1) {
-    statusText = '1 COMPARTIMENT LIBRE';
+    statusText = '1 compartiment libre';
     statusColor = colors.warning;
     statusBg = 'rgba(255, 184, 0, 0.1)';
   } else if (isFull) {
-    statusText = 'COMPLET';
+    statusText = 'Complet';
     statusColor = colors.danger;
     statusBg = 'rgba(229, 57, 53, 0.1)';
   }
@@ -51,9 +51,9 @@ export function LockerCard({ locker, selected, onSelect }: LockerCardProps) {
         if (!isFull) onSelect(locker.id);
       }}
       style={{
+        ...webCardStyle,
         background: isFull ? colors.background : colors.surface,
-        border: selected ? `2px solid ${colors.primary}` : `2px solid ${colors.border}`,
-        borderRadius: radius.card,
+        border: selected ? borderStrong() : 'none',
         padding: '1.25rem',
         cursor: isFull ? 'not-allowed' : 'pointer',
         opacity: isFull ? 0.6 : 1,
@@ -101,12 +101,11 @@ export function LockerCard({ locker, selected, onSelect }: LockerCardProps) {
             margin: 0,
             fontSize: '0.875rem',
             fontWeight: 700,
-            letterSpacing: '0.04em',
             color: colors.secondary,
             paddingRight: selected ? '1.5rem' : 0,
           }}
         >
-          {locker.name.toUpperCase()}
+          {locker.name}
         </h4>
         <p
           style={{
@@ -134,7 +133,7 @@ export function LockerCard({ locker, selected, onSelect }: LockerCardProps) {
           gap: '0.5rem',
           marginTop: 'auto',
           paddingTop: '0.75rem',
-          borderTop: `2px solid ${colors.border}`,
+          borderTop: borderSubtle(),
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>

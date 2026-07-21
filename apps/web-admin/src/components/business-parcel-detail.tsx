@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius } from '@eveider/config-ui';
+import { colors, webCardStyle } from '@eveider/config-ui';
 import type { ParcelStatus } from '@eveider/domain';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -90,19 +90,17 @@ export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
           textDecoration: 'none',
         }}
       >
-        ← RETOUR AUX COLIS
+        ← Retour aux colis
       </Link>
 
       <section
         style={{
-          background: colors.surface,
-          border: `2px solid ${colors.border}`,
-          borderRadius: radius.card,
+          ...webCardStyle,
           padding: '2rem',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
-          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, letterSpacing: '0.04em' }}>
+          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>
             {parcel.reference}
           </h2>
           <ParcelStatusBadge status={parcel.status} />
@@ -110,14 +108,14 @@ export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
 
         <dl style={{ margin: '2rem 0 0', display: 'grid', gap: '1.25rem' }}>
           <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em' }}>DESTINATAIRE</dt>
+            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>Destinataire</dt>
             <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
               {parcel.recipientName ?? '—'} · {parcel.recipientPhone}
             </dd>
           </div>
           <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em' }}>
-              CASIER DE DESTINATION
+            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
+              Casier de destination
             </dt>
             <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
               {parcel.locker ? (
@@ -133,8 +131,8 @@ export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
           </div>
           {parcel.compartment ? (
             <div>
-              <dt style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em' }}>
-                COMPARTIMENT RÉSERVÉ
+              <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
+                Compartiment réservé
               </dt>
               <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
                 {parcel.compartment.label} — {parcel.compartment.sizeLabel}
@@ -142,12 +140,12 @@ export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
             </div>
           ) : null}
           <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em' }}>CRÉÉ LE</dt>
+            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>Créé le</dt>
             <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>{formatDateTime(parcel.createdAt)}</dd>
           </div>
           <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em' }}>
-              DERNIÈRE MISE À JOUR
+            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
+              Dernière mise à jour
             </dt>
             <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>{formatDateTime(parcel.updatedAt)}</dd>
           </div>

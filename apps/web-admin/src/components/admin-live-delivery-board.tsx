@@ -1,54 +1,19 @@
 'use client';
 
-import { colors, radius, spacing } from '@eveider/config-ui';
-import type { DeliveryStatus } from '@eveider/domain';
+import { colors, radius, spacing, borderSubtle, webCardStyle, webInputStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
 import { DELIVERY_STATUS_LABELS } from '@eveider/domain';
-import { FilterBar, FilterChipGroup } from '@eveider/ui';
+import { FilterBar, FilterChipGroup, LoadingSpinner } from '@eveider/ui';
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { DeliveryStatusBadge } from '@/components/delivery-status-badge';
 import { FlashBanner } from '@/components/flash-banner';
-
-const REFRESH_MS = 30_000;
-
-type DeliveryStatusFilter = 'all' | DeliveryStatus;
-
-type DeliveryItem = {
-  id: string;
-  status: DeliveryStatus;
-  statusLabel: string;
-  updatedAt: string;
-  courier: {
-    id: string;
-    fullName: string | null;
-    email: string | null;
-    phone: string | null;
-  };
-  parcel: {
-    id: string;
-    reference: string;
-    recipientName: string | null;
-    recipientPhone: string;
-    business: { id: string; name: string };
-    locker: { id: string; name: string; address: string } | null;
-  };
-};
-
-type DeliverySummary = {
-  assigned: number;
-  scanned: number;
-  drop_off_pending: number;
-  total: number;
-};
-
-type FilterOption = { id: string; label: string };
-
-type DeliveryFilters = {
-  status: DeliveryStatusFilter;
-  courierId: string;
-  lockerId: string;
-  businessId: string;
-};
+import {
+  type DeliveryFilters,
+  type DeliveryItem,
+  type DeliveryStatusFilter,
+  useDeliveriesBoardQuery,
+} from '@/hooks/queries/use-deliveries-query';
+import { REFRESH_INTERVALS } from '@/lib/query/stale-times';
 
 const STATUS_FILTERS: { value: DeliveryStatusFilter; label: string }[] = [
   { value: 'all', label: 'ACTIVES' },
@@ -58,13 +23,10 @@ const STATUS_FILTERS: { value: DeliveryStatusFilter; label: string }[] = [
 ];
 
 const selectStyle: React.CSSProperties = {
+  ...webInputStyle,
   minWidth: 180,
   height: spacing.buttonHeight,
   padding: '0 0.75rem',
-  border: `2px solid ${colors.border}`,
-  borderRadius: radius.button,
-  fontWeight: 500,
-  background: colors.surface,
 };
 
 function formatDateTime(iso: string) {
@@ -80,16 +42,6 @@ function courierLabel(courier: DeliveryItem['courier']) {
   return courier.fullName ?? courier.email ?? courier.phone ?? 'Coursier';
 }
 
-function buildQuery(filters: DeliveryFilters) {
-  const params = new URLSearchParams();
-  if (filters.status !== 'all') params.set('status', filters.status);
-  if (filters.courierId) params.set('courierId', filters.courierId);
-  if (filters.lockerId) params.set('lockerId', filters.lockerId);
-  if (filters.businessId) params.set('businessId', filters.businessId);
-  const query = params.toString();
-  return query ? `?${query}` : '';
-}
-
 export function AdminLiveDeliveryBoard() {
   const [filters, setFilters] = useState<DeliveryFilters>({
     status: 'all',
@@ -97,105 +49,50 @@ export function AdminLiveDeliveryBoard() {
     lockerId: '',
     businessId: '',
   });
-  const [deliveries, setDeliveries] = useState<DeliveryItem[]>([]);
-  const [summary, setSummary] = useState<DeliverySummary | null>(null);
-  const [couriers, setCouriers] = useState<FilterOption[]>([]);
-  const [lockers, setLockers] = useState<FilterOption[]>([]);
-  const [businesses, setBusinesses] = useState<FilterOption[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
-  const loadFilterOptions = useCallback(async () => {
-    try {
-      const [couriersRes, lockersRes, businessesRes] = await Promise.all([
-        fetch('/api/couriers', { cache: 'no-store' }),
-        fetch('/api/lockers', { cache: 'no-store' }),
-        fetch('/api/businesses', { cache: 'no-store' }),
-      ]);
+  const boardQuery = useDeliveriesBoardQuery(filters);
 
-      const [couriersData, lockersData, businessesData] = await Promise.all([
-        couriersRes.json(),
-        lockersRes.json(),
-        businessesRes.json(),
-      ]);
+  const deliveries = boardQuery.data?.deliveries ?? [];
+  const summary = boardQuery.data?.summary ?? null;
 
-      if (couriersData.success) {
-        setCouriers(
-          couriersData.data.couriers.map((c: { id: string; fullName: string | null; email: string | null }) => ({
-            id: c.id,
-            label: c.fullName ?? c.email ?? c.id,
-          })),
-        );
-      }
-
-      if (lockersData.success) {
-        setLockers(
-          lockersData.data.lockers.map((l: { id: string; name: string }) => ({
-            id: l.id,
-            label: l.name,
-          })),
-        );
-      }
-
-      if (businessesData.success) {
-        setBusinesses(
-          businessesData.data.businesses.map((b: { id: string; name: string }) => ({
-            id: b.id,
-            label: b.name,
-          })),
-        );
-      }
-    } catch {
-      /* filter options are optional */
-    }
-  }, []);
-
-  const loadDeliveries = useCallback(
-    async (silent = false) => {
-      if (!silent) setLoading(true);
-      setError(null);
-
-      try {
-        const response = await fetch(`/api/deliveries${buildQuery(filters)}`, { cache: 'no-store' });
-        const result = await response.json();
-
-        if (!result.success) {
-          setError(result.error ?? 'Chargement échoué');
-          setDeliveries([]);
-          setSummary(null);
-          return;
-        }
-
-        setDeliveries(result.data.deliveries);
-        setSummary(result.data.summary);
-        setLastRefresh(new Date());
-      } catch {
-        setError('Impossible de charger les livraisons.');
-        setDeliveries([]);
-        setSummary(null);
-      } finally {
-        if (!silent) setLoading(false);
-      }
-    },
-    [filters],
+  const couriers = useMemo(
+    () =>
+      (boardQuery.data?.couriers ?? []).map((c) => ({
+        id: c.id,
+        label: c.fullName ?? c.email ?? c.id,
+      })),
+    [boardQuery.data?.couriers],
   );
 
-  useEffect(() => {
-    void loadFilterOptions();
-  }, [loadFilterOptions]);
+  const lockers = useMemo(
+    () =>
+      (boardQuery.data?.lockers ?? []).map((l) => ({
+        id: l.id,
+        label: l.name,
+      })),
+    [boardQuery.data?.lockers],
+  );
 
-  useEffect(() => {
-    void loadDeliveries();
-  }, [loadDeliveries]);
+  const businesses = useMemo(
+    () =>
+      (boardQuery.data?.businesses ?? []).map((b) => ({
+        id: b.id,
+        label: b.name,
+      })),
+    [boardQuery.data?.businesses],
+  );
 
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      void loadDeliveries(true);
-    }, REFRESH_MS);
+  const showInitialLoader = boardQuery.isLoading && deliveries.length === 0;
+  const showFatalError = boardQuery.isError && deliveries.length === 0;
+  const showRefreshError = boardQuery.isError && deliveries.length > 0;
+  const errorMessage =
+    boardQuery.error instanceof Error
+      ? boardQuery.error.message
+      : 'Impossible de charger les livraisons.';
 
-    return () => window.clearInterval(interval);
-  }, [loadDeliveries]);
+  const lastRefresh = boardQuery.dataUpdatedAt
+    ? new Date(boardQuery.dataUpdatedAt)
+    : null;
 
   const summaryCards = useMemo(
     () => [
@@ -246,14 +143,12 @@ export function AdminLiveDeliveryBoard() {
         ))}
         <div
           style={{
+            ...webCardStyle,
             padding: '1rem 1.25rem',
-            background: colors.surface,
-            border: `2px solid ${colors.border}`,
-            borderRadius: radius.card,
           }}
         >
-          <p style={{ margin: 0, fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em' }}>
-            TOTAL ACTIF
+          <p style={{ margin: 0, fontSize: '0.6875rem', fontWeight: 600 }}>
+            Total actif
           </p>
           <p style={{ margin: '0.35rem 0 0', fontSize: '1.75rem', fontWeight: 700 }}>{summary?.total ?? 0}</p>
         </div>
@@ -318,44 +213,51 @@ export function AdminLiveDeliveryBoard() {
           ))}
         </select>
 
+        {boardQuery.isFetching && deliveries.length > 0 ? (
+          <span style={{ fontSize: '0.75rem', fontWeight: 500, color: colors.secondary, opacity: 0.7 }}>
+            Mise à jour…
+          </span>
+        ) : null}
+
         {lastRefresh ? (
           <span style={{ fontSize: '0.75rem', fontWeight: 500, color: colors.secondary, opacity: 0.7 }}>
-            Actualisé à {formatDateTime(lastRefresh.toISOString())} · auto 30s
+            Actualisé à {formatDateTime(lastRefresh.toISOString())} · auto {REFRESH_INTERVALS.deliveries / 1000}s
           </span>
         ) : null}
       </div>
 
-      {loading ? <p style={{ fontWeight: 500 }}>Chargement des livraisons…</p> : null}
+      {showInitialLoader ? <LoadingSpinner label="Chargement des livraisons…" /> : null}
 
-      {!loading && error ? (
+      {showFatalError ? (
         <div>
-          <FlashBanner message={error} variant="error" />
+          <FlashBanner message={errorMessage} variant="error" />
           <button
             type="button"
-            onClick={() => void loadDeliveries()}
+            onClick={() => void boardQuery.refetch()}
             style={{
+              ...webSecondaryButtonStyle,
               marginTop: '1rem',
               height: spacing.buttonHeight,
               padding: '0 1.25rem',
-              border: `2px solid ${colors.border}`,
-              borderRadius: radius.button,
-              fontWeight: 600,
-              cursor: 'pointer',
               background: colors.surface,
             }}
           >
-            RÉESSAYER
+            Réessayer
           </button>
         </div>
       ) : null}
 
-      {!loading && !error && deliveries.length === 0 ? (
+      {showRefreshError ? (
+        <FlashBanner message={`${errorMessage} Les données affichées peuvent être obsolètes.`} variant="error" />
+      ) : null}
+
+      {!showInitialLoader && !showFatalError && deliveries.length === 0 ? (
         <p style={{ fontWeight: 500, color: colors.secondary, opacity: 0.8 }}>
           Aucune livraison active pour ces filtres.
         </p>
       ) : null}
 
-      {!loading && !error && deliveries.length > 0 ? (
+      {!showInitialLoader && !showFatalError && deliveries.length > 0 ? (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 880 }}>
             <thead>
@@ -370,7 +272,7 @@ export function AdminLiveDeliveryBoard() {
                         fontSize: '0.6875rem',
                         fontWeight: 600,
                         letterSpacing: '0.08em',
-                        borderBottom: `2px solid ${colors.border}`,
+                        borderBottom: borderSubtle(),
                       }}
                     >
                       {heading}
@@ -382,7 +284,7 @@ export function AdminLiveDeliveryBoard() {
             <tbody>
               {deliveries.map((delivery) => (
                 <tr key={delivery.id}>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: `2px solid ${colors.border}` }}>
+                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle() }}>
                     <Link
                       href={`/tableau-de-bord/colis/${delivery.parcel.id}`}
                       style={{ fontWeight: 700, color: colors.secondary, textDecoration: 'none' }}
@@ -390,10 +292,10 @@ export function AdminLiveDeliveryBoard() {
                       {delivery.parcel.reference}
                     </Link>
                   </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: `2px solid ${colors.border}` }}>
+                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle() }}>
                     <DeliveryStatusBadge status={delivery.status} />
                   </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: `2px solid ${colors.border}` }}>
+                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle() }}>
                     <Link
                       href={`/tableau-de-bord/utilisateurs/${delivery.courier.id}`}
                       style={{ fontWeight: 500, color: colors.secondary, textDecoration: 'none' }}
@@ -401,10 +303,10 @@ export function AdminLiveDeliveryBoard() {
                       {courierLabel(delivery.courier)}
                     </Link>
                   </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: `2px solid ${colors.border}`, fontWeight: 500 }}>
+                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle(), fontWeight: 500 }}>
                     {delivery.parcel.business.name}
                   </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: `2px solid ${colors.border}`, fontWeight: 500 }}>
+                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle(), fontWeight: 500 }}>
                     {delivery.parcel.locker ? (
                       <Link
                         href={`/tableau-de-bord/casiers/${delivery.parcel.locker.id}`}
@@ -416,15 +318,15 @@ export function AdminLiveDeliveryBoard() {
                       '—'
                     )}
                   </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: `2px solid ${colors.border}`, fontWeight: 500 }}>
+                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle(), fontWeight: 500 }}>
                     {delivery.parcel.recipientName ?? '—'}
                     <br />
                     <span style={{ fontSize: '0.8125rem', opacity: 0.75 }}>{delivery.parcel.recipientPhone}</span>
                   </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: `2px solid ${colors.border}`, fontWeight: 500, whiteSpace: 'nowrap' }}>
+                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle(), fontWeight: 500, whiteSpace: 'nowrap' }}>
                     {formatDateTime(delivery.updatedAt)}
                   </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: `2px solid ${colors.border}` }}>
+                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle() }}>
                     <Link
                       href={`/tableau-de-bord/colis/${delivery.parcel.id}`}
                       style={{

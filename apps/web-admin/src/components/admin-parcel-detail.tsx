@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius, spacing } from '@eveider/config-ui';
+import { colors, spacing, borderSubtle, webCardStyle, webInputStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
 import {
   DELIVERY_STATUS_LABELS,
   PARCEL_STATUS_LABELS,
@@ -201,14 +201,12 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
           textDecoration: 'none',
         }}
       >
-        ← RETOUR AUX COLIS
+        ← Retour aux colis
       </Link>
 
       <section
         style={{
-          background: colors.surface,
-          border: `2px solid ${colors.border}`,
-          borderRadius: radius.card,
+          ...webCardStyle,
           padding: '2rem',
         }}
       >
@@ -221,7 +219,7 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
             flexWrap: 'wrap',
           }}
         >
-          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, letterSpacing: '0.04em' }}>
+          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>
             {parcel.reference}
           </h2>
           <ParcelStatusBadge status={parcel.status} />
@@ -229,22 +227,22 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
 
         <dl style={{ margin: '2rem 0 0', display: 'grid', gap: '1.25rem' }}>
           <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em' }}>
-              ENTREPRISE
+            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
+              Entreprise
             </dt>
             <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>{parcel.business.name}</dd>
           </div>
           <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em' }}>
-              DESTINATAIRE
+            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
+              Destinataire
             </dt>
             <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
               {parcel.recipientName ?? '—'} · {parcel.recipientPhone}
             </dd>
           </div>
           <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em' }}>
-              CASIER DE DESTINATION
+            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
+              Casier de destination
             </dt>
             <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
               {parcel.locker ? (
@@ -259,20 +257,20 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
             </dd>
           </div>
           <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em' }}>CRÉÉ LE</dt>
+            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>Créé le</dt>
             <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>{formatDateTime(parcel.createdAt)}</dd>
           </div>
           <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em' }}>
-              DERNIÈRE MISE À JOUR
+            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
+              Dernière mise à jour
             </dt>
             <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>{formatDateTime(parcel.updatedAt)}</dd>
           </div>
         </dl>
 
-        <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: `2px solid ${colors.border}` }}>
-          <p style={{ margin: '0 0 1rem', fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em' }}>
-            LIVRAISON COURSIER
+        <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: borderSubtle() }}>
+          <p style={{ margin: '0 0 1rem', fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
+            Livraison coursier
           </p>
           {activeDelivery ? (
             <p style={{ margin: 0, fontWeight: 500 }}>
@@ -285,12 +283,10 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
                 value={selectedCourierId}
                 onChange={(event) => setSelectedCourierId(event.target.value)}
                 style={{
+                  ...webInputStyle,
                   minWidth: 220,
                   height: spacing.buttonHeight,
                   padding: '0 0.75rem',
-                  border: `2px solid ${colors.border}`,
-                  borderRadius: radius.button,
-                  fontWeight: 500,
                 }}
               >
                 <option value="">Sélectionner un coursier</option>
@@ -305,19 +301,14 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
                 disabled={assigning || !selectedCourierId}
                 onClick={() => void assignCourier()}
                 style={{
+                  ...webSecondaryButtonStyle,
                   height: spacing.buttonHeight,
                   padding: '0 1.25rem',
-                  background: 'transparent',
-                  color: colors.secondary,
-                  border: `2px solid ${colors.border}`,
-                  borderRadius: radius.button,
-                  fontWeight: 600,
                   fontSize: '0.75rem',
-                  letterSpacing: '0.04em',
                   cursor: assigning || !selectedCourierId ? 'not-allowed' : 'pointer',
                 }}
               >
-                ASSIGNER
+                Assigner
               </button>
             </div>
           ) : (
@@ -328,9 +319,9 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
         </div>
 
         {nextStatuses.length > 0 ? (
-          <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: `2px solid ${colors.border}` }}>
-            <p style={{ margin: '0 0 1rem', fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em' }}>
-              AVANCER LE STATUT
+          <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: borderSubtle() }}>
+            <p style={{ margin: '0 0 1rem', fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
+              Avancer le statut
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
               {nextStatuses.map((status) => (
@@ -340,15 +331,10 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
                   disabled={updating}
                   onClick={() => void advanceStatus(status)}
                   style={{
+                    ...webSecondaryButtonStyle,
                     height: spacing.buttonHeight,
                     padding: '0 1.25rem',
-                    background: 'transparent',
-                    color: colors.secondary,
-                    border: `2px solid ${colors.border}`,
-                    borderRadius: radius.button,
-                    fontWeight: 600,
                     fontSize: '0.75rem',
-                    letterSpacing: '0.04em',
                     cursor: updating ? 'wait' : 'pointer',
                   }}
                 >

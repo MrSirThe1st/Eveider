@@ -16,7 +16,11 @@ export default async function HomePage() {
     const profile = await onboarding.findProfileByAuthId(user.id);
 
     if (profile) {
-      redirect(getAuthenticatedLandingPath(profile.role as UserRole));
+      const destination = getAuthenticatedLandingPath(profile.role as UserRole);
+      // Mobile roles have no web dashboard. Redirecting `/` → `/` caused ERR_TOO_MANY_REDIRECTS.
+      if (destination && destination !== '/') {
+        redirect(destination);
+      }
     }
   }
 

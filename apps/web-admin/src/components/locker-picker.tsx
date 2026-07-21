@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius } from '@eveider/config-ui';
+import { colors, radius, webInputStyle } from '@eveider/config-ui';
 import { useEffect, useState } from 'react';
 import { LockerCard, type LockerOption } from './locker-card';
 import { LockerMapbox } from './locker-mapbox';
@@ -77,19 +77,15 @@ export function LockerPicker({ lockers, selectedLockerId, onSelectLocker }: Lock
         <div style={{ flex: '1 1 240px', position: 'relative' }}>
           <input
             type="text"
-            placeholder="RECHERCHER UN CASIER (EX: GOMBE)..."
+            placeholder="Rechercher un casier (ex. Gombe)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{
+              ...webInputStyle,
               width: '100%',
               height: 44,
               padding: '0 12px 0 38px',
-              border: `2px solid ${colors.border}`,
-              borderRadius: radius.button,
-              fontWeight: 600,
               fontSize: '0.8125rem',
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase',
               outline: 'none',
               background: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23121212' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'%3E%3C/line%3E%3C/svg%3E") no-repeat 14px center`,
               backgroundColor: colors.surface,
@@ -145,7 +141,7 @@ export function LockerPicker({ lockers, selectedLockerId, onSelectLocker }: Lock
                 transition: 'all 0.15s ease-in-out',
               }}
             >
-              LISTE
+              Liste
             </button>
             <button
               type="button"
@@ -163,7 +159,7 @@ export function LockerPicker({ lockers, selectedLockerId, onSelectLocker }: Lock
                 transition: 'all 0.15s ease-in-out',
               }}
             >
-              CARTE MAPBOX
+              Carte Mapbox
             </button>
           </div>
         )}
@@ -200,7 +196,7 @@ export function LockerPicker({ lockers, selectedLockerId, onSelectLocker }: Lock
                 fontSize: '0.875rem',
               }}
             >
-              AUCUN CASIER CORRESPONDANT
+              Aucun casier correspondant
             </p>
           ) : (
             filteredLockers.map((locker) => (

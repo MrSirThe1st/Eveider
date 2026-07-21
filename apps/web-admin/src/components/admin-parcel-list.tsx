@@ -1,8 +1,9 @@
 'use client';
 
-import { colors, radius, spacing } from '@eveider/config-ui';
+import { colors, spacing, webCardStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
+import { LoadingSpinner } from '@eveider/ui';
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { DashboardParcelItem } from '@/components/admin-dashboard-types';
 import { FlashBanner } from '@/components/flash-banner';
 import {
@@ -10,6 +11,7 @@ import {
   type ParcelStatusFilter,
 } from '@/components/parcel-status-filters';
 import { ParcelStatusBadge } from '@/components/parcel-status-badge';
+import { useAdminParcelsQuery } from '@/hooks/queries/use-parcels-query';
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat('fr-CD', {
@@ -19,116 +21,89 @@ function formatDate(iso: string) {
   }).format(new Date(iso));
 }
 
-export function AdminParcelList({ initialParcels }: { initialParcels: DashboardParcelItem[] }) {
+type AdminParcelListProps = {
+  /** Parcels already loaded by the dashboard — avoids a duplicate /api/parcels call. */
+  seedParcels?: DashboardParcelItem[];
+};
+
+export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
   const [statusFilter, setStatusFilter] = useState<ParcelStatusFilter>('all');
-  const [parcels, setParcels] = useState<DashboardParcelItem[]>(initialParcels);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const useSeed = statusFilter === 'all' && seedParcels !== undefined;
 
-  const loadParcels = useCallback(async (filter: ParcelStatusFilter) => {
-    setLoading(true);
-    setError(null);
+  const { data: fetchedParcels = [], isLoading, isFetching, isError, error, refetch } =
+    useAdminParcelsQuery(statusFilter, {
+      enabled: !useSeed,
+      initialData: useSeed ? seedParcels : undefined,
+    });
 
-    const query = filter === 'all' ? '' : `?status=${filter}`;
+  const parcels = useSeed ? seedParcels : fetchedParcels;
 
-    try {
-      const response = await fetch(`/api/parcels${query}`, { cache: 'no-store' });
-      const result = await response.json();
-
-      if (!result.success) {
-        setError(result.error ?? 'Chargement échoué');
-        setParcels([]);
-        return;
-      }
-
-      setParcels(result.data.parcels);
-    } catch {
-      setError('Impossible de charger les colis.');
-      setParcels([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    setParcels(initialParcels);
-  }, [initialParcels]);
-
-  useEffect(() => {
-    if (statusFilter === 'all') {
-      setParcels(initialParcels);
-      return;
-    }
-    void loadParcels(statusFilter);
-  }, [loadParcels, statusFilter, initialParcels]);
+  const showInitialLoader = isLoading && parcels.length === 0;
+  const showFatalError = isError && parcels.length === 0;
+  const showRefreshError = isError && parcels.length > 0;
+  const errorMessage =
+    error instanceof Error ? error.message : 'Impossible de charger les colis.';
 
   return (
     <div>
       <ParcelStatusFilters value={statusFilter} onChange={setStatusFilter} />
 
-      {loading ? <p style={{ fontWeight: 500 }}>Chargement des colis…</p> : null}
+      {isFetching && parcels.length > 0 ? (
+        <p style={{ margin: '0 0 0.75rem', fontSize: '0.75rem', fontWeight: 500, opacity: 0.7 }}>
+          Mise à jour…
+        </p>
+      ) : null}
 
-      {!loading && error ? (
+      {showInitialLoader ? <LoadingSpinner label="Chargement des colis…" /> : null}
+
+      {showFatalError ? (
         <div>
-          <FlashBanner message={error} variant="error" />
+          <FlashBanner message={errorMessage} variant="error" />
           <button
             type="button"
-            onClick={() => void loadParcels(statusFilter)}
+            onClick={() => void refetch()}
             style={{
+              ...webSecondaryButtonStyle,
               height: spacing.buttonHeight,
               padding: '0 1.5rem',
-              background: 'transparent',
-              color: colors.secondary,
-              border: `2px solid ${colors.border}`,
-              borderRadius: radius.button,
-              fontWeight: 600,
-              letterSpacing: '0.04em',
-              cursor: 'pointer',
             }}
           >
-            RÉESSAYER
+            Réessayer
           </button>
         </div>
       ) : null}
 
-      {!loading && !error && parcels.length === 0 ? (
+      {showRefreshError ? (
+        <FlashBanner message={`${errorMessage} Les données affichées peuvent être obsolètes.`} variant="error" />
+      ) : null}
+
+      {!showInitialLoader && !showFatalError && parcels.length === 0 ? (
         <section
           style={{
-            background: colors.surface,
-            border: `2px solid ${colors.border}`,
-            borderRadius: radius.card,
+            ...webCardStyle,
             padding: '2.5rem',
             textAlign: 'center',
           }}
         >
-          <p style={{ margin: 0, fontWeight: 600, letterSpacing: '0.04em' }}>
-            {statusFilter === 'all' ? 'AUCUN COLIS' : 'AUCUN COLIS POUR CE FILTRE'}
+          <p style={{ margin: 0, fontWeight: 600 }}>
+            {statusFilter === 'all' ? 'Aucun colis' : 'Aucun colis pour ce filtre'}
           </p>
         </section>
       ) : null}
 
-      {!loading && !error && parcels.length > 0 ? (
+      {!showInitialLoader && !showFatalError && parcels.length > 0 ? (
         <>
-          <p
-            style={{
-              margin: '0 0 1rem',
-              fontWeight: 600,
-              fontSize: '0.8125rem',
-              letterSpacing: '0.06em',
-            }}
-          >
-            {parcels.length} COLIS
+          <p style={{ margin: '0 0 1rem', fontWeight: 600, fontSize: '0.8125rem' }}>
+            {parcels.length} colis
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {parcels.map((parcel) => (
+            {parcels.map((parcel: DashboardParcelItem) => (
               <Link
                 key={parcel.id}
                 href={`/tableau-de-bord/colis/${parcel.id}`}
                 style={{
                   display: 'block',
-                  background: colors.surface,
-                  border: `2px solid ${colors.border}`,
-                  borderRadius: radius.card,
+                  ...webCardStyle,
                   padding: '1.25rem 1.5rem',
                   textDecoration: 'none',
                   color: colors.secondary,
@@ -144,7 +119,7 @@ export function AdminParcelList({ initialParcels }: { initialParcels: DashboardP
                   }}
                 >
                   <div>
-                    <p style={{ margin: 0, fontWeight: 700, letterSpacing: '0.04em' }}>
+                    <p style={{ margin: 0, fontWeight: 700 }}>
                       {parcel.reference}
                     </p>
                     <p style={{ margin: '0.35rem 0 0', fontWeight: 500, fontSize: '0.875rem' }}>

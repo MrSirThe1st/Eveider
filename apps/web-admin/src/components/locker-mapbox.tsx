@@ -1,6 +1,6 @@
 'use client';
 
-import { colors } from '@eveider/config-ui';
+import { colors, webCardStyle } from '@eveider/config-ui';
 import type { LockerMapMarkerDto } from '@/lib/locker-presenter';
 import { getDefaultMapCenter, getMapboxToken, DRC_MAP_MAX_BOUNDS, lockerPinColor, MAPBOX_STYLE, type MapSearchViewport } from '@/lib/mapbox';
 import { useEffect, useMemo, useRef } from 'react';
@@ -89,14 +89,13 @@ export function LockerMapbox({
     return (
       <div
         style={{
+          ...webCardStyle,
           height,
-          border: `2px solid ${colors.border}`,
           borderRadius: 12,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           padding: 24,
-          background: colors.surface,
           color: colors.secondary,
           fontWeight: 500,
           textAlign: 'center',
@@ -108,7 +107,7 @@ export function LockerMapbox({
   }
 
   return (
-    <div style={{ height, borderRadius: 12, overflow: 'hidden', border: `2px solid ${colors.border}` }}>
+    <div style={{ height, borderRadius: 12, overflow: 'hidden' }}>
       <Map
         ref={mapRef}
         mapboxAccessToken={token}

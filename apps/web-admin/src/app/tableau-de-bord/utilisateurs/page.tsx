@@ -1,19 +1,16 @@
 'use client';
 
-import { colors, radius } from '@eveider/config-ui';
-import { PageHeader } from '@eveider/ui';
+import { colors, radius, borderSubtle, webCardStyle, webInputStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
+import { LoadingSpinner, PageHeader } from '@eveider/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FlashBanner } from '@/components/flash-banner';
-
-type UserItem = {
-  id: string;
-  fullName: string | null;
-  email: string | null;
-  phone: string | null;
-  isBlocked: boolean;
-  createdAt: string;
-};
+import {
+  type UserListItem,
+  useUsersQuery,
+  usersQueryKey,
+} from '@/hooks/queries/use-users-query';
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat('fr-CD', {
@@ -24,46 +21,35 @@ function formatDate(iso: string) {
 }
 
 export default function UsersPage() {
+  const queryClient = useQueryClient();
   const [role, setRole] = useState<'customer' | 'courier'>('customer');
   const [search, setSearch] = useState('');
-  const [users, setUsers] = useState<UserItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [success, setSuccess] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
-
-  const loadUsers = useCallback(async (currentRole: 'customer' | 'courier', query: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const q = query ? `&search=${encodeURIComponent(query)}` : '';
-      const response = await fetch(`/api/users?role=${currentRole}${q}`, { cache: 'no-store' });
-      const result = await response.json();
-      if (!result.success) {
-        setError(result.error ?? 'Impossible de charger les utilisateurs');
-        setUsers([]);
-      } else {
-        setUsers(result.data.users);
-      }
-    } catch {
-      setError('Erreur réseau lors du chargement');
-      setUsers([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
-      void loadUsers(role, search);
+      setDebouncedSearch(search);
     }, 300);
 
     return () => clearTimeout(delayDebounce);
-  }, [role, search, loadUsers]);
+  }, [search]);
 
-  async function handleToggleStatus(user: UserItem) {
+  const { data: users = [], isLoading, isFetching, isError, error, refetch } = useUsersQuery({
+    role,
+    search: debouncedSearch,
+  });
+
+  const showInitialLoader = isLoading && users.length === 0;
+  const showRefreshError = isError && users.length > 0;
+  const errorMessage =
+    error instanceof Error ? error.message : 'Impossible de charger les utilisateurs.';
+
+  async function handleToggleStatus(user: UserListItem) {
     setActingId(user.id);
-    setError(null);
+    setActionError(null);
     setSuccess(null);
 
     const nextState = !user.isBlocked;
@@ -77,19 +63,21 @@ export default function UsersPage() {
       const result = await response.json();
 
       if (!result.success) {
-        setError(result.error ?? 'Mise à jour du statut échouée');
+        setActionError(result.error ?? 'Mise à jour du statut échouée');
       } else {
-        setUsers((prev) =>
-          prev.map((u) => (u.id === user.id ? { ...u, isBlocked: nextState } : u))
+        queryClient.setQueryData<UserListItem[]>(
+          usersQueryKey({ role, search: debouncedSearch }),
+          (prev) =>
+            (prev ?? []).map((u) => (u.id === user.id ? { ...u, isBlocked: nextState } : u)),
         );
         setSuccess(
-          `Compte de ${user.fullName ?? user.email ?? 'l\'utilisateur'} ${
+          `Compte de ${user.fullName ?? user.email ?? "l'utilisateur"} ${
             nextState ? 'bloqué' : 'activé'
-          } avec succès`
+          } avec succès`,
         );
       }
     } catch {
-      setError('Impossible de mettre à jour le compte');
+      setActionError('Impossible de mettre à jour le compte');
     } finally {
       setActingId(null);
     }
@@ -102,10 +90,17 @@ export default function UsersPage() {
         description="Consultez et gérez les comptes des clients et des coursiers."
       />
 
-      {success && <FlashBanner message={success} onDismiss={() => setSuccess(null)} />}
-      {error && <FlashBanner message={error} variant="error" onDismiss={() => setError(null)} />}
+      {success ? <FlashBanner message={success} onDismiss={() => setSuccess(null)} /> : null}
+      {actionError ? (
+        <FlashBanner message={actionError} variant="error" onDismiss={() => setActionError(null)} />
+      ) : null}
+      {showRefreshError ? (
+        <FlashBanner
+          message={`${errorMessage} Les données affichées peuvent être obsolètes.`}
+          variant="error"
+        />
+      ) : null}
 
-      {/* Role Tabs & Search Row */}
       <div
         style={{
           display: 'flex',
@@ -116,7 +111,6 @@ export default function UsersPage() {
           marginBottom: '1.5rem',
         }}
       >
-        {/* Tabs */}
         <div
           style={{
             display: 'flex',
@@ -164,42 +158,46 @@ export default function UsersPage() {
           </button>
         </div>
 
-        {/* Search */}
         <input
           type="text"
           placeholder="RECHERCHER PAR NOM, EMAIL OR NUMÉRO..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{
+            ...webInputStyle,
             flex: '0 1 320px',
             height: 44,
-            padding: '0 12px',
-            border: `2px solid ${colors.border}`,
-            borderRadius: radius.button,
-            fontWeight: 600,
-            fontSize: '0.8125rem',
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
-            backgroundColor: colors.surface,
-            outline: 'none',
+            fontSize: '0.875rem',
           }}
         />
       </div>
 
-      {/* Users Table */}
       <div
         style={{
-          background: colors.surface,
-          border: `2px solid ${colors.border}`,
-          borderRadius: radius.card,
+          ...webCardStyle,
           overflow: 'hidden',
         }}
       >
-        {loading && users.length === 0 ? (
-          <p style={{ padding: '2rem', fontWeight: 500, textAlign: 'center' }}>
-            Chargement des utilisateurs…
+        {isFetching && users.length > 0 ? (
+          <p style={{ padding: '1rem 2rem 0', fontSize: '0.75rem', fontWeight: 500, opacity: 0.7 }}>
+            Mise à jour…
           </p>
-        ) : !loading && users.length === 0 ? (
+        ) : null}
+
+        {showInitialLoader ? (
+          <LoadingSpinner label="Chargement des utilisateurs…" minHeight="16rem" />
+        ) : isError && users.length === 0 ? (
+          <div style={{ padding: '2rem', textAlign: 'center' }}>
+            <p style={{ fontWeight: 500, marginBottom: '1rem' }}>{errorMessage}</p>
+            <button
+              type="button"
+              onClick={() => void refetch()}
+              style={{ ...webSecondaryButtonStyle, padding: '0.5rem 1rem' }}
+            >
+              Réessayer
+            </button>
+          </div>
+        ) : users.length === 0 ? (
           <p style={{ padding: '2rem', fontWeight: 500, textAlign: 'center', opacity: 0.65 }}>
             Aucun utilisateur trouvé.
           </p>
@@ -213,7 +211,7 @@ export default function UsersPage() {
             }}
           >
             <thead>
-              <tr style={{ borderBottom: `2px solid ${colors.border}`, background: colors.background }}>
+              <tr style={{ borderBottom: borderSubtle(), background: colors.background }}>
                 <th style={{ padding: '1rem', fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.08em' }}>
                   NOM
                 </th>
@@ -239,7 +237,7 @@ export default function UsersPage() {
                 <tr
                   key={user.id}
                   style={{
-                    borderBottom: `2px solid ${colors.border}`,
+                    borderBottom: borderSubtle(),
                     backgroundColor: user.isBlocked ? 'rgba(229, 57, 53, 0.02)' : 'transparent',
                   }}
                 >
@@ -284,23 +282,19 @@ export default function UsersPage() {
                   </td>
                   <td style={{ padding: '1rem', textAlign: 'right' }}>
                     <div style={{ display: 'inline-flex', gap: '0.5rem', alignItems: 'center' }}>
-                      {role === 'courier' && (
+                      {role === 'courier' ? (
                         <Link
                           href={`/tableau-de-bord/utilisateurs/${user.id}`}
                           style={{
-                            fontSize: '0.6875rem',
-                            fontWeight: 700,
-                            letterSpacing: '0.04em',
-                            color: colors.secondary,
-                            textDecoration: 'none',
+                            ...webSecondaryButtonStyle,
+                            fontSize: '0.75rem',
                             padding: '6px 12px',
-                            border: `2px solid ${colors.border}`,
-                            borderRadius: '4px',
+                            textDecoration: 'none',
                           }}
                         >
                           PROFIL
                         </Link>
-                      )}
+                      ) : null}
                       <button
                         type="button"
                         disabled={actingId === user.id}

@@ -46,10 +46,16 @@ export function AdminShell({ children }: AdminShellProps) {
           isActive: (p) => p.startsWith('/tableau-de-bord/livraisons'),
         },
         {
+          href: '/tableau-de-bord/entreprises/applications',
+          label: 'DOSSIERS BUSINESS',
+          icon: <IconBuilding />,
+          isActive: (p) => p.startsWith('/tableau-de-bord/entreprises/applications'),
+        },
+        {
           href: '/tableau-de-bord/entreprises',
           label: 'ENTREPRISES',
           icon: <IconBuilding />,
-          isActive: (p) => p.startsWith('/tableau-de-bord/entreprises'),
+          isActive: (p) => p === '/tableau-de-bord/entreprises',
         },
         {
           href: '/tableau-de-bord/casiers',

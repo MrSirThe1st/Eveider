@@ -1,6 +1,12 @@
 'use client';
 
-import { colors, radius, spacing, shadows, borders } from '@eveider/config-ui';
+import {
+  colors,
+  spacing,
+  webCardStyle,
+  webInputStyle,
+  webPrimaryButtonStyle,
+} from '@eveider/config-ui';
 import type { UserRole } from '@eveider/domain';
 import { PasswordInput } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
@@ -20,15 +26,8 @@ type AuthFormProps = {
 };
 
 const inputStyle: React.CSSProperties = {
-  display: 'block',
-  width: '100%',
+  ...webInputStyle,
   marginTop: '0.5rem',
-  height: spacing.buttonHeight,
-  padding: '0 12px',
-  border: `${borders.width}px solid ${colors.border}`,
-  borderRadius: radius.button,
-  fontWeight: 500,
-  fontSize: '1rem',
 };
 
 export function AuthForm({ mode, businessName, redirectParam, onAuthenticated }: AuthFormProps) {
@@ -149,23 +148,18 @@ export function AuthForm({ mode, businessName, redirectParam, onAuthenticated }:
     <form
       onSubmit={handleSubmit}
       style={{
-        ...{
-          background: colors.surface,
-          border: `${borders.width}px solid ${colors.border}`,
-          borderRadius: radius.card,
-          boxShadow: shadows.hard,
-        },
+        ...webCardStyle,
         padding: '2rem',
         width: '100%',
         maxWidth: 400,
       }}
     >
-      <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-        {mode === 'register' ? 'INSCRIPTION' : 'CONNEXION'}
-      </p>
+      <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.01em' }}>
+        {mode === 'register' ? 'Inscription' : 'Connexion'}
+      </h2>
 
       <label style={{ display: 'block', marginTop: '1.5rem' }}>
-        <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>EMAIL</span>
+        <span style={{ fontWeight: 600, fontSize: '0.875rem', color: colors.secondary }}>Email</span>
         <input
           type="email"
           value={email}
@@ -178,7 +172,7 @@ export function AuthForm({ mode, businessName, redirectParam, onAuthenticated }:
       </label>
 
       <label style={{ display: 'block', marginTop: '1.25rem' }}>
-        <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>MOT DE PASSE</span>
+        <span style={{ fontWeight: 600, fontSize: '0.875rem', color: colors.secondary }}>Mot de passe</span>
         <PasswordInput
           value={password}
           onChange={setPassword}
@@ -199,22 +193,16 @@ export function AuthForm({ mode, businessName, redirectParam, onAuthenticated }:
         type="submit"
         disabled={loading}
         style={{
+          ...webPrimaryButtonStyle,
           marginTop: '1.5rem',
           width: '100%',
           height: spacing.buttonHeight,
-          background: 'transparent',
-          color: colors.secondary,
-          border: `${borders.width}px solid ${colors.border}`,
-          borderRadius: radius.button,
-          boxShadow: 'none',
-          fontWeight: 700,
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
+          fontSize: '0.9375rem',
           cursor: loading ? 'wait' : 'pointer',
           opacity: loading ? 0.7 : 1,
         }}
       >
-        {loading ? 'CHARGEMENT...' : mode === 'register' ? "CRÉER LE COMPTE" : 'SE CONNECTER'}
+        {loading ? 'Chargement…' : mode === 'register' ? 'Créer le compte' : 'Se connecter'}
       </button>
     </form>
   );

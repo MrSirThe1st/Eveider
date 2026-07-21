@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius, shadows, spacing, webCardStyle } from '@eveider/config-ui';
+import { colors, radius, spacing, borderSubtle, webCardStyle } from '@eveider/config-ui';
 import Link from 'next/link';
 import { useEffect, useId, useRef, useState } from 'react';
 
@@ -136,10 +136,8 @@ export function LandingPage() {
             .lp-nav-link {
               color: ${colors.secondary};
               text-decoration: none;
-              font-size: 0.6875rem;
-              font-weight: 700;
-              letter-spacing: 0.08em;
-              text-transform: uppercase;
+              font-size: 0.8125rem;
+              font-weight: 600;
               padding: 0.5rem 0;
               border-bottom: 2px solid transparent;
             }
@@ -262,10 +260,7 @@ export function LandingPage() {
                     right: 0,
                     top: 'calc(100% + 0.5rem)',
                     width: 300,
-                    background: colors.surface,
-                    border: `2px solid ${colors.border}`,
-                    borderRadius: radius.card,
-                    boxShadow: shadows.hard,
+                    ...webCardStyle,
                     overflow: 'hidden',
                     zIndex: 120,
                   }}
@@ -330,7 +325,7 @@ export function LandingPage() {
                 border: `2px solid ${colors.border}`,
                 borderRadius: radius.button,
                 background: colors.surface,
-                boxShadow: shadows.hard,
+                boxShadow: 'none',
                 cursor: 'pointer',
                 fontWeight: 700,
                 fontSize: '1rem',
@@ -429,11 +424,9 @@ export function LandingPage() {
               <p
                 style={{
                   margin: 0,
-                  fontSize: '0.6875rem',
-                  fontWeight: 700,
-                  letterSpacing: '0.15em',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
                   color: colors.textMuted,
-                  textTransform: 'uppercase',
                 }}
               >
                 Réseau de casiers logistiques · Kinshasa, RDC
@@ -444,17 +437,15 @@ export function LandingPage() {
               style={{
                 margin: '0 0 1rem',
                 fontSize: 'clamp(2rem, 5vw, 3.25rem)',
-                fontWeight: 700,
-                letterSpacing: '0.02em',
-                lineHeight: 1.05,
-                textTransform: 'uppercase',
+                fontWeight: 800,
+                lineHeight: 1.1,
                 color: colors.secondary,
                 maxWidth: 640,
               }}
             >
-              RETIREZ VOS COLIS.
+              Retirez vos colis.
               <br />
-              À TOUT MOMENT.
+              À tout moment.
             </h1>
             <p
               style={{
@@ -475,11 +466,8 @@ export function LandingPage() {
                 display: 'flex',
                 flexWrap: 'wrap',
                 maxWidth: 640,
-                border: `2px solid ${colors.border}`,
-                borderRadius: radius.card,
+                ...webCardStyle,
                 overflow: 'hidden',
-                boxShadow: shadows.hard,
-                background: colors.surface,
               }}
             >
               <input
@@ -590,23 +578,15 @@ export function LandingPage() {
             >
               {SOLUTIONS.map((item) => (
                 <article key={item.title} style={{ ...webCardStyle, padding: '1.75rem' }}>
-                  <span
-                    style={{
-                      fontSize: '0.6875rem',
-                      fontWeight: 700,
-                      letterSpacing: '0.1em',
-                      color: colors.textMuted,
-                    }}
-                  >
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: colors.primary }}>
                     [ {item.tag} ]
                   </span>
                   <h3
                     style={{
-                      margin: '1rem 0 0.75rem',
+                      margin: '0.75rem 0 0.5rem',
                       fontSize: '1.0625rem',
                       fontWeight: 700,
-                      letterSpacing: '0.04em',
-                      textTransform: 'uppercase',
+                      color: colors.secondary,
                     }}
                   >
                     {item.title}
@@ -639,11 +619,10 @@ export function LandingPage() {
                   margin: '0 0 0.75rem',
                   fontSize: '1.25rem',
                   fontWeight: 700,
-                  letterSpacing: '0.04em',
-                  textTransform: 'uppercase',
+                  color: colors.secondary,
                 }}
               >
-                CLIENTS & COURSIERS
+                Clients & Coursiers
               </h3>
               <p style={{ margin: 0, fontWeight: 500, color: colors.textMuted, lineHeight: 1.55 }}>
                 Suivez vos colis, générez votre code PIN, ou gérez vos trajets de livraison depuis l&apos;application Eveider.
@@ -768,9 +747,8 @@ export function LandingPage() {
 
 const sectionTitleStyle: React.CSSProperties = {
   margin: '0 0 2rem',
-  fontSize: '1.25rem',
+  fontSize: '1.5rem',
   fontWeight: 700,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
+  letterSpacing: '-0.01em',
   color: colors.secondary,
 };

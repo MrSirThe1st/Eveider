@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius } from '@eveider/config-ui';
+import { colors, radius, webCardStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
 import { useEffect, useState } from 'react';
 
 type InviteInfo = {
@@ -89,10 +89,8 @@ export function ParcelInvitePanel({ parcelId, initialInvite }: ParcelInvitePanel
     return (
       <section
         style={{
+          ...webCardStyle,
           marginTop: '1.25rem',
-          background: colors.surface,
-          border: `2px solid ${colors.border}`,
-          borderRadius: radius.card,
           padding: '1.5rem',
         }}
       >
@@ -108,15 +106,13 @@ export function ParcelInvitePanel({ parcelId, initialInvite }: ParcelInvitePanel
   return (
     <section
       style={{
+        ...webCardStyle,
         marginTop: '1.25rem',
-        background: colors.surface,
-        border: `2px solid ${colors.border}`,
-        borderRadius: radius.card,
         padding: '1.5rem',
       }}
     >
-      <p style={{ margin: '0 0 0.5rem', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.1em' }}>
-        INVITATION DESTINATAIRE
+      <p style={{ margin: '0 0 0.5rem', fontSize: '0.75rem', fontWeight: 700 }}>
+        Invitation destinataire
       </p>
       <p style={{ margin: '0 0 1rem', fontSize: '0.8125rem', opacity: 0.75 }}>
         Le destinataire n&apos;a pas encore de compte Eveider. Une invitation WhatsApp est envoyée
@@ -147,18 +143,14 @@ export function ParcelInvitePanel({ parcelId, initialInvite }: ParcelInvitePanel
             type="button"
             onClick={() => void copyText('web', invite.webLink)}
             style={{
+              ...webSecondaryButtonStyle,
               marginTop: '0.5rem',
               height: 36,
               padding: '0 1rem',
-              border: `2px solid ${colors.border}`,
-              borderRadius: radius.button,
-              background: colors.surface,
-              fontWeight: 600,
-              fontSize: '0.75rem',
-              cursor: 'pointer',
+              fontSize: '0.8125rem',
             }}
           >
-            {copied === 'web' ? 'COPIÉ' : 'COPIER LE LIEN WEB'}
+            {copied === 'web' ? 'Copié' : 'Copier le lien web'}
           </button>
         </div>
 
@@ -180,18 +172,14 @@ export function ParcelInvitePanel({ parcelId, initialInvite }: ParcelInvitePanel
             type="button"
             onClick={() => void copyText('deep', invite.deepLink)}
             style={{
+              ...webSecondaryButtonStyle,
               marginTop: '0.5rem',
               height: 36,
               padding: '0 1rem',
-              border: `2px solid ${colors.border}`,
-              borderRadius: radius.button,
-              background: colors.surface,
-              fontWeight: 600,
-              fontSize: '0.75rem',
-              cursor: 'pointer',
+              fontSize: '0.8125rem',
             }}
           >
-            {copied === 'deep' ? 'COPIÉ' : 'COPIER LE DEEP LINK'}
+            {copied === 'deep' ? 'Copié' : 'Copier le deep link'}
           </button>
         </div>
       </div>
@@ -208,20 +196,16 @@ export function ParcelInvitePanel({ parcelId, initialInvite }: ParcelInvitePanel
           disabled={resending}
           onClick={() => void handleResend()}
           style={{
+            ...webSecondaryButtonStyle,
             marginTop: '1.25rem',
             height: 40,
             padding: '0 1.25rem',
-            border: `2px solid ${colors.border}`,
-            borderRadius: radius.button,
-            background: 'transparent',
-            color: colors.secondary,
-            fontWeight: 600,
-            fontSize: '0.75rem',
+            fontSize: '0.8125rem',
             cursor: resending ? 'wait' : 'pointer',
             opacity: resending ? 0.7 : 1,
           }}
         >
-          {resending ? 'ENVOI…' : 'RENVOYER L\'INVITATION'}
+          {resending ? 'Envoi…' : 'Renvoyer l\'invitation'}
         </button>
       ) : null}
     </section>

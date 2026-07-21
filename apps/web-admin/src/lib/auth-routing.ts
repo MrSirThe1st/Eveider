@@ -63,10 +63,18 @@ export function getPostLoginPath(role: UserRole, redirectParam?: string): string
     case 'business':
       return WEB_ROUTES.businessDashboard;
     default:
+      // Customer / courier use the mobile app — never redirect `/` → `/` (infinite loop).
       return WEB_ROUTES.landing;
   }
 }
 
-export function getAuthenticatedLandingPath(role: UserRole): string {
+/**
+ * Web dashboard destination after login, or `null` when the role has no web shell
+ * (customer / courier). Callers must not `redirect()` to `/` when already on `/`.
+ */
+export function getAuthenticatedLandingPath(role: UserRole): string | null {
+  if (isMobileRole(role)) {
+    return null;
+  }
   return getPostLoginPath(role);
 }

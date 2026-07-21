@@ -24,19 +24,19 @@ const STATUS_STYLE: Record<
   { background: string; color: string; indicator: string }
 > = {
   available: {
-    background: colors.surface,
-    color: colors.secondary,
-    indicator: colors.primary,
+    background: '#09D40B',
+    color: '#FFFFFF',
+    indicator: '#FFFFFF',
   },
   occupied: {
-    background: colors.secondary,
-    color: colors.surface,
-    indicator: colors.danger,
+    background: '#FF99B2',
+    color: '#121212',
+    indicator: '#E53935',
   },
   reserved: {
-    background: '#EBF3FF',
-    color: colors.secondary,
-    indicator: colors.info,
+    background: '#475467',
+    color: '#FFFFFF',
+    indicator: '#1677FF',
   },
 };
 
@@ -96,9 +96,9 @@ export function LockerCompartmentCabinet({
               title={`${compartment.label} — ${compartment.status}`}
               style={{
                 minHeight: cellMin,
-                borderRadius: 6,
+                borderRadius: 10,
                 border: 'none',
-                outline: isSelected ? `2px solid ${colors.primary}` : 'none',
+                outline: isSelected ? '3px solid #09D40B' : 'none',
                 outlineOffset: 2,
                 background: visual.background,
                 color: visual.color,

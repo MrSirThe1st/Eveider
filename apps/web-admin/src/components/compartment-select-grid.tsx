@@ -28,9 +28,9 @@ const STATUS_STYLE: Record<
   CompartmentStatus,
   { background: string; color: string; opacity: number }
 > = {
-  available: { background: colors.surface, color: colors.secondary, opacity: 1 },
-  occupied: { background: colors.secondary, color: colors.surface, opacity: 0.45 },
-  reserved: { background: '#EBF3FF', color: colors.secondary, opacity: 0.55 },
+  available: { background: '#09D40B', color: '#FFFFFF', opacity: 1 },
+  occupied: { background: '#FF99B2', color: '#121212', opacity: 0.85 },
+  reserved: { background: '#475467', color: '#FFFFFF', opacity: 0.85 },
 };
 
 export function CompartmentSelectGrid({
@@ -68,7 +68,7 @@ export function CompartmentSelectGrid({
               key={`empty-${index}`}
               style={{
                 minHeight: cellMin,
-                borderRadius: 6,
+                borderRadius: 10,
                 background: colors.background,
               }}
             />
@@ -88,9 +88,9 @@ export function CompartmentSelectGrid({
             title={`${compartment.label} — ${COMPARTMENT_SIZE_FULL_LABELS[compartment.size]}`}
             style={{
               minHeight: cellMin,
-              borderRadius: 6,
+              borderRadius: 10,
               border: 'none',
-              outline: isSelected ? `2px solid ${colors.primary}` : 'none',
+              outline: isSelected ? '3px solid #09D40B' : 'none',
               outlineOffset: 2,
               background: visual.background,
               color: visual.color,

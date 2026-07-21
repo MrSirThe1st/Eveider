@@ -1,6 +1,6 @@
 'use client';
 
-import { colors } from '@eveider/config-ui';
+import { colors, borderStrong, borderSubtle } from '@eveider/config-ui';
 import {
   cellsToGrid,
   compartmentSizeLabel,
@@ -60,7 +60,7 @@ export function LockerLayoutPreview({
             style={{
               width: cellSize,
               height: cellSize,
-              border: `2px solid ${colors.border}`,
+              border: borderSubtle(),
               borderRadius: 6,
               background: SIZE_COLORS[cell.size],
               display: 'flex',

@@ -1,8 +1,10 @@
 'use client';
 
-import { colors, radius } from '@eveider/config-ui';
+import { colors, radius, spacing, borderSubtle, webCardStyle, webInputStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
 import type { CompartmentCell } from '@eveider/domain';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { LoadingSpinner } from '@eveider/ui';
+import { useRouter } from 'next/navigation';
+import { useMemo, useState } from 'react';
 import { FlashBanner } from '@/components/flash-banner';
 import { LockerCreatePanel } from '@/components/locker-create-panel';
 import { LockerMapbox } from '@/components/locker-mapbox';
@@ -22,19 +24,18 @@ type MapFocus = {
 };
 
 const inputStyle: React.CSSProperties = {
-  display: 'block',
-  width: '100%',
+  ...webInputStyle,
   marginTop: '0.35rem',
   height: 42,
   padding: '0 10px',
-  border: `2px solid ${colors.border}`,
-  borderRadius: radius.button,
-  fontWeight: 500,
 };
 
-export function AdminLockerManager() {
-  const [lockers, setLockers] = useState<LockerSummaryDto[]>([]);
-  const [loading, setLoading] = useState(true);
+type AdminLockerManagerProps = {
+  lockers: LockerSummaryDto[];
+};
+
+export function AdminLockerManager({ lockers }: AdminLockerManagerProps) {
+  const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,31 +50,6 @@ export function AdminLockerManager() {
   const [searching, setSearching] = useState(false);
   const [mapFocus, setMapFocus] = useState<MapFocus | null>(null);
   const [mapViewport, setMapViewport] = useState<MapSearchViewport | null>(null);
-
-  const loadLockers = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch('/api/lockers', { cache: 'no-store' });
-      const result = await response.json();
-      if (!result.success) {
-        setError(result.error ?? 'Chargement échoué');
-        setLockers([]);
-        return;
-      }
-      setLockers(result.data.lockers);
-    } catch {
-      setError('Impossible de charger les casiers.');
-      setLockers([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadLockers();
-  }, [loadLockers]);
 
   const mapMarkers = useMemo<LockerMapMarkerDto[]>(() => {
     return lockers
@@ -195,7 +171,7 @@ export function AdminLockerManager() {
       setSearchResults([]);
       setSelectedResultId(null);
       setMapFocus(null);
-      await loadLockers();
+      router.refresh();
     } catch {
       setError('Impossible de créer le casier.');
     } finally {
@@ -223,7 +199,7 @@ export function AdminLockerManager() {
 
       setSuccess('Casier archivé.');
       setSelectedLockerId('');
-      await loadLockers();
+      router.refresh();
     } catch {
       setError('Impossible d’archiver le casier.');
     } finally {
@@ -241,6 +217,13 @@ export function AdminLockerManager() {
     <div style={{ display: 'grid', gap: '1.5rem' }}>
       {error ? <FlashBanner message={error} variant="error" /> : null}
       {success ? <FlashBanner message={success} /> : null}
+      {(saving || archiving) ? (
+        <LoadingSpinner
+          label={saving ? 'Création du casier…' : 'Archivage…'}
+          minHeight="4rem"
+          size={28}
+        />
+      ) : null}
 
       <div style={{ display: 'grid', gap: '1.25rem' }}>
         <div style={{ width: '100%' }}>
@@ -263,9 +246,7 @@ export function AdminLockerManager() {
 
         <div
           style={{
-            background: colors.surface,
-            border: `2px solid ${colors.border}`,
-            borderRadius: radius.card,
+            ...webCardStyle,
             padding: '1.25rem',
           }}
         >
@@ -299,13 +280,10 @@ export function AdminLockerManager() {
                   type="submit"
                   disabled={searching || locationSearch.trim().length < 2}
                   style={{
+                    ...webSecondaryButtonStyle,
                     width: '100%',
                     height: 38,
                     background: colors.surface,
-                    color: colors.secondary,
-                    border: `2px solid ${colors.border}`,
-                    borderRadius: radius.button,
-                    fontWeight: 600,
                     cursor: searching ? 'wait' : 'pointer',
                     opacity: locationSearch.trim().length >= 2 ? 1 : 0.6,
                   }}
@@ -321,7 +299,7 @@ export function AdminLockerManager() {
                   </p>
                   <div
                     style={{
-                      border: `2px solid ${colors.border}`,
+                      border: borderSubtle(),
                       borderRadius: radius.button,
                       overflow: 'hidden',
                     }}
@@ -341,7 +319,7 @@ export function AdminLockerManager() {
                             border: 'none',
                             borderBottom:
                               index < searchResults.length - 1
-                                ? `2px solid ${colors.border}`
+                                ? borderSubtle()
                                 : 'none',
                             background: isSelected ? '#E8FCE8' : colors.surface,
                             color: colors.secondary,
@@ -394,9 +372,7 @@ export function AdminLockerManager() {
         </div>
       </div>
 
-      {loading ? <p style={{ fontWeight: 500 }}>Chargement de la liste…</p> : null}
-
-      {!loading && lockers.length > 0 ? (
+      {lockers.length > 0 ? (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -410,7 +386,7 @@ export function AdminLockerManager() {
                       fontSize: '0.6875rem',
                       fontWeight: 600,
                       letterSpacing: '0.08em',
-                      borderBottom: `2px solid ${colors.border}`,
+                      borderBottom: borderSubtle(),
                     }}
                   >
                     {heading}
@@ -421,22 +397,22 @@ export function AdminLockerManager() {
             <tbody>
               {lockers.map((locker) => (
                 <tr key={locker.id}>
-                  <td style={{ padding: '0.75rem', borderBottom: `2px solid ${colors.border}`, fontWeight: 700 }}>
+                  <td style={{ padding: '0.75rem', borderBottom: borderSubtle(), fontWeight: 700 }}>
                     {locker.code}
                   </td>
-                  <td style={{ padding: '0.75rem', borderBottom: `2px solid ${colors.border}`, fontWeight: 600 }}>
+                  <td style={{ padding: '0.75rem', borderBottom: borderSubtle(), fontWeight: 600 }}>
                     {locker.name}
                   </td>
-                  <td style={{ padding: '0.75rem', borderBottom: `2px solid ${colors.border}` }}>
+                  <td style={{ padding: '0.75rem', borderBottom: borderSubtle() }}>
                     {locker.statusLabel}
                   </td>
-                  <td style={{ padding: '0.75rem', borderBottom: `2px solid ${colors.border}` }}>
+                  <td style={{ padding: '0.75rem', borderBottom: borderSubtle() }}>
                     {locker.rows}×{locker.columns}
                   </td>
-                  <td style={{ padding: '0.75rem', borderBottom: `2px solid ${colors.border}` }}>
+                  <td style={{ padding: '0.75rem', borderBottom: borderSubtle() }}>
                     {locker.compartmentCounts.available} / {locker.compartmentCounts.total}
                   </td>
-                  <td style={{ padding: '0.75rem', borderBottom: `2px solid ${colors.border}` }}>
+                  <td style={{ padding: '0.75rem', borderBottom: borderSubtle() }}>
                     <a href={`/tableau-de-bord/casiers/${locker.id}`} style={{ fontWeight: 600 }}>
                       DÉTAIL →
                     </a>

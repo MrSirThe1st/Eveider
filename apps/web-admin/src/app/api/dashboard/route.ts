@@ -1,39 +1,31 @@
 import { fail, ok } from '@eveider/api-contracts';
-import { createRepositories } from '@eveider/data-access';
 import { NextResponse } from 'next/server';
-import { toAdminParcelDto } from '@/lib/parcel-presenter';
+import { createRequestTimer } from '@/lib/perf/request-timer';
 import { requireAdminSession } from '@/lib/session';
+import { loadAdminDashboard } from '@/server/dashboard';
 
 export async function GET(request: Request) {
-  const auth = await requireAdminSession();
+  const perf = createRequestTimer('GET /api/dashboard');
+  const auth = await requireAdminSession(perf);
   if ('error' in auth) {
+    perf.flush(auth.status);
     return NextResponse.json(fail(auth.error), { status: auth.status });
   }
 
   const { searchParams } = new URL(request.url);
   const daysParam = searchParams.get('days');
   const days = daysParam ? Number.parseInt(daysParam, 10) : 7;
-  const safeDays = Number.isFinite(days) && days >= 1 && days <= 30 ? days : 7;
 
   try {
-    const { stats, parcels } = createRepositories();
-    const ctx = auth.session.ctx;
-
-    // Sequential fetches — avoids saturating the Prisma connection pool when
-    // stats/analytics each run several parallel count queries internally.
-    const dashboardStats = await stats.getDashboard(ctx);
-    const analytics = await stats.getAnalytics(ctx, safeDays);
-    const parcelItems = await parcels.listAll(ctx);
-
-    return NextResponse.json(
-      ok({
-        stats: dashboardStats,
-        analytics,
-        parcels: parcelItems.map(toAdminParcelDto),
-      }),
+    const data = await perf.measure('db.dashboard', () =>
+      loadAdminDashboard(auth.session.ctx, days),
     );
+
+    perf.flush(200);
+    return NextResponse.json(ok(data));
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur serveur';
+    perf.flush(500);
     return NextResponse.json(fail(message), { status: 500 });
   }
 }

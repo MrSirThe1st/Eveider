@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius, spacing, borders, webCardStyle } from '@eveider/config-ui';
+import { colors, radius, spacing, borderSubtle, webCardStyle, webInputStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
 import type { CustomerParcelDto } from '@/lib/customer-parcel-presenter';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -166,7 +166,7 @@ export function GuestTrackPage() {
     <div style={{ minHeight: '100vh', background: colors.background, display: 'flex', flexDirection: 'column' }}>
       <header
         style={{
-          borderBottom: `2px solid ${colors.border}`,
+          borderBottom: borderSubtle(),
           background: colors.surface,
           padding: '1rem 1.5rem',
         }}
@@ -194,13 +194,12 @@ export function GuestTrackPage() {
         <h1
           style={{
             margin: '0 0 0.5rem',
-            fontSize: '1.5rem',
-            fontWeight: 700,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
+            fontSize: '1.75rem',
+            fontWeight: 800,
+            color: colors.secondary,
           }}
         >
-          SUIVRE MON COLIS
+          Suivre votre colis
         </h1>
         <p style={{ margin: '0 0 1.75rem', fontWeight: 500, color: colors.textMuted, lineHeight: 1.5 }}>
           Aucun compte requis. Entrez la référence du colis et le numéro de téléphone du destinataire.
@@ -267,7 +266,7 @@ export function GuestTrackPage() {
                   fontWeight: 700,
                   letterSpacing: '0.06em',
                   padding: '0.35rem 0.65rem',
-                  border: `2px solid ${colors.border}`,
+                  border: borderSubtle(),
                   borderRadius: radius.badge,
                   background: parcel.status === 'ready_for_pickup' ? colors.primary : colors.surface,
                 }}
@@ -301,7 +300,7 @@ export function GuestTrackPage() {
             {needsPayment ? (
               <div
                 style={{
-                  borderTop: `2px solid ${colors.border}`,
+                  borderTop: borderSubtle(),
                   paddingTop: '1.25rem',
                   marginTop: '0.5rem',
                 }}
@@ -322,7 +321,7 @@ export function GuestTrackPage() {
                       style={{
                         textAlign: 'left',
                         padding: '0.875rem 1rem',
-                        border: `2px solid ${colors.border}`,
+                        border: borderSubtle(),
                         borderRadius: radius.button,
                         background: selectedProvider === provider ? colors.background : colors.surface,
                         fontWeight: 700,
@@ -370,7 +369,7 @@ export function GuestTrackPage() {
               <div
                 style={{
                   marginTop: '1.25rem',
-                  borderTop: `2px solid ${colors.border}`,
+                  borderTop: borderSubtle(),
                   paddingTop: '1.5rem',
                   textAlign: 'center',
                 }}
@@ -416,7 +415,7 @@ const inputStyle: React.CSSProperties = {
   marginTop: '0.5rem',
   height: spacing.buttonHeight,
   padding: '0 1rem',
-  border: `${borders.width}px solid ${colors.border}`,
+  border: `1px solid ${colors.border}`,
   borderRadius: radius.button,
   fontWeight: 500,
   fontSize: '1rem',

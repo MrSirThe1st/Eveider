@@ -2,13 +2,16 @@ import { fail, ok, updateLockerSchema } from '@eveider/api-contracts';
 import { createRepositories } from '@eveider/data-access';
 import { NextResponse } from 'next/server';
 import { toLockerDetailDto } from '@/lib/locker-presenter';
+import { createRequestTimer } from '@/lib/perf/request-timer';
 import { requireAdminSession } from '@/lib/session';
 
 type RouteParams = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, { params }: RouteParams) {
-  const auth = await requireAdminSession();
+  const perf = createRequestTimer('GET /api/lockers/[id]');
+  const auth = await requireAdminSession(perf);
   if ('error' in auth) {
+    perf.flush(auth.status);
     return NextResponse.json(fail(auth.error), { status: auth.status });
   }
 
@@ -16,15 +19,20 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
   try {
     const { lockers } = createRepositories();
-    const locker = await lockers.findById(auth.session.ctx, id);
+    const locker = await perf.measure('db.lockers.findById', () =>
+      lockers.findById(auth.session.ctx, id),
+    );
 
     if (!locker) {
+      perf.flush(404);
       return NextResponse.json(fail('Casier introuvable'), { status: 404 });
     }
 
+    perf.flush(200);
     return NextResponse.json(ok({ locker: toLockerDetailDto(locker) }));
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur serveur';
+    perf.flush(500);
     return NextResponse.json(fail(message), { status: 500 });
   }
 }

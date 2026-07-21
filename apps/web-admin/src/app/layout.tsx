@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import type { ReactNode } from 'react';
+import { QueryProvider } from '@/components/query-provider';
 import { SessionKeeper } from '@/components/session-keeper';
 import './globals.css';
 
@@ -23,8 +24,10 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className={inter.className}>
-        <SessionKeeper />
-        {children}
+        <QueryProvider>
+          <SessionKeeper />
+          {children}
+        </QueryProvider>
       </body>
     </html>
   );

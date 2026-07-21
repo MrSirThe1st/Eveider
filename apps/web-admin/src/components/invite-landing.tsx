@@ -124,12 +124,10 @@ const cardStyle: React.CSSProperties = {
 
 const titleStyle: React.CSSProperties = {
   margin: '0 0 1rem',
-  fontSize: '1.375rem',
-  fontWeight: 700,
-  letterSpacing: '0.04em',
+  fontSize: '1.5rem',
+  fontWeight: 800,
   color: colors.secondary,
-  textTransform: 'uppercase',
-  lineHeight: 1.2,
+  lineHeight: 1.25,
 };
 
 const primaryButtonStyle: React.CSSProperties = {
@@ -139,12 +137,10 @@ const primaryButtonStyle: React.CSSProperties = {
   lineHeight: `${spacing.buttonHeight}px`,
   padding: '0 1.25rem',
   background: colors.primary,
-  color: colors.secondary,
-  border: `${borders.width}px solid ${colors.border}`,
+  color: '#FFFFFF',
+  border: 'none',
   borderRadius: radius.button,
   fontWeight: 700,
-  letterSpacing: '0.06em',
   textDecoration: 'none',
-  textTransform: 'uppercase',
-  boxShadow: shadows.hard,
+  boxShadow: shadows.none,
 };

@@ -36,7 +36,10 @@ export async function requireWebRole(allowedRoles: readonly UserRole[]) {
 
   if (!profile || !allowedRoles.includes(profile.role as UserRole)) {
     const fallback = profile ? getAuthenticatedLandingPath(profile.role as UserRole) : null;
-    redirect(fallback ?? '/connexion');
+    if (fallback && fallback !== '/') {
+      redirect(fallback);
+    }
+    redirect('/connexion');
   }
 
   return profile;

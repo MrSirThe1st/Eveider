@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius, spacing } from '@eveider/config-ui';
+import { colors, radius, spacing, borderStrong, webCardStyle, webInputStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
 import {
   COMPARTMENT_SIZE_FULL_LABELS,
   cycleCompartmentSize,
@@ -18,14 +18,10 @@ import {
 } from '@/components/locker-layout-preview';
 
 const inputStyle: React.CSSProperties = {
-  display: 'block',
-  width: '100%',
+  ...webInputStyle,
   marginTop: '0.35rem',
   height: 42,
   padding: '0 10px',
-  border: `2px solid ${colors.border}`,
-  borderRadius: radius.button,
-  fontWeight: 500,
 };
 
 const dimensionInputStyle: React.CSSProperties = {
@@ -290,10 +286,9 @@ export function LockerCreatePanel({
 
       <div
         style={{
+          ...webCardStyle,
           marginBottom: '1rem',
           padding: '1rem',
-          border: `2px solid ${colors.border}`,
-          borderRadius: radius.card,
           background: colors.background,
         }}
       >
@@ -310,13 +305,9 @@ export function LockerCreatePanel({
               type="button"
               onClick={() => setAllCellSizes(size)}
               style={{
+                ...webSecondaryButtonStyle,
                 padding: '0.35rem 0.65rem',
-                borderRadius: radius.button,
-                border: `2px solid ${colors.border}`,
-                background: colors.surface,
-                fontWeight: 600,
                 fontSize: '0.6875rem',
-                cursor: 'pointer',
                 color: colors.secondary,
               }}
             >
@@ -363,11 +354,9 @@ export function LockerCreatePanel({
 
       <div
         style={{
+          ...webCardStyle,
           marginBottom: '1rem',
           padding: '1rem',
-          border: `2px solid ${colors.primary}`,
-          borderRadius: radius.card,
-          background: colors.surface,
         }}
       >
         <p style={{ margin: '0 0 0.75rem', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>
@@ -403,12 +392,9 @@ export function LockerCreatePanel({
           })
         }
         style={{
+          ...webSecondaryButtonStyle,
           width: '100%',
           height: spacing.buttonHeight,
-          background: 'transparent',
-          color: colors.secondary,
-          border: `2px solid ${colors.border}`,
-          borderRadius: radius.button,
           fontWeight: 700,
           cursor: saving ? 'wait' : 'pointer',
           opacity: canCreate ? 1 : 0.55,

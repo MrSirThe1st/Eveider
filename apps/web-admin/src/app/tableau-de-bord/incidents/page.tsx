@@ -1,14 +1,19 @@
 import { PageHeader } from '@eveider/ui';
 import { AdminIssueList } from '@/components/admin-issue-list';
+import { listIssues } from '@/server/issues';
+import { getAdminSession } from '@/server/session';
 
-export default function AdminIssuesPage() {
+export default async function AdminIssuesPage() {
+  const { ctx } = await getAdminSession();
+  const issues = await listIssues(ctx);
+
   return (
     <>
       <PageHeader
         title="Incidents & support"
         description="Signalements clients et coursiers à traiter."
       />
-      <AdminIssueList />
+      <AdminIssueList issues={issues} />
     </>
   );
 }

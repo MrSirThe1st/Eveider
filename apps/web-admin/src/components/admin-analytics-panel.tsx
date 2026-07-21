@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius } from '@eveider/config-ui';
+import { colors, webCardStyle } from '@eveider/config-ui';
 import Link from 'next/link';
 import type { AnalyticsReport } from '@/components/admin-dashboard-types';
 
@@ -17,9 +17,7 @@ function RateCard({ label, value, hint }: { label: string; value: string; hint: 
   return (
     <article
       style={{
-        background: colors.surface,
-        border: `2px solid ${colors.border}`,
-        borderRadius: radius.card,
+        ...webCardStyle,
         padding: '1.25rem 1rem',
         flex: '1 1 200px',
       }}
@@ -54,26 +52,18 @@ export function AdminAnalyticsPanel({ analytics }: AdminAnalyticsPanelProps) {
 
   return (
     <section style={{ marginBottom: '2.5rem' }}>
-      <h2
-        style={{
-          margin: '0 0 1rem',
-          fontSize: '0.75rem',
-          fontWeight: 700,
-          letterSpacing: '0.1em',
-          opacity: 0.7,
-        }}
-      >
-        ANALYTIQUES · 7 JOURS
+      <h2 style={{ margin: '0 0 1rem', fontSize: '0.875rem', fontWeight: 700, opacity: 0.7 }}>
+        Analytiques · 7 jours
       </h2>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem' }}>
         <RateCard
-          label="TAUX DE RETRAIT"
+          label="Taux de retrait"
           value={`${analytics.pickupSuccessRate}%`}
           hint={`${analytics.collected} retirés · ${analytics.awaitingPickup} en attente`}
         />
         <RateCard
-          label="UTILISATION CASIERS"
+          label="Utilisation casiers"
           value={`${analytics.lockerUsageRate}%`}
           hint="Compartiments occupés"
         />
@@ -81,9 +71,7 @@ export function AdminAnalyticsPanel({ analytics }: AdminAnalyticsPanelProps) {
 
       <div
         style={{
-          background: colors.surface,
-          border: `2px solid ${colors.border}`,
-          borderRadius: radius.card,
+          ...webCardStyle,
           padding: '1.25rem',
           marginBottom: '1.5rem',
         }}
@@ -97,7 +85,7 @@ export function AdminAnalyticsPanel({ analytics }: AdminAnalyticsPanelProps) {
             opacity: 0.7,
           }}
         >
-          LIVRAISONS TERMINÉES PAR JOUR
+          Livraisons terminées par jour
         </p>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem', minHeight: 120 }}>
           {analytics.dailyDeliveries.map((day) => (
@@ -174,9 +162,7 @@ function RankingTable({
   return (
     <div
       style={{
-        background: colors.surface,
-        border: `2px solid ${colors.border}`,
-        borderRadius: radius.card,
+        ...webCardStyle,
         padding: '1.25rem',
       }}
     >

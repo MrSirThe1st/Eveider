@@ -1,26 +1,13 @@
 'use client';
 
-import { colors, radius } from '@eveider/config-ui';
+import { colors, webCardStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
 import type { IssueStatus } from '@eveider/domain';
 import { ISSUE_STATUS_LABELS } from '@eveider/domain';
 import { FilterBar, FilterChipGroup } from '@eveider/ui';
-import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useMemo, useState } from 'react';
 import { FlashBanner } from '@/components/flash-banner';
-
-type IssueItem = {
-  id: string;
-  typeLabel: string;
-  status: IssueStatus;
-  statusLabel: string;
-  description: string | null;
-  parcelReference: string | null;
-  lockerName: string | null;
-  reporterName: string | null;
-  reporterRole: string;
-  createdAt: string;
-};
-
-type IssueStatusFilter = 'all' | IssueStatus;
+import type { IssueItem, IssueStatusFilter } from '@/server/issues';
 
 const STATUS_FILTERS: { value: IssueStatusFilter; label: string }[] = [
   { value: 'all', label: 'TOUS' },
@@ -44,48 +31,27 @@ const NEXT_STATUS: Partial<Record<IssueStatus, IssueStatus>> = {
   in_progress: 'resolved',
 };
 
-export function AdminIssueList() {
+type AdminIssueListProps = {
+  issues: IssueItem[];
+};
+
+export function AdminIssueList({ issues }: AdminIssueListProps) {
+  const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<IssueStatusFilter>('open');
-  const [issues, setIssues] = useState<IssueItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const loadIssues = useCallback(async (filter: IssueStatusFilter) => {
-    setLoading(true);
-    setError(null);
-
-    const query = filter === 'all' ? '' : `?status=${filter}`;
-
-    try {
-      const response = await fetch(`/api/issues${query}`, { cache: 'no-store' });
-      const result = await response.json();
-
-      if (!result.success) {
-        setError(result.error ?? 'Chargement échoué');
-        setIssues([]);
-        return;
-      }
-
-      setIssues(result.data.issues);
-    } catch {
-      setError('Impossible de charger les incidents.');
-      setIssues([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadIssues(statusFilter);
-  }, [loadIssues, statusFilter]);
+  const filtered = useMemo(() => {
+    if (statusFilter === 'all') return issues;
+    return issues.filter((issue) => issue.status === statusFilter);
+  }, [issues, statusFilter]);
 
   async function advanceStatus(issue: IssueItem) {
     const next = NEXT_STATUS[issue.status];
     if (!next) return;
 
     setActingId(issue.id);
-    setError(null);
+    setActionError(null);
 
     try {
       const response = await fetch(`/api/issues/${issue.id}/status`, {
@@ -96,13 +62,13 @@ export function AdminIssueList() {
       const result = await response.json();
 
       if (!result.success) {
-        setError(result.error ?? 'Mise à jour échouée');
+        setActionError(result.error ?? 'Mise à jour échouée');
         return;
       }
 
-      await loadIssues(statusFilter);
+      router.refresh();
     } catch {
-      setError('Impossible de mettre à jour le statut.');
+      setActionError('Impossible de mettre à jour le statut.');
     } finally {
       setActingId(null);
     }
@@ -118,45 +84,19 @@ export function AdminIssueList() {
         />
       </FilterBar>
 
-      {loading ? <p style={{ fontWeight: 500 }}>Chargement des incidents…</p> : null}
+      {actionError ? <FlashBanner message={actionError} variant="error" /> : null}
 
-      {!loading && error ? (
-        <div>
-          <FlashBanner message={error} variant="error" />
-          <button
-            type="button"
-            onClick={() => void loadIssues(statusFilter)}
-            style={{
-              marginTop: '0.75rem',
-              padding: '0.625rem 1rem',
-              background: 'transparent',
-              border: `2px solid ${colors.border}`,
-              borderRadius: radius.button,
-              fontWeight: 600,
-              cursor: 'pointer',
-              color: colors.secondary,
-            }}
-          >
-            RÉESSAYER
-          </button>
-        </div>
-      ) : null}
-
-      {!loading && !error && issues.length === 0 ? (
+      {filtered.length === 0 ? (
         <p style={{ fontWeight: 500, color: colors.secondary }}>Aucun incident pour ce filtre.</p>
-      ) : null}
-
-      {!loading && !error && issues.length > 0 ? (
+      ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {issues.map((issue) => {
+          {filtered.map((issue) => {
             const next = NEXT_STATUS[issue.status];
             return (
               <article
                 key={issue.id}
                 style={{
-                  background: colors.surface,
-                  border: `2px solid ${colors.border}`,
-                  borderRadius: radius.card,
+                  ...webCardStyle,
                   padding: '1rem 1.25rem',
                 }}
               >
@@ -170,7 +110,7 @@ export function AdminIssueList() {
                   }}
                 >
                   <div>
-                    <p style={{ margin: 0, fontWeight: 700, letterSpacing: '0.04em' }}>
+                    <p style={{ margin: 0, fontWeight: 700 }}>
                       {issue.typeLabel}
                     </p>
                     <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', fontWeight: 500 }}>
@@ -207,31 +147,26 @@ export function AdminIssueList() {
                     disabled={actingId === issue.id}
                     onClick={() => void advanceStatus(issue)}
                     style={{
+                      ...webSecondaryButtonStyle,
                       marginTop: '0.75rem',
                       padding: '0.5rem 0.875rem',
-                      background: 'transparent',
-                      border: `2px solid ${colors.border}`,
-                      borderRadius: radius.button,
-                      fontWeight: 600,
                       fontSize: '0.6875rem',
-                      letterSpacing: '0.04em',
                       cursor: actingId === issue.id ? 'wait' : 'pointer',
-                      color: colors.secondary,
                       opacity: actingId === issue.id ? 0.7 : 1,
                     }}
                   >
                     {actingId === issue.id
-                      ? 'MISE À JOUR…'
+                      ? 'Mise à jour…'
                       : next === 'in_progress'
-                        ? 'PRENDRE EN CHARGE'
-                        : 'MARQUER RÉSOLU'}
+                        ? 'Prendre en charge'
+                        : 'Marquer résolu'}
                   </button>
                 ) : null}
               </article>
             );
           })}
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

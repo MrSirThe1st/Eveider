@@ -1,22 +1,27 @@
 import { fail, ok } from '@eveider/api-contracts';
-import { createRepositories } from '@eveider/data-access';
 import { NextResponse } from 'next/server';
-import { toBusinessDto } from '@/lib/business-presenter';
+import { createRequestTimer } from '@/lib/perf/request-timer';
 import { requireAdminSession } from '@/lib/session';
+import { listBusinesses } from '@/server/businesses';
 
 export async function GET() {
-  const auth = await requireAdminSession();
+  const perf = createRequestTimer('GET /api/businesses');
+  const auth = await requireAdminSession(perf);
   if ('error' in auth) {
+    perf.flush(auth.status);
     return NextResponse.json(fail(auth.error), { status: auth.status });
   }
 
   try {
-    const { businesses } = createRepositories();
-    const items = await businesses.list(auth.session.ctx);
+    const businesses = await perf.measure('db.businesses.list', () =>
+      listBusinesses(auth.session.ctx),
+    );
 
-    return NextResponse.json(ok({ businesses: items.map(toBusinessDto) }));
+    perf.flush(200);
+    return NextResponse.json(ok({ businesses }));
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur serveur';
+    perf.flush(500);
     return NextResponse.json(fail(message), { status: 500 });
   }
 }

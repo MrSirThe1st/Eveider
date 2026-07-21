@@ -2,14 +2,17 @@
   --color-primary: #09d40b;
   --color-secondary: #121212;
   --color-surface: #ffffff;
-  --color-background: #f5f6f7;
-  --color-border: #121212;
-  --color-text-muted: #475569;
-  --border-width: 2px;
-  --radius-card: 8px;
-  --radius-button: 8px;
-  --shadow-hard: 3px 3px 0 #121212;
-  --font-family: Inter, system-ui, sans-serif;
+  --color-surface-subtle: #e6f2e1;
+  --color-background: #ebf3e8;
+  --color-border-subtle: #d6e3d2;
+  --color-border: #d6e3d2;
+  --color-text-muted: #707a6a;
+  --border-width: 1px;
+  --border-width-strong: 1px;
+  --radius-card: 16px;
+  --radius-button: 12px;
+  --radius-input: 12px;
+  --font-family: Inter, system-ui, -apple-system, sans-serif;
 }
 
 * {
@@ -23,97 +26,114 @@ body {
   font-family: var(--font-family);
   background: var(--color-background);
   color: var(--color-secondary);
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Neo-Brutalist utility classes */
+/* Modern soft logistics card & UI classes */
 .nb-card {
   background: var(--color-surface);
-  border: var(--border-width) solid var(--color-border);
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-card);
-  box-shadow: var(--shadow-hard);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
 }
 
 .nb-input {
   display: block;
   width: 100%;
-  height: 52px;
+  height: 48px;
   padding: 0 1rem;
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-button);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-input);
   background: var(--color-surface);
   color: var(--color-secondary);
   font-family: var(--font-family);
   font-weight: 500;
-  font-size: 1rem;
+  font-size: 0.9375rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .nb-input:focus {
-  outline: 3px solid var(--color-primary);
-  outline-offset: 0;
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(9, 212, 11, 0.15);
 }
 
 .nb-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 52px;
+  height: 48px;
   padding: 0 1.25rem;
-  border: var(--border-width) solid var(--color-border);
+  border: 1px solid transparent;
   border-radius: var(--radius-button);
   font-family: var(--font-family);
-  font-weight: 700;
-  font-size: 0.8125rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: 600;
+  font-size: 0.9375rem;
   text-decoration: none;
   cursor: pointer;
-  transition: transform 0.1s ease;
+  transition: all 0.15s ease;
+}
+
+.nb-btn:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
 }
 
 .nb-btn:active {
-  transform: translate(2px, 2px);
-  box-shadow: none;
+  transform: translateY(0);
 }
 
 .nb-btn-primary {
   background: var(--color-primary);
-  color: var(--color-secondary);
-  box-shadow: var(--shadow-hard);
+  color: #ffffff;
+  border: none;
 }
 
 .nb-btn-secondary {
-  background: var(--color-surface);
+  background: var(--color-surface-subtle);
   color: var(--color-secondary);
-  box-shadow: var(--shadow-hard);
+  border: 1px solid var(--color-border-subtle);
 }
 
 .nb-btn-secondary:hover {
-  background: var(--color-background);
+  background: #dbe8d4;
 }
 
-/* Admin / business portals only — outline buttons (landing keeps filled .nb-btn) */
-.portal-shell .nb-btn-primary,
+/* Portal button styling */
+.portal-shell .nb-btn-primary {
+  background: var(--color-primary);
+  color: #ffffff;
+  border: none;
+}
+
+.portal-shell .nb-btn-primary:hover {
+  background: #08bd0a;
+  opacity: 1;
+}
+
 .portal-shell .nb-btn-secondary {
-  background: transparent;
+  background: var(--color-surface-subtle);
   color: var(--color-secondary);
-  box-shadow: none;
+  border: 1px solid var(--color-border-subtle);
 }
 
-.portal-shell .nb-btn-primary:hover,
 .portal-shell .nb-btn-secondary:hover {
-  background: var(--color-background);
+  background: #dbe8d4;
+  opacity: 1;
 }
 
 .cabinet-cell {
-  transition: transform 0.1s ease;
+  transition: all 0.15s ease;
 }
 
 .cabinet-cell:not(:disabled):hover {
-  transform: translate(-1px, -1px);
-  box-shadow: 2px 2px 0 var(--color-border);
+  border-color: var(--color-primary);
+  transform: scale(1.02);
 }
 
 .cabinet-cell:focus-visible {
-  outline: 3px solid var(--color-primary);
-  outline-offset: 2px;
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(9, 212, 11, 0.2);
 }
+

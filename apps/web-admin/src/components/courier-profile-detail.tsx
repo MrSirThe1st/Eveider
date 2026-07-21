@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius, spacing } from '@eveider/config-ui';
+import { colors, radius, spacing, borderSubtle, webCardStyle } from '@eveider/config-ui';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { FlashBanner } from '@/components/flash-banner';
@@ -71,9 +71,7 @@ function StatCard({ label, value, color = colors.secondary }: { label: string; v
   return (
     <div
       style={{
-        background: colors.surface,
-        border: `2px solid ${colors.border}`,
-        borderRadius: radius.card,
+        ...webCardStyle,
         padding: '1.25rem',
         flex: '1 1 180px',
         display: 'flex',
@@ -219,15 +217,13 @@ export function CourierProfileDetail({ courierId }: CourierDetailProps) {
       {/* Profil details block */}
       <section
         style={{
-          background: colors.surface,
-          border: `2px solid ${colors.border}`,
-          borderRadius: radius.card,
+          ...webCardStyle,
           padding: '1.5rem',
           marginBottom: '1.5rem',
         }}
       >
-        <h3 style={{ margin: '0 0 1.25rem', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.08em' }}>
-          INFORMATIONS PROFIL
+        <h3 style={{ margin: '0 0 1.25rem', fontSize: '0.875rem', fontWeight: 700 }}>
+          Informations profil
         </h3>
         <dl style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
           <div>
@@ -277,16 +273,14 @@ export function CourierProfileDetail({ courierId }: CourierDetailProps) {
       {/* Assigned deliveries history */}
       <section
         style={{
-          background: colors.surface,
-          border: `2px solid ${colors.border}`,
-          borderRadius: radius.card,
+          ...webCardStyle,
           overflow: 'hidden',
           marginBottom: '2rem',
         }}
       >
-        <div style={{ padding: '1.25rem 1.5rem', borderBottom: `2px solid ${colors.border}`, background: colors.background }}>
-          <h3 style={{ margin: 0, fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.08em' }}>
-            HISTORIQUE DES LIVRAISONS
+        <div style={{ padding: '1.25rem 1.5rem', borderBottom: borderSubtle(), background: colors.background }}>
+          <h3 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700 }}>
+            Historique des livraisons
           </h3>
         </div>
         {deliveries.length === 0 ? (
@@ -296,7 +290,7 @@ export function CourierProfileDetail({ courierId }: CourierDetailProps) {
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
             <thead>
-              <tr style={{ borderBottom: `2px solid ${colors.border}` }}>
+              <tr style={{ borderBottom: borderSubtle() }}>
                 <th style={{ padding: '1rem', fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.08em' }}>COLIS</th>
                 <th style={{ padding: '1rem', fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.08em' }}>ENTREPRISE</th>
                 <th style={{ padding: '1rem', fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.08em' }}>CASIER</th>
@@ -306,7 +300,7 @@ export function CourierProfileDetail({ courierId }: CourierDetailProps) {
             </thead>
             <tbody>
               {deliveries.map((delivery) => (
-                <tr key={delivery.id} style={{ borderBottom: `2px solid ${colors.border}` }}>
+                <tr key={delivery.id} style={{ borderBottom: borderSubtle() }}>
                   <td style={{ padding: '1rem', fontWeight: 700 }}>
                     <Link
                       href={`/tableau-de-bord/colis/${delivery.parcel.id}`}
