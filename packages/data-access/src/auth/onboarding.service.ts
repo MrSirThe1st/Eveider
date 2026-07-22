@@ -1,7 +1,7 @@
-import type { PrismaClient } from '@prisma/client';
 import type { UserRole } from '@eveider/domain';
-import type { User } from '@prisma/client';
 import { AccessDeniedError } from '../context.js';
+import type { Queryable } from '../db/index.js';
+import type { User } from '../db/types.js';
 import { BusinessRepository } from '../repositories/business.repository.js';
 import { UserRepository } from '../repositories/user.repository.js';
 
@@ -24,7 +24,7 @@ export class OnboardingService {
   constructor(
     private readonly users: UserRepository,
     private readonly businesses: BusinessRepository,
-    private readonly db: PrismaClient,
+    private readonly db: Queryable,
   ) {}
 
   async findProfileByAuthId(authId: string): Promise<User | null> {
@@ -69,10 +69,12 @@ export class OnboardingService {
     }
 
     if (profile.phone) {
-      await this.db.parcel.updateMany({
-        where: { recipientPhone: profile.phone, customerId: null },
-        data: { customerId: profile.id },
-      });
+      await this.db.query(
+        `UPDATE parcels
+         SET customer_id = $1, updated_at = NOW()
+         WHERE recipient_phone = $2 AND customer_id IS NULL`,
+        [profile.id, profile.phone],
+      );
     }
 
     return profile;

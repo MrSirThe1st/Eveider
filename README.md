@@ -6,9 +6,8 @@ Pickup locker platform for DR Congo — businesses submit parcels, couriers deli
 
 | App | Path | Audience |
 |-----|------|----------|
-| Mobile | `apps/mobile` | Customers + couriers |
-| Web portal | `apps/web-admin` | Landing, login, admin + business dashboards |
-| ~~Business portal~~ | `apps/web-business` | Deprecated — redirects to web portal |
+| Mobile | `apps/mobile-tenant` | Customers + couriers |
+| Web manager | `apps/web-manager` | Admin + business dashboards, mobile APIs |
 
 ## Packages
 
@@ -16,7 +15,7 @@ Pickup locker platform for DR Congo — businesses submit parcels, couriers deli
 |---------|---------|
 | `@eveider/domain` | Business rules, parcel lifecycle, roles |
 | `@eveider/api-contracts` | `ApiResult<T>`, Zod schemas |
-| `@eveider/data-access` | Prisma client, repositories |
+| `@eveider/data-access` | PostgreSQL repositories (`pg`) |
 | `@eveider/ui` | Shared React components |
 | `@eveider/config-ui` | Design tokens (from design DNA) |
 | `@eveider/config-eslint` | Shared ESLint config |
@@ -47,13 +46,14 @@ See [`docs/setup/supabase.md`](docs/setup/supabase.md) for full details.
 ## Scripts
 
 ```bash
-pnpm dev          # Unified portal (:3000) + mobile
+pnpm dev          # web-manager (:3000)
+pnpm dev:mobile   # mobile-tenant (Expo)
 pnpm build        # Build all packages and apps
 pnpm lint         # ESLint across workspace
 pnpm typecheck    # TypeScript check
 pnpm test         # Run tests
-pnpm db:deploy    # Apply Prisma migrations to Supabase
-pnpm db:studio    # Open Prisma Studio
+pnpm db:migrate   # Apply SQL migrations
+pnpm db:seed      # Seed demo lockers
 ```
 
 ## Docs

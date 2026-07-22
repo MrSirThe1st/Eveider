@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 const serverEnvSchema = z.object({
   DATABASE_URL: z.string().url().or(z.string().startsWith('postgresql://')),
+  DIRECT_URL: z.string().url().or(z.string().startsWith('postgresql://')).optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
 });

@@ -1,4 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  createSqlMatchMock,
+  parcelRow,
+  sqlIncludes,
+} from '../test/query-mock.js';
 import { normalizeWhatsAppPhone, getWhatsAppConfig } from './whatsapp-config.js';
 import { sendWhatsAppTemplate } from './whatsapp-client.js';
 import { sendParcelStatusWhatsApp } from './parcel-whatsapp.js';
@@ -88,17 +93,6 @@ describe('sendWhatsAppTemplate', () => {
 describe('sendParcelStatusWhatsApp', () => {
   const originalEnv = process.env;
   const fetchMock = vi.fn();
-  const parcelFindUnique = vi.fn();
-  const notificationFindFirst = vi.fn();
-  const notificationCreate = vi.fn();
-
-  const db = {
-    parcel: { findUnique: parcelFindUnique },
-    notification: {
-      findFirst: notificationFindFirst,
-      create: notificationCreate,
-    },
-  };
 
   beforeEach(() => {
     process.env = {
@@ -120,23 +114,38 @@ describe('sendParcelStatusWhatsApp', () => {
   });
 
   it('sends in-transit template with expected body params', async () => {
-    parcelFindUnique.mockResolvedValue({
-      id: 'parcel-1',
-      reference: 'PK-001',
-      recipientPhone: '+243800000000',
-      recipientName: 'Marc',
-      customerId: 'user-1',
-      business: { name: 'Boutique Kin' },
-      locker: { name: 'GOMBE', address: 'Ave 1' },
-      pickupPin: null,
+    const inserts: unknown[][] = [];
+    const db = createSqlMatchMock((sql, values) => {
+      if (sqlIncludes(sql, 'FROM parcels p') && sqlIncludes(sql, 'JOIN businesses')) {
+        return {
+          ...parcelRow({
+            recipient_phone: '+243800000000',
+            recipient_name: 'Marc',
+            customer_id: 'user-1',
+            reference: 'PK-001',
+          }),
+          business_name: 'Boutique Kin',
+          locker_name: 'GOMBE',
+          locker_address: 'Ave 1',
+          invite_token: null,
+        };
+      }
+      if (sqlIncludes(sql, 'FROM notifications') && sqlIncludes(sql, "channel = 'sms'")) {
+        return null;
+      }
+      if (sqlIncludes(sql, 'INSERT INTO notifications')) {
+        inserts.push(values ?? []);
+        return null;
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
     });
-    notificationFindFirst.mockResolvedValue(null);
+
     fetchMock.mockResolvedValue({
       ok: true,
       json: async () => ({ messages: [{ id: 'wamid.1' }] }),
     });
 
-    await sendParcelStatusWhatsApp(db as never, 'parcel-1', 'in_transit');
+    await sendParcelStatusWhatsApp(db, 'parcel-1', 'in_transit');
 
     const firstCall = fetchMock.mock.calls[0];
     expect(firstCall).toBeDefined();
@@ -148,35 +157,42 @@ describe('sendParcelStatusWhatsApp', () => {
       'Boutique Kin',
       'GOMBE',
     ]);
-    expect(notificationCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          channel: 'sms',
-          message: expect.stringContaining('[whatsapp:eveider_parcel_in_transit]'),
-        }),
-      }),
-    );
+    expect(inserts).toHaveLength(1);
+    expect(String(inserts[0]?.[2])).toContain('[whatsapp:eveider_parcel_in_transit]');
   });
 
   it('sends arrived template with app pickup link', async () => {
     process.env.INVITE_WEB_BASE_URL = 'https://www.eveider.com';
-    parcelFindUnique.mockResolvedValue({
-      id: 'parcel-1',
-      reference: 'PK-001',
-      recipientPhone: '+243800000000',
-      recipientName: 'Marc',
-      customerId: null,
-      business: { name: 'Boutique Kin' },
-      locker: { name: 'GOMBE', address: 'Ave 1' },
-      invite: { token: 'abc-123' },
+    const db = createSqlMatchMock((sql) => {
+      if (sqlIncludes(sql, 'FROM parcels p') && sqlIncludes(sql, 'JOIN businesses')) {
+        return {
+          ...parcelRow({
+            recipient_phone: '+243800000000',
+            recipient_name: 'Marc',
+            customer_id: null,
+            reference: 'PK-001',
+          }),
+          business_name: 'Boutique Kin',
+          locker_name: 'GOMBE',
+          locker_address: 'Ave 1',
+          invite_token: 'abc-123',
+        };
+      }
+      if (sqlIncludes(sql, 'FROM notifications') && sqlIncludes(sql, "channel = 'sms'")) {
+        return null;
+      }
+      if (sqlIncludes(sql, 'INSERT INTO notifications')) {
+        return null;
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
     });
-    notificationFindFirst.mockResolvedValue(null);
+
     fetchMock.mockResolvedValue({
       ok: true,
       json: async () => ({ messages: [{ id: 'wamid.2' }] }),
     });
 
-    await sendParcelStatusWhatsApp(db as never, 'parcel-1', 'ready_for_pickup');
+    await sendParcelStatusWhatsApp(db, 'parcel-1', 'ready_for_pickup');
 
     const firstCall = fetchMock.mock.calls[0];
     expect(firstCall).toBeDefined();
@@ -186,7 +202,7 @@ describe('sendParcelStatusWhatsApp', () => {
       'Marc',
       'PK-001',
       'GOMBE',
-      'https://www.eveider.com/invite/abc-123',
+      'https://www.eveider.com/suivi?ref=PK-001&phone=%2B243800000000',
     ]);
   });
 });

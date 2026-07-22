@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius, shadows, borders } from '@eveider/config-ui';
+import { colors, radius, borderSubtle, borderStrong, webCardStyle } from '@eveider/config-ui';
 import type { ReactNode } from 'react';
 
 export type FilterChipItem<T extends string> = {
@@ -37,19 +37,16 @@ export function FilterChipGroup<T extends string>({
             aria-pressed={active}
             onClick={() => onChange(item.value)}
             style={{
-              padding: '0.5rem 0.875rem',
-              borderRadius: radius.button,
-              border: `${borders.width}px solid ${colors.border}`,
-              background: 'transparent',
-              color: colors.secondary,
-              fontWeight: 700,
-              fontSize: '0.6875rem',
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
+              padding: '0.4rem 1rem',
+              borderRadius: 999,
+              border: active ? '1px solid #09D40B' : borderSubtle(),
+              background: active ? '#DCF5D6' : colors.surface,
+              color: active ? '#067A07' : colors.secondary,
+              fontWeight: active ? 600 : 500,
+              fontSize: '0.8125rem',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
-              boxShadow: 'none',
-              opacity: active ? 1 : 0.72,
+              transition: 'all 0.15s ease',
             }}
           >
             {item.label}
@@ -70,12 +67,7 @@ export function FilterBar({ label, children, hint }: FilterBarProps) {
   return (
     <section
       style={{
-        ...{
-          background: colors.surface,
-          border: `${borders.width}px solid ${colors.border}`,
-          borderRadius: radius.card,
-          boxShadow: shadows.hard,
-        },
+        ...webCardStyle,
         padding: '1rem 1.125rem',
         marginBottom: '1.5rem',
       }}
@@ -93,11 +85,9 @@ export function FilterBar({ label, children, hint }: FilterBarProps) {
         <p
           style={{
             margin: 0,
-            fontSize: '0.6875rem',
-            fontWeight: 700,
-            letterSpacing: '0.1em',
+            fontSize: '0.9375rem',
+            fontWeight: 600,
             color: colors.secondary,
-            textTransform: 'uppercase',
           }}
         >
           {label}
@@ -106,7 +96,7 @@ export function FilterBar({ label, children, hint }: FilterBarProps) {
           <p
             style={{
               margin: 0,
-              fontSize: '0.75rem',
+              fontSize: '0.8125rem',
               fontWeight: 500,
               color: colors.textMuted,
             }}

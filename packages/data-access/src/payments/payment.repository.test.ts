@@ -1,24 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDataAccessContext } from '../context.js';
+import {
+  createSqlMatchMock,
+  paymentRow,
+  sqlIncludes,
+} from '../test/query-mock.js';
 import { PaymentRepository } from './payment.repository.js';
 
 describe('PaymentRepository', () => {
-  const parcelFindUnique = vi.fn();
-  const parcelPaymentFindFirst = vi.fn();
-  const parcelPaymentCreate = vi.fn();
-  const parcelPaymentUpdate = vi.fn();
+  let db = createSqlMatchMock(() => null);
+  let repo: PaymentRepository;
 
-  const db = {
-    parcel: { findUnique: parcelFindUnique },
-    parcelPayment: {
-      findFirst: parcelPaymentFindFirst,
-      findUnique: vi.fn(),
-      create: parcelPaymentCreate,
-      update: parcelPaymentUpdate,
-    },
-  };
-
-  const repo = new PaymentRepository(db as never);
+  function setup(
+    resolve: (
+      sql: string,
+      values?: unknown[],
+    ) => Record<string, unknown> | Record<string, unknown>[] | null,
+  ) {
+    db = createSqlMatchMock(resolve);
+    repo = new PaymentRepository(db);
+  }
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -29,7 +30,12 @@ describe('PaymentRepository', () => {
   });
 
   it('returns pickup payment summary with configured fee', async () => {
-    parcelPaymentFindFirst.mockResolvedValue(null);
+    setup((sql) => {
+      if (sqlIncludes(sql, 'FROM parcel_payments')) {
+        return null;
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
 
     const summary = await repo.getPickupPaymentSummary('parcel-1');
 
@@ -46,11 +52,17 @@ describe('PaymentRepository', () => {
       userId: 'user-1',
       phone: '+243800000000',
     });
-    parcelFindUnique.mockResolvedValue({
-      id: 'parcel-1',
-      status: 'in_transit',
-      customerId: 'user-1',
-      recipientPhone: '+243800000000',
+
+    setup((sql) => {
+      if (sqlIncludes(sql, 'FROM parcels')) {
+        return {
+          id: 'parcel-1',
+          status: 'in_transit',
+          customer_id: 'user-1',
+          recipient_phone: '+243800000000',
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
     });
 
     await expect(
@@ -59,15 +71,14 @@ describe('PaymentRepository', () => {
   });
 
   it('marks payment completed from callback', async () => {
-    db.parcelPayment.findUnique = vi.fn().mockResolvedValue({
-      id: 'payment-1',
-      depositId: 'deposit-1',
-      completedAt: null,
-    });
-    parcelPaymentUpdate.mockResolvedValue({
-      id: 'payment-1',
-      status: 'completed',
-      depositId: 'deposit-1',
+    setup((sql) => {
+      if (sqlIncludes(sql, 'SELECT * FROM parcel_payments') && sqlIncludes(sql, 'deposit_id')) {
+        return paymentRow({ completed_at: null, status: 'processing' });
+      }
+      if (sqlIncludes(sql, 'UPDATE parcel_payments')) {
+        return paymentRow({ status: 'completed', completed_at: new Date() });
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
     });
 
     const updated = await repo.applyDepositCallback({
@@ -76,10 +87,9 @@ describe('PaymentRepository', () => {
     });
 
     expect(updated?.status).toBe('completed');
-    expect(parcelPaymentUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ status: 'completed' }),
-      }),
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE parcel_payments'),
+      expect.arrayContaining(['completed', 'COMPLETED']),
     );
   });
 });

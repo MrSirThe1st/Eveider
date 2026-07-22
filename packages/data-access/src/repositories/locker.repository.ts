@@ -8,8 +8,11 @@ import {
   type CompartmentStatus,
   type LockerStatus,
 } from '@eveider/domain';
-import type { Compartment, Locker, PrismaClient } from '@prisma/client';
 import { assertAdmin, type DataAccessContext } from '../context.js';
+import type { Queryable } from '../db/index.js';
+import { withTransaction } from '../db/pool.js';
+import { mapCompartment, mapLocker } from '../db/mappers.js';
+import type { Compartment, Locker } from '../db/types.js';
 
 export type AvailableBySize = {
   small: number;
@@ -81,54 +84,79 @@ function countAvailableBySize(
   };
 }
 
-const NON_ARCHIVED_FILTER = { status: { not: 'archived' as const } };
-
 export class LockerRepository {
-  constructor(private readonly db: PrismaClient) {}
+  constructor(private readonly db: Queryable) {}
 
   async listActiveWithAvailability(): Promise<LockerWithAvailability[]> {
-    const lockers = await this.db.locker.findMany({
-      where: {
-        status: 'active',
-        latitude: { not: null },
-        longitude: { not: null },
-      },
-      orderBy: { name: 'asc' },
-      include: {
-        compartments: {
-          select: { status: true, size: true },
-        },
-        _count: {
-          select: {
-            compartments: { where: { status: 'available' } },
-          },
-        },
-      },
-    });
+    const lockersResult = await this.db.query(
+      `SELECT * FROM lockers
+       WHERE status = 'active' AND latitude IS NOT NULL AND longitude IS NOT NULL
+       ORDER BY name ASC`,
+    );
+    const lockers = lockersResult.rows.map(mapLocker);
+    if (lockers.length === 0) return [];
 
-    return lockers.map(({ compartments, _count, ...locker }) => ({
-      ...locker,
-      availableCompartments: _count.compartments,
-      availableBySize: countAvailableBySize(compartments),
-    }));
+    const ids = lockers.map((l) => l.id);
+    const compartmentsResult = await this.db.query(
+      `SELECT locker_id, status, size FROM compartments WHERE locker_id = ANY($1)`,
+      [ids],
+    );
+
+    const byLocker = new Map<string, { status: CompartmentStatus; size: 'small' | 'medium' | 'large' }[]>();
+    for (const row of compartmentsResult.rows) {
+      const lockerId = String(row.locker_id);
+      const list = byLocker.get(lockerId) ?? [];
+      list.push({
+        status: row.status as CompartmentStatus,
+        size: row.size as 'small' | 'medium' | 'large',
+      });
+      byLocker.set(lockerId, list);
+    }
+
+    return lockers.map((locker) => {
+      const compartments = byLocker.get(locker.id) ?? [];
+      const availableBySize = countAvailableBySize(compartments);
+      return {
+        ...locker,
+        availableCompartments: availableBySize.small + availableBySize.medium + availableBySize.large,
+        availableBySize,
+      };
+    });
   }
 
   async listSelectableCompartments(lockerId: string): Promise<{
     locker: Pick<Locker, 'id' | 'name' | 'address' | 'rows' | 'columns'>;
     compartments: SelectableCompartment[];
   }> {
-    const locker = await this.db.locker.findFirstOrThrow({
-      where: { id: lockerId, status: 'active' },
-      select: { id: true, name: true, address: true, rows: true, columns: true },
-    });
+    const lockerResult = await this.db.query(
+      `SELECT id, name, address, rows, columns FROM lockers
+       WHERE id = $1 AND status = 'active' LIMIT 1`,
+      [lockerId],
+    );
+    const lockerRow = lockerResult.rows[0];
+    if (!lockerRow) throw new Error(`Locker ${lockerId} not found`);
 
-    const compartments = await this.db.compartment.findMany({
-      where: { lockerId },
-      orderBy: { label: 'asc' },
-      select: { id: true, label: true, size: true, status: true },
-    });
+    const compartmentsResult = await this.db.query(
+      `SELECT id, label, size, status FROM compartments
+       WHERE locker_id = $1 ORDER BY label ASC`,
+      [lockerId],
+    );
 
-    return { locker, compartments };
+    return {
+      locker: {
+        id: String(lockerRow.id),
+        name: String(lockerRow.name),
+        address: String(lockerRow.address),
+        rows: Number(lockerRow.rows),
+        columns: Number(lockerRow.columns),
+      },
+      compartments: compartmentsResult.rows.map((row) => ({
+        id: String(row.id),
+        label: String(row.label),
+        size: row.size as SelectableCompartment['size'],
+        status: row.status as SelectableCompartment['status'],
+      })),
+    };
   }
 
   async listNearest(
@@ -153,57 +181,68 @@ export class LockerRepository {
 
   async listAll(ctx: DataAccessContext): Promise<LockerSummary[]> {
     assertAdmin(ctx);
-    const lockers = await this.db.locker.findMany({
-      where: NON_ARCHIVED_FILTER,
-      orderBy: { name: 'asc' },
-      include: {
-        compartments: { select: { status: true } },
-      },
-    });
-
-    return lockers.map((locker) => ({
-      ...locker,
-      compartmentCounts: countCompartmentsByStatus(locker.compartments),
-    }));
+    return this.listSummaries(`status <> 'archived'`);
   }
 
   async listAllIncludingArchived(ctx: DataAccessContext): Promise<LockerSummary[]> {
     assertAdmin(ctx);
-    const lockers = await this.db.locker.findMany({
-      orderBy: { name: 'asc' },
-      include: {
-        compartments: { select: { status: true } },
-      },
-    });
+    return this.listSummaries('TRUE');
+  }
+
+  private async listSummaries(where: string): Promise<LockerSummary[]> {
+    const lockersResult = await this.db.query(
+      `SELECT * FROM lockers WHERE ${where} ORDER BY name ASC`,
+    );
+    const lockers = lockersResult.rows.map(mapLocker);
+    if (lockers.length === 0) return [];
+
+    const ids = lockers.map((l) => l.id);
+    const compartmentsResult = await this.db.query(
+      `SELECT locker_id, status FROM compartments WHERE locker_id = ANY($1)`,
+      [ids],
+    );
+
+    const byLocker = new Map<string, { status: CompartmentStatus }[]>();
+    for (const row of compartmentsResult.rows) {
+      const lockerId = String(row.locker_id);
+      const list = byLocker.get(lockerId) ?? [];
+      list.push({ status: row.status as CompartmentStatus });
+      byLocker.set(lockerId, list);
+    }
 
     return lockers.map((locker) => ({
       ...locker,
-      compartmentCounts: countCompartmentsByStatus(locker.compartments),
+      compartmentCounts: countCompartmentsByStatus(byLocker.get(locker.id) ?? []),
     }));
   }
 
-  findById(ctx: DataAccessContext, id: string): Promise<LockerWithCompartments | null> {
+  async findById(ctx: DataAccessContext, id: string): Promise<LockerWithCompartments | null> {
     assertAdmin(ctx);
-    return this.db.locker.findUnique({
-      where: { id },
-      include: {
-        compartments: { orderBy: { label: 'asc' } },
-      },
-    });
+    const lockerResult = await this.db.query(`SELECT * FROM lockers WHERE id = $1 LIMIT 1`, [id]);
+    const lockerRow = lockerResult.rows[0];
+    if (!lockerRow) return null;
+
+    const compartmentsResult = await this.db.query(
+      `SELECT * FROM compartments WHERE locker_id = $1 ORDER BY label ASC`,
+      [id],
+    );
+
+    return {
+      ...mapLocker(lockerRow),
+      compartments: compartmentsResult.rows.map(mapCompartment),
+    };
   }
 
   async suggestCode(locationHint: string): Promise<{ code: string; prefix: string }> {
     const prefix = deriveLockerCodePrefix(locationHint);
-    const lockers = await this.db.locker.findMany({
-      where: { code: { startsWith: `${prefix}-` } },
-      select: { code: true },
-      orderBy: { code: 'desc' },
-      take: 50,
-    });
+    const lockers = await this.db.query(
+      `SELECT code FROM lockers WHERE code LIKE $1 ORDER BY code DESC LIMIT 50`,
+      [`${prefix}-%`],
+    );
 
     let maxSequence = 0;
-    for (const locker of lockers) {
-      const match = locker.code.match(/-(\d+)$/);
+    for (const row of lockers.rows) {
+      const match = String(row.code).match(/-(\d+)$/);
       if (match) {
         maxSequence = Math.max(maxSequence, Number.parseInt(match[1]!, 10));
       }
@@ -227,27 +266,41 @@ export class LockerRepository {
 
     const code = input.code?.trim() ?? (await this.suggestCode(input.address)).code;
 
-    // Nested create uses Prisma's sequential transaction API, which works with
-    // Supabase PgBouncer. Interactive $transaction callbacks do not.
-    return this.db.locker.create({
-      data: {
-        code,
-        name: input.name.trim(),
-        address: input.address.trim(),
-        latitude: input.latitude,
-        longitude: input.longitude,
-        rows: input.rows,
-        columns: input.columns,
-        status: input.status,
-        compartments: {
-          create: input.compartments.map((cell) => ({
-            label: cell.label,
-            size: cell.size,
-            status: 'available',
-          })),
-        },
-      },
-      include: { compartments: { orderBy: { label: 'asc' } } },
+    return withTransaction(async (tx) => {
+      const lockerResult = await tx.query(
+        `INSERT INTO lockers (code, name, address, latitude, longitude, rows, columns, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING *`,
+        [
+          code,
+          input.name.trim(),
+          input.address.trim(),
+          input.latitude,
+          input.longitude,
+          input.rows,
+          input.columns,
+          input.status,
+        ],
+      );
+      const locker = mapLocker(lockerResult.rows[0]!);
+
+      for (const cell of input.compartments) {
+        await tx.query(
+          `INSERT INTO compartments (locker_id, label, size, status)
+           VALUES ($1, $2, $3, 'available')`,
+          [locker.id, cell.label, cell.size],
+        );
+      }
+
+      const compartmentsResult = await tx.query(
+        `SELECT * FROM compartments WHERE locker_id = $1 ORDER BY label ASC`,
+        [locker.id],
+      );
+
+      return {
+        ...locker,
+        compartments: compartmentsResult.rows.map(mapCompartment),
+      };
     });
   }
 
@@ -257,49 +310,67 @@ export class LockerRepository {
     input: UpdateLockerInput,
   ): Promise<Locker> {
     assertAdmin(ctx);
-    const locker = await this.db.locker.findUniqueOrThrow({ where: { id } });
+    const existing = await this.db.query(`SELECT * FROM lockers WHERE id = $1 LIMIT 1`, [id]);
+    const row = existing.rows[0];
+    if (!row) throw new Error(`Locker ${id} not found`);
+    const locker = mapLocker(row);
 
     const nextStatus = input.status ? transitionLocker(locker.status, input.status) : locker.status;
+    const archivedAt =
+      nextStatus === 'archived'
+        ? locker.archivedAt ?? new Date()
+        : locker.archivedAt;
 
-    return this.db.locker.update({
-      where: { id },
-      data: {
-        name: input.name?.trim(),
-        address: input.address?.trim(),
-        latitude: input.latitude,
-        longitude: input.longitude,
-        status: nextStatus,
-        archivedAt: nextStatus === 'archived' ? new Date() : locker.archivedAt,
-      },
-    });
+    const result = await this.db.query(
+      `UPDATE lockers SET
+         name = COALESCE($1, name),
+         address = COALESCE($2, address),
+         latitude = COALESCE($3, latitude),
+         longitude = COALESCE($4, longitude),
+         status = $5,
+         archived_at = $6,
+         updated_at = NOW()
+       WHERE id = $7
+       RETURNING *`,
+      [
+        input.name?.trim() ?? null,
+        input.address?.trim() ?? null,
+        input.latitude ?? null,
+        input.longitude ?? null,
+        nextStatus,
+        archivedAt,
+        id,
+      ],
+    );
+    return mapLocker(result.rows[0]!);
   }
 
   async archive(ctx: DataAccessContext, id: string): Promise<Locker> {
     assertAdmin(ctx);
 
-    const activeParcels = await this.db.parcel.count({
-      where: {
-        lockerId: id,
-        status: { notIn: ['collected'] },
-      },
-    });
-
-    if (activeParcels > 0) {
+    const activeParcels = await this.db.query(
+      `SELECT COUNT(*)::int AS count FROM parcels
+       WHERE locker_id = $1 AND status <> 'collected'`,
+      [id],
+    );
+    if (Number(activeParcels.rows[0]?.count ?? 0) > 0) {
       throw new Error('Impossible d’archiver : des colis actifs utilisent ce casier');
     }
 
-    const locker = await this.db.locker.findUniqueOrThrow({ where: { id } });
+    const existing = await this.db.query(`SELECT * FROM lockers WHERE id = $1 LIMIT 1`, [id]);
+    const row = existing.rows[0];
+    if (!row) throw new Error(`Locker ${id} not found`);
+    const locker = mapLocker(row);
     if (locker.status === 'archived') {
       return locker;
     }
 
-    return this.db.locker.update({
-      where: { id },
-      data: {
-        status: transitionLocker(locker.status, 'archived'),
-        archivedAt: new Date(),
-      },
-    });
+    const result = await this.db.query(
+      `UPDATE lockers SET status = $1, archived_at = NOW(), updated_at = NOW()
+       WHERE id = $2 RETURNING *`,
+      [transitionLocker(locker.status, 'archived'), id],
+    );
+    return mapLocker(result.rows[0]!);
   }
 
   async updateStatus(
@@ -317,15 +388,27 @@ export class LockerRepository {
     nextStatus: CompartmentStatus,
   ): Promise<Compartment> {
     assertAdmin(ctx);
-    const compartment = await this.db.compartment.findFirstOrThrow({
-      where: { id: compartmentId, lockerId },
-    });
+    const existing = await this.db.query(
+      `SELECT * FROM compartments WHERE id = $1 AND locker_id = $2 LIMIT 1`,
+      [compartmentId, lockerId],
+    );
+    const row = existing.rows[0];
+    if (!row) throw new Error(`Compartment ${compartmentId} not found`);
+    const compartment = mapCompartment(row);
     const status = transitionCompartment(compartment.status, nextStatus);
-    return this.db.compartment.update({ where: { id: compartmentId }, data: { status } });
+    const result = await this.db.query(
+      `UPDATE compartments SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [status, compartmentId],
+    );
+    return mapCompartment(result.rows[0]!);
   }
 
   async assertSelectable(lockerId: string): Promise<LockerWithAvailability> {
-    const locker = await this.db.locker.findUniqueOrThrow({ where: { id: lockerId } });
+    const existing = await this.db.query(`SELECT * FROM lockers WHERE id = $1 LIMIT 1`, [lockerId]);
+    const row = existing.rows[0];
+    if (!row) throw new Error(`Locker ${lockerId} not found`);
+    const locker = mapLocker(row);
+
     if (!isLockerSelectable(locker.status)) {
       throw new Error('Casier indisponible');
     }
@@ -333,11 +416,14 @@ export class LockerRepository {
       throw new Error('Casier sans coordonnées GPS');
     }
 
-    const compartments = await this.db.compartment.findMany({
-      where: { lockerId },
-      select: { status: true, size: true },
-    });
-
+    const compartmentsResult = await this.db.query(
+      `SELECT status, size FROM compartments WHERE locker_id = $1`,
+      [lockerId],
+    );
+    const compartments = compartmentsResult.rows.map((c) => ({
+      status: c.status as CompartmentStatus,
+      size: c.size as 'small' | 'medium' | 'large',
+    }));
     const availableCompartments = compartments.filter((c) => c.status === 'available').length;
 
     if (availableCompartments === 0) {

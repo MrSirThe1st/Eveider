@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius, borders } from '@eveider/config-ui';
+import { colors, radius, borderSubtle, borderStrong, borders } from '@eveider/config-ui';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -32,7 +32,7 @@ export function AppShell({
   brandShort = 'EV',
   navItems,
   onSignOut,
-  signOutLabel = 'DÉCONNEXION',
+  signOutLabel = 'Déconnexion',
   children,
   maxWidth = 1200,
   storageKey = 'eveider-sidebar-collapsed',
@@ -80,7 +80,7 @@ export function AppShell({
           width: sidebarWidth,
           flexShrink: 0,
           background: colors.surface,
-          borderRight: `${borders.width}px solid ${colors.border}`,
+          borderRight: borderSubtle(),
           display: 'flex',
           flexDirection: 'column',
           position: 'sticky',
@@ -93,7 +93,7 @@ export function AppShell({
         <div
           style={{
             padding: collapsed ? '1.25rem 0' : '1.25rem 1rem',
-            borderBottom: `${borders.width}px solid ${colors.border}`,
+            borderBottom: borderSubtle(),
             display: 'flex',
             alignItems: 'center',
             justifyContent: collapsed ? 'center' : 'flex-start',
@@ -104,8 +104,7 @@ export function AppShell({
             <span
               style={{
                 fontWeight: 700,
-                fontSize: '0.75rem',
-                letterSpacing: '0.08em',
+                fontSize: '0.8125rem',
                 color: colors.secondary,
               }}
             >
@@ -116,23 +115,19 @@ export function AppShell({
               <p
                 style={{
                   margin: 0,
-                  fontSize: '0.6875rem',
-                  fontWeight: 700,
-                  letterSpacing: '0.12em',
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
                   color: colors.textMuted,
-                  textTransform: 'uppercase',
                 }}
               >
-                EVEIDER
+                Eveider
               </p>
               <p
                 style={{
-                  margin: '0.2rem 0 0',
-                  fontSize: '0.8125rem',
+                  margin: '0.15rem 0 0',
+                  fontSize: '0.9375rem',
                   fontWeight: 700,
-                  letterSpacing: '0.06em',
                   color: colors.secondary,
-                  textTransform: 'uppercase',
                 }}
               >
                 {brand}
@@ -165,18 +160,15 @@ export function AppShell({
                   justifyContent: collapsed ? 'center' : 'flex-start',
                   borderRadius: radius.button,
                   textDecoration: 'none',
-                  color: colors.secondary,
-                  background: 'transparent',
-                  border: active
-                    ? `${borders.width}px solid ${colors.border}`
-                    : `${borders.width}px solid transparent`,
-                  fontWeight: 700,
-                  fontSize: '0.6875rem',
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
+                  color: active ? '#FFFFFF' : colors.secondary,
+                  background: active ? colors.primary : 'transparent',
+                  border: 'none',
+                  fontWeight: active ? 600 : 500,
+                  fontSize: '0.875rem',
+                  transition: 'all 0.15s ease',
                 }}
               >
-                <span style={{ display: 'flex', flexShrink: 0, opacity: active ? 1 : 0.72 }}>
+                <span style={{ display: 'flex', flexShrink: 0, opacity: active ? 1 : 0.7 }}>
                   {item.icon}
                 </span>
                 {!collapsed ? <span>{item.label}</span> : null}
@@ -192,7 +184,7 @@ export function AppShell({
             height: 56,
             flexShrink: 0,
             background: colors.surface,
-            borderBottom: `${borders.width}px solid ${colors.border}`,
+            borderBottom: borderSubtle(),
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -213,12 +205,11 @@ export function AppShell({
               justifyContent: 'center',
               width: 36,
               height: 36,
-              border: `${borders.width}px solid ${colors.border}`,
+              border: borderSubtle(),
               borderRadius: radius.button,
               background: 'transparent',
               color: colors.secondary,
               cursor: 'pointer',
-              boxShadow: 'none',
             }}
           >
             {collapsed ? <IconChevronRight /> : <IconChevronLeft />}
@@ -230,7 +221,7 @@ export function AppShell({
             className="nb-btn nb-btn-secondary"
             style={{
               height: 36,
-              fontSize: '0.6875rem',
+              fontSize: '0.8125rem',
               padding: '0 0.875rem',
             }}
           >

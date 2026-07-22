@@ -1,43 +1,43 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDataAccessContext } from '../context.js';
+import {
+  createSqlMatchMock,
+  issueRow,
+  sqlIncludes,
+} from '../test/query-mock.js';
 import { IssueRepository } from './issue.repository.js';
 
 describe('IssueRepository', () => {
-  const issueCreate = vi.fn();
-  const issueFindMany = vi.fn();
-  const issueFindUnique = vi.fn();
-  const issueFindUniqueOrThrow = vi.fn();
-  const issueUpdate = vi.fn();
-  const parcelFindUniqueOrThrow = vi.fn();
-  const parcelFindUnique = vi.fn();
-  const deliveryFindFirst = vi.fn();
-  const lockerFindUniqueOrThrow = vi.fn();
+  let db = createSqlMatchMock(() => null);
+  let repo: IssueRepository;
 
-  const db = {
-    issue: {
-      create: issueCreate,
-      findMany: issueFindMany,
-      findUnique: issueFindUnique,
-      findUniqueOrThrow: issueFindUniqueOrThrow,
-      update: issueUpdate,
-    },
-    parcel: {
-      findUniqueOrThrow: parcelFindUniqueOrThrow,
-      findUnique: parcelFindUnique,
-    },
-    delivery: {
-      findFirst: deliveryFindFirst,
-    },
-    locker: {
-      findUniqueOrThrow: lockerFindUniqueOrThrow,
-    },
-  };
-
-  const repo = new IssueRepository(db as never);
+  function setup(
+    resolve: (
+      sql: string,
+      values?: unknown[],
+    ) => Record<string, unknown> | Record<string, unknown>[] | null,
+  ) {
+    db = createSqlMatchMock(resolve);
+    repo = new IssueRepository(db);
+  }
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
+
+  function issueWithRelations(overrides: Partial<Record<string, unknown>> = {}) {
+    return {
+      ...issueRow(overrides),
+      parcel_relation_id: 'parcel-1',
+      parcel_reference: 'PK-001',
+      locker_relation_id: 'locker-1',
+      locker_name: 'GOMBE',
+      reporter_relation_id: 'user-1',
+      reporter_full_name: 'Jean',
+      reporter_email: null,
+      reporter_role: 'customer',
+    };
+  }
 
   it('creates issue for customer with parcel scope', async () => {
     const ctx = createDataAccessContext('customer', {
@@ -45,26 +45,21 @@ describe('IssueRepository', () => {
       phone: '+243800000000',
     });
 
-    parcelFindUniqueOrThrow.mockResolvedValue({
-      id: 'parcel-1',
-      customerId: 'user-1',
-      recipientPhone: '+243800000000',
-      lockerId: 'locker-1',
-    });
-
-    issueCreate.mockResolvedValue({
-      id: 'issue-1',
-      type: 'parcel_problem',
-      status: 'open',
-      description: 'Colis endommagé',
-      parcelId: 'parcel-1',
-      lockerId: 'locker-1',
-      reporterId: 'user-1',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      parcel: { id: 'parcel-1', reference: 'PK-001' },
-      locker: { id: 'locker-1', name: 'GOMBE' },
-      reporter: { id: 'user-1', fullName: 'Jean', email: null, role: 'customer' },
+    setup((sql) => {
+      if (sqlIncludes(sql, 'FROM parcels') && sqlIncludes(sql, 'customer_id')) {
+        return {
+          customer_id: 'user-1',
+          recipient_phone: '+243800000000',
+          locker_id: 'locker-1',
+        };
+      }
+      if (sqlIncludes(sql, 'INSERT INTO issues')) {
+        return { id: 'issue-1' };
+      }
+      if (sqlIncludes(sql, 'FROM issues i')) {
+        return issueWithRelations();
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
     });
 
     const issue = await repo.create(ctx, {
@@ -74,12 +69,21 @@ describe('IssueRepository', () => {
     });
 
     expect(issue.id).toBe('issue-1');
-    expect(issueCreate).toHaveBeenCalledOnce();
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO issues'),
+      expect.arrayContaining(['parcel_problem', 'Colis endommagé', 'parcel-1']),
+    );
   });
 
   it('rejects courier issue without assigned delivery', async () => {
     const ctx = createDataAccessContext('courier', { userId: 'courier-1' });
-    deliveryFindFirst.mockResolvedValue(null);
+
+    setup((sql) => {
+      if (sqlIncludes(sql, 'FROM deliveries')) {
+        return null;
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
 
     await expect(
       repo.create(ctx, {
@@ -93,24 +97,28 @@ describe('IssueRepository', () => {
   it('updates status for admin', async () => {
     const ctx = createDataAccessContext('admin', { userId: 'admin-1' });
 
-    issueFindUniqueOrThrow.mockResolvedValue({
-      id: 'issue-1',
-      status: 'open',
-    });
-
-    issueUpdate.mockResolvedValue({
-      id: 'issue-1',
-      type: 'parcel_problem',
-      status: 'in_progress',
-      description: 'Test',
-      parcelId: null,
-      lockerId: null,
-      reporterId: 'user-1',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      parcel: null,
-      locker: null,
-      reporter: { id: 'user-1', fullName: 'Jean', email: null, role: 'customer' },
+    setup((sql) => {
+      if (sqlIncludes(sql, 'SELECT * FROM issues')) {
+        return issueRow({ status: 'open', parcel_id: null, locker_id: null });
+      }
+      if (sqlIncludes(sql, 'UPDATE issues SET status')) {
+        return null;
+      }
+      if (sqlIncludes(sql, 'FROM issues i')) {
+        return {
+          ...issueWithRelations({
+            status: 'in_progress',
+            parcel_id: null,
+            locker_id: null,
+            description: 'Test',
+          }),
+          parcel_relation_id: null,
+          parcel_reference: null,
+          locker_relation_id: null,
+          locker_name: null,
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
     });
 
     const issue = await repo.updateStatus(ctx, 'issue-1', 'in_progress');
@@ -119,6 +127,7 @@ describe('IssueRepository', () => {
 
   it('denies status update for customer', async () => {
     const ctx = createDataAccessContext('customer', { userId: 'user-1' });
+    setup(() => null);
 
     await expect(repo.updateStatus(ctx, 'issue-1', 'resolved')).rejects.toThrow(
       'Admin role required',

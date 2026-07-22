@@ -1,22 +1,21 @@
 # Auth Setup
 
-Eveider uses **Supabase Auth** + **Prisma user profiles**.
+Eveider uses **Supabase Auth** + **PostgreSQL user profiles** (via `packages/data-access`).
 
 ## Unified web portal
 
-All web roles share one app (`apps/web-admin`, port **3000**):
+All web roles share one app (`apps/web-manager`, port **3000**):
 
 | URL | Purpose |
 |-----|---------|
 | `/` | Public landing page |
 | `/connexion` | Shared login (all web roles) |
 | `/inscription` | Business self-registration |
+| `/onboarding` | Business KYC wizard (post-registration) |
 | `/tableau-de-bord/*` | Admin dashboard (role: `admin`) |
 | `/entreprise/tableau-de-bord/*` | Business dashboard (role: `business`) |
 
 After login, users are redirected automatically based on their role. Customer and courier accounts must use the mobile app.
-
-`apps/web-business` is deprecated — it redirects to the unified portal.
 
 ## Web (business + admin)
 
@@ -24,6 +23,8 @@ Email and password only:
 
 - **Sign up** (business): `signUp({ email, password })` → `POST /api/auth/onboard`
 - **Sign in**: `signInWithPassword({ email, password })` → `GET /api/auth/me` → redirect by role
+
+Session resolution uses `getCurrentUser()` (via `React.cache()`) on the server. Middleware uses `getSession()` only — no DB calls in middleware.
 
 ## Mobile (customer + courier)
 
@@ -39,8 +40,8 @@ Customers should register with the **same phone** used as `recipientPhone` on bu
 
 | App | Login | Register | Allowed roles | Auth |
 |-----|-------|----------|---------------|------|
-| `web-admin` (unified portal) | `/connexion` | `/inscription` | `admin`, `business` | Email + password |
-| `mobile` | Auth screen | Auth screen + role | `customer`, `courier` | Email + password |
+| `web-manager` | `/connexion` | `/inscription` | `admin`, `business` | Email + password |
+| `mobile-tenant` | Auth screen | Auth screen + role | `customer`, `courier` | Email + password |
 
 ## Supabase configuration
 
@@ -74,7 +75,7 @@ VALUES (
 
 ## Mobile environment
 
-Expo reads env from the **repo root** `.env` (not `apps/mobile/`). Copy from `.env.example` and set:
+Expo reads env from the **repo root** `.env` (not `apps/mobile-tenant/`). Copy from `.env.example` and set:
 
 ```
 EXPO_PUBLIC_SUPABASE_URL=https://clgcdbgnqqiosnijdbns.supabase.co
@@ -84,7 +85,7 @@ EXPO_PUBLIC_AUTH_API_URL=http://localhost:3000
 
 **Physical device (Expo Go on phone):** `localhost` points at the phone, not your Mac. Set `EXPO_PUBLIC_AUTH_API_URL` to your computer's LAN IP (same network as the phone), e.g. `http://172.20.10.6:3000`. Find it in the Expo terminal (`Metro waiting on exp://…`) or run `ipconfig getifaddr en0` on macOS. Restart Expo after changing `.env`.
 
-**The unified portal must be running** on port 3000 — mobile calls `/api/auth/me` and customer/courier APIs there.
+**The web manager must be running** on port 3000 — mobile calls `/api/auth/me` and customer/courier APIs there.
 
 The dev script binds to **`0.0.0.0`** so your phone can reach the Mac over Wi‑Fi. If it still fails:
 
@@ -96,11 +97,11 @@ The dev script binds to **`0.0.0.0`** so your phone can reach the Mac over Wi‑
 Start mobile with:
 
 ```bash
-pnpm --filter @eveider/mobile dev
+pnpm dev:mobile
 # or clear Metro cache:
-pnpm --filter @eveider/mobile dev:clear
+pnpm --filter @eveider/mobile-tenant dev:clear
 # web browser (same machine — use localhost in EXPO_PUBLIC_AUTH_API_URL):
-pnpm --filter @eveider/mobile dev:web
+pnpm --filter @eveider/mobile-tenant dev:web
 ```
 
 `app.config.js` and `metro.config.js` load `EXPO_PUBLIC_*` from the repo root `.env` automatically (no `dotenv-cli` needed).
@@ -110,16 +111,16 @@ pnpm --filter @eveider/mobile dev:web
 When testing in the browser instead of Expo Go on a phone:
 
 1. Set `EXPO_PUBLIC_AUTH_API_URL=http://localhost:3000` in root `.env`
-2. Start **unified portal**: `pnpm --filter @eveider/web-admin dev`
-3. Start **mobile web**: `pnpm --filter @eveider/mobile dev:web`
+2. Start **web manager**: `pnpm dev` (or `pnpm --filter @eveider/web-manager dev`)
+3. Start **mobile web**: `pnpm --filter @eveider/mobile-tenant dev:web`
 4. Open the URL shown in the terminal (usually `http://localhost:8081`)
 
-Use the **project** Expo CLI (`pnpm --filter @eveider/mobile dev:web`), not the deprecated global `expo-cli`.
+Use the **project** Expo CLI (`pnpm --filter @eveider/mobile-tenant dev:web`), not the deprecated global `expo-cli`.
 
 ## Customer mobile testing (Step 9)
 
-1. Start **unified portal** (`:3000`) — web + mobile API host
-2. Start **mobile**: `pnpm --filter @eveider/mobile dev`
+1. Start **web manager** (`:3000`) — web + mobile API host
+2. Start **mobile**: `pnpm dev:mobile`
 3. Register as **CLIENT** with email + password; use the **same phone** as parcel `recipientPhone` (e.g. `+243800000000`)
 4. On the portal, sign in as a **business** user and create a parcel with that **same recipient phone**
 5. Sign in as **admin** and advance parcel status to **PRÊT POUR RETRAIT** — a 6-digit PIN is created automatically

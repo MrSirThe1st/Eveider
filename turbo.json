@@ -6,7 +6,7 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
-    "@eveider/mobile#build": {
+    "@eveider/mobile-tenant#build": {
       "outputs": []
     },
     "lint": {
@@ -22,13 +22,7 @@
       "cache": false,
       "persistent": true
     },
-    "@eveider/web-admin#dev": {
-      "dependsOn": ["^build"],
-      "cache": false,
-      "persistent": true
-    },
-    "@eveider/web-business#dev": {
-      "dependsOn": ["^build"],
+    "@eveider/web-manager#dev": {
       "cache": false,
       "persistent": true
     }

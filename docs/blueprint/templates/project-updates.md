@@ -20,6 +20,26 @@ Use this file as the first project memory source before searching the codebase.
 
 ## Entries
 
+> **Note:** Entries before 2026-07-22 reference pre-refactor paths (`web-admin`, `web-platform`, `web-business`, `apps/mobile`, Prisma). Current apps are `web-manager` and `mobile-tenant`; data access uses `pg` + `db/migrations/`.
+
+## 2026-07-22
+- Change type: Infra | DB | Frontend | Mobile | Other
+- Description: Technical refactor — consolidated web apps into `apps/web-manager` (admin + business + mobile APIs), renamed `apps/mobile` → `apps/mobile-tenant`, replaced Prisma with hand-written SQL repositories (`pg`), migrated schema to `db/migrations/*.sql`, removed TanStack Query from web (RSC + `src/server/` use-cases), removed Prisma client and seed scripts.
+- Impact: Deleted `web-admin`, `web-platform`, `web-business`; `packages/data-access/src/db/` (pool, types, mappers); all repositories rewritten for `Queryable`; `pnpm db:migrate` + `pnpm db:seed`; admin routes `/tableau-de-bord/*`, business routes `/entreprise/tableau-de-bord/*`; mobile API host `EXPO_PUBLIC_AUTH_API_URL=http://localhost:3000`; docs `auth.md`, `ADR-001`, `supabase.md`, `db/README.md` updated.
+- Tests: 47 data-access unit tests passing; web-manager typecheck + build; manual dev flows verified.
+
+## 2026-07-21
+- Change type: Frontend | API | Infra | Other
+- Description: Server-first data fetching architecture — list/detail reads via Server Components + shared `src/server/` use-cases; React Query reserved for mutations/live filters; shared `LoadingSpinner` + skeletons; dashboard loads in parallel with `listRecent` (20 parcels); Prisma transaction pooler uses `connection_limit=5` in development. Migrated lockers, businesses, issues, applications, and dashboard pages to RSC.
+- Impact: `packages/ui` (`LoadingSpinner`, `TableSkeleton`, `CardListSkeleton`, `DashboardOverviewSkeleton`); `web-admin/src/server/{session,business-applications,dashboard,lockers,businesses,issues}.ts`; applications, dashboard, casiers, entreprises, incidents pages are async RSC; `loading.tsx` on major dashboard routes; API list GETs call shared use-cases; `ParcelRepository.listRecent`; docs `data-fetching.md` + `AGENT_RULES.md` rewritten as mandatory pattern.
+- Tests: typecheck `@eveider/ui` + `web-admin`.
+
+## 2026-07-21
+- Change type: API | Frontend | Other
+- Description: Migrated KYC / business registration flows to TanStack Query and shared session patterns — admin applications list and review invalidate caches; business onboarding APIs use `requireBusinessSession` with auth cache; added `data-fetching.md` agent guide.
+- Impact: `web-admin`: `use-business-applications-query.ts`, `admin-business-applications.tsx`, `admin-application-review.tsx`, `/api/businesses/applications`, `/api/businesses/[id]/decision`. `web-business`: `auth-cache.ts`, `session.ts`, `use-onboarding-summary-query.ts`, `/api/onboarding/*`, `onboarding-wizard.tsx`. Docs: `docs/blueprint/ai/data-fetching.md`, `AGENT_RULES.md`.
+- Tests: deferred (pattern migration; existing typecheck gaps in unrelated files).
+
 ## 2026-06-24
 - Change type: DB | API | Frontend | Mobile
 - Description: Mapbox locker map system — configurable per-locker grid (rows×columns), soft-archive lockers, customer locker selection at order time, admin locker creation on map, nearest-locker APIs, mobile customer picker + courier directions.

@@ -1,0 +1,42 @@
+{
+  "name": "@eveider/web-manager",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "scripts": {
+    "dev": "dotenv -e ../../.env -- next dev --hostname 0.0.0.0 --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@eveider/api-contracts": "workspace:*",
+    "@eveider/config-ui": "workspace:*",
+    "@eveider/data-access": "workspace:*",
+    "@eveider/domain": "workspace:*",
+    "@eveider/ui": "workspace:*",
+    "@supabase/ssr": "^0.6.1",
+    "@supabase/supabase-js": "^2.49.8",
+    "mapbox-gl": "^3.25.0",
+    "nanoid": "3",
+    "next": "^15.3.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-map-gl": "^8.1.1"
+  },
+  "devDependencies": {
+    "@eveider/config-eslint": "workspace:*",
+    "@eveider/config-typescript": "workspace:*",
+    "@types/mapbox-gl": "^3.5.0",
+    "@types/node": "^22.15.29",
+    "@types/react": "^19.1.6",
+    "@types/react-dom": "^19.1.5",
+    "dotenv-cli": "^8.0.0",
+    "eslint": "^9.28.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.3"
+  }
+}

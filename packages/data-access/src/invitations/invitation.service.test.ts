@@ -1,14 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createSqlMatchMock, sqlIncludes } from '../test/query-mock.js';
 import { recordInviteDelivery, sendInvitation } from './invitation.service.js';
 
 describe('sendInvitation', () => {
   const originalEnv = process.env;
   const fetchMock = vi.fn();
-  const notificationCreate = vi.fn();
-
-  const db = {
-    notification: { create: notificationCreate },
-  };
 
   beforeEach(() => {
     process.env = {
@@ -21,7 +17,6 @@ describe('sendInvitation', () => {
     vi.stubGlobal('fetch', fetchMock);
     fetchMock.mockReset();
     vi.clearAllMocks();
-    notificationCreate.mockResolvedValue({});
   });
 
   afterEach(() => {
@@ -79,7 +74,19 @@ describe('sendInvitation', () => {
   });
 
   it('records failed WhatsApp delivery without sentAt', async () => {
-    await recordInviteDelivery(db as never, 'parcel-1', {
+    const db = createSqlMatchMock((sql, values) => {
+      if (sqlIncludes(sql, 'INSERT INTO notifications')) {
+        expect(values).toEqual([
+          'parcel-1',
+          '[whatsapp:eveider_parcel_invite] FAILED Template not approved',
+          null,
+        ]);
+        return null;
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    await recordInviteDelivery(db, 'parcel-1', {
       channel: 'whatsapp',
       templateName: 'eveider_parcel_invite',
       deepLink: 'eveider://invite/abc-123',
@@ -88,13 +95,6 @@ describe('sendInvitation', () => {
       ok: false,
     });
 
-    expect(notificationCreate).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        parcelId: 'parcel-1',
-        channel: 'sms',
-        message: '[whatsapp:eveider_parcel_invite] FAILED Template not approved',
-        sentAt: null,
-      }),
-    });
+    expect(db.query).toHaveBeenCalledOnce();
   });
 });

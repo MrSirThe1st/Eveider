@@ -1,6 +1,6 @@
 # Pickup Locker Design DNA
 
-Visual and interaction standards for Eveider. All surfaces — mobile, business portal, admin, and marketing website — share this **Industrial Neo-Brutalist** system, inspired by [InPost](https://inpost.co.uk/) logistics UI.
+Visual and interaction standards for Eveider. All surfaces — mobile, business portal, admin, and marketing website — share this **refined logistics UI** system, inspired by [InPost](https://inpost.co.uk/) parcel flows.
 
 Implementation tokens live in `packages/config-ui` and mirror values here exactly.
 
@@ -21,10 +21,10 @@ The result must feel:
 - Structured
 - Operational
 - Reliable
-- Industrial
+- Clean and spacious
 - High-contrast (readable in sunlight / warehouse)
 
-**Never:** playful, cute, startup-ish, glassmorphism, gradient heroes, or "AI generated".
+**Never:** playful, cute, startup-ish, glassmorphism, gradient heroes, heavy neo-brutalist shadows, or "AI generated".
 
 **Target reaction:** *"This is the software behind a serious logistics network."*
 
@@ -34,12 +34,13 @@ The result must feel:
 
 | Token | Hex | Usage |
 |-------|-----|-------|
-| Primary brand | `#09D40B` | Main CTAs, active nav, ready/available states — **max ~5% of screen** |
-| Secondary | `#121212` | Primary text, borders, heavy headers |
+| Primary brand | `#09D40B` | Main CTAs, ready/available states — **max ~5% of screen** |
+| Secondary | `#121212` | Primary text, emphasis borders, selected states |
 | Surface | `#FFFFFF` | Cards, panels, primary content areas |
-| Background | `#F5F6F7` | Page / screen background (concrete canvas) |
-| Border | `#121212` | **All** structural borders — cards, inputs, buttons |
-| Text muted | `#475569` | Body secondary copy, inactive labels |
+| Background | `#F5F6F7` | Page / screen background |
+| Border subtle | `#DDE1E6` | Default structural borders — cards, inputs, dividers |
+| Border emphasis | `#121212` | Selected states, primary CTAs, active nav |
+| Text muted | `#64748B` | Body secondary copy, inactive labels |
 | Success | `#09D40B` | Same as primary — positive operational state |
 | Warning | `#FFB800` | Attention required (e.g. livré au casier) |
 | Danger | `#E53935` | Failure, blocked, critical |
@@ -51,26 +52,25 @@ The result must feel:
 |-------|-------|------|
 | 60% | White | Surfaces, cards, content |
 | 25% | Light grey (`#F5F6F7`) | Background, structure |
-| 10% | Black (`#121212`) | Typography, borders, emphasis |
+| 10% | Black (`#121212`) | Typography, emphasis |
 | 5% | Green (`#09D40B`) | Meaning only — CTAs & ready states |
 
 **Green means something.** Use it like InPost uses yellow — sparingly, for action and status. Do not use green decoratively.
 
-**Avoid:** `#E7EAEC` soft 1px borders, gradient backgrounds, purple accents, glassmorphism, blurred panels, diffuse drop shadows (`box-shadow: 0 4px 12px rgba(...)`).
+**Avoid:** diffuse drop shadows (`box-shadow: 0 4px 12px rgba(...)`), gradient backgrounds, purple accents, glassmorphism, blurred panels.
 
 ---
 
 ## Borders & Shadows
 
-| Property | Value |
-|----------|-------|
-| Border width | `2px` |
-| Border color | `#121212` |
-| Border style | `solid` |
-| Card shadow | `3px 3px 0 #121212` (hard offset block) or none |
-| Diffuse blur shadow | **Forbidden** |
+| Property | Default | Selected / emphasis |
+|----------|---------|---------------------|
+| Border width | `1px` | `2px` |
+| Border color | `#DDE1E6` | `#121212` |
+| Border style | `solid` | `solid` |
+| Card shadow | **None** | **None** |
 
-Every card, container, button, and input uses `border: 2px solid #121212`.
+Flat surfaces only. Thick black borders are reserved for **selected** options and primary CTAs — not every card and input.
 
 ---
 
@@ -79,8 +79,11 @@ Every card, container, button, and input uses `border: 2px solid #121212`.
 | Property | Value |
 |----------|-------|
 | Font family | **Inter** (500, 600, 700) |
-| Operational headings & labels | ALL CAPS, `font-weight: 700`, letter-spacing |
+| Page headings | Sentence case, `font-weight: 700`, tight letter-spacing |
+| Section labels | Sentence case, `font-weight: 600` |
 | Body copy | Sentence case, `font-weight: 500` |
+
+**Avoid:** ALL CAPS labels everywhere, excessive letter-spacing, shouty micro-copy.
 
 ---
 
@@ -88,23 +91,21 @@ Every card, container, button, and input uses `border: 2px solid #121212`.
 
 | Element | Radius |
 |---------|--------|
-| Cards, buttons, inputs | `8px` max |
+| Cards, buttons, inputs | `2px` (nearly sharp) |
 | Status badges | Pill (`border-radius: 999px`) — small badges only |
-
-**Avoid:** rounded-full primary buttons, floating cards without borders.
 
 ---
 
 ## Cards
 
-Cards feel like **physical operational panels** — parcel counters, kiosk screens.
+Cards feel like **clean operational panels** — not sticker-like blocks with hard shadows.
 
 | Property | Value |
 |----------|-------|
 | Background | `#FFFFFF` |
-| Radius | `8px` |
-| Border | `2px solid #121212` |
-| Shadow | `3px 3px 0 #121212` |
+| Radius | `2px` |
+| Border | None |
+| Shadow | None |
 
 ---
 
@@ -115,26 +116,26 @@ Cards feel like **physical operational panels** — parcel counters, kiosk scree
 | Property | Value |
 |----------|-------|
 | Background | `#09D40B` |
-| Text | `#121212`, ALL CAPS, `font-weight: 700` |
+| Text | `#121212`, sentence case, `font-weight: 600` |
 | Height | `52px` |
 | Border | `2px solid #121212` |
-| Radius | `8px` |
-| Shadow | `3px 3px 0 #121212` optional |
+| Radius | `2px` |
+| Shadow | None |
 
-### Secondary
+### Secondary / outline
 
-White surface, `2px solid #121212` border, black uppercase text, hard shadow.
+Transparent background, `1–2px solid #121212` border, black text, no shadow.
 
 ---
 
 ## Status Badges
 
-Black-outlined pills (`2px solid #121212`) with status-specific fills:
+Outlined pills with status-specific fills:
 
 | Status | Fill |
 |--------|------|
-| PRÊT POUR RETRAIT | `#09D40B` |
-| LIVRÉ AU CASIER | `#FFB800` |
+| Prêt pour retrait | `#09D40B` |
+| Livré au casier | `#FFB800` |
 | Other | `#FFFFFF` or `#F5F6F7` |
 
 ---
@@ -150,8 +151,8 @@ Black-outlined pills (`2px solid #121212`) with status-specific fills:
 
 ## Marketing Website (InPost-inspired)
 
-- Hero: large ALL CAPS headline + **tracking input** with green "SUIVRE MON COLIS" CTA
-- Feature cards: white, 2px border, hard shadow, 8px radius
+- Hero: large headline + tracking input with green flat CTA
+- Feature cards: white, thin grey border, no shadow, nearly sharp corners
 - No glass header, no gradient text, no dot-grid backgrounds
 - Green used only for CTAs and live-status dots
 
@@ -169,7 +170,7 @@ Industrial handheld scanner — large buttons, high contrast, minimal decoration
 
 ### Admin / Business Portal
 
-Operational workspace — KPI tiles with hard borders, scannable tables, filter chips with block shadows.
+Operational workspace — KPI tiles with thin borders, scannable tables, filter chips with emphasis on selection.
 
 ---
 

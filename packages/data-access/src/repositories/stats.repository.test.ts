@@ -1,35 +1,57 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDataAccessContext } from '../context.js';
+import { createSqlMatchMock, sqlIncludes } from '../test/query-mock.js';
 import { StatsRepository } from './stats.repository.js';
 
 describe('StatsRepository', () => {
-  const parcelCount = vi.fn();
-  const deliveryCount = vi.fn();
-  const issueCount = vi.fn();
-  const compartmentGroupBy = vi.fn();
+  let db = createSqlMatchMock(() => null);
+  let repo: StatsRepository;
 
-  const db = {
-    parcel: { count: parcelCount },
-    delivery: { count: deliveryCount },
-    issue: { count: issueCount },
-    compartment: { groupBy: compartmentGroupBy },
-  };
-
-  const repo = new StatsRepository(db as never);
+  function setup(
+    resolve: (
+      sql: string,
+      values?: unknown[],
+    ) => Record<string, unknown> | Record<string, unknown>[] | null,
+  ) {
+    db = createSqlMatchMock(resolve);
+    repo = new StatsRepository(db);
+  }
 
   beforeEach(() => {
     vi.clearAllMocks();
-    parcelCount.mockResolvedValueOnce(5).mockResolvedValueOnce(2);
-    deliveryCount.mockResolvedValueOnce(3).mockResolvedValueOnce(1);
-    issueCount.mockResolvedValue(4);
-    compartmentGroupBy.mockResolvedValue([
-      { status: 'occupied', _count: { status: 8 } },
-      { status: 'available', _count: { status: 12 } },
-      { status: 'reserved', _count: { status: 2 } },
-    ]);
   });
 
   it('returns dashboard stats for admin', async () => {
+    setup((sql) => {
+      if (sqlIncludes(sql, 'FROM parcels') && sqlIncludes(sql, 'created_at >=')) {
+        return { count: 5 };
+      }
+      if (
+        sqlIncludes(sql, 'FROM deliveries') &&
+        sqlIncludes(sql, 'status = ANY') &&
+        !sqlIncludes(sql, 'completed')
+      ) {
+        return { count: 3 };
+      }
+      if (sqlIncludes(sql, 'FROM deliveries') && sqlIncludes(sql, "status = 'completed'")) {
+        return { count: 1 };
+      }
+      if (sqlIncludes(sql, 'FROM parcels') && sqlIncludes(sql, "status = 'ready_for_pickup'")) {
+        return { count: 2 };
+      }
+      if (sqlIncludes(sql, 'FROM issues')) {
+        return { count: 4 };
+      }
+      if (sqlIncludes(sql, 'FROM compartments') && sqlIncludes(sql, 'GROUP BY status')) {
+        return [
+          { status: 'occupied', count: 8 },
+          { status: 'available', count: 12 },
+          { status: 'reserved', count: 2 },
+        ];
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
     const ctx = createDataAccessContext('admin', { userId: 'admin-1' });
     const stats = await repo.getDashboard(ctx);
 
@@ -42,46 +64,45 @@ describe('StatsRepository', () => {
   });
 
   it('denies non-admin', async () => {
+    setup(() => null);
     const ctx = createDataAccessContext('customer', { userId: 'user-1' });
     await expect(repo.getDashboard(ctx)).rejects.toThrow('Admin role required');
   });
 
   it('returns analytics report for admin', async () => {
-    const parcelCount = vi.fn();
-    const deliveryFindMany = vi.fn();
-    const compartmentGroupBy = vi.fn();
-    const parcelGroupBy = vi.fn();
-    const lockerFindMany = vi.fn();
-    const businessFindMany = vi.fn();
-
-    const analyticsDb = {
-      parcel: { count: parcelCount, groupBy: parcelGroupBy },
-      delivery: { count: vi.fn(), findMany: deliveryFindMany },
-      issue: { count: vi.fn() },
-      compartment: { groupBy: compartmentGroupBy },
-      locker: { findMany: lockerFindMany },
-      business: { findMany: businessFindMany },
-    };
-
-    const analyticsRepo = new StatsRepository(analyticsDb as never);
-
-    parcelCount.mockResolvedValueOnce(8).mockResolvedValueOnce(2);
-    compartmentGroupBy.mockResolvedValue([
-      { status: 'occupied', _count: { status: 5 } },
-      { status: 'available', _count: { status: 5 } },
-    ]);
-    deliveryFindMany.mockResolvedValue([
-      { completedAt: new Date() },
-      { completedAt: new Date() },
-    ]);
-    parcelGroupBy
-      .mockResolvedValueOnce([{ lockerId: 'locker-1', _count: { id: 4 } }])
-      .mockResolvedValueOnce([{ businessId: 'biz-1', _count: { id: 10 } }]);
-    lockerFindMany.mockResolvedValue([{ id: 'locker-1', name: 'GOMBE' }]);
-    businessFindMany.mockResolvedValue([{ id: 'biz-1', name: 'Shop' }]);
+    setup((sql) => {
+      if (sqlIncludes(sql, 'FROM parcels') && sqlIncludes(sql, "status = 'collected'")) {
+        return { count: 8 };
+      }
+      if (sqlIncludes(sql, 'FROM parcels') && sqlIncludes(sql, "status = 'ready_for_pickup'")) {
+        return { count: 2 };
+      }
+      if (sqlIncludes(sql, 'FROM compartments') && sqlIncludes(sql, 'GROUP BY status')) {
+        return [
+          { status: 'occupied', count: 5 },
+          { status: 'available', count: 5 },
+        ];
+      }
+      if (sqlIncludes(sql, 'FROM deliveries') && sqlIncludes(sql, 'completed_at')) {
+        return [{ completed_at: new Date() }, { completed_at: new Date() }];
+      }
+      if (sqlIncludes(sql, 'GROUP BY locker_id')) {
+        return [{ locker_id: 'locker-1', count: 4 }];
+      }
+      if (sqlIncludes(sql, 'GROUP BY business_id')) {
+        return [{ business_id: 'biz-1', count: 10 }];
+      }
+      if (sqlIncludes(sql, 'FROM lockers')) {
+        return [{ id: 'locker-1', name: 'GOMBE' }];
+      }
+      if (sqlIncludes(sql, 'FROM businesses')) {
+        return [{ id: 'biz-1', name: 'Shop' }];
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
 
     const ctx = createDataAccessContext('admin', { userId: 'admin-1' });
-    const analytics = await analyticsRepo.getAnalytics(ctx, 7);
+    const analytics = await repo.getAnalytics(ctx, 7);
 
     expect(analytics.pickupSuccessRate).toBe(80);
     expect(analytics.lockerUsageRate).toBe(50);

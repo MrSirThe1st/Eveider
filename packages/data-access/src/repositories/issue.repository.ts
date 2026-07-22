@@ -1,5 +1,7 @@
 import { transitionIssue, type IssueStatus, type IssueType } from '@eveider/domain';
-import type { Issue, Locker, Parcel, PrismaClient, User } from '@prisma/client';
+import type { Queryable } from '../db/index.js';
+import { mapIssue } from '../db/mappers.js';
+import type { Issue, Locker, Parcel, User } from '../db/types.js';
 import {
   AccessDeniedError,
   assertAdmin,
@@ -27,12 +29,6 @@ export type IssueWithRelations = Issue & {
   reporter: Pick<User, 'id' | 'fullName' | 'email' | 'role'>;
 };
 
-const issueInclude = {
-  parcel: { select: { id: true, reference: true } },
-  locker: { select: { id: true, name: true } },
-  reporter: { select: { id: true, fullName: true, email: true, role: true } },
-} as const;
-
 export type CreateIssueInput = {
   type: IssueType;
   parcelId?: string;
@@ -41,7 +37,28 @@ export type CreateIssueInput = {
 };
 
 export class IssueRepository {
-  constructor(private readonly db: PrismaClient) {}
+  constructor(private readonly db: Queryable) {}
+
+  private async loadWithRelations(where: string, values: unknown[]): Promise<IssueWithRelations[]> {
+    const result = await this.db.query(
+      `SELECT i.*, p.id AS parcel_relation_id, p.reference AS parcel_reference,
+              l.id AS locker_relation_id, l.name AS locker_name,
+              u.id AS reporter_relation_id, u.full_name AS reporter_full_name,
+              u.email AS reporter_email, u.role AS reporter_role
+       FROM issues i
+       LEFT JOIN parcels p ON p.id = i.parcel_id
+       LEFT JOIN lockers l ON l.id = i.locker_id
+       JOIN users u ON u.id = i.reporter_id
+       WHERE ${where} ORDER BY i.created_at DESC`,
+      values,
+    );
+    return result.rows.map((row) => ({
+      ...mapIssue(row),
+      parcel: row.parcel_relation_id ? { id: String(row.parcel_relation_id), reference: String(row.parcel_reference) } : null,
+      locker: row.locker_relation_id ? { id: String(row.locker_relation_id), name: String(row.locker_name) } : null,
+      reporter: { id: String(row.reporter_relation_id), fullName: row.reporter_full_name == null ? null : String(row.reporter_full_name), email: row.reporter_email == null ? null : String(row.reporter_email), role: row.reporter_role as User['role'] },
+    }));
+  }
 
   async create(ctx: DataAccessContext, input: CreateIssueInput): Promise<IssueWithRelations> {
     if (ctx.role === 'customer') {
@@ -61,11 +78,7 @@ export class IssueRepository {
       throw new AccessDeniedError('Customer or courier role required');
     }
 
-    return this.db.issue.findMany({
-      where: { reporterId: ctx.userId },
-      include: issueInclude,
-      orderBy: { createdAt: 'desc' },
-    });
+    return this.loadWithRelations('i.reporter_id = $1', [ctx.userId]);
   }
 
   async listAll(
@@ -74,11 +87,7 @@ export class IssueRepository {
   ): Promise<IssueWithRelations[]> {
     assertAdmin(ctx);
 
-    return this.db.issue.findMany({
-      where: options?.status ? { status: options.status } : undefined,
-      include: issueInclude,
-      orderBy: { createdAt: 'desc' },
-    });
+    return options?.status ? this.loadWithRelations('i.status = $1', [options.status]) : this.loadWithRelations('TRUE', []);
   }
 
   async updateStatus(
@@ -88,14 +97,12 @@ export class IssueRepository {
   ): Promise<IssueWithRelations> {
     assertAdmin(ctx);
 
-    const issue = await this.db.issue.findUniqueOrThrow({ where: { id } });
+    const found = await this.db.query(`SELECT * FROM issues WHERE id = $1 LIMIT 1`, [id]);
+    if (!found.rows[0]) throw new Error(`Issue ${id} not found`);
+    const issue = mapIssue(found.rows[0]);
     transitionIssue(issue.status, status);
-
-    return this.db.issue.update({
-      where: { id },
-      data: { status },
-      include: issueInclude,
-    });
+    await this.db.query(`UPDATE issues SET status = $1, updated_at = NOW() WHERE id = $2`, [status, id]);
+    return (await this.loadWithRelations('i.id = $1', [id]))[0]!;
   }
 
   private async createForCustomer(
@@ -108,25 +115,20 @@ export class IssueRepository {
     let lockerId = input.lockerId;
 
     if (input.parcelId) {
-      const parcel = await this.db.parcel.findUniqueOrThrow({ where: { id: input.parcelId } });
-      assertCustomerOwnsParcel(ctx, parcel.customerId, parcel.recipientPhone);
-      lockerId ??= parcel.lockerId ?? undefined;
+      const result = await this.db.query(`SELECT customer_id, recipient_phone, locker_id FROM parcels WHERE id = $1 LIMIT 1`, [input.parcelId]);
+      if (!result.rows[0]) throw new Error(`Parcel ${input.parcelId} not found`);
+      const parcel = result.rows[0];
+      assertCustomerOwnsParcel(ctx, parcel.customer_id == null ? null : String(parcel.customer_id), String(parcel.recipient_phone));
+      lockerId ??= parcel.locker_id == null ? undefined : String(parcel.locker_id);
     }
 
     if (input.lockerId) {
-      await this.db.locker.findUniqueOrThrow({ where: { id: input.lockerId } });
+      const locker = await this.db.query(`SELECT id FROM lockers WHERE id = $1`, [input.lockerId]);
+      if (!locker.rows[0]) throw new Error(`Locker ${input.lockerId} not found`);
     }
 
-    return this.db.issue.create({
-      data: {
-        type: input.type,
-        description: input.description,
-        parcelId: input.parcelId,
-        lockerId,
-        reporterId: ctx.userId!,
-      },
-      include: issueInclude,
-    });
+    const created = await this.db.query(`INSERT INTO issues (type, description, parcel_id, locker_id, reporter_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`, [input.type, input.description, input.parcelId ?? null, lockerId ?? null, ctx.userId!]);
+    return (await this.loadWithRelations('i.id = $1', [created.rows[0]!.id]))[0]!;
   }
 
   private async createForCourier(
@@ -140,30 +142,22 @@ export class IssueRepository {
       throw new Error('Le colis est requis pour signaler un incident');
     }
 
-    const delivery = await this.db.delivery.findFirst({
-      where: { parcelId: input.parcelId, courierId: ctx.userId },
-    });
-    if (!delivery) {
+    const delivery = await this.db.query(`SELECT id FROM deliveries WHERE parcel_id = $1 AND courier_id = $2 LIMIT 1`, [input.parcelId, ctx.userId]);
+    if (!delivery.rows[0]) {
       throw new AccessDeniedError('Livraison non assignée');
     }
 
-    const parcel = await this.db.parcel.findUniqueOrThrow({ where: { id: input.parcelId } });
-    const lockerId = input.lockerId ?? parcel.lockerId ?? undefined;
+    const parcelResult = await this.db.query(`SELECT locker_id FROM parcels WHERE id = $1 LIMIT 1`, [input.parcelId]);
+    if (!parcelResult.rows[0]) throw new Error(`Parcel ${input.parcelId} not found`);
+    const lockerId = input.lockerId ?? (parcelResult.rows[0].locker_id == null ? undefined : String(parcelResult.rows[0].locker_id));
 
     if (lockerId) {
-      await this.db.locker.findUniqueOrThrow({ where: { id: lockerId } });
+      const locker = await this.db.query(`SELECT id FROM lockers WHERE id = $1`, [lockerId]);
+      if (!locker.rows[0]) throw new Error(`Locker ${lockerId} not found`);
     }
 
-    return this.db.issue.create({
-      data: {
-        type: input.type,
-        description: input.description,
-        parcelId: input.parcelId,
-        lockerId,
-        reporterId: ctx.userId!,
-      },
-      include: issueInclude,
-    });
+    const created = await this.db.query(`INSERT INTO issues (type, description, parcel_id, locker_id, reporter_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`, [input.type, input.description, input.parcelId, lockerId ?? null, ctx.userId!]);
+    return (await this.loadWithRelations('i.id = $1', [created.rows[0]!.id]))[0]!;
   }
 
   private assertAllowedType(type: IssueType, allowed: IssueType[]): void {

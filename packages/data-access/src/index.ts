@@ -1,12 +1,14 @@
-export { prisma } from './client.js';
+export type { User } from './db/types.js';
 export * from './context.js';
 export * from './env.js';
+export * from './db/index.js';
 export * from './repositories/index.js';
 export { createSupabaseAdminClient } from './supabase/server.js';
 export * from './auth/index.js';
 
 export { BusinessRepository } from './repositories/business.repository.js';
-export { DeliveryRepository } from './repositories/delivery.repository.js';
+export { BusinessOnboardingRepository } from './repositories/business-onboarding.repository.js';
+export { DeliveryRepository, type CourierAdminDetail } from './repositories/delivery.repository.js';
 export { ParcelRepository } from './repositories/parcel.repository.js';
 export { UserRepository } from './repositories/user.repository.js';
 export { IssueRepository, type IssueWithRelations } from './repositories/issue.repository.js';
@@ -35,8 +37,9 @@ export {
   type PickupPaymentSummary,
 } from './payments/index.js';
 
-import { prisma } from './client.js';
+import { db } from './db/index.js';
 import { BusinessRepository } from './repositories/business.repository.js';
+import { BusinessOnboardingRepository } from './repositories/business-onboarding.repository.js';
 import { DeliveryRepository } from './repositories/delivery.repository.js';
 import { LockerRepository } from './repositories/locker.repository.js';
 import { ParcelRepository } from './repositories/parcel.repository.js';
@@ -49,23 +52,25 @@ import { OnboardingService } from './auth/onboarding.service.js';
 import { UserRepository } from './repositories/user.repository.js';
 
 export function createRepositories() {
-  const users = new UserRepository(prisma);
-  const businesses = new BusinessRepository(prisma);
-  const notifications = new NotificationRepository(prisma);
-  const invites = new ParcelInviteRepository(prisma);
-  const payments = new PaymentRepository(prisma);
+  const users = new UserRepository(db);
+  const businesses = new BusinessRepository(db);
+  const businessOnboarding = new BusinessOnboardingRepository(db);
+  const notifications = new NotificationRepository(db);
+  const invites = new ParcelInviteRepository(db);
+  const payments = new PaymentRepository(db);
 
   return {
     users,
     businesses,
-    parcels: new ParcelRepository(prisma, notifications, invites, users),
-    deliveries: new DeliveryRepository(prisma, notifications),
-    lockers: new LockerRepository(prisma),
-    issues: new IssueRepository(prisma),
+    businessOnboarding,
+    parcels: new ParcelRepository(db, notifications, invites, users),
+    deliveries: new DeliveryRepository(db, notifications),
+    lockers: new LockerRepository(db),
+    issues: new IssueRepository(db),
     notifications,
     invites,
     payments,
-    stats: new StatsRepository(prisma),
-    onboarding: new OnboardingService(users, businesses, prisma),
+    stats: new StatsRepository(db),
+    onboarding: new OnboardingService(users, businesses, db),
   };
 }

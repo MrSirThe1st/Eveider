@@ -14,6 +14,10 @@ export const PARCEL_STATUS_LABELS: Record<ParcelStatus, string> = {
 };
 
 export const BUSINESS_STATUS_LABELS: Record<BusinessStatus, string> = {
+  draft: 'BROUILLON',
+  onboarding: 'CONFIGURATION EN COURS',
+  pending_review: 'EN ATTENTE DE VÉRIFICATION',
+  pending_correction: 'CORRECTION REQUISE',
   pending: 'EN ATTENTE',
   active: 'ACTIF',
   suspended: 'SUSPENDU',

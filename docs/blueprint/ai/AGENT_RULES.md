@@ -32,7 +32,8 @@ Defer or reject work that does not advance business onboarding, parcel delivery,
 1. Read `docs/blueprint/templates/project-updates.md` first.
 2. Read relevant product context in `docs/blueprint/product/` (start with `overview.md`; see `docs/blueprint/README.md` for the full index).
 3. For UI work, read `docs/blueprint/product/design-dna.md` and `brand.md` — French copy, RDC locale, no improvised visual styles.
-4. If the task is ambiguous or touches schema, auth, packages, or large refactors → ask before proceeding.
+4. For data loading or new API routes in `web-manager`, read `docs/blueprint/ai/data-fetching.md` and follow it strictly: Server Components + `src/server/` use-cases for reads; client fetch hooks only for documented exceptions; `@eveider/ui` skeletons / `LoadingSpinner` for all loading states; every data route gets `loading.tsx`.
+5. If the task is ambiguous or touches schema, auth, packages, or large refactors → ask before proceeding.
 
 ## Standards (always enforced)
 

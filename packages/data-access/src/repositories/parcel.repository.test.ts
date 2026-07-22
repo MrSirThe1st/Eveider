@@ -1,72 +1,35 @@
 import type { ParcelStatus } from '@eveider/domain';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDataAccessContext } from '../context.js';
+import {
+  businessRow,
+  createSqlMatchMock,
+  parcelRow,
+  sqlIncludes,
+} from '../test/query-mock.js';
 import { ParcelRepository } from './parcel.repository.js';
 
-function buildParcel(overrides: Partial<{
-  id: string;
-  businessId: string;
-  customerId: string | null;
-  status: ParcelStatus;
-}> = {}) {
-  return {
-    id: 'parcel-1',
-    reference: 'PK-001',
-    status: 'created' as ParcelStatus,
-    businessId: 'biz-1',
-    customerId: null,
-    recipientPhone: '+243000000000',
-    recipientName: null,
-    lockerId: null,
-    compartmentId: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    ...overrides,
-  };
-}
-
 describe('ParcelRepository', () => {
-  const parcelCreate = vi.fn();
-  const parcelFindUnique = vi.fn();
-  const parcelFindUniqueOrThrow = vi.fn();
-  const parcelUpdate = vi.fn();
-  const parcelUpdateMany = vi.fn();
-  const pickupPinFindUnique = vi.fn();
-  const pickupPinCreate = vi.fn();
-  const businessFindUniqueOrThrow = vi.fn();
   const findCustomerByPhone = vi.fn();
   const dispatchForNewParcel = vi.fn();
   const notifyParcelCreatedForCustomer = vi.fn();
   const notifyParcelStatusChange = vi.fn();
 
-  const db = {
-    parcel: {
-      create: parcelCreate,
-      findUnique: parcelFindUnique,
-      findUniqueOrThrow: parcelFindUniqueOrThrow,
-      findMany: vi.fn(),
-      update: parcelUpdate,
-      updateMany: parcelUpdateMany,
-    },
-    pickupPin: {
-      findUnique: pickupPinFindUnique,
-      create: pickupPinCreate,
-    },
-    business: {
-      findUniqueOrThrow: businessFindUniqueOrThrow,
-    },
-  };
+  let db = createSqlMatchMock(() => null);
+  let repo: ParcelRepository;
 
-  const repo = new ParcelRepository(
-    db as never,
-    { notifyParcelCreatedForCustomer, notifyParcelStatusChange } as never,
-    { dispatchForNewParcel } as never,
-    { findCustomerByPhone } as never,
-  );
+  function setup(resolve: (sql: string, values?: unknown[]) => ReturnType<typeof parcelRow> | ReturnType<typeof parcelRow>[] | null) {
+    db = createSqlMatchMock(resolve);
+    repo = new ParcelRepository(
+      db,
+      { notifyParcelCreatedForCustomer, notifyParcelStatusChange } as never,
+      { dispatchForNewParcel } as never,
+      { findCustomerByPhone } as never,
+    );
+  }
 
   beforeEach(() => {
     vi.clearAllMocks();
-    businessFindUniqueOrThrow.mockResolvedValue({ id: 'biz-1', name: 'Pharmacy', status: 'active' });
     findCustomerByPhone.mockResolvedValue(null);
     dispatchForNewParcel.mockResolvedValue({
       status: 'pending',
@@ -78,26 +41,42 @@ describe('ParcelRepository', () => {
   });
 
   it('creates parcel for active business scope', async () => {
-    parcelCreate.mockResolvedValue(buildParcel());
-    const ctx = createDataAccessContext('business', { businessId: 'biz-1' });
+    setup((sql) => {
+      if (sqlIncludes(sql, 'FROM businesses') && sqlIncludes(sql, 'SELECT *')) {
+        return businessRow();
+      }
+      if (sqlIncludes(sql, 'INSERT INTO parcels')) {
+        return parcelRow({ locker_id: null });
+      }
+      if (sqlIncludes(sql, 'SELECT name FROM businesses')) {
+        return { name: 'Pharmacy' };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
 
+    const ctx = createDataAccessContext('business', { businessId: 'biz-1' });
     const result = await repo.create(ctx, {
       businessId: 'biz-1',
       reference: 'PK-001',
       recipientPhone: '+243000000000',
     });
 
-    expect(parcelCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ status: 'created', reference: 'PK-001' }),
-      }),
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO parcels'),
+      expect.arrayContaining(['biz-1', 'PK-001', '+243000000000']),
     );
     expect(result.recipientStatus).toBe('invited');
     expect(dispatchForNewParcel).toHaveBeenCalled();
   });
 
   it('rejects parcel creation when business cannot submit', async () => {
-    businessFindUniqueOrThrow.mockResolvedValue({ id: 'biz-1', status: 'suspended' });
+    setup((sql) => {
+      if (sqlIncludes(sql, 'FROM businesses')) {
+        return businessRow({ status: 'suspended' });
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
     const ctx = createDataAccessContext('business', { businessId: 'biz-1' });
 
     await expect(
@@ -110,43 +89,61 @@ describe('ParcelRepository', () => {
   });
 
   it('applies domain transition on status update', async () => {
-    parcelFindUniqueOrThrow.mockResolvedValue(buildParcel({ status: 'created' }));
-    parcelUpdate.mockResolvedValue(buildParcel({ status: 'in_transit' }));
-    const ctx = createDataAccessContext('courier');
+    setup((sql) => {
+      if (sqlIncludes(sql, 'SELECT * FROM parcels')) {
+        return parcelRow({ status: 'created', locker_id: null });
+      }
+      if (sqlIncludes(sql, 'UPDATE parcels SET status')) {
+        return parcelRow({ status: 'in_transit', locker_id: null });
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
 
+    const ctx = createDataAccessContext('courier');
     await repo.updateStatus(ctx, 'parcel-1', 'in_transit');
 
-    expect(parcelUpdate).toHaveBeenCalledWith({
-      where: { id: 'parcel-1' },
-      data: { status: 'in_transit' },
-    });
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE parcels SET status'),
+      ['in_transit', 'parcel-1'],
+    );
+    expect(notifyParcelStatusChange).toHaveBeenCalledWith('parcel-1', 'in_transit');
   });
 
   it('creates pickup PIN when status becomes ready_for_pickup', async () => {
-    parcelFindUniqueOrThrow.mockResolvedValue(
-      buildParcel({ status: 'delivered_to_locker' }),
-    );
-    parcelUpdate.mockResolvedValue(buildParcel({ status: 'ready_for_pickup' }));
-    pickupPinFindUnique.mockResolvedValue(null);
-    pickupPinCreate.mockResolvedValue({ id: 'pin-1', code: '123456' });
-    const ctx = createDataAccessContext('admin');
+    setup((sql) => {
+      if (sqlIncludes(sql, 'SELECT * FROM parcels')) {
+        return parcelRow({ status: 'delivered_to_locker' });
+      }
+      if (sqlIncludes(sql, 'UPDATE parcels SET status')) {
+        return parcelRow({ status: 'ready_for_pickup' as ParcelStatus });
+      }
+      if (sqlIncludes(sql, 'FROM pickup_pins')) {
+        return null;
+      }
+      if (sqlIncludes(sql, 'INSERT INTO pickup_pins')) {
+        return null;
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
 
+    const ctx = createDataAccessContext('admin');
     await repo.updateStatus(ctx, 'parcel-1', 'ready_for_pickup');
 
-    expect(pickupPinCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          parcelId: 'parcel-1',
-          code: expect.stringMatching(/^\d{6}$/),
-        }),
-      }),
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO pickup_pins'),
+      expect.arrayContaining(['parcel-1', expect.stringMatching(/^\d{6}$/)]),
     );
   });
 
   it('rejects invalid parcel transition', async () => {
-    parcelFindUniqueOrThrow.mockResolvedValue(buildParcel({ status: 'created' }));
-    const ctx = createDataAccessContext('admin');
+    setup((sql) => {
+      if (sqlIncludes(sql, 'SELECT * FROM parcels')) {
+        return parcelRow({ status: 'created', locker_id: null });
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
 
+    const ctx = createDataAccessContext('admin');
     await expect(repo.updateStatus(ctx, 'parcel-1', 'collected')).rejects.toThrow(
       'Invalid parcel transition',
     );

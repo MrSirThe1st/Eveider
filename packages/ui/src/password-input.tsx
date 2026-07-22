@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius } from '@eveider/config-ui';
+import { borderSubtle, colors, radius, webInputStyle } from '@eveider/config-ui';
 import { useState } from 'react';
 import { IconEye, IconEyeOff } from './icons.js';
 
@@ -37,13 +37,8 @@ export function PasswordInput({
         minLength={minLength}
         autoComplete={autoComplete}
         style={{
-          display: 'block',
-          width: '100%',
-          height: 48,
-          padding: '0 44px 0 12px',
-          border: `2px solid ${colors.border}`,
-          borderRadius: radius.button,
-          fontWeight: 500,
+          ...webInputStyle,
+          padding: '0 44px 0 16px',
         }}
       />
       <button

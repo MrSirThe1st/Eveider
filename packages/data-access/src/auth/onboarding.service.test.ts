@@ -1,15 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createSqlMatchMock } from '../test/query-mock.js';
 import { OnboardingService } from './onboarding.service.js';
 
 describe('OnboardingService', () => {
   const findByAuthId = vi.fn();
   const createProfile = vi.fn();
   const businessCreate = vi.fn();
+  const db = createSqlMatchMock(() => null);
 
   const service = new OnboardingService(
     { findByAuthId, createProfile } as never,
     { create: businessCreate } as never,
-    { parcel: { updateMany: vi.fn() } } as never,
+    db,
   );
 
   beforeEach(() => {
@@ -44,7 +46,7 @@ describe('OnboardingService', () => {
   });
 
   it('rejects wrong role for app', async () => {
-    findByAuthId.mockResolvedValue({ id: 'u-1', role: 'customer' });
+    findByAuthId.mockResolvedValue({ id: 'u-1', role: 'customer', isBlocked: false });
 
     await expect(service.requireRole('auth-1', ['admin'])).rejects.toThrow('Rôle non autorisé');
   });

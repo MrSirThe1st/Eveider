@@ -1,16 +1,22 @@
 /**
  * Design tokens — mirror docs/blueprint/product/design-dna.md exactly.
- * Industrial Neo-Brutalist system inspired by InPost logistics UI.
+ * Refined logistics UI inspired by InPost: flat surfaces, thin borders, bold type.
  */
 export const colors = {
   primary: '#09D40B',
   secondary: '#121212',
   surface: '#FFFFFF',
-  background: '#F5F6F7',
-  /** Structural borders — 2px solid #121212 on cards, inputs, buttons. */
-  border: '#121212',
+  surfaceSubtle: '#E6F2E1',
+  background: '#EBF3E8',
+  /** Default structural borders — cards, inputs, dividers. */
+  borderSubtle: '#D6E3D2',
+  /** Primary / subtle borders. */
+  border: '#D6E3D2',
+  /** Active accent border. */
+  borderStrong: '#09D40B',
   /** Secondary text, inactive labels, placeholders. */
-  textMuted: '#475569',
+  textMuted: '#707A6A',
+  tertiary: '#FF99B2',
   success: '#09D40B',
   warning: '#FFB800',
   danger: '#E53935',
@@ -27,34 +33,38 @@ export const typography = {
 } as const;
 
 export const borders = {
-  width: 2,
+  width: 1,
+  widthStrong: 1,
   style: 'solid',
-  color: colors.border,
 } as const;
 
 export const radius = {
-  card: 8,
-  button: 8,
+  card: 16,
+  button: 12,
+  input: 12,
   badge: 999,
 } as const;
 
 export const spacing = {
-  buttonHeight: 52,
+  buttonHeight: 48,
+  inputHeight: 48,
 } as const;
 
 export const shadows = {
   none: 'none',
-  hard: '3px 3px 0 #121212',
+  soft: '0 4px 16px rgba(0, 0, 0, 0.03)',
+  card: '0 2px 10px rgba(0, 0, 0, 0.02)',
+  hard: '0 4px 16px rgba(0, 0, 0, 0.04)',
 } as const;
 
-/** React Native hard shadow — offset block, no blur. */
+/** React Native shadow. */
 export const nativeShadow = {
   hard: {
-    shadowColor: colors.border,
-    shadowOffset: { width: 3, height: 3 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    elevation: 4,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
 } as const;
 
@@ -63,36 +73,67 @@ export const icons = {
   strokeWidth: 2,
 } as const;
 
-/** Status badge fill colors — black outlined pills with status-specific fills. */
+/** Status badge fills & text colors. */
 export const PARCEL_STATUS_FILLS = {
-  created: colors.surface,
-  in_transit: colors.surface,
-  delivered_to_locker: colors.warning,
-  ready_for_pickup: colors.primary,
-  collected: colors.background,
+  created: '#F0F4EE',
+  in_transit: '#FFE4EC',
+  delivered_to_locker: '#FFF3D6',
+  ready_for_pickup: '#DCF5D6',
+  collected: '#F0F4EE',
 } as const;
 
-/** Web card shell — white surface, 2px border, hard offset shadow. */
+export function borderSubtle(width: number = borders.width): string {
+  return `${width}px ${borders.style} ${colors.borderSubtle}`;
+}
+
+export function borderStrong(width: number = borders.widthStrong): string {
+  return `${width}px ${borders.style} ${colors.borderSubtle}`;
+}
+
+/** Web card — white surface on light sage canvas, subtle border, soft shadow. */
 export const webCardStyle = {
   background: colors.surface,
-  border: `${borders.width}px ${borders.style} ${borders.color}`,
+  border: borderSubtle(),
   borderRadius: radius.card,
-  boxShadow: shadows.hard,
+  boxShadow: shadows.soft,
 } as const;
 
-/**
- * Portal (admin / business) button — outline only.
- * No fill, no hard shadow; keep 2px high-contrast border.
- * Landing / marketing CTAs should keep filled green + hard shadow.
- */
-export const webPortalButtonStyle = {
-  background: 'transparent',
+/** Web text input — rounded, soft subtle border. */
+export const webInputStyle = {
+  display: 'block',
+  width: '100%',
+  height: spacing.inputHeight,
+  padding: '0 16px',
+  border: borderSubtle(),
+  borderRadius: radius.input,
+  background: colors.surface,
   color: colors.secondary,
-  border: `${borders.width}px ${borders.style} ${borders.color}`,
+  fontWeight: typography.weights.medium,
+  fontSize: '1rem',
+} as const;
+
+/** Primary CTA — filled vibrant green, rounded corners, white/dark text. */
+export const webPrimaryButtonStyle = {
+  background: colors.primary,
+  color: '#FFFFFF',
+  border: 'none',
   borderRadius: radius.button,
-  boxShadow: 'none',
-  fontWeight: 700,
-  letterSpacing: '0.06em',
-  textTransform: 'uppercase' as const,
+  boxShadow: shadows.none,
+  fontWeight: typography.weights.semibold,
   cursor: 'pointer',
 } as const;
+
+/** Secondary button — light green/sage fill or soft border. */
+export const webSecondaryButtonStyle = {
+  background: colors.surfaceSubtle,
+  color: colors.secondary,
+  border: borderSubtle(),
+  borderRadius: radius.button,
+  boxShadow: shadows.none,
+  fontWeight: typography.weights.semibold,
+  cursor: 'pointer',
+} as const;
+
+/** Portal default button — secondary style. */
+export const webPortalButtonStyle = webSecondaryButtonStyle;
+

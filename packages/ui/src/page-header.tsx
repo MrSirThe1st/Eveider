@@ -23,12 +23,11 @@ export function PageHeader({ title, description, action }: PageHeaderProps) {
         <h1
           style={{
             margin: 0,
-            fontSize: '1.375rem',
+            fontSize: '1.5rem',
             fontWeight: 700,
-            letterSpacing: '0.06em',
+            letterSpacing: '-0.01em',
             color: colors.secondary,
-            lineHeight: 1.2,
-            textTransform: 'uppercase',
+            lineHeight: 1.25,
           }}
         >
           {title}
@@ -36,11 +35,11 @@ export function PageHeader({ title, description, action }: PageHeaderProps) {
         {description ? (
           <p
             style={{
-              margin: '0.4rem 0 0',
-              fontSize: '0.875rem',
+              margin: '0.5rem 0 0',
+              fontSize: '0.9375rem',
               fontWeight: 500,
               color: colors.textMuted,
-              lineHeight: 1.45,
+              lineHeight: 1.5,
               maxWidth: 560,
             }}
           >

@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { Queryable } from '../db/index.js';
 import { getWhatsAppConfig } from '../messaging/whatsapp-config.js';
 import { sendWhatsAppTemplate } from '../messaging/whatsapp-client.js';
 import { buildInviteLinks } from './invite-links.js';
@@ -124,29 +124,23 @@ export async function sendInvitation(input: SendInvitationInput): Promise<SendIn
 }
 
 export async function recordInviteDelivery(
-  db: PrismaClient,
+  db: Queryable,
   parcelId: string,
   delivery: SendInvitationResult,
 ): Promise<void> {
   if (delivery.channel === 'whatsapp' && delivery.templateName) {
     const prefix = `[whatsapp:${delivery.templateName}]`;
-    await db.notification.create({
-      data: {
-        parcelId,
-        channel: 'sms',
-        message: delivery.ok ? `${prefix} ${delivery.message}` : `${prefix} FAILED ${delivery.message}`,
-        sentAt: delivery.ok ? new Date() : null,
-      },
-    });
+    await db.query(
+      `INSERT INTO notifications (parcel_id, channel, message, sent_at)
+       VALUES ($1, 'sms', $2, $3)`,
+      [parcelId, delivery.ok ? `${prefix} ${delivery.message}` : `${prefix} FAILED ${delivery.message}`, delivery.ok ? new Date() : null],
+    );
     return;
   }
 
-  await db.notification.create({
-    data: {
-      parcelId,
-      channel: 'sms',
-      message: `[simulated] ${delivery.message}`,
-      sentAt: new Date(),
-    },
-  });
+  await db.query(
+    `INSERT INTO notifications (parcel_id, channel, message, sent_at)
+     VALUES ($1, 'sms', $2, NOW())`,
+    [parcelId, `[simulated] ${delivery.message}`],
+  );
 }

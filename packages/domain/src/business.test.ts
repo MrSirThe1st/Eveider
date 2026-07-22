@@ -6,22 +6,28 @@ import {
 } from './business.js';
 
 describe('business account lifecycle', () => {
-  it('allows approval and admin actions', () => {
-    expect(canTransitionBusiness('pending', 'active')).toBe(true);
+  it('allows onboarding and approval transitions', () => {
+    expect(canTransitionBusiness('draft', 'onboarding')).toBe(true);
+    expect(canTransitionBusiness('onboarding', 'pending_review')).toBe(true);
+    expect(canTransitionBusiness('pending_review', 'active')).toBe(true);
+    expect(canTransitionBusiness('pending_review', 'pending_correction')).toBe(true);
+    expect(canTransitionBusiness('pending_correction', 'pending_review')).toBe(true);
     expect(canTransitionBusiness('active', 'suspended')).toBe(true);
     expect(canTransitionBusiness('blocked', 'active')).toBe(true);
   });
 
   it('rejects invalid transitions', () => {
-    expect(canTransitionBusiness('pending', 'suspended')).toBe(false);
-    expect(() => transitionBusiness('pending', 'suspended')).toThrow(
-      'Invalid business transition: pending → suspended',
+    expect(canTransitionBusiness('draft', 'active')).toBe(false);
+    expect(() => transitionBusiness('draft', 'active')).toThrow(
+      "Transition d'état entreprise invalide: draft → active",
     );
   });
 
   it('only active businesses can submit parcels', () => {
     expect(canSubmitParcelsAsBusiness('active')).toBe(true);
-    expect(canSubmitParcelsAsBusiness('pending')).toBe(false);
+    expect(canSubmitParcelsAsBusiness('pending_review')).toBe(false);
+    expect(canSubmitParcelsAsBusiness('pending_correction')).toBe(false);
+    expect(canSubmitParcelsAsBusiness('onboarding')).toBe(false);
     expect(canSubmitParcelsAsBusiness('suspended')).toBe(false);
     expect(canSubmitParcelsAsBusiness('blocked')).toBe(false);
   });

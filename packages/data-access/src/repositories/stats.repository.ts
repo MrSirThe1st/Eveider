@@ -1,5 +1,5 @@
 import { assertAdmin, type DataAccessContext } from '../context.js';
-import type { PrismaClient } from '@prisma/client';
+import type { Queryable } from '../db/index.js';
 
 export type DashboardStats = {
   parcelsToday: number;
@@ -84,7 +84,7 @@ function buildDailySeries(
 }
 
 export class StatsRepository {
-  constructor(private readonly db: PrismaClient) {}
+  constructor(private readonly db: Queryable) {}
 
   async getDashboard(ctx: DataAccessContext): Promise<DashboardStats> {
     assertAdmin(ctx);
@@ -92,34 +92,28 @@ export class StatsRepository {
     const today = startOfToday();
 
     const [
-      parcelsToday,
-      activeDeliveries,
-      completedToday,
-      readyForPickup,
-      openIssues,
-      compartmentCounts,
+      parcelsTodayResult, activeDeliveriesResult, completedTodayResult, readyForPickupResult,
+      openIssuesResult, compartmentCountsResult,
     ] = await Promise.all([
-      this.db.parcel.count({ where: { createdAt: { gte: today } } }),
-      this.db.delivery.count({
-        where: { status: { in: ['assigned', 'scanned', 'drop_off_pending'] } },
-      }),
-      this.db.delivery.count({
-        where: { status: 'completed', completedAt: { gte: today } },
-      }),
-      this.db.parcel.count({ where: { status: 'ready_for_pickup' } }),
-      this.db.issue.count({ where: { status: { in: ['open', 'in_progress'] } } }),
-      this.db.compartment.groupBy({
-        by: ['status'],
-        _count: { status: true },
-      }),
+      this.db.query(`SELECT COUNT(*)::int AS count FROM parcels WHERE created_at >= $1`, [today]),
+      this.db.query(`SELECT COUNT(*)::int AS count FROM deliveries WHERE status = ANY($1)`, [['assigned', 'scanned', 'drop_off_pending']]),
+      this.db.query(`SELECT COUNT(*)::int AS count FROM deliveries WHERE status = 'completed' AND completed_at >= $1`, [today]),
+      this.db.query(`SELECT COUNT(*)::int AS count FROM parcels WHERE status = 'ready_for_pickup'`),
+      this.db.query(`SELECT COUNT(*)::int AS count FROM issues WHERE status = ANY($1)`, [['open', 'in_progress']]),
+      this.db.query(`SELECT status, COUNT(*)::int AS count FROM compartments GROUP BY status`),
     ]);
+    const parcelsToday = Number(parcelsTodayResult.rows[0]?.count ?? 0);
+    const activeDeliveries = Number(activeDeliveriesResult.rows[0]?.count ?? 0);
+    const completedToday = Number(completedTodayResult.rows[0]?.count ?? 0);
+    const readyForPickup = Number(readyForPickupResult.rows[0]?.count ?? 0);
+    const openIssues = Number(openIssuesResult.rows[0]?.count ?? 0);
 
     let occupied = 0;
     let available = 0;
     let total = 0;
 
-    for (const row of compartmentCounts) {
-      const count = row._count.status;
+    for (const row of compartmentCountsResult.rows) {
+      const count = Number(row.count);
       total += count;
       if (row.status === 'occupied') occupied = count;
       if (row.status === 'available') available = count;
@@ -140,47 +134,26 @@ export class StatsRepository {
 
     const since = startOfDaysAgo(days - 1);
 
-    const [
-      collected,
-      awaitingPickup,
-      compartmentCounts,
-      completedDeliveries,
-      lockerGroups,
-      businessGroups,
-    ] = await Promise.all([
-      this.db.parcel.count({ where: { status: 'collected' } }),
-      this.db.parcel.count({ where: { status: 'ready_for_pickup' } }),
-      this.db.compartment.groupBy({
-        by: ['status'],
-        _count: { status: true },
-      }),
-      this.db.delivery.findMany({
-        where: { status: 'completed', completedAt: { gte: since } },
-        select: { completedAt: true },
-      }),
-      this.db.parcel.groupBy({
-        by: ['lockerId'],
-        where: {
-          lockerId: { not: null },
-          status: { in: ['delivered_to_locker', 'ready_for_pickup', 'collected'] },
-        },
-        _count: { id: true },
-        orderBy: { _count: { id: 'desc' } },
-        take: 5,
-      }),
-      this.db.parcel.groupBy({
-        by: ['businessId'],
-        _count: { id: true },
-        orderBy: { _count: { id: 'desc' } },
-        take: 5,
-      }),
+    const [collectedResult, awaitingResult, compartmentCountsResult, completedResult, lockerGroupsResult, businessGroupsResult] = await Promise.all([
+      this.db.query(`SELECT COUNT(*)::int AS count FROM parcels WHERE status = 'collected'`),
+      this.db.query(`SELECT COUNT(*)::int AS count FROM parcels WHERE status = 'ready_for_pickup'`),
+      this.db.query(`SELECT status, COUNT(*)::int AS count FROM compartments GROUP BY status`),
+      this.db.query(`SELECT completed_at FROM deliveries WHERE status = 'completed' AND completed_at >= $1`, [since]),
+      this.db.query(`SELECT locker_id, COUNT(*)::int AS count FROM parcels WHERE locker_id IS NOT NULL AND status = ANY($1) GROUP BY locker_id ORDER BY count DESC LIMIT 5`, [['delivered_to_locker', 'ready_for_pickup', 'collected']]),
+      this.db.query(`SELECT business_id, COUNT(*)::int AS count FROM parcels GROUP BY business_id ORDER BY count DESC LIMIT 5`),
     ]);
+    const collected = Number(collectedResult.rows[0]?.count ?? 0);
+    const awaitingPickup = Number(awaitingResult.rows[0]?.count ?? 0);
+    const completedDeliveries = completedResult.rows.map((row) => ({ completedAt: row.completed_at == null ? null : new Date(String(row.completed_at)) }));
+    const lockerGroups = lockerGroupsResult.rows;
+    const businessGroups = businessGroupsResult.rows;
 
     let occupied = 0;
     let total = 0;
-    for (const row of compartmentCounts) {
-      total += row._count.status;
-      if (row.status === 'occupied') occupied = row._count.status;
+    for (const row of compartmentCountsResult.rows) {
+      const count = Number(row.count);
+      total += count;
+      if (row.status === 'occupied') occupied = count;
     }
 
     const pickupDenominator = collected + awaitingPickup;
@@ -188,28 +161,16 @@ export class StatsRepository {
       pickupDenominator > 0 ? Math.round((collected / pickupDenominator) * 100) : 0;
     const lockerUsageRate = total > 0 ? Math.round((occupied / total) * 100) : 0;
 
-    const lockerIds = lockerGroups
-      .map((g) => g.lockerId)
-      .filter((id): id is string => id !== null);
-    const businessIds = businessGroups.map((g) => g.businessId);
+    const lockerIds = lockerGroups.map((g) => String(g.locker_id));
+    const businessIds = businessGroups.map((g) => String(g.business_id));
 
     const [lockers, businesses] = await Promise.all([
-      lockerIds.length > 0
-        ? this.db.locker.findMany({
-            where: { id: { in: lockerIds } },
-            select: { id: true, name: true },
-          })
-        : Promise.resolve([]),
-      businessIds.length > 0
-        ? this.db.business.findMany({
-            where: { id: { in: businessIds } },
-            select: { id: true, name: true },
-          })
-        : Promise.resolve([]),
+      lockerIds.length > 0 ? this.db.query(`SELECT id, name FROM lockers WHERE id = ANY($1)`, [lockerIds]) : Promise.resolve({ rows: [] }),
+      businessIds.length > 0 ? this.db.query(`SELECT id, name FROM businesses WHERE id = ANY($1)`, [businessIds]) : Promise.resolve({ rows: [] }),
     ]);
 
-    const lockerNames = new Map(lockers.map((l) => [l.id, l.name]));
-    const businessNames = new Map(businesses.map((b) => [b.id, b.name]));
+    const lockerNames = new Map(lockers.rows.map((l) => [String(l.id), String(l.name)]));
+    const businessNames = new Map(businesses.rows.map((b) => [String(b.id), String(b.name)]));
 
     return {
       pickupSuccessRate,
@@ -218,16 +179,15 @@ export class StatsRepository {
       awaitingPickup,
       dailyDeliveries: buildDailySeries(completedDeliveries, days),
       topLockers: lockerGroups
-        .filter((g) => g.lockerId !== null)
         .map((g) => ({
-          lockerId: g.lockerId!,
-          lockerName: lockerNames.get(g.lockerId!) ?? 'Casier',
-          parcelCount: g._count.id,
+          lockerId: String(g.locker_id),
+          lockerName: lockerNames.get(String(g.locker_id)) ?? 'Casier',
+          parcelCount: Number(g.count),
         })),
       topBusinesses: businessGroups.map((g) => ({
-        businessId: g.businessId,
-        businessName: businessNames.get(g.businessId) ?? 'Entreprise',
-        parcelCount: g._count.id,
+        businessId: String(g.business_id),
+        businessName: businessNames.get(String(g.business_id)) ?? 'Entreprise',
+        parcelCount: Number(g.count),
       })),
     };
   }
