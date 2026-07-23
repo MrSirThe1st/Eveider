@@ -162,6 +162,7 @@ describe('DeliveryRepository', () => {
             courier_email: null,
             courier_phone: null,
             parcel_relation_id: 'parcel-1',
+            parcel_tracking_number: 'EVD26TEST0001A',
             parcel_reference: 'PK-001',
             parcel_status: 'in_transit',
             parcel_recipient_name: 'Client',

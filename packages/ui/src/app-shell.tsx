@@ -1,9 +1,10 @@
 'use client';
 
-import { colors, radius, borderSubtle, borderStrong, borders } from '@eveider/config-ui';
+import { colors, radius, spacing, typography, borderSubtle } from '@eveider/config-ui';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
+import { Button } from './button.js';
 import { IconChevronLeft, IconChevronRight } from './icons.js';
 
 export type NavItem = {
@@ -26,6 +27,7 @@ export type AppShellProps = {
 
 const SIDEBAR_EXPANDED = 248;
 const SIDEBAR_COLLAPSED = 72;
+const HEADER_HEIGHT = 56;
 
 export function AppShell({
   brand,
@@ -75,7 +77,12 @@ export function AppShell({
         opacity: ready ? 1 : 0.98,
       }}
     >
+      <a href="#main-content" className="nb-skip-link">
+        Aller au contenu
+      </a>
+
       <aside
+        aria-label="Navigation principale"
         style={{
           width: sidebarWidth,
           flexShrink: 0,
@@ -92,19 +99,20 @@ export function AppShell({
       >
         <div
           style={{
-            padding: collapsed ? '1.25rem 0' : '1.25rem 1rem',
+            padding: collapsed ? `${spacing[4]}px 0` : `${spacing[4]}px ${spacing[4]}px`,
             borderBottom: borderSubtle(),
             display: 'flex',
             alignItems: 'center',
             justifyContent: collapsed ? 'center' : 'flex-start',
-            minHeight: 56,
+            minHeight: HEADER_HEIGHT,
+            boxSizing: 'border-box',
           }}
         >
           {collapsed ? (
             <span
               style={{
-                fontWeight: 700,
-                fontSize: '0.8125rem',
+                fontWeight: typography.weights.bold,
+                fontSize: typography.caption.fontSize,
                 color: colors.secondary,
               }}
             >
@@ -115,8 +123,9 @@ export function AppShell({
               <p
                 style={{
                   margin: 0,
-                  fontSize: '0.75rem',
-                  fontWeight: 500,
+                  fontSize: typography.caption.fontSize,
+                  fontWeight: typography.weights.medium,
+                  lineHeight: typography.caption.lineHeight,
                   color: colors.textMuted,
                 }}
               >
@@ -124,9 +133,10 @@ export function AppShell({
               </p>
               <p
                 style={{
-                  margin: '0.15rem 0 0',
-                  fontSize: '0.9375rem',
-                  fontWeight: 700,
+                  margin: `${spacing[1]}px 0 0`,
+                  fontSize: typography.body.fontSize,
+                  fontWeight: typography.weights.bold,
+                  lineHeight: 1.3,
                   color: colors.secondary,
                 }}
               >
@@ -139,10 +149,11 @@ export function AppShell({
         <nav
           style={{
             flex: 1,
-            padding: '0.75rem 0.5rem',
+            padding: `${spacing[3]}px ${spacing[2]}px`,
             display: 'flex',
             flexDirection: 'column',
-            gap: '0.25rem',
+            gap: spacing[1],
+            overflowY: 'auto',
           }}
         >
           {navItems.map((item) => {
@@ -152,23 +163,46 @@ export function AppShell({
                 key={item.href}
                 href={item.href}
                 title={collapsed ? item.label : undefined}
+                aria-current={active ? 'page' : undefined}
+                className="nb-nav-link"
                 style={{
+                  position: 'relative',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.75rem',
-                  padding: collapsed ? '0.75rem 0' : '0.75rem 0.875rem',
+                  gap: spacing[3],
+                  padding: collapsed ? `${spacing[3]}px 0` : `${spacing[3]}px ${spacing[3]}px`,
                   justifyContent: collapsed ? 'center' : 'flex-start',
                   borderRadius: radius.button,
                   textDecoration: 'none',
-                  color: active ? '#FFFFFF' : colors.secondary,
-                  background: active ? colors.primary : 'transparent',
-                  border: 'none',
-                  fontWeight: active ? 600 : 500,
-                  fontSize: '0.875rem',
-                  transition: 'all 0.15s ease',
+                  color: active ? colors.secondary : colors.textMuted,
+                  background: active ? colors.surfaceSubtle : 'transparent',
+                  fontWeight: active ? typography.weights.semibold : typography.weights.medium,
+                  fontSize: typography.bodySm.fontSize,
+                  lineHeight: 1.2,
                 }}
               >
-                <span style={{ display: 'flex', flexShrink: 0, opacity: active ? 1 : 0.7 }}>
+                {active ? (
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      position: 'absolute',
+                      left: 0,
+                      top: '20%',
+                      bottom: '20%',
+                      width: 3,
+                      borderRadius: 2,
+                      background: colors.primary,
+                    }}
+                  />
+                ) : null}
+                <span
+                  style={{
+                    display: 'flex',
+                    flexShrink: 0,
+                    opacity: active ? 1 : 0.75,
+                    color: active ? colors.secondary : 'inherit',
+                  }}
+                >
                   {item.icon}
                 </span>
                 {!collapsed ? <span>{item.label}</span> : null}
@@ -181,15 +215,15 @@ export function AppShell({
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         <header
           style={{
-            height: 56,
+            height: HEADER_HEIGHT,
             flexShrink: 0,
             background: colors.surface,
             borderBottom: borderSubtle(),
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '0 1.25rem',
-            gap: '1rem',
+            padding: `0 ${spacing[5]}px`,
+            gap: spacing[4],
             position: 'sticky',
             top: 0,
             zIndex: 10,
@@ -199,43 +233,39 @@ export function AppShell({
             type="button"
             onClick={toggleSidebar}
             aria-label={collapsed ? 'Ouvrir le menu' : 'Réduire le menu'}
+            aria-expanded={!collapsed}
+            className="nb-shell-icon-btn"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: 36,
-              height: 36,
+              width: spacing.buttonHeightSm,
+              height: spacing.buttonHeightSm,
               border: borderSubtle(),
               borderRadius: radius.button,
               background: 'transparent',
               color: colors.secondary,
               cursor: 'pointer',
+              transition: 'background-color 0.15s ease, border-color 0.15s ease',
             }}
           >
             {collapsed ? <IconChevronRight /> : <IconChevronLeft />}
           </button>
 
-          <button
-            type="button"
-            onClick={() => void onSignOut()}
-            className="nb-btn nb-btn-secondary"
-            style={{
-              height: 36,
-              fontSize: '0.8125rem',
-              padding: '0 0.875rem',
-            }}
-          >
+          <Button variant="secondary" size="sm" onClick={() => void onSignOut()}>
             {signOutLabel}
-          </button>
+          </Button>
         </header>
 
         <main
+          id="main-content"
+          tabIndex={-1}
           style={{
             flex: 1,
             width: '100%',
-            maxWidth: maxWidth,
+            maxWidth,
             margin: '0 auto',
-            padding: '1.75rem 1.5rem 3rem',
+            padding: `${spacing[7]}px ${spacing[6]}px ${spacing[12]}px`,
             boxSizing: 'border-box',
           }}
         >

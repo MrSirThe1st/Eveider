@@ -1,8 +1,8 @@
+import { StyleSheet, View } from 'react-native';
+import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE } from 'react-native-maps';
 import { colors } from '@eveider/config-ui';
 import { KINSHASA_CENTER } from '@eveider/domain';
 import { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
-import MapView, { Marker, PROVIDER_DEFAULT, UrlTile } from 'react-native-maps';
 import {
   getCurrentCoordinates,
   lockerMapStyles as styles,
@@ -11,7 +11,7 @@ import {
   type LockerMapViewProps,
 } from './locker-map-shared';
 
-const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN;
+const GOOGLE_MAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 export function LockerMapView({
   lockers,
@@ -43,17 +43,10 @@ export function LockerMapView({
     <View style={[styles.container, { height }]}>
       <MapView
         style={StyleSheet.absoluteFill}
-        provider={PROVIDER_DEFAULT}
+        provider={GOOGLE_MAPS_KEY ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
         initialRegion={center}
         mapType="standard"
       >
-        {MAPBOX_TOKEN ? (
-          <UrlTile
-            urlTemplate={`https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`}
-            maximumZ={20}
-            flipY={false}
-          />
-        ) : null}
         {lockers.map((locker) => {
           const isSelected = locker.id === selectedLockerId || locker.id === highlightLockerId;
           return (

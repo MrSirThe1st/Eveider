@@ -258,7 +258,7 @@ export function AuthScreen({
             <View style={styles.inviteBanner}>
               <Text style={styles.inviteTitle}>{invitePreview.business}</Text>
               <Text style={styles.inviteText}>
-                vous a envoyé le colis {invitePreview.parcel.reference}. Utilisez le numéro{' '}
+                vous a envoyé le colis {invitePreview.parcel.trackingNumber ?? invitePreview.parcel.reference}. Utilisez le numéro{' '}
                 {invitePreview.recipientPhone}.
               </Text>
             </View>

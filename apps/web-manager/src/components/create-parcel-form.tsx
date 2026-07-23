@@ -1,47 +1,50 @@
 'use client';
 
-import {
-  colors,
-  spacing,
-  borderSubtle,
-  webCardStyle,
-  webInputStyle,
-  webPrimaryButtonStyle,
-  webSecondaryButtonStyle,
-} from '@eveider/config-ui';
+import { colors, spacing, typography, borderSubtle } from '@eveider/config-ui';
+import { usesCompartmentGrid } from '@eveider/domain';
+import { Button, InlineAlert, TextField, Wizard, type WizardStep, useToast } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import {
   CompartmentSelectGrid,
   type SelectableCompartment,
 } from '@/components/compartment-select-grid';
-import { FlashBanner } from '@/components/flash-banner';
 import { LockerPicker } from '@/components/locker-picker';
 import type { LockerOption } from '@/components/locker-card';
 
-const inputStyle: React.CSSProperties = webInputStyle;
-
-const labelStyle: React.CSSProperties = {
-  fontWeight: 600,
-  fontSize: '0.875rem',
-  color: colors.secondary,
-};
-
-const sectionTitleStyle: React.CSSProperties = {
-  margin: '0 0 1.5rem',
-  fontSize: '1.125rem',
-  fontWeight: 700,
-  letterSpacing: '-0.01em',
-  color: colors.secondary,
-};
+const STEPS: WizardStep[] = [
+  {
+    id: 'recipient',
+    title: 'Destinataire',
+    description: 'Identifiez le client qui retirera le colis.',
+  },
+  {
+    id: 'locker',
+    title: 'Point de retrait',
+    description:
+      'Choisissez un point Eveider, ou laissez le client choisir dans l’app.',
+  },
+  {
+    id: 'review',
+    title: 'Revue',
+    description: 'Vérifiez les informations avant de créer le colis.',
+  },
+];
 
 type LockerCompartmentsResponse = {
   locker: { id: string; name: string; address: string; rows: number; columns: number };
   compartments: SelectableCompartment[];
 };
 
+type FieldErrors = {
+  recipientPhone?: string;
+  compartmentId?: string;
+};
+
 export function CreateParcelForm() {
   const router = useRouter();
+  const toast = useToast();
+  const [stepIndex, setStepIndex] = useState(0);
   const [reference, setReference] = useState('');
   const [recipientName, setRecipientName] = useState('');
   const [recipientPhone, setRecipientPhone] = useState('');
@@ -54,6 +57,7 @@ export function CreateParcelForm() {
   const [loadingCompartments, setLoadingCompartments] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [success, setSuccess] = useState<string | null>(null);
   const [createdInvite, setCreatedInvite] = useState<{
     deepLink: string;
@@ -71,7 +75,7 @@ export function CreateParcelForm() {
         const response = await fetch(path);
         const result = await response.json();
         if (result.success) {
-          setLockers(result.data.lockers);
+          setLockers(result.data.lockers as LockerOption[]);
         }
       } catch {
         /* lockers optional */
@@ -99,6 +103,15 @@ export function CreateParcelForm() {
       setCompartmentData(null);
       setCompartmentId('');
       setCompartmentError(null);
+      return;
+    }
+
+    const selected = lockers.find((locker) => locker.id === lockerId);
+    if (selected && !usesCompartmentGrid(selected.type ?? 'SMART_LOCKER')) {
+      setCompartmentData(null);
+      setCompartmentId('');
+      setCompartmentError(null);
+      setLoadingCompartments(false);
       return;
     }
 
@@ -132,48 +145,91 @@ export function CreateParcelForm() {
     return () => {
       cancelled = true;
     };
-  }, [lockerId]);
+  }, [lockerId, lockers]);
 
   const selectedLocker = useMemo(
     () => lockers.find((locker) => locker.id === lockerId) ?? null,
     [lockers, lockerId],
   );
 
+  const needsCompartment = selectedLocker
+    ? usesCompartmentGrid(selectedLocker.type ?? 'SMART_LOCKER')
+    : false;
+
   const availableCount = useMemo(
     () => compartmentData?.compartments.filter((c) => c.selectable).length ?? 0,
     [compartmentData],
   );
 
+  const formLocked = loading || !!success;
+
   function handleSelectLocker(id: string) {
     setLockerId(id);
     setCompartmentId('');
     setError(null);
+    setFieldErrors((current) => ({ ...current, compartmentId: undefined }));
   }
 
   function handleClearLocker() {
     setLockerId('');
     setCompartmentId('');
     setCompartmentData(null);
+    setFieldErrors((current) => ({ ...current, compartmentId: undefined }));
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function validateRecipient(): boolean {
+    const phone = recipientPhone.trim();
+    if (!phone) {
+      setFieldErrors({ recipientPhone: 'Le téléphone destinataire est obligatoire.' });
+      return false;
+    }
+    setFieldErrors({});
+    return true;
+  }
+
+  function validateLocker(): boolean {
+    if (lockerId && needsCompartment && !compartmentId) {
+      setFieldErrors({
+        compartmentId: 'Sélectionnez un compartiment pour le casier choisi.',
+      });
+      return false;
+    }
+    setFieldErrors({});
+    return true;
+  }
+
+  function handleNext() {
+    setError(null);
+    if (stepIndex === 0 && !validateRecipient()) return;
+    if (stepIndex === 1 && !validateLocker()) return;
+    setStepIndex((current) => Math.min(current + 1, STEPS.length - 1));
+  }
+
+  function handleBack() {
+    setError(null);
+    setStepIndex((current) => Math.max(current - 1, 0));
+  }
+
+  async function handleSubmit() {
+    if (!validateRecipient()) {
+      setStepIndex(0);
+      return;
+    }
+    if (!validateLocker()) {
+      setStepIndex(1);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setSuccess(null);
-
-    if (lockerId && !compartmentId) {
-      setError('Sélectionnez un compartiment pour le casier choisi.');
-      setLoading(false);
-      return;
-    }
 
     try {
       const response = await fetch('/api/entreprise/parcels', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          reference: reference.trim(),
+          reference: reference.trim() || undefined,
           recipientName: recipientName.trim() || undefined,
           recipientPhone: recipientPhone.trim(),
           recipientEmail: recipientEmail.trim() || undefined,
@@ -185,7 +241,7 @@ export function CreateParcelForm() {
       let result: {
         success: boolean;
         data?: {
-          parcel: { id: string };
+          parcel: { id: string; trackingNumber: string; reference: string | null };
           recipientStatus: 'existing_user' | 'invited';
           invite: { deepLink: string; webLink: string } | null;
         };
@@ -195,26 +251,31 @@ export function CreateParcelForm() {
         result = await response.json();
       } catch {
         setError('Réponse serveur invalide. Redémarrez le serveur de dev.');
+        toast.error('Réponse serveur invalide. Redémarrez le serveur de dev.');
         setLoading(false);
         return;
       }
 
       if (!result.success) {
-        setError(result.error ?? 'Création échouée');
+        const message = result.error ?? 'Création échouée';
+        setError(message);
+        toast.error(message, 'Création impossible');
         setLoading(false);
         return;
       }
 
       router.refresh();
 
-      const parcelRef = reference.trim();
+      const tracking = result.data!.parcel.trackingNumber;
       if (result.data!.recipientStatus === 'invited' && result.data!.invite) {
         setCreatedInvite(result.data!.invite);
         setSuccess(
-          `Colis ${parcelRef} créé. Invitation générée — le destinataire n'a pas encore de compte Eveider.`,
+          `Colis ${tracking} créé. Invitation générée — le destinataire n'a pas encore de compte Eveider.`,
         );
+        toast.success(`Colis ${tracking} créé — invitation destinataire générée.`);
       } else {
-        setSuccess(`Colis ${parcelRef} créé avec succès. Redirection…`);
+        setSuccess(`Colis ${tracking} créé avec succès. Redirection…`);
+        toast.success(`Colis ${tracking} créé avec succès.`);
       }
       setLoading(false);
 
@@ -222,30 +283,51 @@ export function CreateParcelForm() {
         router.replace(`/entreprise/tableau-de-bord/colis/${result.data!.parcel.id}?created=1`);
       }, result.data!.recipientStatus === 'invited' ? 4500 : 900);
     } catch {
-      setError('Erreur réseau. Vérifiez votre connexion et réessayez.');
+      const message = 'Erreur réseau. Vérifiez votre connexion et réessayez.';
+      setError(message);
+      toast.error(message);
       setLoading(false);
     }
   }
 
+  const reviewRows = [
+    { label: 'Référence', value: reference.trim() || '—' },
+    { label: 'Destinataire', value: recipientName.trim() || '—' },
+    { label: 'Téléphone', value: recipientPhone.trim() },
+    { label: 'Email', value: recipientEmail.trim() || '—' },
+    {
+      label: 'Point',
+      value: selectedLocker
+        ? selectedLocker.name
+        : 'Non assigné (choix client dans l’app)',
+    },
+    {
+      label: 'Compartiment',
+      value: needsCompartment
+        ? compartmentId
+          ? compartmentData?.compartments.find((c) => c.id === compartmentId)?.label ??
+            compartmentId
+          : '—'
+        : 'Non applicable',
+    },
+  ];
+
   return (
-    <form
-      method="post"
-      action="/entreprise/tableau-de-bord/colis/nouveau"
-      onSubmit={(event) => void handleSubmit(event)}
-      style={{ maxWidth: 960 }}
-    >
-      {success ? <FlashBanner message={success} /> : null}
+    <div>
+      {success ? <InlineAlert message={success} variant="success" /> : null}
       {createdInvite ? (
         <div
+          className="nb-card"
           style={{
-            ...webCardStyle,
-            marginBottom: '1.25rem',
-            padding: '1rem',
-            fontSize: '0.8125rem',
+            marginBottom: spacing[5],
+            padding: spacing[4],
+            fontSize: typography.bodySm.fontSize,
           }}
         >
-          <p style={{ margin: '0 0 0.5rem', fontWeight: 600 }}>Lien d&apos;invitation (simulation)</p>
-          <p style={{ margin: '0 0 0.35rem', wordBreak: 'break-all' }}>
+          <p style={{ margin: `0 0 ${spacing[2]}px`, fontWeight: typography.weights.semibold }}>
+            Lien d&apos;invitation (simulation)
+          </p>
+          <p style={{ margin: `0 0 ${spacing[1]}px`, wordBreak: 'break-all' }}>
             <strong>Web :</strong> {createdInvite.webLink}
           </p>
           <p style={{ margin: 0, wordBreak: 'break-all' }}>
@@ -253,190 +335,237 @@ export function CreateParcelForm() {
           </p>
         </div>
       ) : null}
-      {error ? <FlashBanner message={error} variant="error" onDismiss={() => setError(null)} /> : null}
+      {error ? (
+        <InlineAlert message={error} variant="error" onDismiss={() => setError(null)} />
+      ) : null}
 
-      <section
-        style={{
-          ...webCardStyle,
-          padding: '2rem',
-          marginBottom: '1.25rem',
+      <Wizard
+        steps={STEPS}
+        currentStepIndex={stepIndex}
+        onBack={handleBack}
+        onNext={handleNext}
+        onSubmit={() => void handleSubmit()}
+        onStepSelect={(index) => {
+          if (index < stepIndex) setStepIndex(index);
         }}
+        loading={loading}
+        nextDisabled={formLocked && !loading}
+        submitLabel={loading ? 'Création…' : success ? 'Colis créé' : 'Créer le colis'}
       >
-        <h2 style={sectionTitleStyle}>Destinataire</h2>
-
-        <label style={{ display: 'block' }}>
-          <span style={labelStyle}>Référence / n° commande</span>
-          <input
-            type="text"
-            name="reference"
-            value={reference}
-            onChange={(e) => setReference(e.target.value)}
-            placeholder="CMD-2026-001"
-            required
-            disabled={loading || !!success}
-            style={{ ...inputStyle, marginTop: '0.5rem' }}
-          />
-        </label>
-
-        <label style={{ display: 'block', marginTop: '1.25rem' }}>
-          <span style={labelStyle}>Nom destinataire</span>
-          <input
-            type="text"
-            name="recipientName"
-            value={recipientName}
-            onChange={(e) => setRecipientName(e.target.value)}
-            placeholder="Jean Mukendi"
-            disabled={loading || !!success}
-            style={{ ...inputStyle, marginTop: '0.5rem' }}
-          />
-        </label>
-
-        <label style={{ display: 'block', marginTop: '1.25rem' }}>
-          <span style={labelStyle}>Téléphone destinataire</span>
-          <input
-            type="tel"
-            name="recipientPhone"
-            value={recipientPhone}
-            onChange={(e) => setRecipientPhone(e.target.value)}
-            placeholder="+243800000000"
-            required
-            disabled={loading || !!success}
-            style={{ ...inputStyle, marginTop: '0.5rem' }}
-          />
-        </label>
-
-        <label style={{ display: 'block', marginTop: '1.25rem' }}>
-          <span style={labelStyle}>Email destinataire (optionnel)</span>
-          <input
-            type="email"
-            name="recipientEmail"
-            value={recipientEmail}
-            onChange={(e) => setRecipientEmail(e.target.value)}
-            placeholder="client@exemple.cd"
-            disabled={loading || !!success}
-            style={{ ...inputStyle, marginTop: '0.5rem' }}
-          />
-        </label>
-      </section>
-
-      <section
-        style={{
-          ...webCardStyle,
-          padding: '2rem',
-          marginBottom: '1.5rem',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            gap: '1rem',
-            flexWrap: 'wrap',
-            marginBottom: '1rem',
-          }}
-        >
-          <div>
-            <h2 style={{ ...sectionTitleStyle, marginBottom: '0.5rem' }}>Casier & compartiment</h2>
-            <p style={{ margin: 0, fontSize: '0.875rem', color: colors.textMuted, maxWidth: 520 }}>
-              Choisissez un casier puis un compartiment libre (S, M ou L). Laissez vide pour que le
-              client choisisse dans l’app mobile.
-            </p>
-          </div>
-          {lockerId ? (
-            <button
-              type="button"
-              onClick={handleClearLocker}
-              style={{
-                ...webSecondaryButtonStyle,
-                height: 36,
-                padding: '0 1rem',
-                fontSize: '0.8125rem',
+        {stepIndex === 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[5] }}>
+            <TextField
+              label="Référence marchande (optionnel)"
+              name="reference"
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+              placeholder="CMD-2026-001"
+              disabled={formLocked}
+              hint="Un numéro de suivi Eveider (EVD…) sera généré automatiquement."
+            />
+            <TextField
+              label="Nom destinataire"
+              name="recipientName"
+              value={recipientName}
+              onChange={(e) => setRecipientName(e.target.value)}
+              placeholder="Jean Mukendi"
+              disabled={formLocked}
+            />
+            <TextField
+              label="Téléphone destinataire"
+              name="recipientPhone"
+              type="tel"
+              value={recipientPhone}
+              onChange={(e) => {
+                setRecipientPhone(e.target.value);
+                setFieldErrors((current) => ({ ...current, recipientPhone: undefined }));
               }}
-            >
-              Effacer la sélection
-            </button>
-          ) : null}
-        </div>
-
-        {lockers.length === 0 ? (
-          <p style={{ margin: 0, fontSize: '0.8125rem', fontWeight: 500 }}>
-            Aucun casier en base. Exécutez <code>pnpm db:seed</code> puis rechargez la page.
-          </p>
-        ) : (
-          <LockerPicker
-            lockers={lockers}
-            selectedLockerId={lockerId}
-            onSelectLocker={handleSelectLocker}
-          />
-        )}
-
-        {lockerId ? (
-          <div
-            style={{
-              marginTop: '1.75rem',
-              paddingTop: '1.5rem',
-              borderTop: borderSubtle(),
-            }}
-          >
-            <p style={{ margin: '0 0 0.35rem', fontWeight: 700, fontSize: '0.875rem' }}>
-              {selectedLocker?.name ?? compartmentData?.locker.name}
-            </p>
-            <p style={{ margin: '0 0 1rem', fontSize: '0.8125rem', opacity: 0.75 }}>
-              {loadingCompartments
-                ? 'Chargement des compartiments…'
-                : `${availableCount} compartiment${availableCount > 1 ? 's' : ''} disponible${availableCount > 1 ? 's' : ''} — cliquez pour réserver`}
-            </p>
-
-            {loadingCompartments ? null : compartmentData ? (
-              <>
-                <CompartmentSelectGrid
-                  rows={compartmentData.locker.rows}
-                  columns={compartmentData.locker.columns}
-                  compartments={compartmentData.compartments}
-                  selectedId={compartmentId}
-                  onSelect={setCompartmentId}
-                />
-                <div
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: '1rem',
-                    marginTop: '1rem',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    opacity: 0.65,
-                  }}
-                >
-                  <span>■ Disponible</span>
-                  <span>■ Réservé</span>
-                  <span>■ Occupé</span>
-                </div>
-              </>
-            ) : (
-              <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.danger }}>
-                {compartmentError ?? 'Impossible d’afficher la grille de ce casier.'}
-              </p>
-            )}
+              placeholder="+243800000000"
+              required
+              disabled={formLocked}
+              error={fieldErrors.recipientPhone}
+            />
+            <TextField
+              label="Email destinataire (optionnel)"
+              name="recipientEmail"
+              type="email"
+              value={recipientEmail}
+              onChange={(e) => setRecipientEmail(e.target.value)}
+              placeholder="client@exemple.cd"
+              disabled={formLocked}
+            />
           </div>
         ) : null}
-      </section>
 
-      <button
-        type="submit"
-        disabled={loading || !!success}
-        style={{
-          ...webPrimaryButtonStyle,
-          width: '100%',
-          maxWidth: 560,
-          height: spacing.buttonHeight,
-          fontSize: '0.9375rem',
-          cursor: loading || success ? 'wait' : 'pointer',
-          opacity: loading || success ? 0.7 : 1,
-        }}
-      >
-        {loading ? 'Création en cours…' : success ? 'Colis créé' : 'Créer le colis'}
-      </button>
-    </form>
+        {stepIndex === 1 ? (
+          <div>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                marginBottom: spacing[4],
+              }}
+            >
+              {lockerId ? (
+                <Button variant="secondary" size="sm" onClick={handleClearLocker} disabled={formLocked}>
+                  Effacer la sélection
+                </Button>
+              ) : null}
+            </div>
+
+            {lockers.length === 0 ? (
+              <p style={{ margin: 0, fontSize: typography.bodySm.fontSize, fontWeight: 500 }}>
+                Aucun point en base. Exécutez <code>pnpm db:seed</code> puis rechargez la page.
+              </p>
+            ) : (
+              <LockerPicker
+                lockers={lockers}
+                selectedLockerId={lockerId}
+                onSelectLocker={handleSelectLocker}
+              />
+            )}
+
+            {fieldErrors.compartmentId ? (
+              <p
+                role="alert"
+                style={{
+                  margin: `${spacing[4]}px 0 0`,
+                  color: colors.danger,
+                  fontSize: typography.caption.fontSize,
+                  fontWeight: typography.weights.semibold,
+                }}
+              >
+                {fieldErrors.compartmentId}
+              </p>
+            ) : null}
+
+            {lockerId && needsCompartment ? (
+              <div
+                style={{
+                  marginTop: spacing[7],
+                  paddingTop: spacing[6],
+                  borderTop: borderSubtle(),
+                }}
+              >
+                <p
+                  style={{
+                    margin: `0 0 ${spacing[1]}px`,
+                    fontWeight: typography.weights.bold,
+                    fontSize: typography.bodySm.fontSize,
+                  }}
+                >
+                  {selectedLocker?.name ?? compartmentData?.locker.name}
+                </p>
+                <p
+                  style={{
+                    margin: `0 0 ${spacing[4]}px`,
+                    fontSize: typography.bodySm.fontSize,
+                    color: colors.textMuted,
+                  }}
+                >
+                  {loadingCompartments
+                    ? 'Chargement des compartiments…'
+                    : `${availableCount} compartiment${availableCount > 1 ? 's' : ''} disponible${availableCount > 1 ? 's' : ''} — cliquez pour réserver`}
+                </p>
+
+                {loadingCompartments ? null : compartmentData ? (
+                  <>
+                    <CompartmentSelectGrid
+                      rows={compartmentData.locker.rows}
+                      columns={compartmentData.locker.columns}
+                      compartments={compartmentData.compartments}
+                      selectedId={compartmentId}
+                      onSelect={(id) => {
+                        setCompartmentId(id);
+                        setFieldErrors((current) => ({ ...current, compartmentId: undefined }));
+                      }}
+                    />
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: spacing[4],
+                        marginTop: spacing[4],
+                        fontSize: typography.caption.fontSize,
+                        fontWeight: typography.weights.semibold,
+                        color: colors.textMuted,
+                      }}
+                    >
+                      <span>■ Disponible</span>
+                      <span>■ Réservé</span>
+                      <span>■ Occupé</span>
+                    </div>
+                  </>
+                ) : (
+                  <p style={{ margin: 0, fontSize: typography.bodySm.fontSize, color: colors.danger }}>
+                    {compartmentError ?? 'Impossible d’afficher la grille de ce casier.'}
+                  </p>
+                )}
+              </div>
+            ) : null}
+
+            {lockerId && selectedLocker && !needsCompartment ? (
+              <p
+                style={{
+                  margin: `${spacing[5]}px 0 0`,
+                  fontSize: typography.bodySm.fontSize,
+                  fontWeight: 500,
+                }}
+              >
+                Point sélectionné — {selectedLocker.availableSlots ?? selectedLocker.availableCompartments}{' '}
+                place(s) libre(s). Pas de compartiment à choisir.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {stepIndex === 2 ? (
+          <div>
+            <dl
+              style={{
+                margin: 0,
+                display: 'grid',
+                gap: spacing[3],
+              }}
+            >
+              {reviewRows.map((row) => (
+                <div
+                  key={row.label}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(120px, 160px) 1fr',
+                    gap: spacing[3],
+                    paddingBottom: spacing[3],
+                    borderBottom: borderSubtle(),
+                  }}
+                >
+                  <dt
+                    style={{
+                      margin: 0,
+                      fontSize: typography.bodySm.fontSize,
+                      fontWeight: typography.weights.semibold,
+                      color: colors.textMuted,
+                    }}
+                  >
+                    {row.label}
+                  </dt>
+                  <dd
+                    style={{
+                      margin: 0,
+                      fontSize: typography.bodySm.fontSize,
+                      fontWeight: typography.weights.semibold,
+                      color: colors.secondary,
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {row.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        ) : null}
+      </Wizard>
+    </div>
   );
 }

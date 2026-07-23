@@ -11,7 +11,7 @@ type ParcelStatusFiltersProps = {
 };
 
 const FILTER_ITEMS: { value: ParcelStatusFilter; label: string }[] = [
-  { value: 'all', label: 'TOUS' },
+  { value: 'all', label: 'Tous' },
   ...PARCEL_STATUSES.map((status: ParcelStatus) => ({
     value: status as ParcelStatusFilter,
     label: PARCEL_STATUS_LABELS[status],
@@ -20,7 +20,7 @@ const FILTER_ITEMS: { value: ParcelStatusFilter; label: string }[] = [
 
 export function ParcelStatusFilters({ value, onChange }: ParcelStatusFiltersProps) {
   return (
-    <FilterBar label="FILTRER PAR STATUT">
+    <FilterBar label="Filtrer par statut">
       <FilterChipGroup items={FILTER_ITEMS} value={value} onChange={onChange} />
     </FilterBar>
   );

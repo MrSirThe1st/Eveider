@@ -132,7 +132,12 @@ export function ParcelList() {
                 >
                   <div>
                     <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9375rem' }}>
-                      {parcel.reference}
+                      {parcel.trackingNumber}
+                      {parcel.reference ? (
+                        <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, opacity: 0.7 }}>
+                          {parcel.reference}
+                        </span>
+                      ) : null}
                     </p>
                     <p style={{ margin: '0.35rem 0 0', fontWeight: 500, fontSize: '0.875rem' }}>
                       {parcel.recipientName ?? 'Destinataire'} · {parcel.recipientPhone}

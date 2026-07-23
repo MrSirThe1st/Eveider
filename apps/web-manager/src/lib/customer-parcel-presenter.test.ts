@@ -3,6 +3,7 @@ import { toCustomerParcelDto } from './customer-parcel-presenter';
 
 const baseParcel = {
   id: 'parcel-1',
+  trackingNumber: 'EVD26A7K3M2PX',
   reference: 'PK-001',
   status: 'ready_for_pickup' as const,
   recipientName: 'Marc',

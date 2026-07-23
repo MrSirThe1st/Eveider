@@ -6,7 +6,7 @@ import type { Notification, Parcel } from '../db/types.js';
 import { sendParcelStatusWhatsApp } from '../messaging/parcel-whatsapp.js';
 
 export type CustomerNotification = Notification & {
-  parcel: { id: string; reference: string } | null;
+  parcel: { id: string; trackingNumber: string; reference: string | null } | null;
 };
 
 const CUSTOMER_NOTIFY_STATUSES: ParcelStatus[] = [
@@ -24,7 +24,10 @@ export class NotificationRepository {
     userId: string,
     businessName: string,
   ): Promise<void> {
-    const parcel = await this.db.query(`SELECT reference FROM parcels WHERE id = $1 LIMIT 1`, [parcelId]);
+    const parcel = await this.db.query(
+      `SELECT tracking_number, reference FROM parcels WHERE id = $1 LIMIT 1`,
+      [parcelId],
+    );
     if (!parcel.rows[0]) return;
 
     const message = `${businessName} vous a envoyé un colis prêt pour retrait.`;
@@ -46,7 +49,11 @@ export class NotificationRepository {
 
     const userId = await this.resolveCustomerUserId(parcel);
     if (userId) {
-      const message = this.buildMessage(parcel.reference, newStatus, row.locker_name == null ? null : String(row.locker_name));
+      const message = this.buildMessage(
+        parcel.trackingNumber,
+        newStatus,
+        row.locker_name == null ? null : String(row.locker_name),
+      );
 
       const duplicate = await this.db.query(`SELECT id FROM notifications WHERE user_id = $1 AND parcel_id = $2 AND message = $3 AND channel = 'in_app' LIMIT 1`, [userId, parcelId, message]);
       if (!duplicate.rows[0]) await this.db.query(`INSERT INTO notifications (user_id, parcel_id, channel, message) VALUES ($1, $2, 'in_app', $3)`, [userId, parcelId, message]);
@@ -63,8 +70,28 @@ export class NotificationRepository {
   async listForCustomer(ctx: DataAccessContext): Promise<CustomerNotification[]> {
     assertCustomerRole(ctx);
 
-    const result = await this.db.query(`SELECT n.*, p.id AS parcel_id_relation, p.reference AS parcel_reference FROM notifications n LEFT JOIN parcels p ON p.id = n.parcel_id WHERE n.user_id = $1 AND n.channel = 'in_app' ORDER BY n.created_at DESC`, [ctx.userId!]);
-    return result.rows.map((row) => ({ ...mapNotification(row), parcel: row.parcel_id_relation ? { id: String(row.parcel_id_relation), reference: String(row.parcel_reference) } : null }));
+    const result = await this.db.query(
+      `SELECT n.*, p.id AS parcel_id_relation, p.tracking_number AS parcel_tracking_number,
+              p.reference AS parcel_reference
+       FROM notifications n
+       LEFT JOIN parcels p ON p.id = n.parcel_id
+       WHERE n.user_id = $1 AND n.channel = 'in_app'
+       ORDER BY n.created_at DESC`,
+      [ctx.userId!],
+    );
+    return result.rows.map((row) => ({
+      ...mapNotification(row),
+      parcel: row.parcel_id_relation
+        ? {
+            id: String(row.parcel_id_relation),
+            trackingNumber: String(row.parcel_tracking_number),
+            reference:
+              row.parcel_reference == null || row.parcel_reference === ''
+                ? null
+                : String(row.parcel_reference),
+          }
+        : null,
+    }));
   }
 
   async unreadCount(ctx: DataAccessContext): Promise<number> {
@@ -87,8 +114,25 @@ export class NotificationRepository {
 
     const result = await this.db.query(`UPDATE notifications SET sent_at = COALESCE(sent_at, NOW()) WHERE id = $1 RETURNING *`, [id]);
     const updated = mapNotification(result.rows[0]!);
-    const parcel = updated.parcelId ? await this.db.query(`SELECT id, reference FROM parcels WHERE id = $1`, [updated.parcelId]) : null;
-    return { ...updated, parcel: parcel?.rows[0] ? { id: String(parcel.rows[0].id), reference: String(parcel.rows[0].reference) } : null };
+    const parcel = updated.parcelId
+      ? await this.db.query(
+          `SELECT id, tracking_number, reference FROM parcels WHERE id = $1`,
+          [updated.parcelId],
+        )
+      : null;
+    return {
+      ...updated,
+      parcel: parcel?.rows[0]
+        ? {
+            id: String(parcel.rows[0].id),
+            trackingNumber: String(parcel.rows[0].tracking_number),
+            reference:
+              parcel.rows[0].reference == null || parcel.rows[0].reference === ''
+                ? null
+                : String(parcel.rows[0].reference),
+          }
+        : null,
+    };
   }
 
   private async resolveCustomerUserId(parcel: Pick<Parcel, 'customerId' | 'recipientPhone'>) {
@@ -98,11 +142,11 @@ export class NotificationRepository {
     return user.rows[0] ? String(user.rows[0].id) : null;
   }
 
-  private buildMessage(reference: string, status: ParcelStatus, lockerName?: string | null) {
+  private buildMessage(trackingNumber: string, status: ParcelStatus, lockerName?: string | null) {
     const label = PARCEL_STATUS_LABELS[status];
     if (status === 'ready_for_pickup' && lockerName) {
-      return `Colis ${reference} — ${label} · ${lockerName}`;
+      return `Colis ${trackingNumber} — ${label} · ${lockerName}`;
     }
-    return `Colis ${reference} — ${label}`;
+    return `Colis ${trackingNumber} — ${label}`;
   }
 }

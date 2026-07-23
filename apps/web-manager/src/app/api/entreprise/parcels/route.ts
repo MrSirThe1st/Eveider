@@ -68,7 +68,7 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (err) {
-    if (typeof err === 'object' && err && 'code' in err && err.code === 'P2002') {
+    if (typeof err === 'object' && err && 'code' in err && (err.code === 'P2002' || err.code === '23505')) {
       return NextResponse.json(fail('Cette référence existe déjà'), { status: 409 });
     }
     const message = err instanceof Error ? err.message : 'Erreur serveur';

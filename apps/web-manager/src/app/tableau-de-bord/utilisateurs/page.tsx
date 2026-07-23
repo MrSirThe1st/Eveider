@@ -1,7 +1,7 @@
 'use client';
 
 import { colors, radius, borderSubtle, webCardStyle, webInputStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
-import { LoadingSpinner, PageHeader } from '@eveider/ui';
+import { ConfirmDialog, LoadingSpinner, PageFrame, useToast } from '@eveider/ui';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { FlashBanner } from '@/components/flash-banner';
@@ -16,12 +16,14 @@ function formatDate(iso: string) {
 }
 
 export default function UsersPage() {
+  const toast = useToast();
   const [role, setRole] = useState<'customer' | 'courier'>('customer');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [success, setSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
+  const [pendingUser, setPendingUser] = useState<UserListItem | null>(null);
 
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
@@ -58,31 +60,33 @@ export default function UsersPage() {
       const result = await response.json();
 
       if (!result.success) {
-        setActionError(result.error ?? 'Mise à jour du statut échouée');
+        const message = result.error ?? 'Mise à jour du statut échouée';
+        setActionError(message);
+        toast.error(message);
       } else {
         setUsers((prev) =>
           prev.map((u) => (u.id === user.id ? { ...u, isBlocked: nextState } : u)),
         );
-        setSuccess(
-          `Compte de ${user.fullName ?? user.email ?? "l'utilisateur"} ${
-            nextState ? 'bloqué' : 'activé'
-          } avec succès`,
-        );
+        const message = `Compte de ${user.fullName ?? user.email ?? "l'utilisateur"} ${
+          nextState ? 'bloqué' : 'activé'
+        } avec succès`;
+        setSuccess(message);
+        toast.success(message);
       }
     } catch {
       setActionError('Impossible de mettre à jour le compte');
+      toast.error('Impossible de mettre à jour le compte');
     } finally {
       setActingId(null);
+      setPendingUser(null);
     }
   }
 
   return (
-    <div style={{ maxWidth: 1000 }}>
-      <PageHeader
-        title="Gestion des utilisateurs"
-        description="Consultez et gérez les comptes des clients et des coursiers."
-      />
-
+    <PageFrame
+      title="Gestion des utilisateurs"
+      description="Consultez et gérez les comptes des clients et des coursiers."
+    >
       {success ? <FlashBanner message={success} onDismiss={() => setSuccess(null)} /> : null}
       {actionError ? (
         <FlashBanner message={actionError} variant="error" onDismiss={() => setActionError(null)} />
@@ -291,7 +295,7 @@ export default function UsersPage() {
                       <button
                         type="button"
                         disabled={actingId === user.id}
-                        onClick={() => void handleToggleStatus(user)}
+                        onClick={() => setPendingUser(user)}
                         style={{
                           height: '28px',
                           padding: '0 10px',
@@ -316,6 +320,29 @@ export default function UsersPage() {
           </table>
         )}
       </div>
-    </div>
+
+      <ConfirmDialog
+        open={pendingUser != null}
+        onClose={() => {
+          if (!actingId) setPendingUser(null);
+        }}
+        onConfirm={() => {
+          if (pendingUser) void handleToggleStatus(pendingUser);
+        }}
+        title={
+          pendingUser?.isBlocked ? 'Activer ce compte ?' : 'Bloquer ce compte ?'
+        }
+        description={
+          pendingUser
+            ? pendingUser.isBlocked
+              ? `${pendingUser.fullName ?? pendingUser.email ?? 'Cet utilisateur'} pourra à nouveau accéder à Eveider.`
+              : `${pendingUser.fullName ?? pendingUser.email ?? 'Cet utilisateur'} ne pourra plus se connecter tant que le compte est bloqué.`
+            : undefined
+        }
+        confirmLabel={pendingUser?.isBlocked ? 'Activer' : 'Bloquer'}
+        tone={pendingUser?.isBlocked ? 'default' : 'danger'}
+        loading={actingId != null}
+      />
+    </PageFrame>
   );
 }

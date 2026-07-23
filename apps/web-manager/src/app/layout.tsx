@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import type { ReactNode } from 'react';
+import { AppProviders } from '@/components/app-providers';
 import './globals.css';
 
 const inter = Inter({
@@ -21,7 +22,9 @@ export default function RootLayout({
 }>): ReactNode {
   return (
     <html lang="fr">
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        <AppProviders>{children}</AppProviders>
+      </body>
     </html>
   );
 }

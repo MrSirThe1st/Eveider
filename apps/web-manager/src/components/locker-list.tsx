@@ -1,6 +1,7 @@
 'use client';
 
 import { colors, webCardStyle } from '@eveider/config-ui';
+import { usesCompartmentGrid } from '@eveider/domain';
 import Link from 'next/link';
 import { LockerStatusBadge } from '@/components/locker-status-badge';
 import type { LockerSummaryDto } from '@/lib/locker-presenter';
@@ -19,9 +20,10 @@ export function LockerList({ lockers }: LockerListProps) {
           textAlign: 'center',
         }}
       >
-        <p style={{ margin: 0, fontWeight: 600 }}>Aucun casier</p>
+        <p style={{ margin: 0, fontWeight: 600 }}>Aucun point Eveider</p>
         <p style={{ margin: '0.75rem 0 0', fontWeight: 500, fontSize: '0.875rem' }}>
-          Exécutez <code>pnpm db:seed</code> pour créer les casiers de démonstration.
+          Placez un repère sur la carte pour créer le premier point, ou exécutez{' '}
+          <code>pnpm db:seed</code>.
         </p>
       </section>
     );
@@ -30,13 +32,13 @@ export function LockerList({ lockers }: LockerListProps) {
   return (
     <div>
       <p style={{ margin: '0 0 1rem', fontWeight: 600, fontSize: '0.8125rem' }}>
-        {lockers.length} casiers
+        {lockers.length} points
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {lockers.map((locker) => (
           <Link
             key={locker.id}
-            href={`/tableau-de-bord/casiers/${locker.id}`}
+            href={`/tableau-de-bord/points/${locker.id}`}
             style={{
               display: 'block',
               ...webCardStyle,
@@ -55,16 +57,17 @@ export function LockerList({ lockers }: LockerListProps) {
               }}
             >
               <div>
-                <p style={{ margin: 0, fontWeight: 700 }}>
-                  {locker.name}
+                <p style={{ margin: 0, fontWeight: 700 }}>{locker.name}</p>
+                <p style={{ margin: '0.35rem 0 0', fontWeight: 500, fontSize: '0.8125rem' }}>
+                  {locker.typeLabel} · {locker.code}
                 </p>
                 <p style={{ margin: '0.35rem 0 0', fontWeight: 500, fontSize: '0.875rem' }}>
                   {locker.address}
                 </p>
                 <p style={{ margin: '0.35rem 0 0', fontWeight: 500, fontSize: '0.8125rem' }}>
-                  {locker.compartmentCounts.available} dispo ·{' '}
-                  {locker.compartmentCounts.occupied} occupé ·{' '}
-                  {locker.compartmentCounts.reserved} réservé
+                  {usesCompartmentGrid(locker.type)
+                    ? `${locker.compartmentCounts.available} dispo · ${locker.compartmentCounts.occupied} occupé · ${locker.compartmentCounts.reserved} réservé`
+                    : `${locker.availableSlots} places libres / ${locker.maxCapacity ?? '—'} max`}
                 </p>
               </div>
               <LockerStatusBadge status={locker.status} />

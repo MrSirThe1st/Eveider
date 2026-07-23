@@ -212,7 +212,7 @@ export function CustomerHome({ initialParcelId }: CustomerHomeProps) {
       if (!loading) void loadParcel(screen.parcelId);
       return (
         <View style={styles.container}>
-          <ScreenHeader mode="CLIENT" title="CHOISIR UN CASIER" onBack={goBack} />
+          <ScreenHeader mode="CLIENT" title="CHOISIR UN POINT" onBack={goBack} />
           <ActivityIndicator color={colors.secondary} />
         </View>
       );
@@ -224,10 +224,10 @@ export function CustomerHome({ initialParcelId }: CustomerHomeProps) {
         contentContainerStyle={styles.detailContent}
         showsVerticalScrollIndicator={false}
       >
-        <ScreenHeader mode="CLIENT" title="CHOISIR UN CASIER" onBack={goBack} />
+        <ScreenHeader mode="CLIENT" title="CHOISIR UN POINT" onBack={goBack} />
 
         <Text style={styles.lockerHint}>
-          Sélectionnez le casier le plus proche pour recevoir votre colis {parcel.reference}.
+          Sélectionnez le point Eveider le plus proche pour recevoir votre colis {parcel.trackingNumber ?? parcel.reference}.
         </Text>
 
         <LockerMapView
@@ -368,7 +368,7 @@ export function CustomerHome({ initialParcelId }: CustomerHomeProps) {
 
         <View style={styles.detailSection}>
           <Text style={styles.sectionLabel}>COLIS</Text>
-          <Text style={styles.detailText}>{parcel.reference}</Text>
+          <Text style={styles.detailText}>{parcel.trackingNumber ?? parcel.reference}</Text>
           <Text style={styles.detailSubtext}>{parcel.businessName}</Text>
         </View>
 
@@ -511,7 +511,7 @@ export function CustomerHome({ initialParcelId }: CustomerHomeProps) {
 
         <View style={styles.detailSection}>
           <Text style={styles.sectionLabel}>COLIS</Text>
-          <Text style={styles.detailText}>{parcel.reference}</Text>
+          <Text style={styles.detailText}>{parcel.trackingNumber ?? parcel.reference}</Text>
           <Text style={styles.detailSubtext}>{parcel.businessName}</Text>
         </View>
       </ScrollView>
@@ -591,7 +591,7 @@ export function CustomerHome({ initialParcelId }: CustomerHomeProps) {
       ) : null}
 
       <View style={styles.detailHeader}>
-        <Text style={styles.detailReference}>{parcel.reference}</Text>
+        <Text style={styles.detailReference}>{parcel.trackingNumber ?? parcel.reference}</Text>
         <ParcelStatusBadge status={parcel.status} />
       </View>
 
@@ -615,11 +615,11 @@ export function CustomerHome({ initialParcelId }: CustomerHomeProps) {
         <View style={styles.detailSection}>
           <Text style={styles.sectionLabel}>CASIER</Text>
           <Text style={styles.detailSubtext}>
-            Choisissez votre casier de retrait pour lancer la livraison.
+            Choisissez votre point de retrait pour lancer la livraison.
           </Text>
           <View style={{ marginTop: 12 }}>
             <PrimaryButton
-              label="CHOISIR UN CASIER"
+              label="CHOISIR UN POINT"
               onPress={() => setScreen({ name: 'select-locker', parcelId: parcel.id })}
             />
           </View>

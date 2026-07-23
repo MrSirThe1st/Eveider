@@ -100,18 +100,7 @@ export function lockerCapacity(layout: ResolvedLockerLayout): number {
   return layout.cells.length;
 }
 
-const CITY_PREFIX_OVERRIDES: Record<string, string> = {
-  kinshasa: 'KIN',
-  kolwezi: 'KOL',
-  lubumbashi: 'LUB',
-  goma: 'GOM',
-  bukavu: 'BUK',
-  kisangani: 'KIS',
-  mbujimayi: 'MBU',
-  kananga: 'KAN',
-  matadi: 'MAT',
-};
-
+/** @deprecated City-prefix codes replaced by global EVP codes — kept for tests/migration. */
 export function deriveLockerCodePrefix(locationHint: string): string {
   const normalized = locationHint.trim().toLowerCase();
   if (!normalized) return 'EVE';
@@ -127,15 +116,13 @@ export function deriveLockerCodePrefix(locationHint: string): string {
 
   if (!cityToken) return 'EVE';
 
-  const override = CITY_PREFIX_OVERRIDES[cityToken];
-  if (override) return override;
-
   const letters = cityToken.replace(/[^a-z]/g, '').toUpperCase();
   if (letters.length >= 3) return letters.slice(0, 3);
   if (letters.length > 0) return letters.padEnd(3, 'X');
   return 'EVE';
 }
 
+/** @deprecated Prefer generatePointCode() from identifiers. */
 export function formatLockerCode(prefix: string, sequence: number): string {
   const safePrefix = prefix.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4) || 'EVE';
   return `${safePrefix}-${String(sequence).padStart(3, '0')}`;
@@ -150,7 +137,7 @@ export function suggestLockerName(address: string): string {
   if (parts.length === 0) return '';
 
   if (parts.length >= 2) {
-    return `${parts[0]} Locker`;
+    return `${parts[0]} Point`;
   }
 
   return `${parts[0]} Centre`;

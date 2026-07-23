@@ -5,12 +5,14 @@
 
 import type {
   BusinessStatus,
+  CommissionType,
   CompartmentSize,
   CompartmentStatus,
   DeliveryStatus,
   IssueStatus,
   IssueType,
   LockerStatus,
+  LockerType,
   ParcelStatus,
   UserRole,
 } from '@eveider/domain';
@@ -109,6 +111,14 @@ export type Locker = {
   longitude: number | null;
   rows: number;
   columns: number;
+  type: LockerType;
+  maxCapacity: number | null;
+  contactPhone: string | null;
+  contactName: string | null;
+  notes: string | null;
+  commissionType: CommissionType | null;
+  commissionValue: number | null;
+  commissionCurrency: string | null;
   status: LockerStatus;
   archivedAt: Date | null;
   createdAt: Date;
@@ -127,7 +137,8 @@ export type Compartment = {
 
 export type Parcel = {
   id: string;
-  reference: string;
+  trackingNumber: string;
+  reference: string | null;
   status: ParcelStatus;
   businessId: string;
   customerId: string | null;

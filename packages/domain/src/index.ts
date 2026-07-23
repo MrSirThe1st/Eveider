@@ -8,3 +8,4 @@ export * from './issue.js';
 export * from './labels.js';
 export * from './geo.js';
 export * from './locker-layout.js';
+export * from './identifiers.js';

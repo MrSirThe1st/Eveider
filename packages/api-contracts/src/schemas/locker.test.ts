@@ -13,9 +13,10 @@ const baseCompartments = Array.from({ length: 9 }, (_, index) => {
 });
 
 describe('createLockerSchema', () => {
-  it('accepts a valid locker payload', () => {
+  it('accepts a valid smart locker payload', () => {
     const result = createLockerSchema.safeParse({
-      code: 'KOL-014',
+      type: 'SMART_LOCKER',
+      code: 'EVPA7K3M2B',
       name: 'Kolwezi Centre',
       address: 'Avenue du Commerce, Kolwezi',
       latitude: -4.32,
@@ -28,6 +29,24 @@ describe('createLockerSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('defaults type to SMART_LOCKER when omitted', () => {
+    const result = createLockerSchema.safeParse({
+      code: 'EVPA7K3M2B',
+      name: 'Kolwezi Centre',
+      address: 'Avenue du Commerce, Kolwezi',
+      latitude: -4.32,
+      longitude: 15.31,
+      rows: 3,
+      columns: 3,
+      compartments: baseCompartments,
+      status: 'active',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.type).toBe('SMART_LOCKER');
+    }
+  });
+
   it('requires compartments matching grid dimensions', () => {
     expect(
       createLockerSchema.safeParse({
@@ -38,6 +57,37 @@ describe('createLockerSchema', () => {
         rows: 3,
         columns: 3,
         compartments: baseCompartments.slice(0, 4),
+      }).success,
+    ).toBe(false);
+  });
+
+  it('accepts a partner point with soft capacity', () => {
+    const result = createLockerSchema.safeParse({
+      type: 'PARTNER_POINT',
+      name: 'Pharmacie XYZ',
+      address: 'Avenue Lumumba, Gombe',
+      latitude: -4.32,
+      longitude: 15.31,
+      maxCapacity: 20,
+      contactPhone: '+243810000000',
+      contactName: 'Jean Partner',
+      commissionType: 'percent',
+      commissionValue: 5,
+      commissionCurrency: 'CDF',
+      status: 'active',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('requires maxCapacity and contactPhone for residential points', () => {
+    expect(
+      createLockerSchema.safeParse({
+        type: 'RESIDENTIAL_LOCKER',
+        name: 'Résidence Les Palmiers',
+        address: 'Avenue des Palmiers',
+        latitude: -4.32,
+        longitude: 15.31,
+        status: 'active',
       }).success,
     ).toBe(false);
   });

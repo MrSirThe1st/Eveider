@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius, borderSubtle, borderStrong, webCardStyle } from '@eveider/config-ui';
+import { colors, radius, spacing, typography, borderSubtle, webCardStyle } from '@eveider/config-ui';
 import type { ReactNode } from 'react';
 
 export type FilterChipItem<T extends string> = {
@@ -25,7 +25,7 @@ export function FilterChipGroup<T extends string>({
       style={{
         display: 'flex',
         flexWrap: 'wrap',
-        gap: '0.5rem',
+        gap: spacing[2],
       }}
     >
       {items.map((item) => {
@@ -34,19 +34,19 @@ export function FilterChipGroup<T extends string>({
           <button
             key={item.value}
             type="button"
+            className="nb-filter-chip"
             aria-pressed={active}
             onClick={() => onChange(item.value)}
             style={{
-              padding: '0.4rem 1rem',
-              borderRadius: 999,
-              border: active ? '1px solid #09D40B' : borderSubtle(),
-              background: active ? '#DCF5D6' : colors.surface,
+              padding: `${spacing[1] + 2}px ${spacing[4]}px`,
+              borderRadius: radius.badge,
+              border: active ? `1px solid ${colors.primary}` : borderSubtle(),
+              background: active ? colors.successMuted : colors.surface,
               color: active ? '#067A07' : colors.secondary,
-              fontWeight: active ? 600 : 500,
-              fontSize: '0.8125rem',
+              fontWeight: active ? typography.weights.semibold : typography.weights.medium,
+              fontSize: typography.bodySm.fontSize,
               cursor: 'pointer',
               whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
             }}
           >
             {item.label}
@@ -68,8 +68,8 @@ export function FilterBar({ label, children, hint }: FilterBarProps) {
     <section
       style={{
         ...webCardStyle,
-        padding: '1rem 1.125rem',
-        marginBottom: '1.5rem',
+        padding: `${spacing[4]}px ${spacing[4] + 2}px`,
+        marginBottom: spacing[6],
       }}
     >
       <div
@@ -77,16 +77,16 @@ export function FilterBar({ label, children, hint }: FilterBarProps) {
           display: 'flex',
           alignItems: 'baseline',
           justifyContent: 'space-between',
-          gap: '0.75rem',
-          marginBottom: '0.875rem',
+          gap: spacing[3],
+          marginBottom: spacing[3] + 2,
           flexWrap: 'wrap',
         }}
       >
         <p
           style={{
             margin: 0,
-            fontSize: '0.9375rem',
-            fontWeight: 600,
+            fontSize: typography.body.fontSize,
+            fontWeight: typography.weights.semibold,
             color: colors.secondary,
           }}
         >
@@ -96,8 +96,8 @@ export function FilterBar({ label, children, hint }: FilterBarProps) {
           <p
             style={{
               margin: 0,
-              fontSize: '0.8125rem',
-              fontWeight: 500,
+              fontSize: typography.bodySm.fontSize,
+              fontWeight: typography.weights.medium,
               color: colors.textMuted,
             }}
           >

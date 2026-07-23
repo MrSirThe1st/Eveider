@@ -2,25 +2,23 @@
  * Seeds demo Kinshasa lockers and compartments.
  * Usage: pnpm db:seed
  */
+import { generatePointCode } from '@eveider/domain';
 import { getPool, resolveDatabaseUrl } from '../src/db/pool.js';
 
 const KINSHASA_LOCKERS = [
   {
-    code: 'KIN-001',
     name: 'EVEIDER GOMBE',
     address: 'Avenue du Commerce, Gombe, Kinshasa',
     latitude: -4.3052,
     longitude: 15.3089,
   },
   {
-    code: 'KIN-002',
     name: 'EVEIDER LIMETE',
     address: 'Boulevard Lumumba, Limete, Kinshasa',
     latitude: -4.3381,
     longitude: 15.3123,
   },
   {
-    code: 'KIN-003',
     name: 'EVEIDER NGALIEMA',
     address: 'UPN, Ngaliema, Kinshasa',
     latitude: -4.4012,
@@ -51,7 +49,7 @@ async function main() {
           `INSERT INTO lockers (code, name, address, latitude, longitude, status, rows, columns)
            VALUES ($1, $2, $3, $4, $5, 'active', 3, 3)
            RETURNING id`,
-          [locker.code, locker.name, locker.address, locker.latitude, locker.longitude],
+          [generatePointCode(), locker.name, locker.address, locker.latitude, locker.longitude],
         );
         lockerId = String(inserted.rows[0]!.id);
       }

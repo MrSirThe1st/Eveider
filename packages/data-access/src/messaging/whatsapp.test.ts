@@ -153,7 +153,7 @@ describe('sendParcelStatusWhatsApp', () => {
     expect(body.template.name).toBe('eveider_parcel_in_transit');
     expect(body.template.components[0].parameters.map((p: { text: string }) => p.text)).toEqual([
       'Marc',
-      'PK-001',
+      'EVD26TEST0001A',
       'Boutique Kin',
       'GOMBE',
     ]);
@@ -200,9 +200,9 @@ describe('sendParcelStatusWhatsApp', () => {
     expect(body.template.name).toBe('eveider_parcel_arrived');
     expect(body.template.components[0].parameters.map((p: { text: string }) => p.text)).toEqual([
       'Marc',
-      'PK-001',
+      'EVD26TEST0001A',
       'GOMBE',
-      'https://www.eveider.com/suivi?ref=PK-001&phone=%2B243800000000',
+      'https://www.eveider.com/suivi?mode=tracking&tracking=EVD26TEST0001A',
     ]);
   });
 });

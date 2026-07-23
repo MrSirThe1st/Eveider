@@ -6,7 +6,8 @@ import { fetchJson } from '@/lib/api/fetch-json';
 
 export type BusinessParcelItem = {
   id: string;
-  reference: string;
+  trackingNumber: string;
+  reference: string | null;
   status: ParcelStatus;
   recipientName: string | null;
   recipientPhone: string;

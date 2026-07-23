@@ -16,7 +16,8 @@ export type InvitePreview = {
   recipientName: string | null;
   parcel: {
     id: string;
-    reference: string;
+    trackingNumber: string;
+    reference: string | null;
     locker: string | null;
   };
 };
@@ -92,6 +93,7 @@ export class ParcelInviteRepository {
       recipientName: invite.parcel.recipientName,
       parcel: {
         id: invite.parcel.id,
+        trackingNumber: invite.parcel.trackingNumber,
         reference: invite.parcel.reference,
         locker: invite.parcel.locker?.name ?? null,
       },
@@ -177,7 +179,7 @@ export class ParcelInviteRepository {
       phone: invite.phone,
       email: invite.email,
       businessName: String(parcel.business_name),
-      parcelReference: String(parcel.reference),
+      parcelReference: String(parcel.tracking_number),
     });
 
     await recordInviteDelivery(this.db, parcelId, delivery);

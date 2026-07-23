@@ -1,10 +1,12 @@
 import {
   BUSINESS_STATUSES,
+  COMMISSION_TYPES,
   COMPARTMENT_STATUSES,
   DELIVERY_STATUSES,
   ISSUE_STATUSES,
   ISSUE_TYPES,
   LOCKER_STATUSES,
+  LOCKER_TYPES,
   PARCEL_STATUSES,
   USER_ROLES,
 } from '@eveider/domain';
@@ -15,6 +17,8 @@ export const userRoleSchema = zodEnum(USER_ROLES);
 export const parcelStatusSchema = zodEnum(PARCEL_STATUSES);
 export const businessStatusSchema = zodEnum(BUSINESS_STATUSES);
 export const lockerStatusSchema = zodEnum(LOCKER_STATUSES);
+export const lockerTypeSchema = zodEnum(LOCKER_TYPES);
+export const commissionTypeSchema = zodEnum(COMMISSION_TYPES);
 export const compartmentStatusSchema = zodEnum(COMPARTMENT_STATUSES);
 export const deliveryStatusSchema = zodEnum(DELIVERY_STATUSES);
 export const issueTypeSchema = zodEnum(ISSUE_TYPES);

@@ -13,7 +13,8 @@ export type PickupPaymentDto = {
 
 export type CustomerParcelDto = {
   id: string;
-  reference: string;
+  trackingNumber: string;
+  reference: string | null;
   status: ParcelStatus;
   statusLabel: string;
   recipientName: string | null;
@@ -36,7 +37,8 @@ export type CustomerParcelDto = {
 export function toCustomerParcelDto(
   parcel: {
     id: string;
-    reference: string;
+    trackingNumber: string;
+    reference: string | null;
     status: ParcelStatus;
     recipientName: string | null;
     createdAt: Date;
@@ -67,6 +69,7 @@ export function toCustomerParcelDto(
 
   return {
     id: parcel.id,
+    trackingNumber: parcel.trackingNumber,
     reference: parcel.reference,
     status: parcel.status,
     statusLabel: PARCEL_STATUS_LABELS[parcel.status],

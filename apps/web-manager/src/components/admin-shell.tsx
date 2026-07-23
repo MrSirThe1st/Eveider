@@ -27,7 +27,7 @@ export function AdminShell({ children }: AdminShellProps) {
 
   return (
     <AppShell
-      brand="ADMIN"
+      brand="Admin"
       brandShort="AD"
       storageKey="eveider-admin-sidebar"
       maxWidth={1200}
@@ -35,43 +35,47 @@ export function AdminShell({ children }: AdminShellProps) {
       navItems={[
         {
           href: '/tableau-de-bord',
-          label: 'VUE D\'ENSEMBLE',
+          label: "Vue d'ensemble",
           icon: <IconLayout />,
           isActive: (p) => p === '/tableau-de-bord' || p.startsWith('/tableau-de-bord/colis'),
         },
         {
           href: '/tableau-de-bord/livraisons',
-          label: 'LIVRAISONS',
+          label: 'Livraisons',
           icon: <IconPackage />,
           isActive: (p) => p.startsWith('/tableau-de-bord/livraisons'),
         },
         {
           href: '/tableau-de-bord/entreprises/applications',
-          label: 'DOSSIERS BUSINESS',
+          label: 'Dossiers business',
           icon: <IconBuilding />,
           isActive: (p) => p.startsWith('/tableau-de-bord/entreprises/applications'),
         },
         {
           href: '/tableau-de-bord/entreprises',
-          label: 'ENTREPRISES',
+          label: 'Entreprises',
           icon: <IconBuilding />,
-          isActive: (p) => p === '/tableau-de-bord/entreprises',
+          isActive: (p) =>
+            p === '/tableau-de-bord/entreprises' ||
+            (p.startsWith('/tableau-de-bord/entreprises/') &&
+              !p.startsWith('/tableau-de-bord/entreprises/applications')),
         },
         {
-          href: '/tableau-de-bord/casiers',
-          label: 'CASIERS',
+          href: '/tableau-de-bord/points',
+          label: 'Points',
           icon: <IconLock />,
-          isActive: (p) => p.startsWith('/tableau-de-bord/casiers'),
+          isActive: (p) =>
+            p.startsWith('/tableau-de-bord/points') || p.startsWith('/tableau-de-bord/casiers'),
         },
         {
           href: '/tableau-de-bord/utilisateurs',
-          label: 'UTILISATEURS',
+          label: 'Utilisateurs',
           icon: <IconUser />,
           isActive: (p) => p.startsWith('/tableau-de-bord/utilisateurs'),
         },
         {
           href: '/tableau-de-bord/incidents',
-          label: 'INCIDENTS',
+          label: 'Incidents',
           icon: <IconAlert />,
           isActive: (p) => p.startsWith('/tableau-de-bord/incidents'),
         },

@@ -1,4 +1,4 @@
-import { PageHeader } from '@eveider/ui';
+import { PageFrame } from '@eveider/ui';
 import { AdminDashboardView } from '@/components/admin-dashboard-view';
 import { loadAdminDashboard } from '@/server/dashboard';
 import { getAdminSession } from '@/server/session';
@@ -8,12 +8,11 @@ export default async function AdminDashboardPage() {
   const data = await loadAdminDashboard(ctx);
 
   return (
-    <>
-      <PageHeader
-        title="Vue d'ensemble"
-        description="Indicateurs du jour, analytiques et suivi des colis en cours."
-      />
+    <PageFrame
+      title="Vue d'ensemble"
+      description="Indicateurs du jour, analytiques et suivi des colis en cours."
+    >
       <AdminDashboardView data={data} />
-    </>
+    </PageFrame>
   );
 }

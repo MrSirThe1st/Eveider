@@ -10,7 +10,8 @@ type InvitePreview = {
   recipientName: string | null;
   parcel: {
     id: string;
-    reference: string;
+    trackingNumber: string;
+    reference: string | null;
     locker: string | null;
   };
 };
@@ -64,7 +65,7 @@ export function InviteLanding({ token }: InviteLandingProps) {
     );
   }
 
-  const trackHref = `/suivi?ref=${encodeURIComponent(invite.parcel.reference)}&phone=${encodeURIComponent(invite.recipientPhone)}`;
+  const trackHref = `/suivi?mode=tracking&tracking=${encodeURIComponent(invite.parcel.trackingNumber)}`;
 
   return (
     <main style={pageStyle}>
@@ -85,7 +86,7 @@ export function InviteLanding({ token }: InviteLandingProps) {
           {invite.business.toUpperCase()} VOUS A ENVOYÉ UN COLIS
         </h1>
         <p style={{ margin: '0 0 1.5rem', fontWeight: 500, color: colors.textMuted }}>
-          Référence {invite.parcel.reference}
+          Suivi {invite.parcel.trackingNumber}
           {invite.parcel.locker ? ` · Casier ${invite.parcel.locker}` : ''}
         </p>
 

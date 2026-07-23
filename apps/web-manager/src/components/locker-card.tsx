@@ -1,13 +1,16 @@
 'use client';
 
 import { colors, borderStrong, borderSubtle, webCardStyle } from '@eveider/config-ui';
+import { usesCompartmentGrid, type LockerType } from '@eveider/domain';
 import { LockerSizeSummary } from '@/components/compartment-select-grid';
 
 export type LockerOption = {
   id: string;
   name: string;
   address: string;
+  type?: LockerType;
   availableCompartments: number;
+  availableSlots?: number;
   availableBySize?: { small: number; medium: number; large: number };
   rows?: number;
   columns?: number;
@@ -23,14 +26,16 @@ type LockerCardProps = {
 };
 
 export function LockerCard({ locker, selected, onSelect }: LockerCardProps) {
-  const isFull = locker.availableCompartments === 0;
+  const slots = locker.availableSlots ?? locker.availableCompartments;
+  const isFull = slots === 0;
+  const smart = usesCompartmentGrid(locker.type ?? 'SMART_LOCKER');
 
-  let statusText = `${locker.availableCompartments} libres`;
+  let statusText = smart ? `${slots} libres` : `${slots} places libres`;
   let statusColor: string = colors.success;
   let statusBg = 'rgba(9, 212, 11, 0.1)';
 
-  if (locker.availableCompartments === 1) {
-    statusText = '1 compartiment libre';
+  if (slots === 1) {
+    statusText = smart ? '1 compartiment libre' : '1 place libre';
     statusColor = colors.warning;
     statusBg = 'rgba(255, 184, 0, 0.1)';
   } else if (isFull) {
@@ -119,7 +124,7 @@ export function LockerCard({ locker, selected, onSelect }: LockerCardProps) {
         >
           {locker.address}
         </p>
-        {locker.rows && locker.columns ? (
+        {smart && locker.rows && locker.columns ? (
           <p style={{ margin: '0.35rem 0 0', fontSize: '0.75rem', fontWeight: 600, opacity: 0.55 }}>
             Grille {locker.rows}×{locker.columns}
           </p>
@@ -156,7 +161,7 @@ export function LockerCard({ locker, selected, onSelect }: LockerCardProps) {
             </span>
           ) : null}
         </div>
-        <LockerSizeSummary availableBySize={sizeSummary} />
+        {smart ? <LockerSizeSummary availableBySize={sizeSummary} /> : null}
       </div>
     </div>
   );

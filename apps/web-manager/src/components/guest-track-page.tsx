@@ -19,11 +19,28 @@ type PaymentProviders = {
   providers: string[];
 };
 
+type TrackCandidate = {
+  id: string;
+  trackingNumber: string;
+  reference: string | null;
+  status: string;
+  businessName: string;
+  updatedAt: string;
+};
+
 export function GuestTrackPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [reference, setReference] = useState(searchParams.get('ref') ?? '');
+  const initialMode =
+    searchParams.get('mode') === 'phone' || (!searchParams.get('tracking') && searchParams.get('phone') && !searchParams.get('ref'))
+      ? 'phone'
+      : 'tracking';
+  const [mode, setMode] = useState<'tracking' | 'phone'>(initialMode);
+  const [trackingNumber, setTrackingNumber] = useState(
+    searchParams.get('tracking') ?? searchParams.get('ref') ?? '',
+  );
   const [phone, setPhone] = useState(searchParams.get('phone') ?? '');
+  const [candidates, setCandidates] = useState<TrackCandidate[]>([]);
   const [trackToken, setTrackToken] = useState<string | null>(null);
   const [parcel, setParcel] = useState<CustomerParcelDto | null>(null);
   const [providers, setProviders] = useState<PaymentProviders | null>(null);
@@ -50,42 +67,131 @@ export function GuestTrackPage() {
   }, [loadProviders]);
 
   useEffect(() => {
+    const tracking = searchParams.get('tracking');
     const ref = searchParams.get('ref');
     const ph = searchParams.get('phone');
+    if (tracking && !parcel && !loading) {
+      void lookupTracking(tracking);
+      return;
+    }
     if (ref && ph && !parcel && !loading) {
-      void lookup(ref, ph);
+      void lookupLegacy(ref, ph);
     }
   }, []);
 
-  async function lookup(refValue = reference, phoneValue = phone) {
+  async function applyTrackSuccess(
+    data: { trackToken: string; parcel: CustomerParcelDto },
+    url: string,
+  ) {
+    setCandidates([]);
+    setTrackToken(data.trackToken);
+    setParcel(data.parcel);
+    setPaymentPhone(phone.trim());
+    router.replace(url);
+  }
+
+  async function lookupTracking(value = trackingNumber) {
     setLoading(true);
     setError(null);
     setMessage(null);
     setParcel(null);
     setTrackToken(null);
+    setCandidates([]);
 
     try {
       const res = await fetch('/api/track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reference: refValue.trim(), phone: phoneValue.trim() }),
+        body: JSON.stringify({ mode: 'tracking', trackingNumber: value.trim() }),
       });
       const json = await res.json();
       if (!json.success) {
         setError(json.error ?? 'Colis introuvable');
         return;
       }
-      setTrackToken(json.data.trackToken);
-      setParcel(json.data.parcel);
-      setPaymentPhone(phoneValue.trim());
-      router.replace(
-        `/suivi?ref=${encodeURIComponent(refValue.trim())}&phone=${encodeURIComponent(phoneValue.trim())}`,
+      await applyTrackSuccess(
+        json.data,
+        `/suivi?mode=tracking&tracking=${encodeURIComponent(value.trim())}`,
       );
     } catch {
       setError('Erreur réseau');
     } finally {
       setLoading(false);
     }
+  }
+
+  async function lookupPhone(value = phone) {
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+    setParcel(null);
+    setTrackToken(null);
+    setCandidates([]);
+
+    try {
+      const res = await fetch('/api/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'phone', phone: value.trim() }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        setError(json.error ?? 'Colis introuvable');
+        return;
+      }
+      if (json.data.candidates) {
+        setCandidates(json.data.candidates);
+        router.replace(`/suivi?mode=phone&phone=${encodeURIComponent(value.trim())}`);
+        return;
+      }
+      setPaymentPhone(value.trim());
+      await applyTrackSuccess(
+        json.data,
+        `/suivi?mode=phone&phone=${encodeURIComponent(value.trim())}&tracking=${encodeURIComponent(json.data.parcel.trackingNumber)}`,
+      );
+    } catch {
+      setError('Erreur réseau');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function lookupLegacy(refValue: string, phoneValue: string) {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'legacy',
+          reference: refValue.trim(),
+          phone: phoneValue.trim(),
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        setError(json.error ?? 'Colis introuvable');
+        return;
+      }
+      setPaymentPhone(phoneValue.trim());
+      await applyTrackSuccess(
+        json.data,
+        `/suivi?mode=tracking&tracking=${encodeURIComponent(json.data.parcel.trackingNumber)}`,
+      );
+    } catch {
+      setError('Erreur réseau');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function lookup() {
+    if (mode === 'tracking') {
+      await lookupTracking();
+      return;
+    }
+    await lookupPhone();
   }
 
   async function refreshParcel() {
@@ -202,7 +308,7 @@ export function GuestTrackPage() {
           Suivre votre colis
         </h1>
         <p style={{ margin: '0 0 1.75rem', fontWeight: 500, color: colors.textMuted, lineHeight: 1.5 }}>
-          Aucun compte requis. Entrez la référence du colis et le numéro de téléphone du destinataire.
+          Aucun compte requis. Recherchez par numéro de suivi Eveider, ou par téléphone destinataire.
         </p>
 
         <form
@@ -212,27 +318,66 @@ export function GuestTrackPage() {
           }}
           style={{ ...webCardStyle, padding: '1.5rem', marginBottom: '1.5rem' }}
         >
-          <label style={{ display: 'block', marginBottom: '1rem' }}>
-            <span style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>RÉFÉRENCE COLIS</span>
-            <input
-              value={reference}
-              onChange={(e) => setReference(e.target.value)}
-              placeholder="Ex. PK-28473"
-              required
-              style={inputStyle}
-            />
-          </label>
-          <label style={{ display: 'block', marginBottom: '1.25rem' }}>
-            <span style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>TÉLÉPHONE DESTINATAIRE</span>
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+243 …"
-              required
-              inputMode="tel"
-              style={inputStyle}
-            />
-          </label>
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+            {(
+              [
+                ['tracking', 'N° DE SUIVI'],
+                ['phone', 'TÉLÉPHONE'],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => {
+                  setMode(value);
+                  setCandidates([]);
+                  setError(null);
+                }}
+                style={{
+                  flex: 1,
+                  height: 40,
+                  border: borderSubtle(),
+                  borderRadius: radius.button,
+                  background: mode === value ? colors.primary : colors.surface,
+                  fontWeight: 700,
+                  fontSize: '0.6875rem',
+                  letterSpacing: '0.06em',
+                  cursor: 'pointer',
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {mode === 'tracking' ? (
+            <label style={{ display: 'block', marginBottom: '1.25rem' }}>
+              <span style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>
+                NUMÉRO DE SUIVI
+              </span>
+              <input
+                value={trackingNumber}
+                onChange={(e) => setTrackingNumber(e.target.value)}
+                placeholder="Ex. EVD26A7K3M2PX"
+                required
+                style={inputStyle}
+              />
+            </label>
+          ) : (
+            <label style={{ display: 'block', marginBottom: '1.25rem' }}>
+              <span style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>
+                TÉLÉPHONE DESTINATAIRE
+              </span>
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+243 …"
+                required
+                inputMode="tel"
+                style={inputStyle}
+              />
+            </label>
+          )}
           <button
             type="submit"
             disabled={loading}
@@ -242,6 +387,42 @@ export function GuestTrackPage() {
             {loading ? 'RECHERCHE…' : 'SUIVRE MON COLIS'}
           </button>
         </form>
+
+        {candidates.length > 0 ? (
+          <div style={{ ...webCardStyle, padding: '1rem', marginBottom: '1.5rem' }}>
+            <p style={{ margin: '0 0 0.75rem', fontWeight: 700, fontSize: '0.8125rem' }}>
+              Plusieurs colis trouvés — choisissez-en un
+            </p>
+            {candidates.map((candidate) => (
+              <button
+                key={candidate.id}
+                type="button"
+                onClick={() => {
+                  setMode('tracking');
+                  setTrackingNumber(candidate.trackingNumber);
+                  void lookupTracking(candidate.trackingNumber);
+                }}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '0.75rem',
+                  marginBottom: '0.5rem',
+                  border: borderSubtle(),
+                  borderRadius: radius.button,
+                  background: colors.surface,
+                  cursor: 'pointer',
+                }}
+              >
+                <strong>{candidate.trackingNumber}</strong>
+                <span style={{ display: 'block', fontSize: '0.75rem', color: colors.textMuted }}>
+                  {candidate.businessName}
+                  {candidate.reference ? ` · ${candidate.reference}` : ''}
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         {error ? (
           <p style={{ color: colors.danger, fontWeight: 600, marginBottom: '1rem' }}>{error}</p>
@@ -255,9 +436,16 @@ export function GuestTrackPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
               <div>
                 <p style={{ margin: 0, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.1em', color: colors.textMuted }}>
-                  RÉFÉRENCE
+                  N° DE SUIVI
                 </p>
-                <p style={{ margin: '0.25rem 0 0', fontWeight: 700, fontSize: '1.125rem' }}>{parcel.reference}</p>
+                <p style={{ margin: '0.25rem 0 0', fontWeight: 700, fontSize: '1.125rem' }}>
+                  {parcel.trackingNumber}
+                </p>
+                {parcel.reference ? (
+                  <p style={{ margin: '0.35rem 0 0', fontSize: '0.8125rem', color: colors.textMuted }}>
+                    Réf. marchande : {parcel.reference}
+                  </p>
+                ) : null}
               </div>
               <span
                 style={{

@@ -9,6 +9,7 @@ import {
   LOCKER_STATUSES,
   canTransitionCompartment,
   canTransitionLocker,
+  usesCompartmentGrid,
   type CompartmentStatus,
   type LockerStatus,
 } from '@eveider/domain';
@@ -77,7 +78,7 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
   const error = isError
     ? queryError instanceof Error
       ? queryError.message
-      : 'Impossible de charger le casier.'
+      : 'Impossible de charger le point.'
     : null;
 
   function updateLockerCache(nextLocker: LockerDetailData) {
@@ -99,9 +100,13 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
   );
 
   const occupancyRate = locker
-    ? locker.compartmentCounts.total > 0
-      ? Math.round((locker.compartmentCounts.occupied / locker.compartmentCounts.total) * 100)
-      : 0
+    ? usesCompartmentGrid(locker.type)
+      ? locker.compartmentCounts.total > 0
+        ? Math.round((locker.compartmentCounts.occupied / locker.compartmentCounts.total) * 100)
+        : 0
+      : locker.maxCapacity && locker.maxCapacity > 0
+        ? Math.round((locker.occupyingCount / locker.maxCapacity) * 100)
+        : 0
     : 0;
 
   async function advanceLockerStatus(nextStatus: LockerStatus) {
@@ -162,15 +167,15 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
   }
 
   if (loading) {
-    return <LoadingSpinner label="Chargement du casier…" />;
+    return <LoadingSpinner label="Chargement du point…" />;
   }
 
   if (error || !locker) {
     return (
       <div>
-        <p style={{ fontWeight: 500, color: colors.danger }}>{error ?? 'Casier introuvable'}</p>
-        <Link href="/tableau-de-bord/casiers" style={{ fontWeight: 600 }}>
-          ← Retour aux casiers
+        <p style={{ fontWeight: 500, color: colors.danger }}>{error ?? 'Point introuvable'}</p>
+        <Link href="/tableau-de-bord/points" style={{ fontWeight: 600 }}>
+          ← Retour aux points
         </Link>
       </div>
     );
@@ -180,6 +185,7 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
   const nextCompartmentStatuses = selectedCompartment
     ? getNextCompartmentStatuses(selectedCompartment.status)
     : [];
+  const smartLocker = usesCompartmentGrid(locker.type);
 
   return (
     <div style={{ maxWidth: 1080 }}>
@@ -187,7 +193,7 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
       {actionError ? <FlashBanner message={actionError} variant="error" /> : null}
 
       <Link
-        href="/tableau-de-bord/casiers"
+        href="/tableau-de-bord/points"
         style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -201,7 +207,7 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
           opacity: 0.7,
         }}
       >
-        ← CASIERS
+        ← POINTS
       </Link>
 
       <header style={{ marginBottom: '1.5rem' }}>
@@ -224,7 +230,7 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
                 color: colors.primary,
               }}
             >
-              {locker.code}
+              {locker.code} · {locker.typeLabel}
             </p>
             <h2
               style={{
@@ -248,8 +254,21 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
                 opacity: 0.6,
               }}
             >
-              {locker.rows} × {locker.columns} · {locker.compartmentCounts.total} compartiments
+              {smartLocker
+                ? `${locker.rows} × ${locker.columns} · ${locker.compartmentCounts.total} compartiments`
+                : `${locker.availableSlots} places libres / ${locker.maxCapacity ?? '—'} max`}
             </p>
+            {!smartLocker && locker.contactPhone ? (
+              <p style={{ margin: '0.5rem 0 0', fontSize: '0.8125rem', fontWeight: 500 }}>
+                Contact : {locker.contactName ? `${locker.contactName} · ` : ''}
+                {locker.contactPhone}
+              </p>
+            ) : null}
+            {!smartLocker && locker.notes ? (
+              <p style={{ margin: '0.35rem 0 0', fontSize: '0.8125rem', opacity: 0.75 }}>
+                {locker.notes}
+              </p>
+            ) : null}
           </div>
           <LockerStatusBadge status={locker.status} />
         </div>
@@ -263,13 +282,24 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
           marginBottom: '2rem',
         }}
       >
-        <StatItem label="DISPONIBLES" value={locker.compartmentCounts.available} />
-        <StatItem label="OCCUPÉS" value={locker.compartmentCounts.occupied} />
-        <StatItem label="RÉSERVÉS" value={locker.compartmentCounts.reserved} />
+        {smartLocker ? (
+          <>
+            <StatItem label="DISPONIBLES" value={locker.compartmentCounts.available} />
+            <StatItem label="OCCUPÉS" value={locker.compartmentCounts.occupied} />
+            <StatItem label="RÉSERVÉS" value={locker.compartmentCounts.reserved} />
+          </>
+        ) : (
+          <>
+            <StatItem label="LIBRES" value={locker.availableSlots} />
+            <StatItem label="ASSIGNÉS" value={locker.occupyingCount} />
+            <StatItem label="CAPACITÉ" value={locker.maxCapacity ?? '—'} />
+          </>
+        )}
         <StatItem label="OCCUPATION" value={`${occupancyRate}%`} />
       </div>
 
       {/* Cabinet + side panel */}
+      {smartLocker ? (
       <div
         style={{
           display: 'flex',
@@ -395,6 +425,11 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
           )}
         </aside>
       </div>
+      ) : (
+        <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 500, opacity: 0.75 }}>
+          Point sans grille matérielle — le retrait se fait en personne via le contact indiqué.
+        </p>
+      )}
       {nextLockerStatuses.length > 0 ? (
         <section style={{ marginTop: '2rem' }}>
           <p
@@ -406,7 +441,7 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
               opacity: 0.55,
             }}
           >
-            STATUT DU CASIER
+            STATUT DU POINT
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
             {nextLockerStatuses.map((status) => (

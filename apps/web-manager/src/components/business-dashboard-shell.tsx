@@ -20,7 +20,7 @@ export function BusinessDashboardShell({ children }: BusinessDashboardShellProps
 
   return (
     <AppShell
-      brand="ENTREPRISES"
+      brand="Entreprises"
       brandShort="EN"
       storageKey="eveider-business-sidebar"
       maxWidth={1080}
@@ -28,7 +28,7 @@ export function BusinessDashboardShell({ children }: BusinessDashboardShellProps
       navItems={[
         {
           href: WEB_ROUTES.businessDashboard,
-          label: 'MES COLIS',
+          label: 'Mes colis',
           icon: <IconPackage />,
           isActive: (p) =>
             p === WEB_ROUTES.businessDashboard ||
@@ -37,7 +37,7 @@ export function BusinessDashboardShell({ children }: BusinessDashboardShellProps
         },
         {
           href: WEB_ROUTES.businessNewParcel,
-          label: 'NOUVEAU COLIS',
+          label: 'Nouveau colis',
           icon: <IconPlus />,
           isActive: (p) => p === WEB_ROUTES.businessNewParcel,
         },

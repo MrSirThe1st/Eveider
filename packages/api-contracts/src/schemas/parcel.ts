@@ -8,7 +8,12 @@ export const listParcelsQuerySchema = z.object({
 
 export const createParcelSchema = z
   .object({
-    reference: z.string().min(1, 'Référence requise').max(64),
+    reference: z
+      .string()
+      .trim()
+      .max(64, 'Référence trop longue')
+      .optional()
+      .transform((value) => (value && value.length > 0 ? value : undefined)),
     recipientName: z.string().min(2, 'Nom destinataire requis').optional(),
     recipientPhone: phoneSchema,
     recipientEmail: emailSchema.optional(),

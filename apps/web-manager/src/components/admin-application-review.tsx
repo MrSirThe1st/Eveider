@@ -22,9 +22,14 @@ function toDocReviewStatus(status: string): DocReviewStatus {
 
 interface AdminApplicationReviewProps {
   business: BusinessApplicationDetail;
+  /** When true, skip outer max-width / title (provided by PageFrame). */
+  hidePageChrome?: boolean;
 }
 
-export function AdminApplicationReview({ business }: AdminApplicationReviewProps) {
+export function AdminApplicationReview({
+  business,
+  hidePageChrome = false,
+}: AdminApplicationReviewProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -117,45 +122,94 @@ export function AdminApplicationReview({ business }: AdminApplicationReviewProps
   const mainAddress = business.locations?.find((l: ApplicationLocation) => l.type === 'business_address');
   const pickupPoint = business.locations?.find((l: ApplicationLocation) => l.type === 'pickup_point');
 
+  const actions = (
+    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: hidePageChrome ? '1.5rem' : 0 }}>
+      <button
+        type="button"
+        onClick={() => void handleDecision('request_correction')}
+        disabled={loading}
+        style={{
+          ...webSecondaryButtonStyle,
+          height: 42,
+          padding: '0 1.25rem',
+          borderColor: '#F59E0B',
+          color: '#B45309',
+          fontWeight: 700,
+        }}
+      >
+        Demander des corrections
+      </button>
+      <button
+        type="button"
+        onClick={() => void handleDecision('approve')}
+        disabled={loading}
+        style={{
+          ...webPrimaryButtonStyle,
+          height: 42,
+          padding: '0 1.5rem',
+          fontWeight: 700,
+        }}
+      >
+        Approuver et activer
+      </button>
+    </div>
+  );
+
   return (
-    <div style={{ maxWidth: 1000, margin: '1.5rem auto', padding: '0 1rem 4rem' }}>
-      
-      <Link href="/tableau-de-bord/entreprises/applications" style={{ textDecoration: 'none', color: colors.secondary, fontWeight: 700, fontSize: '0.8125rem' }}>
-        ← Retour aux dossiers d&apos;inscription
-      </Link>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '1rem 0 2rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <span style={{ fontSize: '0.75rem', fontWeight: 800, padding: '0.25rem 0.65rem', background: '#121212', color: '#09D40B', borderRadius: 4 }}>
-            ID : {business.id.slice(0, 8)}
-          </span>
-          <h1 style={{ margin: '0.5rem 0 0.25rem', fontSize: '1.75rem', fontWeight: 800 }}>
-            Revue KYC — {business.name}
-          </h1>
-          <p style={{ margin: 0, fontSize: '0.875rem', color: '#64748B' }}>
-            Statut actuel : <strong>{BUSINESS_STATUS_LABELS[business.status as BusinessStatus] ?? business.status}</strong>
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button
-            type="button"
-            onClick={() => void handleDecision('request_correction')}
-            disabled={loading}
-            style={{ ...webSecondaryButtonStyle, height: 42, padding: '0 1.25rem', borderColor: '#F59E0B', color: '#B45309', fontWeight: 700 }}
+    <div style={hidePageChrome ? undefined : { maxWidth: 1000, margin: '1.5rem auto', padding: '0 1rem 4rem' }}>
+      {!hidePageChrome ? (
+        <>
+          <Link
+            href="/tableau-de-bord/entreprises/applications"
+            style={{
+              textDecoration: 'none',
+              color: colors.secondary,
+              fontWeight: 700,
+              fontSize: '0.8125rem',
+            }}
           >
-            ⚠️ Demander des corrections
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleDecision('approve')}
-            disabled={loading}
-            style={{ ...webPrimaryButtonStyle, height: 42, padding: '0 1.5rem', background: '#09D40B', color: '#121212', fontWeight: 800 }}
+            ← Retour aux dossiers d&apos;inscription
+          </Link>
+
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              margin: '1rem 0 2rem',
+              flexWrap: 'wrap',
+              gap: '1rem',
+            }}
           >
-            ✓ APPROUVER & ACTIVER LE COMPTE
-          </button>
-        </div>
-      </div>
+            <div>
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  padding: '0.25rem 0.65rem',
+                  background: '#121212',
+                  color: '#09D40B',
+                  borderRadius: 4,
+                }}
+              >
+                ID : {business.id.slice(0, 8)}
+              </span>
+              <h1 style={{ margin: '0.5rem 0 0.25rem', fontSize: '1.75rem', fontWeight: 800 }}>
+                Revue KYC — {business.name}
+              </h1>
+              <p style={{ margin: 0, fontSize: '0.875rem', color: '#64748B' }}>
+                Statut actuel :{' '}
+                <strong>
+                  {BUSINESS_STATUS_LABELS[business.status as BusinessStatus] ?? business.status}
+                </strong>
+              </p>
+            </div>
+            {actions}
+          </div>
+        </>
+      ) : (
+        actions
+      )}
 
       {success ? (
         <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', color: '#166534', padding: '1rem', borderRadius: 8, fontWeight: 700, marginBottom: '1.5rem' }}>

@@ -14,6 +14,59 @@ export async function POST(request: Request) {
 
   try {
     const { parcels } = createRepositories();
+
+    if (body.data.mode === 'tracking') {
+      const parcel = await parcels.findForGuestTrackingByNumber(body.data.trackingNumber);
+      if (!parcel) {
+        return NextResponse.json(fail('Colis introuvable. Vérifiez le numéro de suivi.'), {
+          status: 404,
+        });
+      }
+      const trackToken = createGuestTrackToken(parcel.id, parcel.recipientPhone);
+      return NextResponse.json(
+        ok({
+          trackToken,
+          parcel: await buildCustomerParcelDto(parcel),
+        }),
+      );
+    }
+
+    if (body.data.mode === 'phone') {
+      const candidates = await parcels.listForGuestTrackingByPhone(body.data.phone);
+      if (candidates.length === 0) {
+        return NextResponse.json(fail('Aucun colis trouvé pour ce numéro.'), { status: 404 });
+      }
+      if (candidates.length === 1) {
+        const parcel = await parcels.findByIdForGuestTracking(
+          candidates[0]!.id,
+          body.data.phone,
+        );
+        if (!parcel) {
+          return NextResponse.json(fail('Colis introuvable.'), { status: 404 });
+        }
+        const trackToken = createGuestTrackToken(parcel.id, parcel.recipientPhone);
+        return NextResponse.json(
+          ok({
+            trackToken,
+            parcel: await buildCustomerParcelDto(parcel),
+          }),
+        );
+      }
+
+      return NextResponse.json(
+        ok({
+          candidates: candidates.map((candidate) => ({
+            id: candidate.id,
+            trackingNumber: candidate.trackingNumber,
+            reference: candidate.reference,
+            status: candidate.status,
+            businessName: candidate.businessName,
+            updatedAt: candidate.updatedAt.toISOString(),
+          })),
+        }),
+      );
+    }
+
     const parcel = await parcels.findForGuestTracking(body.data.reference, body.data.phone);
     if (!parcel) {
       return NextResponse.json(fail('Colis introuvable. Vérifiez la référence et le téléphone.'), {

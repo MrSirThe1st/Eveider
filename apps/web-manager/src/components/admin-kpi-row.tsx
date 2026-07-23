@@ -114,7 +114,7 @@ export function AdminKpiRow({ stats }: AdminKpiRowProps) {
           label="Occupation casiers"
           value={`${occupancyRate}%`}
           hint={`${stats.lockerOccupancy.occupied} / ${stats.lockerOccupancy.total} compartiments`}
-          href="/tableau-de-bord/casiers"
+          href="/tableau-de-bord/points"
         />
       </div>
     </section>

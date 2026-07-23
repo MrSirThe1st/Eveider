@@ -13,7 +13,8 @@ export type BusinessSummaryDto = {
 
 export type AdminParcelDto = {
   id: string;
-  reference: string;
+  trackingNumber: string;
+  reference: string | null;
   status: ParcelStatus;
   statusLabel: string;
   recipientName: string | null;
@@ -27,7 +28,8 @@ export type AdminParcelDto = {
 
 export function toAdminParcelDto(parcel: {
   id: string;
-  reference: string;
+  trackingNumber: string;
+  reference: string | null;
   status: ParcelStatus;
   recipientName: string | null;
   recipientPhone: string;
@@ -39,6 +41,7 @@ export function toAdminParcelDto(parcel: {
 }): AdminParcelDto {
   return {
     id: parcel.id,
+    trackingNumber: parcel.trackingNumber,
     reference: parcel.reference,
     status: parcel.status,
     statusLabel: PARCEL_STATUS_LABELS[parcel.status],

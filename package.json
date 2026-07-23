@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@9.15.4",
   "scripts": {
-    "dev": "turbo dev --filter=@eveider/web-manager",
+    "dev": "pnpm --filter @eveider/web-manager dev",
     "dev:web": "pnpm --filter @eveider/web-manager dev",
     "dev:mobile": "pnpm --filter @eveider/mobile-tenant dev",
     "build": "turbo build",

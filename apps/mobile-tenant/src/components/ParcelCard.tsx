@@ -22,7 +22,7 @@ export function ParcelCard({ parcel }: ParcelCardProps) {
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.reference}>{parcel.reference}</Text>
+        <Text style={styles.reference}>{parcel.trackingNumber ?? parcel.reference}</Text>
         <ParcelStatusBadge status={parcel.status} />
       </View>
       <Text style={styles.meta}>

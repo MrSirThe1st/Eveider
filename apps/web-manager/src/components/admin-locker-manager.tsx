@@ -1,15 +1,21 @@
 'use client';
 
 import { colors, radius, borderSubtle, webCardStyle, webInputStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
-import type { CompartmentCell } from '@eveider/domain';
+import { usesCompartmentGrid } from '@eveider/domain';
 import { LoadingSpinner } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlashBanner } from '@/components/flash-banner';
-import { LockerCreatePanel } from '@/components/locker-create-panel';
-import { LockerMapbox } from '@/components/locker-mapbox';
+import { LockerCreatePanel, type CreatePointPayload } from '@/components/locker-create-panel';
+import { LockerGoogleMap } from '@/components/locker-google-map';
 import type { LockerMapMarkerDto, LockerSummaryDto } from '@/lib/locker-presenter';
-import { searchMapboxPlaces, zoomForPlaceType, type MapboxPlace, type MapSearchViewport } from '@/lib/mapbox';
+import {
+  reverseGeocodeGoogle,
+  searchGooglePlaces,
+  zoomForPlaceType,
+  type MapPlace,
+  type MapSearchViewport,
+} from '@/lib/google-maps';
 
 type DraftLocker = {
   latitude: number;
@@ -21,6 +27,12 @@ type MapFocus = {
   longitude: number;
   zoom?: number;
   key: number;
+};
+
+type PendingAddress = {
+  address: string;
+  latitude: number;
+  longitude: number;
 };
 
 const inputStyle: React.CSSProperties = {
@@ -45,11 +57,14 @@ export function AdminLockerManager({ lockers }: AdminLockerManagerProps) {
   const [placementConfirmed, setPlacementConfirmed] = useState(false);
   const [address, setAddress] = useState('');
   const [locationSearch, setLocationSearch] = useState('');
-  const [searchResults, setSearchResults] = useState<MapboxPlace[]>([]);
+  const [searchResults, setSearchResults] = useState<MapPlace[]>([]);
   const [selectedResultId, setSelectedResultId] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
   const [mapFocus, setMapFocus] = useState<MapFocus | null>(null);
   const [mapViewport, setMapViewport] = useState<MapSearchViewport | null>(null);
+  const [pendingAddress, setPendingAddress] = useState<PendingAddress | null>(null);
+  const [reverseLoading, setReverseLoading] = useState(false);
+  const searchRequestId = useRef(0);
 
   const mapMarkers = useMemo<LockerMapMarkerDto[]>(() => {
     return lockers
@@ -60,13 +75,51 @@ export function AdminLockerManager({ lockers }: AdminLockerManagerProps) {
         address: locker.address,
         latitude: locker.latitude!,
         longitude: locker.longitude!,
+        type: locker.type,
+        typeLabel: locker.typeLabel,
         status: locker.status,
         statusLabel: locker.statusLabel,
         availableCompartments: locker.compartmentCounts.available,
+        availableSlots: locker.availableSlots,
         rows: locker.rows,
         columns: locker.columns,
+        contactPhone: locker.contactPhone,
       }));
   }, [lockers]);
+
+  useEffect(() => {
+    const query = locationSearch.trim();
+    if (query.length < 2) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+
+    const requestId = ++searchRequestId.current;
+    setSearching(true);
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const places = await searchGooglePlaces(query, {
+            limit: 8,
+            viewport: mapViewport ?? undefined,
+          });
+          if (requestId !== searchRequestId.current) return;
+          setSearchResults(places);
+          setError(null);
+        } catch {
+          if (requestId !== searchRequestId.current) return;
+          setError('Recherche impossible. Vérifiez votre clé Google Maps.');
+        } finally {
+          if (requestId === searchRequestId.current) {
+            setSearching(false);
+          }
+        }
+      })();
+    }, 320);
+
+    return () => window.clearTimeout(timer);
+  }, [locationSearch, mapViewport]);
 
   function panMapTo(latitude: number, longitude: number, zoom = 15) {
     setMapFocus({ latitude, longitude, zoom, key: Date.now() });
@@ -78,65 +131,54 @@ export function AdminLockerManager({ lockers }: AdminLockerManagerProps) {
     setSelectedLockerId('');
   }
 
-  async function handleLocationSearch(event?: React.FormEvent) {
-    event?.preventDefault();
-    if (locationSearch.trim().length < 2) {
-      setError('Saisissez au moins 2 caractères.');
-      return;
-    }
-
-    setSearching(true);
-    setError(null);
-    setSearchResults([]);
-    setSelectedResultId(null);
-    setDraft(null);
-    setPlacementConfirmed(false);
-
-    try {
-      const places = await searchMapboxPlaces(locationSearch, {
-        limit: 8,
-        viewport: mapViewport ?? undefined,
-      });
-
-      if (places.length === 0) {
-        setError('Aucun résultat. Essayez un autre libellé.');
-        return;
-      }
-
-      setSearchResults(places);
-    } catch {
-      setError('Recherche impossible. Vérifiez votre jeton Mapbox.');
-    } finally {
-      setSearching(false);
-    }
-  }
-
-  function selectSearchResult(place: MapboxPlace) {
+  function selectSearchResult(place: MapPlace) {
     setSelectedResultId(place.id);
+    setPendingAddress(null);
     setError(null);
     if (!address.trim()) {
       setAddress(place.label);
     }
     panMapTo(place.latitude, place.longitude, zoomForPlaceType(place.placeType));
-    setPlacement(
-      { latitude: place.latitude, longitude: place.longitude },
-      false,
-    );
+    setPlacement({ latitude: place.latitude, longitude: place.longitude }, true);
+    setLocationSearch(place.label);
+    setSearchResults([]);
   }
 
-  function handleMapPlacement(coords: { latitude: number; longitude: number }) {
+  async function handleMapPlacement(coords: { latitude: number; longitude: number }) {
     setPlacement(coords, true);
+    setSelectedResultId(null);
+
+    if (address.trim()) {
+      setPendingAddress(null);
+      return;
+    }
+
+    setReverseLoading(true);
+    try {
+      const resolved = await reverseGeocodeGoogle(coords.latitude, coords.longitude);
+      if (!resolved) {
+        setPendingAddress(null);
+        return;
+      }
+      setPendingAddress({
+        address: resolved,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+      });
+    } catch {
+      setPendingAddress(null);
+    } finally {
+      setReverseLoading(false);
+    }
   }
 
-  async function createLocker(input: {
-    code?: string;
-    name: string;
-    address: string;
-    rows: number;
-    columns: number;
-    compartments: CompartmentCell[];
-    status: 'active' | 'offline';
-  }) {
+  function confirmPendingAddress() {
+    if (!pendingAddress) return;
+    setAddress(pendingAddress.address);
+    setPendingAddress(null);
+  }
+
+  async function createLocker(input: CreatePointPayload) {
     if (!draft || !placementConfirmed) {
       setError('Cliquez sur la carte ou déplacez le repère pour confirmer l’emplacement exact.');
       return;
@@ -163,17 +205,18 @@ export function AdminLockerManager({ lockers }: AdminLockerManagerProps) {
         return;
       }
 
-      setSuccess(`Casier ${input.name} créé (${result.data.locker.code}).`);
+      setSuccess(`Point ${input.name} créé (${result.data.locker.code}).`);
       setDraft(null);
       setPlacementConfirmed(false);
       setAddress('');
       setLocationSearch('');
       setSearchResults([]);
       setSelectedResultId(null);
+      setPendingAddress(null);
       setMapFocus(null);
       router.refresh();
     } catch {
-      setError('Impossible de créer le casier.');
+      setError('Impossible de créer le point.');
     } finally {
       setSaving(false);
     }
@@ -197,18 +240,18 @@ export function AdminLockerManager({ lockers }: AdminLockerManagerProps) {
         return;
       }
 
-      setSuccess('Casier archivé.');
+      setSuccess('Point archivé.');
       setSelectedLockerId('');
       router.refresh();
     } catch {
-      setError('Impossible d’archiver le casier.');
+      setError('Impossible d’archiver le point.');
     } finally {
       setArchiving(false);
     }
   }
 
   const placementHint = !draft
-    ? 'Zoomez sur la zone visée, puis recherchez. Si la rue n’apparaît pas, cliquez directement sur la carte pour placer le repère.'
+    ? 'Zoomez sur la zone, saisissez une adresse (suggestions en direct), ou cliquez sur la carte.'
     : !placementConfirmed
       ? 'Repère placé — glissez-le ou cliquez sur la carte pour confirmer l’emplacement exact.'
       : `Emplacement confirmé : ${draft.latitude.toFixed(6)}, ${draft.longitude.toFixed(6)}`;
@@ -219,7 +262,7 @@ export function AdminLockerManager({ lockers }: AdminLockerManagerProps) {
       {success ? <FlashBanner message={success} /> : null}
       {(saving || archiving) ? (
         <LoadingSpinner
-          label={saving ? 'Création du casier…' : 'Archivage…'}
+          label={saving ? 'Création du point…' : 'Archivage…'}
           minHeight="4rem"
           size={28}
         />
@@ -227,21 +270,67 @@ export function AdminLockerManager({ lockers }: AdminLockerManagerProps) {
 
       <div style={{ display: 'grid', gap: '1.25rem' }}>
         <div style={{ width: '100%' }}>
-          <LockerMapbox
+          <LockerGoogleMap
             lockers={mapMarkers}
             selectedLockerId={selectedLockerId}
             onSelectLocker={setSelectedLockerId}
             draftMarker={draft}
             draftMarkerDraggable={Boolean(draft)}
-            onDraftMarkerDrag={handleMapPlacement}
+            onDraftMarkerDrag={(coords) => void handleMapPlacement(coords)}
             mapFocus={mapFocus}
             onViewportChange={setMapViewport}
-            onMapClick={handleMapPlacement}
+            onMapClick={(coords) => void handleMapPlacement(coords)}
             height={580}
           />
           <p style={{ margin: '0.75rem 0 0', fontSize: '0.8125rem', fontWeight: 600, color: colors.secondary }}>
             {placementHint}
           </p>
+          {reverseLoading ? (
+            <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: colors.textMuted }}>
+              Recherche de l’adresse…
+            </p>
+          ) : null}
+          {pendingAddress ? (
+            <div
+              style={{
+                marginTop: '0.75rem',
+                padding: '0.75rem',
+                border: borderSubtle(),
+                borderRadius: radius.button,
+                background: colors.surface,
+                display: 'grid',
+                gap: '0.5rem',
+              }}
+            >
+              <p style={{ margin: 0, fontSize: '0.8125rem', fontWeight: 600 }}>
+                Utiliser cette adresse ?
+              </p>
+              <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>
+                {pendingAddress.address}
+              </p>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={confirmPendingAddress}
+                  style={{ ...webSecondaryButtonStyle, height: 36, flex: 1 }}
+                >
+                  OUI, REMPLIR
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPendingAddress(null)}
+                  style={{
+                    ...webSecondaryButtonStyle,
+                    height: 36,
+                    flex: 1,
+                    background: colors.surface,
+                  }}
+                >
+                  IGNORER
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div
@@ -263,34 +352,24 @@ export function AdminLockerManager({ lockers }: AdminLockerManagerProps) {
                 1. RECHERCHER UN LIEU
               </p>
               <p style={{ margin: '0 0 0.75rem', fontSize: '0.75rem', color: colors.secondary, opacity: 0.75 }}>
-                Les résultats sont priorisés autour de la zone affichée sur la carte. Certaines rues visibles sur la carte ne sont pas indexées par la recherche.
+                Suggestions Google Places (RDC, français), priorisées autour de la carte. Certaines rues visibles peuvent ne pas être indexées.
               </p>
 
-              <form onSubmit={(event) => void handleLocationSearch(event)} style={{ marginBottom: '0.75rem' }}>
-                <label style={{ display: 'block' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>RECHERCHER UN LIEU</span>
-                  <input
-                    value={locationSearch}
-                    onChange={(e) => setLocationSearch(e.target.value)}
-                    placeholder="Avenue, bâtiment, quartier, ville…"
-                    style={inputStyle}
-                  />
-                </label>
-                <button
-                  type="submit"
-                  disabled={searching || locationSearch.trim().length < 2}
-                  style={{
-                    ...webSecondaryButtonStyle,
-                    width: '100%',
-                    height: 38,
-                    background: colors.surface,
-                    cursor: searching ? 'wait' : 'pointer',
-                    opacity: locationSearch.trim().length >= 2 ? 1 : 0.6,
-                  }}
-                >
-                  {searching ? 'RECHERCHE…' : 'RECHERCHER'}
-                </button>
-              </form>
+              <label style={{ display: 'block', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>ADRESSE OU LIEU</span>
+                <input
+                  value={locationSearch}
+                  onChange={(e) => setLocationSearch(e.target.value)}
+                  placeholder="Avenue, bâtiment, quartier, ville…"
+                  style={inputStyle}
+                  autoComplete="off"
+                />
+              </label>
+              {searching ? (
+                <p style={{ margin: '0 0 0.75rem', fontSize: '0.75rem', color: colors.textMuted }}>
+                  Recherche…
+                </p>
+              ) : null}
 
               {searchResults.length > 0 ? (
                 <div>
@@ -330,6 +409,9 @@ export function AdminLockerManager({ lockers }: AdminLockerManagerProps) {
                         >
                           <span style={{ fontWeight: 700, marginRight: 6 }}>{index + 1}.</span>
                           {place.label}
+                          <span style={{ display: 'block', marginTop: 2, fontSize: '0.6875rem', opacity: 0.7 }}>
+                            {place.placeTypeLabel}
+                          </span>
                         </button>
                       );
                     })}
@@ -364,7 +446,7 @@ export function AdminLockerManager({ lockers }: AdminLockerManagerProps) {
                   cursor: archiving ? 'wait' : 'pointer',
                 }}
               >
-                {archiving ? 'ARCHIVAGE…' : 'ARCHIVER LE CASIER SÉLECTIONNÉ'}
+                {archiving ? 'ARCHIVAGE…' : 'ARCHIVER LE POINT SÉLECTIONNÉ'}
               </button>
             ) : null}
             </div>
@@ -377,7 +459,7 @@ export function AdminLockerManager({ lockers }: AdminLockerManagerProps) {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                {['CODE', 'CASIER', 'STATUT', 'GRILLE', 'DISPONIBLES', ''].map((heading) => (
+                {['CODE', 'POINT', 'TYPE', 'STATUT', 'CAPACITÉ', ''].map((heading) => (
                   <th
                     key={heading || 'link'}
                     style={{
@@ -403,17 +485,19 @@ export function AdminLockerManager({ lockers }: AdminLockerManagerProps) {
                   <td style={{ padding: '0.75rem', borderBottom: borderSubtle(), fontWeight: 600 }}>
                     {locker.name}
                   </td>
+                  <td style={{ padding: '0.75rem', borderBottom: borderSubtle(), fontSize: '0.8125rem' }}>
+                    {locker.typeLabel}
+                  </td>
                   <td style={{ padding: '0.75rem', borderBottom: borderSubtle() }}>
                     {locker.statusLabel}
                   </td>
                   <td style={{ padding: '0.75rem', borderBottom: borderSubtle() }}>
-                    {locker.rows}×{locker.columns}
+                    {usesCompartmentGrid(locker.type)
+                      ? `${locker.availableSlots} / ${locker.compartmentCounts.total}`
+                      : `${locker.availableSlots} / ${locker.maxCapacity ?? '—'}`}
                   </td>
                   <td style={{ padding: '0.75rem', borderBottom: borderSubtle() }}>
-                    {locker.compartmentCounts.available} / {locker.compartmentCounts.total}
-                  </td>
-                  <td style={{ padding: '0.75rem', borderBottom: borderSubtle() }}>
-                    <a href={`/tableau-de-bord/casiers/${locker.id}`} style={{ fontWeight: 600 }}>
+                    <a href={`/tableau-de-bord/points/${locker.id}`} style={{ fontWeight: 600 }}>
                       DÉTAIL →
                     </a>
                   </td>

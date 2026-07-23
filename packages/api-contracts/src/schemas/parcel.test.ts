@@ -20,11 +20,14 @@ describe('createParcelSchema', () => {
     expect(updateParcelStatusSchema.safeParse({ status: 'in_transit' }).success).toBe(true);
   });
 
-  it('rejects missing reference', () => {
+  it('accepts missing merchant reference', () => {
     const result = createParcelSchema.safeParse({
       recipientPhone: '+243800000000',
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.reference).toBeUndefined();
+    }
   });
 
   it('requires locker when compartment is set', () => {

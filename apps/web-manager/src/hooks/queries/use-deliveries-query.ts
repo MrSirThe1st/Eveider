@@ -29,7 +29,8 @@ export type DeliveryItem = {
   };
   parcel: {
     id: string;
-    reference: string;
+    trackingNumber: string;
+    reference: string | null;
     recipientName: string | null;
     recipientPhone: string;
     business: { id: string; name: string };

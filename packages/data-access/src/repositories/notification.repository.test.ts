@@ -58,7 +58,7 @@ describe('NotificationRepository', () => {
     expect(inserts[0]).toEqual([
       'user-1',
       'parcel-1',
-      'Colis PK-001 — PRÊT POUR RETRAIT · GOMBE',
+      'Colis EVD26TEST0001A — PRÊT POUR RETRAIT · GOMBE',
     ]);
   });
 
@@ -102,6 +102,7 @@ describe('NotificationRepository', () => {
           {
             ...notificationRow({ message: 'Test' }),
             parcel_id_relation: 'parcel-1',
+            parcel_tracking_number: 'EVD26TEST0001A',
             parcel_reference: 'PK-001',
           },
         ];
@@ -126,8 +127,8 @@ describe('NotificationRepository', () => {
       if (sqlIncludes(sql, 'UPDATE notifications SET sent_at')) {
         return notificationRow({ sent_at: sentAt });
       }
-      if (sqlIncludes(sql, 'SELECT id, reference FROM parcels')) {
-        return { id: 'parcel-1', reference: 'PK-001' };
+      if (sqlIncludes(sql, 'SELECT id, tracking_number, reference FROM parcels')) {
+        return { id: 'parcel-1', tracking_number: 'EVD26TEST0001A', reference: 'PK-001' };
       }
       throw new Error(`Unexpected SQL: ${sql}`);
     });

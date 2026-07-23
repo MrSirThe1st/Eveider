@@ -1,4 +1,4 @@
-import type { CompartmentSize, CompartmentStatus, LockerStatus } from '@eveider/domain';
+import type { CommissionType, CompartmentSize, CompartmentStatus, LockerStatus, LockerType } from '@eveider/domain';
 import { useCallback, useEffect, useState } from 'react';
 import { fetchJson } from '@/lib/api/fetch-json';
 
@@ -7,6 +7,7 @@ export type CompartmentItem = {
   label: string;
   size: CompartmentSize;
   status: CompartmentStatus;
+  statusLabel?: string;
 };
 
 export type LockerDetailData = {
@@ -14,9 +15,23 @@ export type LockerDetailData = {
   code: string;
   name: string;
   address: string;
+  latitude?: number | null;
+  longitude?: number | null;
   rows: number;
   columns: number;
+  type: LockerType;
+  typeLabel: string;
+  maxCapacity: number | null;
+  contactPhone: string | null;
+  contactName: string | null;
+  notes: string | null;
+  commissionType: CommissionType | null;
+  commissionValue: number | null;
+  commissionCurrency: string | null;
+  occupyingCount: number;
+  availableSlots: number;
   status: LockerStatus;
+  statusLabel?: string;
   compartmentCounts: {
     available: number;
     occupied: number;
@@ -44,7 +59,7 @@ export function useLockerDetailQuery(lockerId: string) {
       const locker = await fetchLockerDetail(lockerId);
       setData(locker);
     } catch (e) {
-      setError(e instanceof Error ? e : new Error('Impossible de charger le casier.'));
+      setError(e instanceof Error ? e : new Error('Impossible de charger le point.'));
     } finally {
       setIsLoading(false);
     }

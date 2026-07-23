@@ -24,7 +24,7 @@ export function DeliveryCard({ delivery, highlight }: DeliveryCardProps) {
       ]}
     >
       <View style={styles.header}>
-        <Text style={styles.reference}>{delivery.parcel.reference}</Text>
+        <Text style={styles.reference}>{delivery.parcel.trackingNumber ?? delivery.parcel.reference}</Text>
         <DeliveryStatusBadge status={delivery.status} />
       </View>
       <Text style={styles.meta}>{delivery.parcel.businessName}</Text>

@@ -1,5 +1,5 @@
 import type { BusinessStatus } from './business.js';
-import type { CompartmentStatus, LockerStatus } from './locker.js';
+import type { CompartmentStatus, LockerStatus, LockerType } from './locker.js';
 import type { DeliveryStatus } from './delivery.js';
 import type { IssueStatus, IssueType } from './issue.js';
 import type { ParcelStatus } from './parcel.js';
@@ -8,9 +8,15 @@ import type { ParcelStatus } from './parcel.js';
 export const PARCEL_STATUS_LABELS: Record<ParcelStatus, string> = {
   created: 'CRÉÉ',
   in_transit: 'EN TRANSIT',
-  delivered_to_locker: 'LIVRÉ AU CASIER',
+  delivered_to_locker: 'LIVRÉ AU POINT',
   ready_for_pickup: 'PRÊT POUR RETRAIT',
   collected: 'RETIRÉ',
+};
+
+export const LOCKER_TYPE_LABELS: Record<LockerType, string> = {
+  SMART_LOCKER: 'CASIER INTELLIGENT',
+  PARTNER_POINT: 'POINT PARTENAIRE',
+  RESIDENTIAL_LOCKER: 'POINT RÉSIDENTIEL',
 };
 
 export const BUSINESS_STATUS_LABELS: Record<BusinessStatus, string> = {

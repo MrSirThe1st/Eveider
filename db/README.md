@@ -15,6 +15,8 @@ pnpm db:migrate
 | `005_20260720150000_parcel_payments.sql` | Parcel payments (PawaPay) |
 | `006_20260721153000_business_onboarding_kyc.sql` | Business onboarding / KYC |
 | `007_20260722140000_operator_role.sql` | Add `operator` to `UserRole` enum |
+| `008_20260722150000_uuid_and_timestamp_defaults.sql` | DB defaults for `id` / `updated_at` (Prisma used to set these in the client) |
+| `010_20260723001000_tracking_and_point_codes.sql` | Parcel `tracking_number`, optional merchant `reference`, global EVP point codes, unique pickup PINs |
 
 Applied migrations are recorded in `schema_migrations`.
 

@@ -55,15 +55,17 @@ export async function sendParcelStatusWhatsApp(
     'casier Eveider';
   const businessName = String(parcel.business_name ?? '').trim() || 'Eveider';
 
+  const trackingNumber = String(parcel.tracking_number ?? parcel.reference ?? '').trim();
+
   const bodyParams =
     newStatus === 'in_transit'
-      ? [customerName, String(parcel.reference), businessName, lockerLabel]
+      ? [customerName, trackingNumber, businessName, lockerLabel]
       : [
           customerName,
-          String(parcel.reference),
+          trackingNumber,
           lockerLabel,
           buildParcelPickupLink(parcel.invite_token ? String(parcel.invite_token) : undefined, {
-            reference: String(parcel.reference),
+            trackingNumber,
             phone: String(parcel.recipient_phone),
           }),
         ];

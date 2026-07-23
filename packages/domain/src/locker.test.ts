@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
+  availableSlots,
   canAcceptDropOff,
   canAssignCompartment,
   canTransitionCompartment,
   canTransitionLocker,
+  hasPointAvailability,
   isLockerSelectable,
+  isSoftCapacityFull,
+  softCapacityRemaining,
   transitionCompartment,
   transitionLocker,
+  usesCompartmentGrid,
+  usesSoftCapacity,
 } from './locker.js';
 
 describe('locker status', () => {

@@ -60,7 +60,7 @@ describe('locker code helpers', () => {
 
 describe('suggestLockerName', () => {
   it('suggests street-based names', () => {
-    expect(suggestLockerName('Avenue Kasa Vubu, Kolwezi')).toBe('Avenue Kasa Vubu Locker');
+    expect(suggestLockerName('Avenue Kasa Vubu, Kolwezi')).toBe('Avenue Kasa Vubu Point');
   });
 
   it('suggests city centre names', () => {

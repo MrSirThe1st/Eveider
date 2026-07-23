@@ -10,7 +10,8 @@ export type CourierDeliveryDto = {
   updatedAt: string;
   parcel: {
     id: string;
-    reference: string;
+    trackingNumber: string;
+    reference: string | null;
     status: string;
     recipientName: string | null;
     businessName: string;
@@ -34,7 +35,8 @@ export function toCourierDeliveryDto(delivery: {
   updatedAt: Date;
   parcel: {
     id: string;
-    reference: string;
+    trackingNumber: string;
+    reference: string | null;
     status: string;
     recipientName: string | null;
     business: { name: string };
@@ -58,6 +60,7 @@ export function toCourierDeliveryDto(delivery: {
     updatedAt: delivery.updatedAt.toISOString(),
     parcel: {
       id: delivery.parcel.id,
+      trackingNumber: delivery.parcel.trackingNumber,
       reference: delivery.parcel.reference,
       status: delivery.parcel.status,
       recipientName: delivery.parcel.recipientName,

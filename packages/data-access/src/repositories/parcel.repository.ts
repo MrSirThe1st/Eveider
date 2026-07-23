@@ -1,4 +1,11 @@
-import { transitionParcel, type DeliveryStatus, type ParcelStatus } from '@eveider/domain';
+import {
+  generatePickupPinCode,
+  generateTrackingNumber,
+  normalizeTrackingNumber,
+  transitionParcel,
+  type DeliveryStatus,
+  type ParcelStatus,
+} from '@eveider/domain';
 import {
   assertAdmin,
   assertBusinessScope,
@@ -17,6 +24,7 @@ import {
 import type { Business, Compartment, Locker, Parcel, PickupPin } from '../db/types.js';
 import { phonesMatch } from '../tracking/guest-track.js';
 import { BusinessRepository } from './business.repository.js';
+import { LockerRepository } from './locker.repository.js';
 import { NotificationRepository } from './notification.repository.js';
 import { ParcelInviteRepository } from './parcel-invite.repository.js';
 import { UserRepository } from './user.repository.js';
@@ -35,13 +43,62 @@ export type CustomerParcel = Parcel & {
   deliveries: { status: DeliveryStatus }[];
 };
 
-function generatePickupCode(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
+export type GuestTrackCandidate = {
+  id: string;
+  trackingNumber: string;
+  reference: string | null;
+  status: ParcelStatus;
+  businessName: string;
+  updatedAt: Date;
+};
+
+const ACTIVE_PIN_PARCEL_STATUSES: ParcelStatus[] = [
+  'created',
+  'in_transit',
+  'delivered_to_locker',
+  'ready_for_pickup',
+];
+
+async function allocateTrackingNumber(db: Queryable): Promise<string> {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const trackingNumber = generateTrackingNumber();
+    const existing = await db.query(
+      `SELECT id FROM parcels WHERE tracking_number = $1 LIMIT 1`,
+      [trackingNumber],
+    );
+    if (!existing.rows[0]) return trackingNumber;
+  }
+  throw new Error('Impossible de générer un numéro de suivi unique');
+}
+
+async function allocatePickupPin(db: Queryable, lockerId: string | null): Promise<string> {
+  for (let attempt = 0; attempt < 24; attempt++) {
+    const code = generatePickupPinCode();
+    if (lockerId) {
+      const conflict = await db.query(
+        `SELECT pp.id
+         FROM pickup_pins pp
+         INNER JOIN parcels p ON p.id = pp.parcel_id
+         WHERE pp.code = $1
+           AND p.locker_id = $2
+           AND p.status = ANY($3)
+         LIMIT 1`,
+        [code, lockerId, ACTIVE_PIN_PARCEL_STATUSES],
+      );
+      if (conflict.rows[0]) continue;
+    } else {
+      const conflict = await db.query(`SELECT id FROM pickup_pins WHERE code = $1 LIMIT 1`, [code]);
+      if (conflict.rows[0]) continue;
+    }
+    return code;
+  }
+  throw new Error('Impossible de générer un code PIN unique');
 }
 
 export type CreateParcelInput = {
   businessId: string;
-  reference: string;
+  /** Merchant order reference (optional). */
+  reference?: string | null;
   recipientPhone: string;
   recipientName?: string;
   recipientEmail?: string;
@@ -62,6 +119,7 @@ export type CreateParcelResult = {
 
 export class ParcelRepository {
   private readonly businesses: BusinessRepository;
+  private readonly lockers: LockerRepository;
   private readonly notifications: NotificationRepository;
   private readonly invites: ParcelInviteRepository;
   private readonly users: UserRepository;
@@ -73,6 +131,7 @@ export class ParcelRepository {
     users?: UserRepository,
   ) {
     this.businesses = new BusinessRepository(db);
+    this.lockers = new LockerRepository(db);
     this.notifications = notifications ?? new NotificationRepository(db);
     this.invites = invites ?? new ParcelInviteRepository(db);
     this.users = users ?? new UserRepository(db);
@@ -84,9 +143,17 @@ export class ParcelRepository {
       await this.businesses.assertCanSubmitParcels(input.businessId);
     }
 
+    const reference = input.reference?.trim() ? input.reference.trim() : null;
+    const trackingNumber = await allocateTrackingNumber(this.db);
+
     if (input.compartmentId) {
       if (!input.lockerId) {
-        throw new Error('Casier requis pour réserver un compartiment');
+        throw new Error('Point requis pour réserver un compartiment');
+      }
+
+      const selectable = await this.lockers.assertSelectable(input.lockerId);
+      if (selectable.type !== 'SMART_LOCKER') {
+        throw new Error('Ce point ne dispose pas de compartiments');
       }
 
       const compartmentResult = await this.db.query(
@@ -95,7 +162,7 @@ export class ParcelRepository {
       );
       const compartment = compartmentResult.rows[0];
       if (!compartment) {
-        throw new Error('Compartiment introuvable pour ce casier');
+        throw new Error('Compartiment introuvable pour ce point');
       }
       if (compartment.status !== 'available') {
         throw new Error('Compartiment indisponible');
@@ -108,13 +175,14 @@ export class ParcelRepository {
         );
         const created = await tx.query(
           `INSERT INTO parcels (
-             business_id, reference, recipient_phone, recipient_name,
+             business_id, tracking_number, reference, recipient_phone, recipient_name,
              customer_id, locker_id, compartment_id, status
-           ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'created')
+           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'created')
            RETURNING *`,
           [
             input.businessId,
-            input.reference,
+            trackingNumber,
+            reference,
             input.recipientPhone,
             input.recipientName ?? null,
             input.customerId ?? null,
@@ -129,34 +197,19 @@ export class ParcelRepository {
     }
 
     if (input.lockerId) {
-      const lockerResult = await this.db.query(
-        `SELECT * FROM lockers WHERE id = $1 LIMIT 1`,
-        [input.lockerId],
-      );
-      const locker = lockerResult.rows[0] ? mapLocker(lockerResult.rows[0]) : null;
-      if (!locker || locker.status !== 'active') {
-        throw new Error('Casier indisponible');
-      }
-
-      const available = await this.db.query(
-        `SELECT COUNT(*)::int AS count FROM compartments
-         WHERE locker_id = $1 AND status = 'available'`,
-        [input.lockerId],
-      );
-      if (Number(available.rows[0]?.count ?? 0) === 0) {
-        throw new Error('Aucun compartiment disponible à ce casier');
-      }
+      await this.lockers.assertSelectable(input.lockerId);
     }
 
     const created = await this.db.query(
       `INSERT INTO parcels (
-         business_id, reference, recipient_phone, recipient_name,
+         business_id, tracking_number, reference, recipient_phone, recipient_name,
          customer_id, locker_id, status
-       ) VALUES ($1, $2, $3, $4, $5, $6, 'created')
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'created')
        RETURNING *`,
       [
         input.businessId,
-        input.reference,
+        trackingNumber,
+        reference,
         input.recipientPhone,
         input.recipientName ?? null,
         input.customerId ?? null,
@@ -209,7 +262,7 @@ export class ParcelRepository {
       input.recipientPhone,
       input.recipientEmail,
       businessName,
-      parcel.reference,
+      parcel.trackingNumber,
     );
 
     return {
@@ -239,14 +292,59 @@ export class ParcelRepository {
   }
 
   /**
-   * Public guest lookup — reference + recipient phone (no account).
-   * Reference is unique per business, so we match phone among candidates.
+   * Public guest lookup by Eveider tracking number (no account).
+   */
+  async findForGuestTrackingByNumber(trackingNumber: string): Promise<CustomerParcel | null> {
+    const normalized = normalizeTrackingNumber(trackingNumber);
+    const idsResult = await this.db.query(
+      `SELECT id FROM parcels
+       WHERE upper(tracking_number) = $1
+       LIMIT 1`,
+      [normalized],
+    );
+    const id = idsResult.rows[0]?.id;
+    if (!id) return null;
+    return this.loadCustomerParcel(String(id));
+  }
+
+  /**
+   * Public guest lookup by recipient phone — may return multiple candidates.
+   */
+  async listForGuestTrackingByPhone(phone: string): Promise<GuestTrackCandidate[]> {
+    const idsResult = await this.db.query(
+      `SELECT p.id, p.tracking_number, p.reference, p.status, p.recipient_phone, p.updated_at,
+              b.name AS business_name
+       FROM parcels p
+       INNER JOIN businesses b ON b.id = p.business_id
+       ORDER BY p.updated_at DESC
+       LIMIT 200`,
+    );
+
+    const candidates: GuestTrackCandidate[] = [];
+    for (const row of idsResult.rows) {
+      if (!phonesMatch(String(row.recipient_phone), phone)) continue;
+      candidates.push({
+        id: String(row.id),
+        trackingNumber: String(row.tracking_number),
+        reference: row.reference == null || row.reference === '' ? null : String(row.reference),
+        status: row.status as ParcelStatus,
+        businessName: String(row.business_name),
+        updatedAt: row.updated_at instanceof Date ? row.updated_at : new Date(String(row.updated_at)),
+      });
+      if (candidates.length >= 25) break;
+    }
+    return candidates;
+  }
+
+  /**
+   * @deprecated Prefer findForGuestTrackingByNumber — kept for link compatibility (ref+phone).
    */
   async findForGuestTracking(reference: string, phone: string): Promise<CustomerParcel | null> {
     const ref = reference.trim();
     const idsResult = await this.db.query(
       `SELECT id FROM parcels
-       WHERE lower(reference) = lower($1)
+       WHERE lower(COALESCE(reference, '')) = lower($1)
+          OR upper(tracking_number) = upper($1)
        ORDER BY updated_at DESC
        LIMIT 25`,
       [ref],
@@ -378,31 +476,14 @@ export class ParcelRepository {
     this.assertReadAccess(ctx, parcel);
 
     if (parcel.status !== 'created') {
-      throw new Error('Le casier ne peut plus être modifié à ce stade');
+      throw new Error('Le point ne peut plus être modifié à ce stade');
     }
 
     if (parcel.lockerId) {
-      throw new Error('Un casier a déjà été choisi pour ce colis');
+      throw new Error('Un point a déjà été choisi pour ce colis');
     }
 
-    const lockerResult = await this.db.query(`SELECT * FROM lockers WHERE id = $1 LIMIT 1`, [
-      lockerId,
-    ]);
-    const lockerRow = lockerResult.rows[0];
-    if (!lockerRow) throw new Error(`Locker ${lockerId} not found`);
-    const locker = mapLocker(lockerRow);
-    if (locker.status !== 'active') {
-      throw new Error('Casier indisponible');
-    }
-
-    const available = await this.db.query(
-      `SELECT COUNT(*)::int AS count FROM compartments
-       WHERE locker_id = $1 AND status = 'available'`,
-      [lockerId],
-    );
-    if (Number(available.rows[0]?.count ?? 0) === 0) {
-      throw new Error('Aucun compartiment disponible à ce casier');
-    }
+    await this.lockers.assertSelectable(lockerId);
 
     await this.db.query(
       `UPDATE parcels SET locker_id = $1, updated_at = NOW() WHERE id = $2`,
@@ -523,9 +604,17 @@ export class ParcelRepository {
     );
     if (existing.rows[0]) return;
 
+    const parcelResult = await this.db.query(
+      `SELECT locker_id FROM parcels WHERE id = $1 LIMIT 1`,
+      [parcelId],
+    );
+    const lockerId =
+      parcelResult.rows[0]?.locker_id == null ? null : String(parcelResult.rows[0].locker_id);
+    const code = await allocatePickupPin(this.db, lockerId);
+
     await this.db.query(
       `INSERT INTO pickup_pins (parcel_id, code) VALUES ($1, $2)`,
-      [parcelId, generatePickupCode()],
+      [parcelId, code],
     );
   }
 

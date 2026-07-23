@@ -30,7 +30,8 @@ type CourierOption = {
 
 type ParcelDetailData = {
   id: string;
-  reference: string;
+  trackingNumber: string;
+  reference: string | null;
   status: ParcelStatus;
   statusLabel: string;
   recipientName: string | null;
@@ -220,7 +221,7 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
           }}
         >
           <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>
-            {parcel.reference}
+            {parcel.trackingNumber}
           </h2>
           <ParcelStatusBadge status={parcel.status} />
         </div>

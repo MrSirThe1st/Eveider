@@ -9,7 +9,7 @@ import {
   zoomForPlaceType,
   type MapBounds,
   DRC_BOUNDS,
-} from './mapbox';
+} from './google-maps';
 
 describe('parseCoordinateInput', () => {
   it('parses decimal coordinates', () => {
@@ -42,16 +42,16 @@ describe('coordinate validation', () => {
 
 describe('place type helpers', () => {
   it('ranks addresses above cities', () => {
-    expect(rankPlaceType('address')).toBeLessThan(rankPlaceType('place'));
+    expect(rankPlaceType('street_address')).toBeLessThan(rankPlaceType('locality'));
   });
 
   it('returns French labels', () => {
-    expect(placeTypeLabel('address')).toBe('Adresse');
+    expect(placeTypeLabel('street_address')).toBe('Adresse');
     expect(placeTypeLabel('neighborhood')).toBe('Quartier');
   });
 
   it('zooms closer for addresses', () => {
-    expect(zoomForPlaceType('address')).toBeGreaterThan(zoomForPlaceType('place'));
+    expect(zoomForPlaceType('street_address')).toBeGreaterThan(zoomForPlaceType('locality'));
   });
 });
 

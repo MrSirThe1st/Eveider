@@ -44,7 +44,8 @@ type DeliveryItem = {
   completedAt: string | null;
   parcel: {
     id: string;
-    reference: string;
+    trackingNumber?: string;
+    reference: string | null;
     businessName: string;
     locker: {
       name: string;
@@ -161,32 +162,14 @@ export function CourierProfileDetail({ courierId }: CourierDetailProps) {
         <p style={{ color: colors.danger, fontWeight: 500, marginBottom: '1rem' }}>
           {error ?? 'Profil introuvable'}
         </p>
-        <Link href="/tableau-de-bord/utilisateurs" style={{ fontWeight: 700, color: colors.secondary }}>
-          ← RETOUR AUX UTILISATEURS
-        </Link>
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: 850 }}>
+    <div>
       {successMessage && <FlashBanner message={successMessage} onDismiss={() => setSuccessMessage(null)} />}
       {actionError && <FlashBanner message={actionError} variant="error" onDismiss={() => setActionError(null)} />}
-
-      <Link
-        href="/tableau-de-bord/utilisateurs"
-        style={{
-          display: 'inline-block',
-          marginBottom: '1.5rem',
-          fontWeight: 600,
-          fontSize: '0.8125rem',
-          letterSpacing: '0.04em',
-          color: colors.secondary,
-          textDecoration: 'none',
-        }}
-      >
-        ← RETOUR AUX UTILISATEURS
-      </Link>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
         <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.04em' }}>
@@ -306,7 +289,7 @@ export function CourierProfileDetail({ courierId }: CourierDetailProps) {
                       href={`/tableau-de-bord/colis/${delivery.parcel.id}`}
                       style={{ color: colors.secondary, textDecoration: 'none' }}
                     >
-                      {delivery.parcel.reference}
+                      {delivery.parcel.trackingNumber ?? delivery.parcel.reference}
                     </Link>
                   </td>
                   <td style={{ padding: '1rem', fontWeight: 500, color: '#555555' }}>

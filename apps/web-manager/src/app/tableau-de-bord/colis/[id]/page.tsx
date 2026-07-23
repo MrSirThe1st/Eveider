@@ -1,4 +1,4 @@
-import { PageHeader } from '@eveider/ui';
+import { PageFrame } from '@eveider/ui';
 import { AdminParcelDetail } from '@/components/admin-parcel-detail';
 
 type PageProps = {
@@ -9,9 +9,15 @@ export default async function AdminParcelDetailPage({ params }: PageProps) {
   const { id } = await params;
 
   return (
-    <>
-      <PageHeader title="Détail colis" />
+    <PageFrame
+      title="Détail colis"
+      description="Statut, destinataire et historique de l'envoi."
+      breadcrumbs={[
+        { label: "Vue d'ensemble", href: '/tableau-de-bord' },
+        { label: 'Colis' },
+      ]}
+    >
       <AdminParcelDetail parcelId={id} />
-    </>
+    </PageFrame>
   );
 }

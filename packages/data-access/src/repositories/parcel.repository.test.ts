@@ -45,8 +45,11 @@ describe('ParcelRepository', () => {
       if (sqlIncludes(sql, 'FROM businesses') && sqlIncludes(sql, 'SELECT *')) {
         return businessRow();
       }
+      if (sqlIncludes(sql, 'FROM parcels WHERE tracking_number')) {
+        return null;
+      }
       if (sqlIncludes(sql, 'INSERT INTO parcels')) {
-        return parcelRow({ locker_id: null });
+        return parcelRow({ locker_id: null, tracking_number: 'EVD26TEST0001A' });
       }
       if (sqlIncludes(sql, 'SELECT name FROM businesses')) {
         return { name: 'Pharmacy' };
@@ -65,6 +68,7 @@ describe('ParcelRepository', () => {
       expect.stringContaining('INSERT INTO parcels'),
       expect.arrayContaining(['biz-1', 'PK-001', '+243000000000']),
     );
+    expect(result.parcel.trackingNumber).toBeTruthy();
     expect(result.recipientStatus).toBe('invited');
     expect(dispatchForNewParcel).toHaveBeenCalled();
   });
@@ -118,6 +122,12 @@ describe('ParcelRepository', () => {
         return parcelRow({ status: 'ready_for_pickup' as ParcelStatus });
       }
       if (sqlIncludes(sql, 'FROM pickup_pins')) {
+        return null;
+      }
+      if (sqlIncludes(sql, 'SELECT locker_id FROM parcels')) {
+        return { locker_id: 'locker-1' };
+      }
+      if (sqlIncludes(sql, 'FROM pickup_pins pp') || sqlIncludes(sql, 'INNER JOIN parcels p')) {
         return null;
       }
       if (sqlIncludes(sql, 'INSERT INTO pickup_pins')) {

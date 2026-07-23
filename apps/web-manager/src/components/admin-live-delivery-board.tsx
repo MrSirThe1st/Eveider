@@ -289,7 +289,7 @@ export function AdminLiveDeliveryBoard() {
                       href={`/tableau-de-bord/colis/${delivery.parcel.id}`}
                       style={{ fontWeight: 700, color: colors.secondary, textDecoration: 'none' }}
                     >
-                      {delivery.parcel.reference}
+                      {delivery.parcel.trackingNumber}
                     </Link>
                   </td>
                   <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle() }}>
@@ -309,7 +309,7 @@ export function AdminLiveDeliveryBoard() {
                   <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle(), fontWeight: 500 }}>
                     {delivery.parcel.locker ? (
                       <Link
-                        href={`/tableau-de-bord/casiers/${delivery.parcel.locker.id}`}
+                        href={`/tableau-de-bord/points/${delivery.parcel.locker.id}`}
                         style={{ color: colors.secondary, textDecoration: 'none' }}
                       >
                         {delivery.parcel.locker.name}

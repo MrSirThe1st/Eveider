@@ -12,7 +12,8 @@ import { ParcelStatusBadge } from '@/components/parcel-status-badge';
 
 type ParcelDetailData = {
   id: string;
-  reference: string;
+  trackingNumber: string;
+  reference: string | null;
   status: ParcelStatus;
   statusLabel: string;
   recipientName: string | null;
@@ -76,7 +77,7 @@ export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
   return (
     <div style={{ maxWidth: 640 }}>
       {justCreated ? (
-        <FlashBanner message={`Colis ${parcel.reference} créé avec succès.`} />
+        <FlashBanner message={`Colis ${parcel.trackingNumber} créé avec succès.`} />
       ) : null}
       <Link
         href={WEB_ROUTES.businessDashboard}
@@ -101,7 +102,7 @@ export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
           <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>
-            {parcel.reference}
+            {parcel.trackingNumber}
           </h2>
           <ParcelStatusBadge status={parcel.status} />
         </div>

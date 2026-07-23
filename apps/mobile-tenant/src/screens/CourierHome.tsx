@@ -408,7 +408,7 @@ export function CourierHome() {
         <DeliveryStepIndicator status={delivery.status} />
 
         <View style={styles.detailHeader}>
-          <Text style={styles.detailReference}>{delivery.parcel.reference}</Text>
+          <Text style={styles.detailReference}>{delivery.parcel.trackingNumber ?? delivery.parcel.reference}</Text>
           <DeliveryStatusBadge status={delivery.status} />
         </View>
 

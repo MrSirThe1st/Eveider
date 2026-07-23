@@ -1,5 +1,7 @@
 import {
   canAcceptDropOff,
+  generatePickupPinCode,
+  normalizeTrackingNumber,
   transitionDelivery,
   transitionParcel,
   type DeliveryStatus,
@@ -45,7 +47,8 @@ export type AdminDeliveryListItem = Delivery & {
   };
   parcel: {
     id: string;
-    reference: string;
+    trackingNumber: string;
+    reference: string | null;
     status: string;
     recipientName: string | null;
     recipientPhone: string;
@@ -89,12 +92,42 @@ const ACTIVE_DELIVERY_STATUSES: DeliveryStatus[] = [
   'drop_off_pending',
 ];
 
-function generatePickupCode(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
+const ACTIVE_PIN_PARCEL_STATUSES: ParcelStatus[] = [
+  'created',
+  'in_transit',
+  'delivered_to_locker',
+  'ready_for_pickup',
+];
+
+function normalizeScanCode(value: string): string {
+  return normalizeTrackingNumber(value);
 }
 
-function normalizeReference(reference: string): string {
-  return reference.trim().toUpperCase();
+async function allocatePickupPin(
+  db: Queryable,
+  lockerId: string | null,
+): Promise<string> {
+  for (let attempt = 0; attempt < 24; attempt++) {
+    const code = generatePickupPinCode();
+    if (lockerId) {
+      const conflict = await db.query(
+        `SELECT pp.id
+         FROM pickup_pins pp
+         INNER JOIN parcels p ON p.id = pp.parcel_id
+         WHERE pp.code = $1
+           AND p.locker_id = $2
+           AND p.status = ANY($3)
+         LIMIT 1`,
+        [code, lockerId, ACTIVE_PIN_PARCEL_STATUSES],
+      );
+      if (conflict.rows[0]) continue;
+    } else {
+      const conflict = await db.query(`SELECT id FROM pickup_pins WHERE code = $1 LIMIT 1`, [code]);
+      if (conflict.rows[0]) continue;
+    }
+    return code;
+  }
+  throw new Error('Impossible de générer un code PIN unique');
 }
 
 export class DeliveryRepository {
@@ -223,7 +256,8 @@ export class DeliveryRepository {
       `SELECT d.*,
               u.id AS courier_relation_id, u.full_name AS courier_full_name,
               u.email AS courier_email, u.phone AS courier_phone,
-              p.id AS parcel_relation_id, p.reference AS parcel_reference,
+              p.id AS parcel_relation_id, p.tracking_number AS parcel_tracking_number,
+              p.reference AS parcel_reference,
               p.status AS parcel_status, p.recipient_name AS parcel_recipient_name,
               p.recipient_phone AS parcel_recipient_phone,
               l.id AS locker_relation_id, l.name AS locker_name, l.address AS locker_address,
@@ -248,7 +282,10 @@ export class DeliveryRepository {
       },
       parcel: {
         id: String(row.parcel_relation_id),
-        reference: String(row.parcel_reference),
+        trackingNumber: String(row.parcel_tracking_number),
+        reference: row.parcel_reference == null || row.parcel_reference === ''
+          ? null
+          : String(row.parcel_reference),
         status: String(row.parcel_status),
         recipientName:
           row.parcel_recipient_name == null ? null : String(row.parcel_recipient_name),
@@ -329,16 +366,19 @@ export class DeliveryRepository {
     return delivery;
   }
 
-  async scan(ctx: DataAccessContext, id: string, reference: string): Promise<CourierDelivery> {
+  async scan(ctx: DataAccessContext, id: string, scanCode: string): Promise<CourierDelivery> {
     const delivery = await this.requireCourierDelivery(ctx, id);
     if (delivery.status !== 'assigned') {
       throw new Error('La livraison n’est pas en attente de scan');
     }
 
-    const expected = normalizeReference(delivery.parcel.reference);
-    const provided = normalizeReference(reference);
-    if (expected !== provided) {
-      throw new Error('Référence colis incorrecte');
+    const provided = normalizeScanCode(scanCode);
+    const expectedTracking = normalizeScanCode(delivery.parcel.trackingNumber);
+    const expectedReference = delivery.parcel.reference
+      ? normalizeScanCode(delivery.parcel.reference)
+      : null;
+    if (provided !== expectedTracking && provided !== expectedReference) {
+      throw new Error('Numéro de suivi / référence incorrecte');
     }
 
     const status = transitionDelivery(delivery.status, 'scanned');
@@ -427,9 +467,10 @@ export class DeliveryRepository {
         [parcelStatus, compartment.id, parcel.id],
       );
       if (parcelStatus === 'ready_for_pickup' && !existingPin?.rows[0]) {
+        const code = await allocatePickupPin(tx, parcel.lockerId);
         await tx.query(`INSERT INTO pickup_pins (parcel_id, code) VALUES ($1, $2)`, [
           parcel.id,
-          generatePickupCode(),
+          code,
         ]);
       }
     });
@@ -526,6 +567,7 @@ export class DeliveryRepository {
     const deliveriesResult = await this.db.query(
       `SELECT d.*,
               p.id AS parcel_relation_id,
+              p.tracking_number AS parcel_tracking_number,
               p.reference AS parcel_reference,
               b.name AS business_name,
               l.name AS locker_name,
@@ -546,7 +588,10 @@ export class DeliveryRepository {
       completedAt: row.completed_at ? new Date(String(row.completed_at)) : null,
       parcel: {
         id: String(row.parcel_relation_id),
-        reference: String(row.parcel_reference),
+        trackingNumber: String(row.parcel_tracking_number),
+        reference: row.parcel_reference == null || row.parcel_reference === ''
+          ? null
+          : String(row.parcel_reference),
         businessName: String(row.business_name),
         locker: row.locker_name
           ? {

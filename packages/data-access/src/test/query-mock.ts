@@ -55,6 +55,7 @@ export function parcelRow(
 ): Record<string, unknown> {
   return {
     id: 'parcel-1',
+    tracking_number: 'EVD26TEST0001A',
     reference: 'PK-001',
     status: 'created',
     business_id: 'biz-1',

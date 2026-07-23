@@ -133,7 +133,7 @@ export function AdminAnalyticsPanel({ analytics }: AdminAnalyticsPanelProps) {
             id: item.lockerId,
             name: item.lockerName,
             count: item.parcelCount,
-            href: `/tableau-de-bord/casiers/${item.lockerId}`,
+            href: `/tableau-de-bord/points/${item.lockerId}`,
           }))}
         />
         <RankingTable

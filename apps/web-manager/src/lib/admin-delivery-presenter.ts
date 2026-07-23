@@ -17,7 +17,8 @@ export type AdminDeliveryDto = {
   };
   parcel: {
     id: string;
-    reference: string;
+    trackingNumber: string;
+    reference: string | null;
     status: string;
     recipientName: string | null;
     recipientPhone: string;
@@ -38,6 +39,7 @@ export function toAdminDeliveryDto(delivery: AdminDeliveryListItem): AdminDelive
     courier: delivery.courier,
     parcel: {
       id: delivery.parcel.id,
+      trackingNumber: delivery.parcel.trackingNumber,
       reference: delivery.parcel.reference,
       status: delivery.parcel.status,
       recipientName: delivery.parcel.recipientName,

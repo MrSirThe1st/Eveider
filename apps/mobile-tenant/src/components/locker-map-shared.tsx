@@ -42,7 +42,10 @@ export function LockerSelectPanel({
             <Text style={lockerMapStyles.cardTitle}>{locker.name}</Text>
             <Text style={lockerMapStyles.cardAddress}>{locker.address}</Text>
             <Text style={lockerMapStyles.cardMeta}>
-              {locker.availableCompartments} disponible{locker.availableCompartments > 1 ? 's' : ''}
+              {locker.typeLabel ? `${locker.typeLabel} · ` : ''}
+              {locker.availableSlots ?? locker.availableCompartments} place
+              {(locker.availableSlots ?? locker.availableCompartments) > 1 ? 's' : ''} libre
+              {(locker.availableSlots ?? locker.availableCompartments) > 1 ? 's' : ''}
               {locker.distanceKm != null ? ` · ${formatDistanceKm(locker.distanceKm)}` : ''}
             </Text>
           </Pressable>

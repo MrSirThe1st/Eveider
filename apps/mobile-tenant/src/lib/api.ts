@@ -21,7 +21,8 @@ export type PaymentProvider = {
 
 export type CustomerParcel = {
   id: string;
-  reference: string;
+  trackingNumber: string;
+  reference: string | null;
   status: ParcelStatus;
   statusLabel: string;
   recipientName: string | null;
@@ -51,7 +52,8 @@ export type CourierDelivery = {
   updatedAt: string;
   parcel: {
     id: string;
-    reference: string;
+    trackingNumber: string;
+    reference: string | null;
     status: string;
     recipientName: string | null;
     businessName: string;
@@ -125,7 +127,11 @@ export type CustomerLocker = {
   address: string;
   latitude: number;
   longitude: number;
+  type?: 'SMART_LOCKER' | 'PARTNER_POINT' | 'RESIDENTIAL_LOCKER';
+  typeLabel?: string;
   availableCompartments: number;
+  availableSlots?: number;
+  contactPhone?: string | null;
   distanceKm?: number;
 };
 

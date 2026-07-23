@@ -25,7 +25,8 @@ export type AnalyticsReport = {
 
 export type DashboardParcelItem = {
   id: string;
-  reference: string;
+  trackingNumber: string;
+  reference: string | null;
   status: ParcelStatus;
   recipientName: string | null;
   recipientPhone: string;

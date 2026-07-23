@@ -1,9 +1,10 @@
 'use client';
 
 import { colors, radius, webInputStyle } from '@eveider/config-ui';
+import { LOCKER_TYPE_LABELS } from '@eveider/domain';
 import { useEffect, useState } from 'react';
 import { LockerCard, type LockerOption } from './locker-card';
-import { LockerMapbox } from './locker-mapbox';
+import { LockerGoogleMap } from './locker-google-map';
 import type { LockerMapMarkerDto } from '@/lib/locker-presenter';
 
 type LockerPickerProps = {
@@ -51,9 +52,12 @@ export function LockerPicker({ lockers, selectedLockerId, onSelectLocker }: Lock
         address: locker.address,
         latitude: locker.latitude,
         longitude: locker.longitude,
+        type: locker.type ?? 'SMART_LOCKER',
+        typeLabel: LOCKER_TYPE_LABELS[locker.type ?? 'SMART_LOCKER'],
         status: 'active',
         statusLabel: 'ACTIF',
         availableCompartments: locker.availableCompartments,
+        availableSlots: locker.availableSlots ?? locker.availableCompartments,
         availableBySize: locker.availableBySize,
         rows: locker.rows ?? 3,
         columns: locker.columns ?? 3,
@@ -77,7 +81,7 @@ export function LockerPicker({ lockers, selectedLockerId, onSelectLocker }: Lock
         <div style={{ flex: '1 1 240px', position: 'relative' }}>
           <input
             type="text"
-            placeholder="Rechercher un casier (ex. Gombe)..."
+            placeholder="Rechercher un point (ex. Gombe)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{
@@ -159,7 +163,7 @@ export function LockerPicker({ lockers, selectedLockerId, onSelectLocker }: Lock
                 transition: 'all 0.15s ease-in-out',
               }}
             >
-              Carte Mapbox
+              Carte Google Maps
             </button>
           </div>
         )}
@@ -217,7 +221,7 @@ export function LockerPicker({ lockers, selectedLockerId, onSelectLocker }: Lock
             width: '100%',
           }}
         >
-          <LockerMapbox
+          <LockerGoogleMap
             lockers={mapMarkers}
             selectedLockerId={selectedLockerId}
             onSelectLocker={onSelectLocker}
