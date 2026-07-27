@@ -78,10 +78,27 @@ export class BusinessRepository {
     return row ? mapBusiness(row) : null;
   }
 
-  async list(ctx: DataAccessContext): Promise<Business[]> {
+  async list(
+    ctx: DataAccessContext,
+    options?: { statuses?: BusinessStatus[]; excludeStatuses?: BusinessStatus[] },
+  ): Promise<Business[]> {
     if (ctx.role === 'admin') {
+      const conditions: string[] = [];
+      const params: unknown[] = [];
+
+      if (options?.statuses?.length) {
+        params.push(options.statuses);
+        conditions.push(`status = ANY($${params.length})`);
+      }
+      if (options?.excludeStatuses?.length) {
+        params.push(options.excludeStatuses);
+        conditions.push(`NOT (status = ANY($${params.length}))`);
+      }
+
+      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
       const result = await this.db.query(
-        `SELECT * FROM businesses ORDER BY created_at DESC`,
+        `SELECT * FROM businesses ${where} ORDER BY created_at DESC`,
+        params,
       );
       return result.rows.map(mapBusiness);
     }

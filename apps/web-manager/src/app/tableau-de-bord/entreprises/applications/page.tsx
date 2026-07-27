@@ -10,7 +10,7 @@ export default async function BusinessApplicationsPage() {
   return (
     <PageFrame
       title="Dossiers d'inscription Business"
-      description="Revue KYC, contrôle des pièces justificatives et activation des comptes partenaires."
+      description="Dossiers en cours de vérification, corrections et comptes non actifs — hors entreprises déjà activées."
     >
       <AdminBusinessApplications applications={applications} />
     </PageFrame>

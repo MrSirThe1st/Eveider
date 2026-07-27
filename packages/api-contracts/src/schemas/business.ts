@@ -109,28 +109,53 @@ export const paymentSetupStepSchema = z.object({
 });
 
 // Admin Review & Decision
-export const adminReviewDecisionSchema = z.object({
-  action: z.enum(['approve', 'request_correction', 'block']),
-  reviewNotes: z.string().optional(),
-  checks: z
-    .array(
-      z.object({
-        type: checkTypeSchema,
-        status: checkStatusSchema,
-        notes: z.string().optional(),
-      }),
-    )
-    .optional(),
-  documentsFeedback: z
-    .array(
-      z.object({
-        documentId: z.string().uuid(),
-        status: z.enum(['approved', 'rejected', 'correction_requested']),
-        notes: z.string().optional(),
-      }),
-    )
-    .optional(),
-});
+export const adminReviewDecisionSchema = z
+  .object({
+    action: z.enum(['approve', 'request_correction', 'block']),
+    reviewNotes: z.string().optional(),
+    checks: z
+      .array(
+        z.object({
+          type: checkTypeSchema,
+          status: checkStatusSchema,
+          /** Required when status is FAIL — reason code + optional free text. */
+          notes: z.string().optional(),
+        }),
+      )
+      .optional(),
+    documentsFeedback: z
+      .array(
+        z.object({
+          documentId: z.string().uuid(),
+          status: z.enum(['approved', 'rejected', 'correction_requested']),
+          notes: z.string().optional(),
+        }),
+      )
+      .optional(),
+  })
+  .superRefine((value, ctx) => {
+    for (const [index, check] of (value.checks ?? []).entries()) {
+      if (check.status === 'FAIL' && !check.notes?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Motif requis pour le contrôle en échec (${check.type})`,
+          path: ['checks', index, 'notes'],
+        });
+      }
+    }
+    for (const [index, feedback] of (value.documentsFeedback ?? []).entries()) {
+      if (
+        (feedback.status === 'correction_requested' || feedback.status === 'rejected') &&
+        !feedback.notes?.trim()
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Motif requis pour chaque document à corriger',
+          path: ['documentsFeedback', index, 'notes'],
+        });
+      }
+    }
+  });
 
 export type UpdateBusinessStatusInput = z.infer<typeof updateBusinessStatusSchema>;
 export type RegisterBusinessAccountInput = z.infer<typeof registerBusinessAccountSchema>;

@@ -2,7 +2,11 @@ import { BUSINESS_STATUS_LABELS, type BusinessStatus } from '@eveider/domain';
 import { PageFrame } from '@eveider/ui';
 import { notFound } from 'next/navigation';
 import { AdminApplicationReview } from '@/components/admin-application-review';
-import { getBusinessApplicationDetail } from '@/server/business-applications';
+import {
+  getBusinessApplicationDetail,
+  getNextBusinessApplicationId,
+} from '@/server/business-applications';
+import { getAdminSession } from '@/server/session';
 
 export default async function AdminApplicationReviewPage({
   params,
@@ -10,7 +14,11 @@ export default async function AdminApplicationReviewPage({
   params: Promise<{ id: string }>;
 }) {
   const { id: businessId } = await params;
-  const business = await getBusinessApplicationDetail(businessId);
+  const { ctx } = await getAdminSession();
+  const [business, nextApplicationId] = await Promise.all([
+    getBusinessApplicationDetail(businessId),
+    getNextBusinessApplicationId(ctx, businessId),
+  ]);
 
   if (!business) {
     notFound();
@@ -22,7 +30,7 @@ export default async function AdminApplicationReviewPage({
   return (
     <PageFrame
       title={`Revue KYC — ${business.name}`}
-      description={`Statut actuel : ${statusLabel}`}
+      description={`Mode revue · Statut : ${statusLabel}`}
       breadcrumbs={[
         {
           label: 'Dossiers business',
@@ -31,7 +39,11 @@ export default async function AdminApplicationReviewPage({
         { label: business.name },
       ]}
     >
-      <AdminApplicationReview business={business} hidePageChrome />
+      <AdminApplicationReview
+        business={business}
+        nextApplicationId={nextApplicationId}
+        hidePageChrome
+      />
     </PageFrame>
   );
 }

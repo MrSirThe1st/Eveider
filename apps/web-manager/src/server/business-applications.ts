@@ -1,4 +1,5 @@
 import type { BusinessStatus } from '@eveider/domain';
+import { canSubmitParcelsAsBusiness } from '@eveider/domain';
 import type { DataAccessContext } from '@eveider/data-access';
 import { createRepositories } from '@eveider/data-access';
 
@@ -12,6 +13,7 @@ export type BusinessApplicationItem = {
   contactPhone: string | null;
   isPhoneVerified: boolean;
   updatedAt: string;
+  createdAt: string;
   locations: Array<{
     type: string;
     street: string | null;
@@ -21,9 +23,28 @@ export type BusinessApplicationItem = {
     contactPhone?: string | null;
   }>;
   users: Array<{ fullName: string | null; email: string | null; phone: string | null; userRole: string | null }>;
-  documents: Array<{ id: string; type: string; status: string; fileUrl: string; fileName: string | null }>;
+  documents: Array<{
+    id: string;
+    type: string;
+    status: string;
+    fileUrl: string;
+    fileName: string | null;
+    notes: string | null;
+    createdAt: string;
+  }>;
   verifications: Array<{
-    checks: Array<{ type: string; status: string }>;
+    status: string;
+    reviewNotes: string | null;
+    submittedAt: string | null;
+    reviewedAt: string | null;
+    checks: Array<{ type: string; status: string; notes: string | null }>;
+  }>;
+  statusHistory: Array<{
+    id: string;
+    previousStatus: string;
+    newStatus: string;
+    reason: string | null;
+    createdAt: string;
   }>;
 };
 
@@ -43,7 +64,22 @@ type ApplicationRow = Awaited<
   ReturnType<ReturnType<typeof createRepositories>['businessOnboarding']['listApplications']>
 >[number];
 
-function toApplicationItem(row: ApplicationRow): BusinessApplicationItem {
+type SummaryRow = NonNullable<
+  Awaited<ReturnType<ReturnType<typeof createRepositories>['businessOnboarding']['getOnboardingSummary']>>
+>;
+
+function toApplicationItem(row: ApplicationRow | SummaryRow): BusinessApplicationItem {
+  const statusHistory =
+    'statusHistory' in row && Array.isArray(row.statusHistory)
+      ? row.statusHistory.map((h) => ({
+          id: h.id,
+          previousStatus: h.previousStatus,
+          newStatus: h.newStatus,
+          reason: h.reason,
+          createdAt: h.createdAt.toISOString(),
+        }))
+      : [];
+
   return {
     id: row.id,
     name: row.name,
@@ -54,6 +90,7 @@ function toApplicationItem(row: ApplicationRow): BusinessApplicationItem {
     contactPhone: row.contactPhone,
     isPhoneVerified: row.isPhoneVerified,
     updatedAt: row.updatedAt.toISOString(),
+    createdAt: row.createdAt.toISOString(),
     locations: row.locations.map((l) => ({
       type: l.type,
       street: l.street,
@@ -74,10 +111,17 @@ function toApplicationItem(row: ApplicationRow): BusinessApplicationItem {
       status: d.status,
       fileUrl: d.fileUrl,
       fileName: d.fileName,
+      notes: d.notes,
+      createdAt: d.createdAt.toISOString(),
     })),
     verifications: row.verifications.map((v) => ({
-      checks: v.checks.map((c) => ({ type: c.type, status: c.status })),
+      status: v.status,
+      reviewNotes: v.reviewNotes,
+      submittedAt: v.submittedAt ? v.submittedAt.toISOString() : null,
+      reviewedAt: v.reviewedAt ? v.reviewedAt.toISOString() : null,
+      checks: v.checks.map((c) => ({ type: c.type, status: c.status, notes: c.notes })),
     })),
+    statusHistory,
   };
 }
 
@@ -86,7 +130,9 @@ export async function listBusinessApplications(
 ): Promise<BusinessApplicationItem[]> {
   const { businessOnboarding } = createRepositories();
   const rows = await businessOnboarding.listApplications(ctx);
-  return rows.map(toApplicationItem);
+  return rows
+    .map(toApplicationItem)
+    .filter((application) => !canSubmitParcelsAsBusiness(application.status));
 }
 
 export async function getBusinessApplicationDetail(
@@ -97,7 +143,7 @@ export async function getBusinessApplicationDetail(
   if (!summary) return null;
 
   return {
-    ...toApplicationItem(summary as ApplicationRow),
+    ...toApplicationItem(summary),
     industry: summary.industry,
     salesChannels: summary.salesChannels ?? [],
     description: summary.description,
@@ -107,4 +153,17 @@ export async function getBusinessApplicationDetail(
     legalRepName: summary.legalRepName,
     individualFullName: summary.individualFullName,
   };
+}
+
+/** Next pending dossier in the queue (after current), for ops continuity. */
+export async function getNextBusinessApplicationId(
+  ctx: DataAccessContext,
+  currentBusinessId: string,
+): Promise<string | null> {
+  const applications = await listBusinessApplications(ctx);
+  const index = applications.findIndex((app) => app.id === currentBusinessId);
+  if (index < 0) {
+    return applications[0]?.id ?? null;
+  }
+  return applications[index + 1]?.id ?? applications[0]?.id ?? null;
 }

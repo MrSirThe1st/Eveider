@@ -345,13 +345,14 @@ export class BusinessOnboardingRepository {
 
   async listApplications(ctx: DataAccessContext) {
     assertAdmin(ctx);
-    const result = await this.db.query(`SELECT id FROM businesses ORDER BY updated_at DESC`);
+    const result = await this.db.query(
+      `SELECT id FROM businesses WHERE status != 'active' ORDER BY updated_at DESC`,
+    );
     return Promise.all(
       result.rows.map(async (row: Row) => {
         const summary = await loadSummary(this.db, String(row.id));
         if (!summary) throw new Error(`Business ${row.id} not found`);
-        const { permissions: _permissions, limit: _limit, statusHistory: _statusHistory, ...application } =
-          summary;
+        const { permissions: _permissions, limit: _limit, ...application } = summary;
         return {
           ...application,
           locations: application.locations.map(
@@ -403,9 +404,17 @@ export class BusinessOnboardingRepository {
               `UPDATE verification_checks
                SET status = $1, notes = $2, updated_at = NOW()
                WHERE business_verification_id = $3 AND type = $4`,
-              [check.status, check.notes, currentVerification.id, check.type],
+              [check.status, check.notes ?? null, currentVerification.id, check.type],
             );
           }
+        }
+        for (const feedback of input.documentsFeedback ?? []) {
+          await tx.query(
+            `UPDATE business_documents
+             SET status = $1, notes = $2, updated_at = NOW()
+             WHERE id = $3`,
+            [feedback.status, feedback.notes ?? null, feedback.documentId],
+          );
         }
         for (const feature of ['CREATE_SHIPMENT', 'API_ACCESS', 'COD', 'MONTHLY_INVOICE']) {
           await tx.query(
@@ -457,13 +466,23 @@ export class BusinessOnboardingRepository {
             [ctx.userId ?? null, input.reviewNotes, currentVerification.id],
           );
         }
+        for (const check of input.checks ?? []) {
+          if (currentVerification) {
+            await tx.query(
+              `UPDATE verification_checks
+               SET status = $1, notes = $2, updated_at = NOW()
+               WHERE business_verification_id = $3 AND type = $4`,
+              [check.status, check.notes ?? null, currentVerification.id, check.type],
+            );
+          }
+        }
         for (const feedback of input.documentsFeedback ?? []) {
           const documentResult = await tx.query(
             `UPDATE business_documents
              SET status = $1, notes = $2, updated_at = NOW()
              WHERE id = $3
              RETURNING *`,
-            [feedback.status, feedback.notes, feedback.documentId],
+            [feedback.status, feedback.notes ?? null, feedback.documentId],
           );
           requiredRow(documentResult.rows, `Business document ${feedback.documentId} not found`);
         }
@@ -487,6 +506,25 @@ export class BusinessOnboardingRepository {
           `UPDATE businesses SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
           [nextStatus, businessId],
         );
+        if (currentVerification) {
+          await tx.query(
+            `UPDATE business_verifications
+             SET status = 'rejected', reviewer_id = $1, review_notes = $2,
+                 reviewed_at = NOW(), updated_at = NOW()
+             WHERE id = $3`,
+            [ctx.userId ?? null, input.reviewNotes, currentVerification.id],
+          );
+        }
+        for (const check of input.checks ?? []) {
+          if (currentVerification) {
+            await tx.query(
+              `UPDATE verification_checks
+               SET status = $1, notes = $2, updated_at = NOW()
+               WHERE business_verification_id = $3 AND type = $4`,
+              [check.status, check.notes ?? null, currentVerification.id, check.type],
+            );
+          }
+        }
         await tx.query(
           `INSERT INTO business_status_histories
              (business_id, previous_status, new_status, changed_by, reason)

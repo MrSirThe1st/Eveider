@@ -61,7 +61,7 @@ const ADMIN_MODULES: NavModule[] = [
     items: [
       {
         href: '/tableau-de-bord/entreprises',
-        label: 'Toutes les entreprises',
+        label: 'Entreprises actives',
         isActive: (pathname) =>
           pathname === '/tableau-de-bord/entreprises',
       },

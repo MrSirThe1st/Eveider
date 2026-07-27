@@ -5,12 +5,12 @@ import { getAdminSession } from '@/server/session';
 
 export default async function AdminBusinessesPage() {
   const { ctx } = await getAdminSession();
-  const businesses = await listBusinesses(ctx);
+  const businesses = await listBusinesses(ctx, { statuses: ['active'] });
 
   return (
     <PageFrame
-      title="Gestion entreprises"
-      description="Validation et suivi des comptes partenaires."
+      title="Entreprises actives"
+      description="Répertoire des comptes partenaires vérifiés et actifs."
     >
       <BusinessList businesses={businesses} />
     </PageFrame>

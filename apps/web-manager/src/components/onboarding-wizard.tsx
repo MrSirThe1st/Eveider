@@ -322,9 +322,18 @@ export function OnboardingWizard({ initialSummary, availableLockers = [] }: Onbo
         <div style={{ background: '#FFFBEB', border: '2px solid #F59E0B', color: '#92400E', padding: '1rem 1.25rem', borderRadius: 8, marginBottom: '1.5rem', fontWeight: 600, fontSize: '0.875rem' }}>
           ⚠️ <strong>Demande de correction par l&apos;administration :</strong> Veuillez vérifier et re-soumettre vos documents ou informations avant validation final.
           {initialSummary?.verifications?.[0]?.reviewNotes ? (
-            <p style={{ margin: '0.5rem 0 0', fontWeight: 500, fontSize: '0.8125rem' }}>
-              Note admin : &quot;{initialSummary.verifications[0].reviewNotes}&quot;
-            </p>
+            <pre
+              style={{
+                margin: '0.75rem 0 0',
+                fontWeight: 500,
+                fontSize: '0.8125rem',
+                whiteSpace: 'pre-wrap',
+                fontFamily: 'inherit',
+                lineHeight: 1.5,
+              }}
+            >
+              {initialSummary.verifications[0].reviewNotes}
+            </pre>
           ) : null}
         </div>
       ) : null}

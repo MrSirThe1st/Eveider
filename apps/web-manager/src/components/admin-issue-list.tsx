@@ -3,14 +3,14 @@
 import { colors, webCardStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
 import type { IssueStatus } from '@eveider/domain';
 import { ISSUE_STATUS_LABELS } from '@eveider/domain';
-import { FilterBar, FilterChipGroup } from '@eveider/ui';
+import { FilterToolbar } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { FlashBanner } from '@/components/flash-banner';
 import type { IssueItem, IssueStatusFilter } from '@/server/issues';
 
-const STATUS_FILTERS: { value: IssueStatusFilter; label: string }[] = [
-  { value: 'all', label: 'TOUS' },
+const STATUS_OPTIONS: { value: IssueStatusFilter; label: string }[] = [
+  { value: 'all', label: 'Tous' },
   { value: 'open', label: ISSUE_STATUS_LABELS.open },
   { value: 'in_progress', label: ISSUE_STATUS_LABELS.in_progress },
   { value: 'resolved', label: ISSUE_STATUS_LABELS.resolved },
@@ -76,13 +76,19 @@ export function AdminIssueList({ issues }: AdminIssueListProps) {
 
   return (
     <div>
-      <FilterBar label="FILTRER PAR STATUT">
-        <FilterChipGroup
-          items={STATUS_FILTERS}
-          value={statusFilter}
-          onChange={setStatusFilter}
-        />
-      </FilterBar>
+      <FilterToolbar
+        onClearAll={() => setStatusFilter('all')}
+        filters={[
+          {
+            id: 'status',
+            label: 'Statut',
+            value: statusFilter,
+            emptyValue: 'all',
+            options: STATUS_OPTIONS,
+            onChange: (value) => setStatusFilter(value as IssueStatusFilter),
+          },
+        ]}
+      />
 
       {actionError ? <FlashBanner message={actionError} variant="error" /> : null}
 

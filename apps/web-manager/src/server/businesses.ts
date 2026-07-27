@@ -7,9 +7,12 @@ export type BusinessListItem = Pick<
   'id' | 'name' | 'status' | 'contactEmail' | 'contactPhone' | 'createdAt'
 >;
 
-export async function listBusinesses(ctx: DataAccessContext): Promise<BusinessListItem[]> {
+export async function listBusinesses(
+  ctx: DataAccessContext,
+  options?: { statuses?: BusinessListItem['status'][] },
+): Promise<BusinessListItem[]> {
   const { businesses } = createRepositories();
-  const items = await businesses.list(ctx);
+  const items = await businesses.list(ctx, options);
   return items.map((item) => {
     const dto = toBusinessDto(item);
     return {
