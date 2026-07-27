@@ -2,7 +2,6 @@
 
 import { AdminAnalyticsPanel } from '@/components/admin-analytics-panel';
 import { AdminKpiRow } from '@/components/admin-kpi-row';
-import { AdminParcelList } from '@/components/admin-parcel-list';
 import type { AdminDashboardData } from '@/components/admin-dashboard-types';
 
 type AdminDashboardViewProps = {
@@ -14,7 +13,6 @@ export function AdminDashboardView({ data }: AdminDashboardViewProps) {
     <>
       <AdminKpiRow stats={data.stats} />
       <AdminAnalyticsPanel analytics={data.analytics} />
-      <AdminParcelList seedParcels={data.parcels} />
     </>
   );
 }

@@ -41,6 +41,16 @@ export class PaymentRepository {
 
   async getPickupPaymentSummary(parcelId: string): Promise<PickupPaymentSummary> {
     const config = getPawaPayConfig();
+    const parcelResult = await this.db.query(
+      `SELECT payment_responsibility FROM parcels WHERE id = $1 LIMIT 1`,
+      [parcelId],
+    );
+    const paymentResponsibility = String(
+      parcelResult.rows[0]?.payment_responsibility ?? 'receiver_pays',
+    );
+    const customerPays =
+      Boolean(config) && paymentResponsibility === 'receiver_pays';
+
     const latestResult = await this.db.query(
       `SELECT * FROM parcel_payments WHERE parcel_id = $1 ORDER BY created_at DESC LIMIT 1`,
       [parcelId],
@@ -48,10 +58,10 @@ export class PaymentRepository {
     const latest = latestResult.rows[0] ? mapParcelPayment(latestResult.rows[0]) : null;
 
     return {
-      required: Boolean(config),
+      required: customerPays,
       status: latest?.status ?? 'none',
-      amount: config?.pickupFeeAmount ?? null,
-      currency: config?.pickupFeeCurrency ?? null,
+      amount: customerPays ? (config?.pickupFeeAmount ?? null) : null,
+      currency: customerPays ? (config?.pickupFeeCurrency ?? null) : null,
       provider: latest?.provider ?? null,
       depositId: latest?.depositId ?? null,
       failureReason: latest?.failureReason ?? null,
@@ -59,8 +69,8 @@ export class PaymentRepository {
   }
 
   async hasCompletedPickupPayment(parcelId: string): Promise<boolean> {
-    const config = getPawaPayConfig();
-    if (!config) return true;
+    const summary = await this.getPickupPaymentSummary(parcelId);
+    if (!summary.required) return true;
 
     const completed = await this.db.query(
       `SELECT id FROM parcel_payments WHERE parcel_id = $1 AND status = 'completed' LIMIT 1`,

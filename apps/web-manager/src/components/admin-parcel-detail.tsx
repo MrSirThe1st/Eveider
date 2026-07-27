@@ -176,7 +176,7 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
     return (
       <div>
         <p style={{ fontWeight: 500, color: colors.danger }}>{error ?? 'Colis introuvable'}</p>
-        <Link href="/tableau-de-bord" style={{ fontWeight: 600 }}>
+        <Link href="/tableau-de-bord/colis" style={{ fontWeight: 600 }}>
           ← Retour aux colis
         </Link>
       </div>
@@ -191,7 +191,7 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
       {actionError ? <FlashBanner message={actionError} variant="error" /> : null}
 
       <Link
-        href="/tableau-de-bord"
+        href="/tableau-de-bord/colis"
         style={{
           display: 'inline-block',
           marginBottom: '1.5rem',

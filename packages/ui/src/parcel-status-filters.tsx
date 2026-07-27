@@ -1,7 +1,7 @@
 'use client';
 
 import { PARCEL_STATUSES, PARCEL_STATUS_LABELS, type ParcelStatus } from '@eveider/domain';
-import { FilterBar, FilterChipGroup } from './filter-bar.js';
+import { FilterToolbar } from './filter-toolbar.js';
 
 export type ParcelStatusFilter = 'all' | ParcelStatus;
 
@@ -10,7 +10,7 @@ type ParcelStatusFiltersProps = {
   onChange: (value: ParcelStatusFilter) => void;
 };
 
-const FILTER_ITEMS: { value: ParcelStatusFilter; label: string }[] = [
+const STATUS_OPTIONS: { value: ParcelStatusFilter; label: string }[] = [
   { value: 'all', label: 'Tous' },
   ...PARCEL_STATUSES.map((status: ParcelStatus) => ({
     value: status as ParcelStatusFilter,
@@ -20,8 +20,18 @@ const FILTER_ITEMS: { value: ParcelStatusFilter; label: string }[] = [
 
 export function ParcelStatusFilters({ value, onChange }: ParcelStatusFiltersProps) {
   return (
-    <FilterBar label="Filtrer par statut">
-      <FilterChipGroup items={FILTER_ITEMS} value={value} onChange={onChange} />
-    </FilterBar>
+    <FilterToolbar
+      onClearAll={() => onChange('all')}
+      filters={[
+        {
+          id: 'parcel-status',
+          label: 'Statut',
+          value,
+          emptyValue: 'all',
+          options: STATUS_OPTIONS,
+          onChange: (next) => onChange(next as ParcelStatusFilter),
+        },
+      ]}
+    />
   );
 }

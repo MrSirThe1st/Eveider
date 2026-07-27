@@ -1,10 +1,11 @@
 'use client';
 
-import { colors, webCardStyle } from '@eveider/config-ui';
+import { colors, radius } from '@eveider/config-ui';
 import Link from 'next/link';
 import type { DashboardStats } from '@/components/admin-dashboard-types';
+import { Fragment } from 'react';
 
-type KpiCardProps = {
+type KpiItemProps = {
   label: string;
   value: string | number;
   hint?: string;
@@ -12,58 +13,78 @@ type KpiCardProps = {
   accent?: boolean;
 };
 
-function KpiCard({ label, value, hint, href, accent }: KpiCardProps) {
-  const cardStyle = {
-    ...webCardStyle,
-    background: accent ? '#E8FCE8' : colors.surface,
-    padding: '1.25rem 1rem',
-    minWidth: 140,
+function KpiItem({ label, value, hint, href, accent }: KpiItemProps) {
+  const itemStyle: React.CSSProperties = {
     flex: '1 1 140px',
-    display: 'block' as const,
-    textDecoration: 'none' as const,
-    color: 'inherit' as const,
+    padding: '0.5rem 1.5rem',
+    minWidth: 140,
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    textDecoration: 'none',
+    color: 'inherit',
+    transition: 'background-color 0.2s ease',
+    borderRadius: radius.sm,
   };
 
   const body = (
     <>
-      <p
+      <span
         style={{
-          margin: 0,
-          fontSize: '0.8125rem',
-          fontWeight: 500,
+          fontSize: '0.6875rem',
+          fontWeight: 700,
           color: colors.textMuted,
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
         }}
       >
         {label}
-      </p>
-      <p
+      </span>
+      <span
         style={{
-          margin: '0.5rem 0 0',
           fontSize: '1.75rem',
           fontWeight: 700,
-          lineHeight: 1,
-          color: colors.secondary,
+          color: accent ? colors.primary : colors.secondary,
+          marginTop: '0.25rem',
+          lineHeight: 1.1,
         }}
       >
         {value}
-      </p>
+      </span>
       {hint ? (
-        <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', fontWeight: 500, opacity: 0.65 }}>
+        <span
+          style={{
+            fontSize: '0.6875rem',
+            color: colors.textMuted,
+            marginTop: '0.25rem',
+            opacity: 0.8,
+            fontWeight: 500,
+          }}
+        >
           {hint}
-        </p>
+        </span>
       ) : null}
     </>
   );
 
   if (href) {
     return (
-      <Link href={href} style={cardStyle}>
+      <Link
+        href={href}
+        style={itemStyle}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLElement).style.backgroundColor = colors.surfaceSubtle;
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
+        }}
+      >
         {body}
       </Link>
     );
   }
 
-  return <div style={cardStyle}>{body}</div>;
+  return <div style={itemStyle}>{body}</div>;
 }
 
 type AdminKpiRowProps = {
@@ -75,6 +96,42 @@ export function AdminKpiRow({ stats }: AdminKpiRowProps) {
     stats.lockerOccupancy.total > 0
       ? Math.round((stats.lockerOccupancy.occupied / stats.lockerOccupancy.total) * 100)
       : 0;
+
+  const items = [
+    {
+      label: 'Colis créés',
+      value: stats.parcelsToday,
+      hint: 'Depuis minuit',
+      href: '/tableau-de-bord/colis',
+    },
+    {
+      label: 'Livraisons actives',
+      value: stats.activeDeliveries,
+      hint: 'Assignées · scannées · dépôt',
+      href: '/tableau-de-bord/livraisons',
+    },
+    { label: 'Dépôts terminés', value: stats.completedToday, hint: "Aujourd'hui" },
+    {
+      label: 'Prêts retrait',
+      value: stats.readyForPickup,
+      hint: 'En attente client',
+      accent: stats.readyForPickup > 0,
+      href: '/tableau-de-bord/colis',
+    },
+    {
+      label: 'Incidents ouverts',
+      value: stats.openIssues,
+      hint: 'À traiter',
+      href: '/tableau-de-bord/incidents',
+      accent: stats.openIssues > 0,
+    },
+    {
+      label: 'Occupation casiers',
+      value: `${occupancyRate}%`,
+      hint: `${stats.lockerOccupancy.occupied} / ${stats.lockerOccupancy.total}`,
+      href: '/tableau-de-bord/points',
+    },
+  ];
 
   return (
     <section style={{ marginBottom: '2rem' }}>
@@ -88,34 +145,32 @@ export function AdminKpiRow({ stats }: AdminKpiRowProps) {
       >
         Aujourd&apos;hui
       </h2>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <KpiCard label="Colis créés" value={stats.parcelsToday} hint="Depuis minuit" />
-        <KpiCard
-          label="Livraisons actives"
-          value={stats.activeDeliveries}
-          hint="Assignées · scannées · dépôt"
-          href="/tableau-de-bord/livraisons"
-        />
-        <KpiCard label="Dépôts terminés" value={stats.completedToday} hint="Aujourd'hui" />
-        <KpiCard
-          label="Prêts retrait"
-          value={stats.readyForPickup}
-          hint="En attente client"
-          accent={stats.readyForPickup > 0}
-        />
-        <KpiCard
-          label="Incidents ouverts"
-          value={stats.openIssues}
-          hint="À traiter"
-          href="/tableau-de-bord/incidents"
-          accent={stats.openIssues > 0}
-        />
-        <KpiCard
-          label="Occupation casiers"
-          value={`${occupancyRate}%`}
-          hint={`${stats.lockerOccupancy.occupied} / ${stats.lockerOccupancy.total} compartiments`}
-          href="/tableau-de-bord/points"
-        />
+      <div
+        style={{
+          display: 'flex',
+          borderBottom: `1px solid ${colors.borderSubtle}`,
+          padding: '1.25rem 0',
+          width: '100%',
+          flexWrap: 'wrap',
+          gap: '0.5rem 0',
+        }}
+      >
+        {items.map((item, index) => (
+          <Fragment key={item.label}>
+            {index > 0 && (
+              <div
+                style={{
+                  width: 1,
+                  height: 32,
+                  backgroundColor: colors.borderSubtle,
+                  alignSelf: 'center',
+                  flexShrink: 0,
+                }}
+              />
+            )}
+            <KpiItem {...item} />
+          </Fragment>
+        ))}
       </div>
     </section>
   );

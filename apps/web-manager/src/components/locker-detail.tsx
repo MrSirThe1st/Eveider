@@ -39,28 +39,38 @@ type LockerDetailProps = {
 
 function StatItem({ label, value }: { label: string; value: string | number }) {
   return (
-    <div style={{ flex: '1 1 100px' }}>
-      <p
+    <div
+      style={{
+        flex: '1 1 120px',
+        padding: '0.5rem 1.5rem',
+        minWidth: 120,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+      }}
+    >
+      <span
         style={{
-          margin: 0,
-          fontSize: '0.625rem',
+          fontSize: '0.6875rem',
           fontWeight: 700,
-          letterSpacing: '0.1em',
-          opacity: 0.55,
+          color: colors.textMuted,
+          textTransform: 'uppercase',
+          letterSpacing: '0.08em',
         }}
       >
         {label}
-      </p>
-      <p
+      </span>
+      <span
         style={{
-          margin: '0.25rem 0 0',
-          fontSize: '1.5rem',
+          fontSize: '1.75rem',
           fontWeight: 700,
-          lineHeight: 1,
+          color: colors.secondary,
+          marginTop: '0.25rem',
+          lineHeight: 1.1,
         }}
       >
         {value}
-      </p>
+      </span>
     </div>
   );
 }
@@ -277,24 +287,32 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
       <div
         style={{
           display: 'flex',
-          flexWrap: 'wrap',
-          gap: '1.5rem',
+          borderBottom: `1px solid ${colors.borderSubtle}`,
+          padding: '1.25rem 0',
           marginBottom: '2rem',
+          width: '100%',
+          flexWrap: 'wrap',
+          gap: '0.5rem 0',
         }}
       >
         {smartLocker ? (
           <>
             <StatItem label="DISPONIBLES" value={locker.compartmentCounts.available} />
+            <div style={{ width: 1, height: 32, backgroundColor: colors.borderSubtle, alignSelf: 'center', flexShrink: 0 }} />
             <StatItem label="OCCUPÉS" value={locker.compartmentCounts.occupied} />
+            <div style={{ width: 1, height: 32, backgroundColor: colors.borderSubtle, alignSelf: 'center', flexShrink: 0 }} />
             <StatItem label="RÉSERVÉS" value={locker.compartmentCounts.reserved} />
           </>
         ) : (
           <>
             <StatItem label="LIBRES" value={locker.availableSlots} />
+            <div style={{ width: 1, height: 32, backgroundColor: colors.borderSubtle, alignSelf: 'center', flexShrink: 0 }} />
             <StatItem label="ASSIGNÉS" value={locker.occupyingCount} />
+            <div style={{ width: 1, height: 32, backgroundColor: colors.borderSubtle, alignSelf: 'center', flexShrink: 0 }} />
             <StatItem label="CAPACITÉ" value={locker.maxCapacity ?? '—'} />
           </>
         )}
+        <div style={{ width: 1, height: 32, backgroundColor: colors.borderSubtle, alignSelf: 'center', flexShrink: 0 }} />
         <StatItem label="OCCUPATION" value={`${occupancyRate}%`} />
       </div>
 

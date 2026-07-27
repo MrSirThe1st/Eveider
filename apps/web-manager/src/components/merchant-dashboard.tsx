@@ -98,7 +98,7 @@ export function MerchantDashboard({
 
       <PageFrame
         title={`Bienvenue, ${businessName}`}
-        description="Tableau de bord de vos envois et de votre compte partenaire."
+        description="Tableau de bord de vos colis et de votre compte partenaire."
         action={
           <Button
             variant="primary"
@@ -146,105 +146,119 @@ export function MerchantDashboard({
         <section
           aria-label="Indicateurs"
           style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: spacing[5],
+            display: 'flex',
+            borderBottom: `1px solid ${colors.borderSubtle}`,
+            padding: '1.25rem 0',
             marginBottom: spacing[8],
+            width: '100%',
+            flexWrap: 'wrap',
+            gap: '0.5rem 0',
           }}
         >
-          <div style={{ ...webCardStyle, padding: spacing[6] }}>
+          {/* Colis total */}
+          <div style={{ flex: '1 1 140px', padding: '0.5rem 1.5rem', minWidth: 140, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <span
               style={{
-                fontSize: typography.caption.fontSize,
-                fontWeight: typography.weights.semibold,
+                fontSize: '0.6875rem',
+                fontWeight: 700,
                 color: colors.textMuted,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
               }}
             >
               Colis total
             </span>
             <p
               style={{
-                margin: `${spacing[3]}px 0 0`,
-                fontSize: '2rem',
-                fontWeight: typography.weights.bold,
+                margin: '0.25rem 0 0',
+                fontSize: '1.75rem',
+                fontWeight: 700,
                 color: colors.secondary,
-                lineHeight: 1,
+                lineHeight: 1.1,
               }}
             >
               {parcelsCount}
             </p>
           </div>
 
-          <div style={{ ...webCardStyle, padding: spacing[6] }}>
+          <div style={{ width: 1, height: 32, backgroundColor: colors.borderSubtle, alignSelf: 'center', flexShrink: 0 }} />
+
+          {/* Livrés */}
+          <div style={{ flex: '1 1 140px', padding: '0.5rem 1.5rem', minWidth: 140, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <span
               style={{
-                fontSize: typography.caption.fontSize,
-                fontWeight: typography.weights.semibold,
+                fontSize: '0.6875rem',
+                fontWeight: 700,
                 color: colors.textMuted,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
               }}
             >
               Livrés
             </span>
             <p
               style={{
-                margin: `${spacing[3]}px 0 0`,
-                fontSize: '2rem',
-                fontWeight: typography.weights.bold,
+                margin: '0.25rem 0 0',
+                fontSize: '1.75rem',
+                fontWeight: 700,
                 color: colors.secondary,
-                lineHeight: 1,
+                lineHeight: 1.1,
               }}
             >
               {deliveredCount}
             </p>
           </div>
 
-          <div style={{ ...webCardStyle, padding: spacing[6] }}>
+          <div style={{ width: 1, height: 32, backgroundColor: colors.borderSubtle, alignSelf: 'center', flexShrink: 0 }} />
+
+          {/* En cours */}
+          <div style={{ flex: '1 1 140px', padding: '0.5rem 1.5rem', minWidth: 140, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <span
               style={{
-                fontSize: typography.caption.fontSize,
-                fontWeight: typography.weights.semibold,
+                fontSize: '0.6875rem',
+                fontWeight: 700,
                 color: colors.textMuted,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
               }}
             >
               En cours
             </span>
             <p
               style={{
-                margin: `${spacing[3]}px 0 0`,
-                fontSize: '2rem',
-                fontWeight: typography.weights.bold,
+                margin: '0.25rem 0 0',
+                fontSize: '1.75rem',
+                fontWeight: 700,
                 color: colors.secondary,
-                lineHeight: 1,
+                lineHeight: 1.1,
               }}
             >
               {pendingCount}
             </p>
           </div>
 
-          <div
-            style={{
-              ...webCardStyle,
-              padding: spacing[6],
-              background: colors.secondary,
-              borderColor: colors.secondary,
-            }}
-          >
+          <div style={{ width: 1, height: 32, backgroundColor: colors.borderSubtle, alignSelf: 'center', flexShrink: 0 }} />
+
+          {/* Solde COD */}
+          <div style={{ flex: '1 1 140px', padding: '0.5rem 1.5rem', minWidth: 140, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <span
               style={{
-                fontSize: typography.caption.fontSize,
-                fontWeight: typography.weights.semibold,
+                fontSize: '0.6875rem',
+                fontWeight: 700,
                 color: colors.primary,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
               }}
             >
               Solde COD
             </span>
             <p
               style={{
-                margin: `${spacing[3]}px 0 0`,
-                fontSize: '2rem',
-                fontWeight: typography.weights.bold,
-                color: '#FFFFFF',
-                lineHeight: 1,
+                margin: '0.25rem 0 0',
+                fontSize: '1.75rem',
+                fontWeight: 700,
+                color: colors.secondary,
+                lineHeight: 1.1,
               }}
             >
               ${balanceUsd.toFixed(2)}
@@ -276,7 +290,7 @@ export function MerchantDashboard({
                 gap: spacing[3],
               }}
             >
-              <Button variant="secondary" onClick={() => router.push(WEB_ROUTES.businessDashboard)}>
+              <Button variant="secondary" onClick={() => router.push(WEB_ROUTES.businessParcels)}>
                 Voir les colis
               </Button>
               <Button variant="secondary" onClick={() => alert('Facturation & relevés COD')}>

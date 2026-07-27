@@ -15,10 +15,10 @@ export type CurrentUser = {
 export async function resolveCurrentUser(): Promise<CurrentUser | null> {
   const supabase = await createClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const authUser = session?.user;
+  const authUser = user;
   if (!authUser) {
     return null;
   }

@@ -52,11 +52,26 @@ export async function POST(request: Request) {
     const result = await parcels.create(auth.session.ctx, {
       businessId: auth.session.profile.businessId!,
       reference: body.data.reference,
+      pickupType: body.data.pickupType,
+      senderName: body.data.senderName,
+      senderPhone: body.data.senderPhone,
+      senderAddress: body.data.senderAddress,
       recipientPhone: body.data.recipientPhone,
       recipientName: body.data.recipientName,
       recipientEmail: body.data.recipientEmail,
       lockerId: body.data.lockerId,
       compartmentId: body.data.compartmentId,
+      packageSize: body.data.packageSize,
+      packageLengthCm: body.data.packageLengthCm,
+      packageWidthCm: body.data.packageWidthCm,
+      packageHeightCm: body.data.packageHeightCm,
+      packageWeightKg: body.data.packageWeightKg,
+      packageCategory: body.data.packageCategory,
+      declaredValueCdf: body.data.declaredValueCdf,
+      declaredValueUsd: body.data.declaredValueUsd,
+      paymentResponsibility: body.data.paymentResponsibility,
+      codAmountCdf: body.data.codAmountCdf,
+      codAmountUsd: body.data.codAmountUsd,
     });
 
     return NextResponse.json(
@@ -80,8 +95,17 @@ export async function POST(request: Request) {
         { status: 403 },
       );
     }
-    const status =
-      message.includes('indisponible') || message.includes('introuvable') ? 409 : 500;
+    let status = 500;
+    if (
+      message.includes('COD') ||
+      message.includes('Compartiment requis') ||
+      message.includes('Adresse expéditeur') ||
+      message.includes('Montant COD')
+    ) {
+      status = 400;
+    } else if (message.includes('indisponible') || message.includes('introuvable')) {
+      status = 409;
+    }
     return NextResponse.json(fail(message), { status });
   }
 }

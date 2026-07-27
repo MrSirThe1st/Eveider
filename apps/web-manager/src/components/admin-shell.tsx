@@ -2,12 +2,13 @@
 
 import {
   AppShell,
-  IconAlert,
   IconBuilding,
-  IconLayout,
-  IconLock,
+  IconHome,
+  IconMapPin,
   IconPackage,
+  IconTruck,
   IconUser,
+  type NavModule,
 } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -15,6 +16,81 @@ import { createClient } from '@/lib/supabase/client';
 type AdminShellProps = {
   children: React.ReactNode;
 };
+
+const NAV_ICON_PROPS = { width: 16, height: 16 } as const;
+
+const ADMIN_MODULES: NavModule[] = [
+  {
+    id: 'accueil',
+    label: 'Accueil',
+    href: '/tableau-de-bord',
+    icon: <IconHome {...NAV_ICON_PROPS} />,
+    match: (p) => p === '/tableau-de-bord',
+  },
+  {
+    id: 'colis',
+    label: 'Colis',
+    href: '/tableau-de-bord/colis',
+    icon: <IconPackage {...NAV_ICON_PROPS} />,
+    match: (p) => p.startsWith('/tableau-de-bord/colis'),
+  },
+  {
+    id: 'livraisons',
+    label: 'Livraisons',
+    href: '/tableau-de-bord/livraisons',
+    icon: <IconTruck {...NAV_ICON_PROPS} />,
+    match: (p) =>
+      p.startsWith('/tableau-de-bord/livraisons') || p.startsWith('/tableau-de-bord/incidents'),
+    items: [
+      { href: '/tableau-de-bord/livraisons', label: 'Toutes actives' },
+      { href: '/tableau-de-bord/livraisons?status=assigned', label: 'Assignées' },
+      { href: '/tableau-de-bord/livraisons?status=scanned', label: 'Scannées' },
+      {
+        href: '/tableau-de-bord/livraisons?status=drop_off_pending',
+        label: 'Au casier',
+      },
+      { href: '/tableau-de-bord/incidents', label: 'Incidents' },
+    ],
+  },
+  {
+    id: 'entreprises',
+    label: 'Entreprises',
+    href: '/tableau-de-bord/entreprises',
+    icon: <IconBuilding {...NAV_ICON_PROPS} />,
+    match: (p) => p.startsWith('/tableau-de-bord/entreprises'),
+    items: [
+      {
+        href: '/tableau-de-bord/entreprises',
+        label: 'Toutes les entreprises',
+        isActive: (pathname) =>
+          pathname === '/tableau-de-bord/entreprises',
+      },
+      {
+        href: '/tableau-de-bord/entreprises/applications',
+        label: 'Dossiers / vérification',
+        isActive: (pathname) =>
+          pathname.startsWith('/tableau-de-bord/entreprises/applications'),
+      },
+    ],
+  },
+  {
+    id: 'points',
+    label: 'Points',
+    href: '/tableau-de-bord/points',
+    icon: <IconMapPin {...NAV_ICON_PROPS} />,
+    match: (p) =>
+      p.startsWith('/tableau-de-bord/points') || p.startsWith('/tableau-de-bord/casiers'),
+    items: [{ href: '/tableau-de-bord/points', label: 'Tous les points' }],
+  },
+  {
+    id: 'utilisateurs',
+    label: 'Utilisateurs',
+    href: '/tableau-de-bord/utilisateurs',
+    icon: <IconUser {...NAV_ICON_PROPS} />,
+    match: (p) => p.startsWith('/tableau-de-bord/utilisateurs'),
+    items: [{ href: '/tableau-de-bord/utilisateurs', label: 'Tous les utilisateurs' }],
+  },
+];
 
 export function AdminShell({ children }: AdminShellProps) {
   const router = useRouter();
@@ -28,58 +104,11 @@ export function AdminShell({ children }: AdminShellProps) {
   return (
     <AppShell
       brand="Admin"
-      brandShort="AD"
-      storageKey="eveider-admin-sidebar"
+      brandShort="Admin"
       maxWidth={1200}
       onSignOut={handleSignOut}
-      navItems={[
-        {
-          href: '/tableau-de-bord',
-          label: "Vue d'ensemble",
-          icon: <IconLayout />,
-          isActive: (p) => p === '/tableau-de-bord' || p.startsWith('/tableau-de-bord/colis'),
-        },
-        {
-          href: '/tableau-de-bord/livraisons',
-          label: 'Livraisons',
-          icon: <IconPackage />,
-          isActive: (p) => p.startsWith('/tableau-de-bord/livraisons'),
-        },
-        {
-          href: '/tableau-de-bord/entreprises/applications',
-          label: 'Dossiers business',
-          icon: <IconBuilding />,
-          isActive: (p) => p.startsWith('/tableau-de-bord/entreprises/applications'),
-        },
-        {
-          href: '/tableau-de-bord/entreprises',
-          label: 'Entreprises',
-          icon: <IconBuilding />,
-          isActive: (p) =>
-            p === '/tableau-de-bord/entreprises' ||
-            (p.startsWith('/tableau-de-bord/entreprises/') &&
-              !p.startsWith('/tableau-de-bord/entreprises/applications')),
-        },
-        {
-          href: '/tableau-de-bord/points',
-          label: 'Points',
-          icon: <IconLock />,
-          isActive: (p) =>
-            p.startsWith('/tableau-de-bord/points') || p.startsWith('/tableau-de-bord/casiers'),
-        },
-        {
-          href: '/tableau-de-bord/utilisateurs',
-          label: 'Utilisateurs',
-          icon: <IconUser />,
-          isActive: (p) => p.startsWith('/tableau-de-bord/utilisateurs'),
-        },
-        {
-          href: '/tableau-de-bord/incidents',
-          label: 'Incidents',
-          icon: <IconAlert />,
-          isActive: (p) => p.startsWith('/tableau-de-bord/incidents'),
-        },
-      ]}
+      modules={ADMIN_MODULES}
+      profileHref="/tableau-de-bord/profil"
     >
       {children}
     </AppShell>

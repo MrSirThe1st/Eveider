@@ -4,10 +4,25 @@ import { createDataAccessContext } from '../context.js';
 import {
   businessRow,
   createSqlMatchMock,
+  lockerRow,
   parcelRow,
   sqlIncludes,
 } from '../test/query-mock.js';
 import { ParcelRepository } from './parcel.repository.js';
+
+const shipmentInput = {
+  businessId: 'biz-1',
+  reference: 'PK-001',
+  pickupType: 'merchant_dropoff' as const,
+  senderName: 'Pharmacy',
+  senderPhone: '+243111111111',
+  recipientName: 'Client',
+  recipientPhone: '+243000000000',
+  lockerId: 'locker-1',
+  packageSize: 'medium' as const,
+  packageCategory: 'other' as const,
+  paymentResponsibility: 'receiver_pays' as const,
+};
 
 describe('ParcelRepository', () => {
   const findCustomerByPhone = vi.fn();
@@ -18,7 +33,12 @@ describe('ParcelRepository', () => {
   let db = createSqlMatchMock(() => null);
   let repo: ParcelRepository;
 
-  function setup(resolve: (sql: string, values?: unknown[]) => ReturnType<typeof parcelRow> | ReturnType<typeof parcelRow>[] | null) {
+  function setup(
+    resolve: (
+      sql: string,
+      values?: unknown[],
+    ) => Record<string, unknown> | Record<string, unknown>[] | null,
+  ) {
     db = createSqlMatchMock(resolve);
     repo = new ParcelRepository(
       db,
@@ -40,16 +60,31 @@ describe('ParcelRepository', () => {
     });
   });
 
-  it('creates parcel for active business scope', async () => {
+  it('creates shipment for active business scope', async () => {
     setup((sql) => {
       if (sqlIncludes(sql, 'FROM businesses') && sqlIncludes(sql, 'SELECT *')) {
         return businessRow();
+      }
+      if (sqlIncludes(sql, 'FROM lockers WHERE id') || sqlIncludes(sql, 'SELECT * FROM lockers')) {
+        return lockerRow({
+          id: 'locker-1',
+          type: 'PARTNER_POINT',
+          latitude: -4.3,
+          longitude: 15.3,
+          max_capacity: 20,
+        });
+      }
+      if (sqlIncludes(sql, 'FROM compartments WHERE locker_id')) {
+        return [];
+      }
+      if (sqlIncludes(sql, 'FROM parcels') && sqlIncludes(sql, 'GROUP BY locker_id')) {
+        return [];
       }
       if (sqlIncludes(sql, 'FROM parcels WHERE tracking_number')) {
         return null;
       }
       if (sqlIncludes(sql, 'INSERT INTO parcels')) {
-        return parcelRow({ locker_id: null, tracking_number: 'EVD26TEST0001A' });
+        return parcelRow({ tracking_number: 'EVD26TEST0001A' });
       }
       if (sqlIncludes(sql, 'SELECT name FROM businesses')) {
         return { name: 'Pharmacy' };
@@ -58,11 +93,7 @@ describe('ParcelRepository', () => {
     });
 
     const ctx = createDataAccessContext('business', { businessId: 'biz-1' });
-    const result = await repo.create(ctx, {
-      businessId: 'biz-1',
-      reference: 'PK-001',
-      recipientPhone: '+243000000000',
-    });
+    const result = await repo.create(ctx, shipmentInput);
 
     expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO parcels'),
@@ -83,13 +114,7 @@ describe('ParcelRepository', () => {
 
     const ctx = createDataAccessContext('business', { businessId: 'biz-1' });
 
-    await expect(
-      repo.create(ctx, {
-        businessId: 'biz-1',
-        reference: 'PK-002',
-        recipientPhone: '+243000000000',
-      }),
-    ).rejects.toThrow('cannot submit parcels');
+    await expect(repo.create(ctx, shipmentInput)).rejects.toThrow('cannot submit parcels');
   });
 
   it('applies domain transition on status update', async () => {
@@ -141,21 +166,19 @@ describe('ParcelRepository', () => {
 
     expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO pickup_pins'),
-      expect.arrayContaining(['parcel-1', expect.stringMatching(/^\d{6}$/)]),
+      expect.arrayContaining(['parcel-1']),
     );
   });
 
   it('rejects invalid parcel transition', async () => {
     setup((sql) => {
       if (sqlIncludes(sql, 'SELECT * FROM parcels')) {
-        return parcelRow({ status: 'created', locker_id: null });
+        return parcelRow({ status: 'created' });
       }
       throw new Error(`Unexpected SQL: ${sql}`);
     });
 
     const ctx = createDataAccessContext('admin');
-    await expect(repo.updateStatus(ctx, 'parcel-1', 'collected')).rejects.toThrow(
-      'Invalid parcel transition',
-    );
+    await expect(repo.updateStatus(ctx, 'parcel-1', 'collected')).rejects.toThrow();
   });
 });

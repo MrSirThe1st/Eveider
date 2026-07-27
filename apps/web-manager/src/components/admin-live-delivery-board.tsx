@@ -1,10 +1,11 @@
 'use client';
 
-import { colors, radius, spacing, borderSubtle, webCardStyle, webInputStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
+import { colors, radius, spacing, borderSubtle, webCardStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
 import { DELIVERY_STATUS_LABELS } from '@eveider/domain';
-import { FilterBar, FilterChipGroup, LoadingSpinner } from '@eveider/ui';
+import { FilterToolbar, LoadingSpinner } from '@eveider/ui';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { DeliveryStatusBadge } from '@/components/delivery-status-badge';
 import { FlashBanner } from '@/components/flash-banner';
 import {
@@ -15,19 +16,17 @@ import {
   useDeliveriesBoardQuery,
 } from '@/hooks/queries/use-deliveries-query';
 
-const STATUS_FILTERS: { value: DeliveryStatusFilter; label: string }[] = [
-  { value: 'all', label: 'ACTIVES' },
+const STATUS_OPTIONS: { value: DeliveryStatusFilter; label: string }[] = [
+  { value: 'all', label: 'Toutes actives' },
   { value: 'assigned', label: DELIVERY_STATUS_LABELS.assigned },
   { value: 'scanned', label: DELIVERY_STATUS_LABELS.scanned },
   { value: 'drop_off_pending', label: DELIVERY_STATUS_LABELS.drop_off_pending },
 ];
 
-const selectStyle: React.CSSProperties = {
-  ...webInputStyle,
-  minWidth: 180,
-  height: spacing.buttonHeight,
-  padding: '0 0.75rem',
-};
+function parseStatusParam(raw: string | null): DeliveryStatusFilter {
+  if (raw === 'assigned' || raw === 'scanned' || raw === 'drop_off_pending') return raw;
+  return 'all';
+}
 
 function formatDateTime(iso: string) {
   return new Intl.DateTimeFormat('fr-CD', {
@@ -43,12 +42,23 @@ function courierLabel(courier: DeliveryItem['courier']) {
 }
 
 export function AdminLiveDeliveryBoard() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const statusFromUrl = parseStatusParam(searchParams.get('status'));
+
   const [filters, setFilters] = useState<DeliveryFilters>({
-    status: 'all',
+    status: statusFromUrl,
     courierId: '',
     lockerId: '',
     businessId: '',
   });
+
+  useEffect(() => {
+    setFilters((current) =>
+      current.status === statusFromUrl ? current : { ...current, status: statusFromUrl },
+    );
+  }, [statusFromUrl]);
 
   const boardQuery = useDeliveriesBoardQuery(filters);
 
@@ -90,9 +100,7 @@ export function AdminLiveDeliveryBoard() {
       ? boardQuery.error.message
       : 'Impossible de charger les livraisons.';
 
-  const lastRefresh = boardQuery.dataUpdatedAt
-    ? new Date(boardQuery.dataUpdatedAt)
-    : null;
+  const lastRefresh = boardQuery.dataUpdatedAt ? new Date(boardQuery.dataUpdatedAt) : null;
 
   const summaryCards = useMemo(
     () => [
@@ -107,60 +115,203 @@ export function AdminLiveDeliveryBoard() {
     [summary],
   );
 
+  function writeStatusToUrl(status: DeliveryStatusFilter) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (status === 'all') params.delete('status');
+    else params.set('status', status);
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
+
   function updateFilter<K extends keyof DeliveryFilters>(key: K, value: DeliveryFilters[K]) {
     setFilters((current) => ({ ...current, [key]: value }));
+    if (key === 'status') {
+      writeStatusToUrl(value as DeliveryStatusFilter);
+    }
+  }
+
+  function clearAllFilters() {
+    setFilters({
+      status: 'all',
+      courierId: '',
+      lockerId: '',
+      businessId: '',
+    });
+    writeStatusToUrl('all');
   }
 
   return (
     <div>
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-          gap: '1rem',
+          display: 'flex',
+          borderBottom: `1px solid ${colors.borderSubtle}`,
+          padding: '1.25rem 0',
           marginBottom: '1.5rem',
+          width: '100%',
+          flexWrap: 'wrap',
+          gap: '0.5rem 0',
         }}
       >
-        {summaryCards.map((card) => (
-          <button
-            key={card.key}
-            type="button"
-            onClick={() => updateFilter('status', filters.status === card.key ? 'all' : card.key)}
-            style={{
-              textAlign: 'left',
-              padding: '1rem 1.25rem',
-              background: filters.status === card.key ? '#E8FCE8' : colors.surface,
-              border: `1px solid ${filters.status === card.key ? colors.primary : colors.border}`,
-              borderRadius: radius.card,
-              cursor: 'pointer',
-            }}
-          >
-            <p style={{ margin: 0, fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em' }}>
-              {card.label}
-            </p>
-            <p style={{ margin: '0.35rem 0 0', fontSize: '1.75rem', fontWeight: 700 }}>{card.value}</p>
-          </button>
-        ))}
+        {summaryCards.map((card, index) => {
+          const isActive = filters.status === card.key;
+          return (
+            <Fragment key={card.key}>
+              {index > 0 && (
+                <div
+                  style={{
+                    width: 1,
+                    height: 32,
+                    backgroundColor: colors.borderSubtle,
+                    alignSelf: 'center',
+                    flexShrink: 0,
+                  }}
+                />
+              )}
+              <button
+                type="button"
+                onClick={() =>
+                  updateFilter('status', filters.status === card.key ? 'all' : card.key)
+                }
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.backgroundColor = colors.surfaceSubtle;
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
+                }}
+                style={{
+                  flex: '1 1 140px',
+                  padding: '0.5rem 1.5rem',
+                  minWidth: 140,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  textAlign: 'left',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  borderRadius: radius.sm,
+                  transition: 'background-color 0.2s ease',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: '0.6875rem',
+                    fontWeight: 700,
+                    color: colors.textMuted,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                  }}
+                >
+                  {card.label}
+                </span>
+                <span
+                  style={{
+                    margin: '0.25rem 0 0',
+                    fontSize: '1.75rem',
+                    fontWeight: 700,
+                    color: isActive ? colors.primary : colors.secondary,
+                    lineHeight: 1.1,
+                  }}
+                >
+                  {card.value}
+                </span>
+              </button>
+            </Fragment>
+          );
+        })}
+        
         <div
           style={{
-            ...webCardStyle,
-            padding: '1rem 1.25rem',
+            width: 1,
+            height: 32,
+            backgroundColor: colors.borderSubtle,
+            alignSelf: 'center',
+            flexShrink: 0,
+          }}
+        />
+
+        <div
+          style={{
+            flex: '1 1 140px',
+            padding: '0.5rem 1.5rem',
+            minWidth: 140,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
           }}
         >
-          <p style={{ margin: 0, fontSize: '0.6875rem', fontWeight: 600 }}>
+          <span
+            style={{
+              fontSize: '0.6875rem',
+              fontWeight: 700,
+              color: colors.textMuted,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+            }}
+          >
             Total actif
-          </p>
-          <p style={{ margin: '0.35rem 0 0', fontSize: '1.75rem', fontWeight: 700 }}>{summary?.total ?? 0}</p>
+          </span>
+          <span
+            style={{
+              margin: '0.25rem 0 0',
+              fontSize: '1.75rem',
+              fontWeight: 700,
+              color: colors.secondary,
+              lineHeight: 1.1,
+            }}
+          >
+            {summary?.total ?? 0}
+          </span>
         </div>
       </div>
 
-      <FilterBar label="FILTRER PAR STATUT">
-        <FilterChipGroup
-          items={STATUS_FILTERS}
-          value={filters.status}
-          onChange={(value) => updateFilter('status', value)}
-        />
-      </FilterBar>
+      <FilterToolbar
+        onClearAll={clearAllFilters}
+        filters={[
+          {
+            id: 'status',
+            label: 'Statut',
+            value: filters.status,
+            emptyValue: 'all',
+            options: STATUS_OPTIONS,
+            onChange: (value) => updateFilter('status', value as DeliveryStatusFilter),
+          },
+          {
+            id: 'courier',
+            label: 'Coursier',
+            value: filters.courierId,
+            emptyValue: '',
+            options: [
+              { value: '', label: 'Tous les coursiers' },
+              ...couriers.map((c) => ({ value: c.id, label: c.label })),
+            ],
+            onChange: (value) => updateFilter('courierId', value),
+          },
+          {
+            id: 'locker',
+            label: 'Casier',
+            value: filters.lockerId,
+            emptyValue: '',
+            options: [
+              { value: '', label: 'Tous les casiers' },
+              ...lockers.map((l) => ({ value: l.id, label: l.label })),
+            ],
+            onChange: (value) => updateFilter('lockerId', value),
+          },
+          {
+            id: 'business',
+            label: 'Entreprise',
+            value: filters.businessId,
+            emptyValue: '',
+            options: [
+              { value: '', label: 'Toutes les entreprises' },
+              ...businesses.map((b) => ({ value: b.id, label: b.label })),
+            ],
+            onChange: (value) => updateFilter('businessId', value),
+          },
+        ]}
+      />
 
       <div
         style={{
@@ -171,54 +322,11 @@ export function AdminLiveDeliveryBoard() {
           alignItems: 'center',
         }}
       >
-        <select
-          value={filters.courierId}
-          onChange={(event) => updateFilter('courierId', event.target.value)}
-          style={selectStyle}
-          aria-label="Filtrer par coursier"
-        >
-          <option value="">Tous les coursiers</option>
-          {couriers.map((courier) => (
-            <option key={courier.id} value={courier.id}>
-              {courier.label}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={filters.lockerId}
-          onChange={(event) => updateFilter('lockerId', event.target.value)}
-          style={selectStyle}
-          aria-label="Filtrer par casier"
-        >
-          <option value="">Tous les casiers</option>
-          {lockers.map((locker) => (
-            <option key={locker.id} value={locker.id}>
-              {locker.label}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={filters.businessId}
-          onChange={(event) => updateFilter('businessId', event.target.value)}
-          style={selectStyle}
-          aria-label="Filtrer par entreprise"
-        >
-          <option value="">Toutes les entreprises</option>
-          {businesses.map((business) => (
-            <option key={business.id} value={business.id}>
-              {business.label}
-            </option>
-          ))}
-        </select>
-
         {boardQuery.isFetching && deliveries.length > 0 ? (
           <span style={{ fontSize: '0.75rem', fontWeight: 500, color: colors.secondary, opacity: 0.7 }}>
             Mise à jour…
           </span>
         ) : null}
-
         {lastRefresh ? (
           <span style={{ fontSize: '0.75rem', fontWeight: 500, color: colors.secondary, opacity: 0.7 }}>
             Actualisé à {formatDateTime(lastRefresh.toISOString())} · auto {DELIVERIES_REFRESH_MS / 1000}s
@@ -248,7 +356,10 @@ export function AdminLiveDeliveryBoard() {
       ) : null}
 
       {showRefreshError ? (
-        <FlashBanner message={`${errorMessage} Les données affichées peuvent être obsolètes.`} variant="error" />
+        <FlashBanner
+          message={`${errorMessage} Les données affichées peuvent être obsolètes.`}
+          variant="error"
+        />
       ) : null}
 
       {!showInitialLoader && !showFatalError && deliveries.length === 0 ? (
@@ -321,9 +432,18 @@ export function AdminLiveDeliveryBoard() {
                   <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle(), fontWeight: 500 }}>
                     {delivery.parcel.recipientName ?? '—'}
                     <br />
-                    <span style={{ fontSize: '0.8125rem', opacity: 0.75 }}>{delivery.parcel.recipientPhone}</span>
+                    <span style={{ fontSize: '0.8125rem', opacity: 0.75 }}>
+                      {delivery.parcel.recipientPhone}
+                    </span>
                   </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle(), fontWeight: 500, whiteSpace: 'nowrap' }}>
+                  <td
+                    style={{
+                      padding: '0.85rem 0.75rem',
+                      borderBottom: borderSubtle(),
+                      fontWeight: 500,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
                     {formatDateTime(delivery.updatedAt)}
                   </td>
                   <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle() }}>

@@ -68,22 +68,40 @@ function formatDateTime(iso: string) {
   }).format(new Date(iso));
 }
 
-function StatCard({ label, value, color = colors.secondary }: { label: string; value: number; color?: string }) {
+function StatItem({
+  label,
+  value,
+  color = colors.secondary,
+}: {
+  label: string;
+  value: number;
+  color?: string;
+}) {
   return (
     <div
       style={{
-        ...webCardStyle,
-        padding: '1.25rem',
-        flex: '1 1 180px',
+        flex: '1 1 140px',
+        padding: '0.5rem 1.5rem',
+        minWidth: 140,
         display: 'flex',
         flexDirection: 'column',
-        gap: '0.5rem',
+        justifyContent: 'center',
       }}
     >
-      <span style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em', opacity: 0.7 }}>
+      <span
+        style={{
+          fontSize: '0.6875rem',
+          fontWeight: 700,
+          color: colors.textMuted,
+          textTransform: 'uppercase',
+          letterSpacing: '0.08em',
+        }}
+      >
         {label}
       </span>
-      <span style={{ fontSize: '2rem', fontWeight: 700, color, lineHeight: 1 }}>{value}</span>
+      <span style={{ fontSize: '1.75rem', fontWeight: 700, color, marginTop: '0.25rem', lineHeight: 1.1 }}>
+        {value}
+      </span>
     </div>
   );
 }
@@ -245,11 +263,24 @@ export function CourierProfileDetail({ courierId }: CourierDetailProps) {
 
       {/* Stats Row */}
       {stats && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
-          <StatCard label="LIVRAISONS TOTALES" value={stats.total} />
-          <StatCard label="LIVRÉES" value={stats.completed} color={colors.success} />
-          <StatCard label="ÉCHECS" value={stats.failed} color={colors.danger} />
-          <StatCard label="EN COURS" value={stats.inProgress} color={colors.warning} />
+        <div
+          style={{
+            display: 'flex',
+            borderBottom: `1px solid ${colors.borderSubtle}`,
+            padding: '1.25rem 0',
+            marginBottom: '2rem',
+            width: '100%',
+            flexWrap: 'wrap',
+            gap: '0.5rem 0',
+          }}
+        >
+          <StatItem label="LIVRAISONS TOTALES" value={stats.total} />
+          <div style={{ width: 1, height: 32, backgroundColor: colors.borderSubtle, alignSelf: 'center', flexShrink: 0 }} />
+          <StatItem label="LIVRÉES" value={stats.completed} color={colors.success} />
+          <div style={{ width: 1, height: 32, backgroundColor: colors.borderSubtle, alignSelf: 'center', flexShrink: 0 }} />
+          <StatItem label="ÉCHECS" value={stats.failed} color={colors.danger} />
+          <div style={{ width: 1, height: 32, backgroundColor: colors.borderSubtle, alignSelf: 'center', flexShrink: 0 }} />
+          <StatItem label="EN COURS" value={stats.inProgress} color={colors.warning} />
         </div>
       )}
 

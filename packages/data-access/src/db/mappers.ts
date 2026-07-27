@@ -118,6 +118,12 @@ export function mapCompartment(row: Record<string, unknown>): Compartment {
   };
 }
 
+function asNumberOrNull(value: unknown): number | null {
+  if (value == null || value === '') return null;
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 export function mapParcel(row: Record<string, unknown>): Parcel {
   return {
     id: String(row.id),
@@ -130,6 +136,25 @@ export function mapParcel(row: Record<string, unknown>): Parcel {
     recipientName: row.recipient_name == null ? null : String(row.recipient_name),
     lockerId: row.locker_id == null ? null : String(row.locker_id),
     compartmentId: row.compartment_id == null ? null : String(row.compartment_id),
+    pickupType: (row.pickup_type as Parcel['pickupType']) ?? 'merchant_dropoff',
+    senderName: String(row.sender_name ?? 'Eveider'),
+    senderPhone: String(row.sender_phone ?? 'n/a'),
+    senderAddress:
+      row.sender_address == null || row.sender_address === ''
+        ? null
+        : String(row.sender_address),
+    packageSize: (row.package_size as Parcel['packageSize']) ?? 'medium',
+    packageLengthCm: asNumberOrNull(row.package_length_cm),
+    packageWidthCm: asNumberOrNull(row.package_width_cm),
+    packageHeightCm: asNumberOrNull(row.package_height_cm),
+    packageWeightKg: asNumberOrNull(row.package_weight_kg),
+    packageCategory: (row.package_category as Parcel['packageCategory']) ?? 'other',
+    declaredValueCdf: asNumberOrNull(row.declared_value_cdf),
+    declaredValueUsd: asNumberOrNull(row.declared_value_usd),
+    paymentResponsibility:
+      (row.payment_responsibility as Parcel['paymentResponsibility']) ?? 'receiver_pays',
+    codAmountCdf: asNumberOrNull(row.cod_amount_cdf),
+    codAmountUsd: asNumberOrNull(row.cod_amount_usd),
     createdAt: asDate(row.created_at),
     updatedAt: asDate(row.updated_at),
   };

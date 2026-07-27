@@ -31,6 +31,9 @@ describe('PaymentRepository', () => {
 
   it('returns pickup payment summary with configured fee', async () => {
     setup((sql) => {
+      if (sqlIncludes(sql, 'SELECT payment_responsibility FROM parcels')) {
+        return { payment_responsibility: 'receiver_pays' };
+      }
       if (sqlIncludes(sql, 'FROM parcel_payments')) {
         return null;
       }
@@ -45,6 +48,22 @@ describe('PaymentRepository', () => {
       amount: '5',
       currency: 'USD',
     });
+  });
+
+  it('skips pickup fee when sender pays', async () => {
+    setup((sql) => {
+      if (sqlIncludes(sql, 'SELECT payment_responsibility FROM parcels')) {
+        return { payment_responsibility: 'sender_pays' };
+      }
+      if (sqlIncludes(sql, 'FROM parcel_payments')) {
+        return null;
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const summary = await repo.getPickupPaymentSummary('parcel-1');
+    expect(summary.required).toBe(false);
+    expect(summary.amount).toBeNull();
   });
 
   it('blocks payment initiation when parcel is not ready for pickup', async () => {

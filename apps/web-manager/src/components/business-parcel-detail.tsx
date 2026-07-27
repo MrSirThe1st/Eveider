@@ -1,29 +1,15 @@
 'use client';
 
 import { colors, webCardStyle } from '@eveider/config-ui';
-import type { ParcelStatus } from '@eveider/domain';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { FlashBanner } from '@/components/flash-banner';
 import { ParcelInvitePanel } from '@/components/parcel-invite-panel';
+import { ShippingLabel } from '@/components/shipping-label';
 import { WEB_ROUTES } from '@/lib/auth-routing';
+import type { ParcelDto } from '@/lib/business-parcel-presenter';
 import { ParcelStatusBadge } from '@/components/parcel-status-badge';
-
-type ParcelDetailData = {
-  id: string;
-  trackingNumber: string;
-  reference: string | null;
-  status: ParcelStatus;
-  statusLabel: string;
-  recipientName: string | null;
-  recipientPhone: string;
-  lockerId: string | null;
-  locker: { id: string; name: string; address: string } | null;
-  compartment: { id: string; label: string; sizeLabel: string } | null;
-  createdAt: string;
-  updatedAt: string;
-};
 
 function formatDateTime(iso: string) {
   return new Intl.DateTimeFormat('fr-CD', {
@@ -42,7 +28,7 @@ type ParcelDetailProps = {
 export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
   const searchParams = useSearchParams();
   const justCreated = searchParams.get('created') === '1';
-  const [parcel, setParcel] = useState<ParcelDetailData | null>(null);
+  const [parcel, setParcel] = useState<ParcelDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,7 +37,7 @@ export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
       .then((res) => res.json())
       .then((result) => {
         if (!result.success) {
-          setError(result.error ?? 'Colis introuvable');
+          setError(result.error ?? 'Envoi introuvable');
           return;
         }
         setParcel(result.data.parcel);
@@ -66,8 +52,8 @@ export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
   if (error || !parcel) {
     return (
       <div>
-        <p style={{ fontWeight: 500, color: colors.danger }}>{error ?? 'Colis introuvable'}</p>
-        <Link href={WEB_ROUTES.businessDashboard} style={{ fontWeight: 600 }}>
+        <p style={{ fontWeight: 500, color: colors.danger }}>{error ?? 'Envoi introuvable'}</p>
+        <Link href={WEB_ROUTES.businessParcels} style={{ fontWeight: 600 }}>
           ← Retour aux colis
         </Link>
       </div>
@@ -75,12 +61,12 @@ export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
   }
 
   return (
-    <div style={{ maxWidth: 640 }}>
+    <div style={{ maxWidth: 720 }}>
       {justCreated ? (
         <FlashBanner message={`Colis ${parcel.trackingNumber} créé avec succès.`} />
       ) : null}
       <Link
-        href={WEB_ROUTES.businessDashboard}
+        href={WEB_ROUTES.businessParcels}
         style={{
           display: 'inline-block',
           marginBottom: '1.5rem',
@@ -98,6 +84,7 @@ export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
         style={{
           ...webCardStyle,
           padding: '2rem',
+          marginBottom: '1.25rem',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
@@ -108,6 +95,26 @@ export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
         </div>
 
         <dl style={{ margin: '2rem 0 0', display: 'grid', gap: '1.25rem' }}>
+          {parcel.reference ? (
+            <div>
+              <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
+                Réf. marchande
+              </dt>
+              <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>{parcel.reference}</dd>
+            </div>
+          ) : null}
+          <div>
+            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>Expéditeur</dt>
+            <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
+              {parcel.senderName} · {parcel.senderPhone}
+              {parcel.senderAddress ? (
+                <>
+                  <br />
+                  <span style={{ fontSize: '0.875rem' }}>{parcel.senderAddress}</span>
+                </>
+              ) : null}
+            </dd>
+          </div>
           <div>
             <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>Destinataire</dt>
             <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
@@ -116,7 +123,7 @@ export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
           </div>
           <div>
             <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
-              Casier de destination
+              Point de destination
             </dt>
             <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
               {parcel.locker ? (
@@ -141,16 +148,48 @@ export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
             </div>
           ) : null}
           <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>Créé le</dt>
-            <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>{formatDateTime(parcel.createdAt)}</dd>
+            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>Colis</dt>
+            <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
+              {parcel.packageSizeLabel} · {parcel.packageCategoryLabel}
+            </dd>
           </div>
           <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
-              Dernière mise à jour
-            </dt>
-            <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>{formatDateTime(parcel.updatedAt)}</dd>
+            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>Paiement</dt>
+            <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
+              {parcel.paymentResponsibilityLabel}
+            </dd>
+          </div>
+          <div>
+            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>Créé le</dt>
+            <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
+              {formatDateTime(parcel.createdAt)}
+            </dd>
           </div>
         </dl>
+      </section>
+
+      <section style={{ ...webCardStyle, padding: '1.5rem', marginBottom: '1.25rem' }}>
+        <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700 }}>
+          QR & étiquette
+        </h3>
+        <ShippingLabel
+          data={{
+            trackingNumber: parcel.trackingNumber,
+            senderName: parcel.senderName,
+            senderPhone: parcel.senderPhone,
+            senderAddress: parcel.senderAddress,
+            recipientName: parcel.recipientName,
+            recipientPhone: parcel.recipientPhone,
+            lockerName: parcel.locker?.name ?? null,
+            lockerAddress: parcel.locker?.address ?? null,
+            compartmentLabel: parcel.compartment?.label ?? null,
+            packageSizeLabel: parcel.packageSizeLabel,
+            packageCategoryLabel: parcel.packageCategoryLabel,
+            paymentResponsibilityLabel: parcel.paymentResponsibilityLabel,
+            pickupTypeLabel: parcel.pickupTypeLabel,
+            reference: parcel.reference,
+          }}
+        />
       </section>
 
       <ParcelInvitePanel parcelId={parcelId} />

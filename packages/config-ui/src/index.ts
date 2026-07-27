@@ -1,6 +1,6 @@
 /**
- * Design tokens — Eveider logistics UI (sage canvas, InPost-inspired).
- * Runtime look: sage background `#EBF3E8` (preferred over blueprint grey).
+ * Design tokens — Eveider logistics UI (neutral SaaS canvas).
+ * Page background is cool white/gray; cards stay pure white with elevation.
  * Keep CSS vars in apps/web-manager/src/app/globals.css in sync with this file.
  */
 
@@ -15,14 +15,16 @@ export const colors = {
   /** Neutrals */
   secondary: '#121212',
   surface: '#FFFFFF',
-  surfaceSubtle: '#E6F2E1',
-  surfaceMuted: '#F0F4EE',
-  background: '#EBF3E8',
-  borderSubtle: '#D6E3D2',
-  border: '#D6E3D2',
+  /** Soft fills (nav active, secondary buttons) — cool gray, not sage. */
+  surfaceSubtle: '#F3F4F6',
+  surfaceMuted: '#EEF0F3',
+  /** Page / app canvas — reads white, keeps white cards distinct. */
+  background: '#F7F8FA',
+  borderSubtle: '#E5E7EB',
+  border: '#E5E7EB',
   borderStrong: '#09D40B',
-  textMuted: '#707A6A',
-  textDisabled: '#A3ADA0',
+  textMuted: '#6B7280',
+  textDisabled: '#9CA3AF',
 
   /** Accent (sparingly) */
   tertiary: '#FF99B2',
@@ -151,9 +153,10 @@ export const spacing = {
 
 export const shadows = {
   none: 'none',
-  soft: '0 4px 16px rgba(0, 0, 0, 0.03)',
-  card: '0 2px 10px rgba(0, 0, 0, 0.02)',
-  hard: '0 4px 16px rgba(0, 0, 0, 0.04)',
+  /** Cards / panels — enough lift to separate from white canvas. */
+  soft: '0 1px 2px rgba(16, 24, 40, 0.05), 0 4px 16px rgba(16, 24, 40, 0.06)',
+  card: '0 1px 2px rgba(16, 24, 40, 0.04), 0 2px 8px rgba(16, 24, 40, 0.05)',
+  hard: '0 2px 4px rgba(16, 24, 40, 0.06), 0 8px 24px rgba(16, 24, 40, 0.08)',
   focus: `0 0 0 3px ${colors.focusRing}`,
   focusDanger: `0 0 0 3px ${colors.focusRingDanger}`,
 } as const;
@@ -183,11 +186,11 @@ export const icons = {
 
 /** Status badge fills & text colors. */
 export const PARCEL_STATUS_FILLS = {
-  created: '#F0F4EE',
+  created: '#F3F4F6',
   in_transit: '#FFE4EC',
   delivered_to_locker: '#FFF3D6',
   ready_for_pickup: '#DCF5D6',
-  collected: '#F0F4EE',
+  collected: '#F3F4F6',
 } as const;
 
 /* ── Style helpers (backward compatible) ──────────────────────── */
@@ -200,7 +203,7 @@ export function borderStrong(width: number = borders.widthStrong): string {
   return `${width}px ${borders.style} ${colors.borderSubtle}`;
 }
 
-/** Web card — white surface on light sage canvas, subtle border, soft shadow. */
+/** Web card — white surface on cool canvas, border + elevation. */
 export const webCardStyle = {
   background: colors.surface,
   border: borderSubtle(),

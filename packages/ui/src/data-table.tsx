@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius, spacing, typography, borderSubtle } from '@eveider/config-ui';
+import { colors, radius, spacing, typography, borderSubtle, shadows } from '@eveider/config-ui';
 import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { DropdownMenu, type DropdownMenuItem } from './dropdown-menu.js';
 import { EmptyState } from './empty-state.js';
@@ -133,7 +133,7 @@ export function DataTable<T>({
           border: borderSubtle(),
           borderRadius: radius.card,
           background: colors.surface,
-          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.03)',
+          boxShadow: shadows.soft,
         }}
       >
         <table

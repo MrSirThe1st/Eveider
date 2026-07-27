@@ -15,7 +15,7 @@ type AuthScreenProps = {
     business: string;
     recipientPhone: string;
     recipientName: string | null;
-    parcel: { id: string; reference: string; locker: string | null };
+    parcel: { id: string; trackingNumber: string; reference: string | null; locker: string | null };
   };
   /** Open directly on profile completion (session exists, profile missing). */
   initialMode?: AuthMode;

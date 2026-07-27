@@ -10,7 +10,7 @@ export default async function AdminDashboardPage() {
   return (
     <PageFrame
       title="Vue d'ensemble"
-      description="Indicateurs du jour, analytiques et suivi des colis en cours."
+      description="Indicateurs du jour et analytiques du réseau."
     >
       <AdminDashboardView data={data} />
     </PageFrame>

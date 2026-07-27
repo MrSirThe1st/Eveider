@@ -6,6 +6,7 @@ export const WEB_ROUTES = {
   register: '/inscription',
   adminDashboard: '/tableau-de-bord',
   businessDashboard: '/entreprise/tableau-de-bord',
+  businessParcels: '/entreprise/tableau-de-bord/colis',
   businessNewParcel: '/entreprise/tableau-de-bord/colis/nouveau',
 } as const;
 

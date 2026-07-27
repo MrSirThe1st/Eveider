@@ -1,8 +1,22 @@
 'use client';
 
-import { colors, spacing, typography, borderSubtle } from '@eveider/config-ui';
-import { usesCompartmentGrid } from '@eveider/domain';
-import { Button, InlineAlert, TextField, Wizard, type WizardStep, useToast } from '@eveider/ui';
+import { colors, borderSubtle } from '@eveider/config-ui';
+import {
+  isCodAllowedForLockerType,
+  PACKAGE_CATEGORIES,
+  PACKAGE_CATEGORY_LABELS,
+  PACKAGE_SIZE_LABELS,
+  PACKAGE_SIZES,
+  PAYMENT_RESPONSIBILITIES,
+  PAYMENT_RESPONSIBILITY_LABELS,
+  SHIPMENT_PICKUP_TYPE_LABELS,
+  usesCompartmentGrid,
+  type PackageCategory,
+  type PackageSize,
+  type PaymentResponsibility,
+  type ShipmentPickupType,
+} from '@eveider/domain';
+import { InlineAlert, TextField, Wizard, type WizardStep, useToast } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -14,20 +28,24 @@ import type { LockerOption } from '@/components/locker-card';
 
 const STEPS: WizardStep[] = [
   {
+    id: 'pickup',
+    title: 'Enlèvement',
+    description: 'Mode d’enlèvement et coordonnées de l’expéditeur.',
+  },
+  {
     id: 'recipient',
     title: 'Destinataire',
-    description: 'Identifiez le client qui retirera le colis.',
+    description: 'Client qui retirera l’envoi.',
   },
   {
-    id: 'locker',
-    title: 'Point de retrait',
-    description:
-      'Choisissez un point Eveider, ou laissez le client choisir dans l’app.',
+    id: 'package',
+    title: 'Point & colis',
+    description: 'Point Eveider et caractéristiques du colis.',
   },
   {
-    id: 'review',
-    title: 'Revue',
-    description: 'Vérifiez les informations avant de créer le colis.',
+    id: 'payment',
+    title: 'Paiement',
+    description: 'Qui paie, puis revue avant création.',
   },
 ];
 
@@ -36,33 +54,72 @@ type LockerCompartmentsResponse = {
   compartments: SelectableCompartment[];
 };
 
-type FieldErrors = {
-  recipientPhone?: string;
-  compartmentId?: string;
-};
+function optionalNumber(value: string): number | undefined {
+  const trimmed = value.trim().replace(',', '.');
+  if (!trimmed) return undefined;
+  const n = Number(trimmed);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}
 
 export function CreateParcelForm() {
   const router = useRouter();
   const toast = useToast();
   const [stepIndex, setStepIndex] = useState(0);
+
+  const [pickupType, setPickupType] = useState<ShipmentPickupType>('courier_pickup');
+  const [senderName, setSenderName] = useState('');
+  const [senderPhone, setSenderPhone] = useState('');
+  const [senderAddress, setSenderAddress] = useState('');
+
   const [reference, setReference] = useState('');
   const [recipientName, setRecipientName] = useState('');
   const [recipientPhone, setRecipientPhone] = useState('');
   const [recipientEmail, setRecipientEmail] = useState('');
+
   const [lockerId, setLockerId] = useState('');
   const [compartmentId, setCompartmentId] = useState('');
   const [lockers, setLockers] = useState<LockerOption[]>([]);
   const [compartmentData, setCompartmentData] = useState<LockerCompartmentsResponse | null>(null);
   const [compartmentError, setCompartmentError] = useState<string | null>(null);
   const [loadingCompartments, setLoadingCompartments] = useState(false);
+
+  const [packageSize, setPackageSize] = useState<PackageSize>('medium');
+  const [packageCategory, setPackageCategory] = useState<PackageCategory>('other');
+  const [packageLengthCm, setPackageLengthCm] = useState('');
+  const [packageWidthCm, setPackageWidthCm] = useState('');
+  const [packageHeightCm, setPackageHeightCm] = useState('');
+  const [packageWeightKg, setPackageWeightKg] = useState('');
+  const [declaredValueCdf, setDeclaredValueCdf] = useState('');
+  const [declaredValueUsd, setDeclaredValueUsd] = useState('');
+
+  const [paymentResponsibility, setPaymentResponsibility] =
+    useState<PaymentResponsibility>('receiver_pays');
+  const [codAmountCdf, setCodAmountCdf] = useState('');
+  const [codAmountUsd, setCodAmountUsd] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [success, setSuccess] = useState<string | null>(null);
-  const [createdInvite, setCreatedInvite] = useState<{
-    deepLink: string;
-    webLink: string;
-  } | null>(null);
+
+  useEffect(() => {
+    void fetch('/api/entreprise/shipment-prefill')
+      .then((res) => res.json())
+      .then((result) => {
+        if (!result.success) return;
+        const data = result.data as {
+          senderName?: string;
+          senderPhone?: string;
+          senderAddress?: string | null;
+          pickupType?: ShipmentPickupType;
+        };
+        if (data.senderName) setSenderName(data.senderName);
+        if (data.senderPhone) setSenderPhone(data.senderPhone);
+        if (data.senderAddress) setSenderAddress(data.senderAddress);
+        if (data.pickupType) setPickupType(data.pickupType);
+      })
+      .catch(() => {
+        /* prefill optional */
+      });
+  }, []);
 
   useEffect(() => {
     async function loadLockers(lat?: number, lng?: number) {
@@ -156,73 +213,88 @@ export function CreateParcelForm() {
     ? usesCompartmentGrid(selectedLocker.type ?? 'SMART_LOCKER')
     : false;
 
-  const availableCount = useMemo(
-    () => compartmentData?.compartments.filter((c) => c.selectable).length ?? 0,
-    [compartmentData],
-  );
+  const codAllowed = selectedLocker
+    ? isCodAllowedForLockerType(selectedLocker.type ?? 'SMART_LOCKER')
+    : true;
 
-  const formLocked = loading || !!success;
+  useEffect(() => {
+    if (!codAllowed && paymentResponsibility === 'cod') {
+      setPaymentResponsibility('receiver_pays');
+    }
+  }, [codAllowed, paymentResponsibility]);
 
-  function handleSelectLocker(id: string) {
-    setLockerId(id);
-    setCompartmentId('');
-    setError(null);
-    setFieldErrors((current) => ({ ...current, compartmentId: undefined }));
-  }
-
-  function handleClearLocker() {
-    setLockerId('');
-    setCompartmentId('');
-    setCompartmentData(null);
-    setFieldErrors((current) => ({ ...current, compartmentId: undefined }));
-  }
-
-  function validateRecipient(): boolean {
-    const phone = recipientPhone.trim();
-    if (!phone) {
-      setFieldErrors({ recipientPhone: 'Le téléphone destinataire est obligatoire.' });
+  function validatePickup(): boolean {
+    if (senderName.trim().length < 2) {
+      setError('Nom expéditeur requis.');
       return false;
     }
-    setFieldErrors({});
+    if (!senderPhone.trim()) {
+      setError('Téléphone expéditeur requis.');
+      return false;
+    }
+    if (pickupType === 'courier_pickup' && senderAddress.trim().length < 5) {
+      setError('Adresse expéditeur requise pour un enlèvement coursier.');
+      return false;
+    }
+    setError(null);
     return true;
   }
 
-  function validateLocker(): boolean {
-    if (lockerId && needsCompartment && !compartmentId) {
-      setFieldErrors({
-        compartmentId: 'Sélectionnez un compartiment pour le casier choisi.',
-      });
+  function validateRecipient(): boolean {
+    if (recipientName.trim().length < 2) {
+      setError('Nom destinataire requis.');
       return false;
     }
-    setFieldErrors({});
+    if (!recipientPhone.trim()) {
+      setError('Téléphone destinataire requis.');
+      return false;
+    }
+    setError(null);
+    return true;
+  }
+
+  function validatePackage(): boolean {
+    if (!lockerId) {
+      setError('Sélectionnez un point de retrait.');
+      return false;
+    }
+    if (needsCompartment && !compartmentId) {
+      setError('Sélectionnez un compartiment pour le casier choisi.');
+      return false;
+    }
+    setError(null);
+    return true;
+  }
+
+  function validatePayment(): boolean {
+    if (paymentResponsibility === 'cod') {
+      if (!codAllowed) {
+        setError('Le COD n’est pas disponible pour les casiers intelligents.');
+        return false;
+      }
+      if (!optionalNumber(codAmountCdf) && !optionalNumber(codAmountUsd)) {
+        setError('Indiquez un montant COD (CDF ou USD).');
+        return false;
+      }
+    }
+    setError(null);
     return true;
   }
 
   function handleNext() {
-    setError(null);
-    if (stepIndex === 0 && !validateRecipient()) return;
-    if (stepIndex === 1 && !validateLocker()) return;
+    if (stepIndex === 0 && !validatePickup()) return;
+    if (stepIndex === 1 && !validateRecipient()) return;
+    if (stepIndex === 2 && !validatePackage()) return;
     setStepIndex((current) => Math.min(current + 1, STEPS.length - 1));
   }
 
-  function handleBack() {
-    setError(null);
-    setStepIndex((current) => Math.max(current - 1, 0));
-  }
-
   async function handleSubmit() {
-    if (!validateRecipient()) {
-      setStepIndex(0);
-      return;
-    }
-    if (!validateLocker()) {
-      setStepIndex(1);
+    if (!validatePickup() || !validateRecipient() || !validatePackage() || !validatePayment()) {
       return;
     }
 
     setLoading(true);
     setError(null);
-    setSuccess(null);
 
     try {
       const response = await fetch('/api/entreprise/parcels', {
@@ -230,58 +302,45 @@ export function CreateParcelForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           reference: reference.trim() || undefined,
-          recipientName: recipientName.trim() || undefined,
+          pickupType,
+          senderName: senderName.trim(),
+          senderPhone: senderPhone.trim(),
+          senderAddress:
+            pickupType === 'courier_pickup' ? senderAddress.trim() : undefined,
+          recipientName: recipientName.trim(),
           recipientPhone: recipientPhone.trim(),
           recipientEmail: recipientEmail.trim() || undefined,
-          lockerId: lockerId || undefined,
+          lockerId,
           compartmentId: compartmentId || undefined,
+          packageSize,
+          packageCategory,
+          packageLengthCm: optionalNumber(packageLengthCm),
+          packageWidthCm: optionalNumber(packageWidthCm),
+          packageHeightCm: optionalNumber(packageHeightCm),
+          packageWeightKg: optionalNumber(packageWeightKg),
+          declaredValueCdf: optionalNumber(declaredValueCdf),
+          declaredValueUsd: optionalNumber(declaredValueUsd),
+          paymentResponsibility,
+          codAmountCdf:
+            paymentResponsibility === 'cod' ? optionalNumber(codAmountCdf) : undefined,
+          codAmountUsd:
+            paymentResponsibility === 'cod' ? optionalNumber(codAmountUsd) : undefined,
         }),
       });
 
-      let result: {
-        success: boolean;
-        data?: {
-          parcel: { id: string; trackingNumber: string; reference: string | null };
-          recipientStatus: 'existing_user' | 'invited';
-          invite: { deepLink: string; webLink: string } | null;
-        };
-        error?: string;
-      };
-      try {
-        result = await response.json();
-      } catch {
-        setError('Réponse serveur invalide. Redémarrez le serveur de dev.');
-        toast.error('Réponse serveur invalide. Redémarrez le serveur de dev.');
-        setLoading(false);
-        return;
-      }
-
-      if (!result.success) {
-        const message = result.error ?? 'Création échouée';
+      const result = await response.json().catch(() => null);
+      if (!result?.success) {
+        const message = result?.error ?? 'Création échouée';
         setError(message);
         toast.error(message, 'Création impossible');
         setLoading(false);
         return;
       }
 
+      const tracking = result.data.parcel.trackingNumber as string;
+      toast.success(`Envoi ${tracking} créé.`);
       router.refresh();
-
-      const tracking = result.data!.parcel.trackingNumber;
-      if (result.data!.recipientStatus === 'invited' && result.data!.invite) {
-        setCreatedInvite(result.data!.invite);
-        setSuccess(
-          `Colis ${tracking} créé. Invitation générée — le destinataire n'a pas encore de compte Eveider.`,
-        );
-        toast.success(`Colis ${tracking} créé — invitation destinataire générée.`);
-      } else {
-        setSuccess(`Colis ${tracking} créé avec succès. Redirection…`);
-        toast.success(`Colis ${tracking} créé avec succès.`);
-      }
-      setLoading(false);
-
-      window.setTimeout(() => {
-        router.replace(`/entreprise/tableau-de-bord/colis/${result.data!.parcel.id}?created=1`);
-      }, result.data!.recipientStatus === 'invited' ? 4500 : 900);
+      router.replace(`/entreprise/tableau-de-bord/colis/${result.data.parcel.id}?created=1`);
     } catch {
       const message = 'Erreur réseau. Vérifiez votre connexion et réessayez.';
       setError(message);
@@ -290,282 +349,345 @@ export function CreateParcelForm() {
     }
   }
 
-  const reviewRows = [
-    { label: 'Référence', value: reference.trim() || '—' },
-    { label: 'Destinataire', value: recipientName.trim() || '—' },
-    { label: 'Téléphone', value: recipientPhone.trim() },
-    { label: 'Email', value: recipientEmail.trim() || '—' },
-    {
-      label: 'Point',
-      value: selectedLocker
-        ? selectedLocker.name
-        : 'Non assigné (choix client dans l’app)',
-    },
-    {
-      label: 'Compartiment',
-      value: needsCompartment
-        ? compartmentId
-          ? compartmentData?.compartments.find((c) => c.id === compartmentId)?.label ??
-            compartmentId
-          : '—'
-        : 'Non applicable',
-    },
-  ];
+  const selectStyle: React.CSSProperties = {
+    width: '100%',
+    marginTop: '0.35rem',
+    height: 42,
+    padding: '0 10px',
+    border: borderSubtle(),
+    borderRadius: 8,
+    background: colors.surface,
+  };
 
   return (
-    <div>
-      {success ? <InlineAlert message={success} variant="success" /> : null}
-      {createdInvite ? (
-        <div
-          className="nb-card"
-          style={{
-            marginBottom: spacing[5],
-            padding: spacing[4],
-            fontSize: typography.bodySm.fontSize,
-          }}
-        >
-          <p style={{ margin: `0 0 ${spacing[2]}px`, fontWeight: typography.weights.semibold }}>
-            Lien d&apos;invitation (simulation)
-          </p>
-          <p style={{ margin: `0 0 ${spacing[1]}px`, wordBreak: 'break-all' }}>
-            <strong>Web :</strong> {createdInvite.webLink}
-          </p>
-          <p style={{ margin: 0, wordBreak: 'break-all' }}>
-            <strong>App :</strong> {createdInvite.deepLink}
-          </p>
+    <Wizard
+      steps={STEPS}
+      currentStepIndex={stepIndex}
+      onBack={() => {
+        setError(null);
+        setStepIndex((current) => Math.max(current - 1, 0));
+      }}
+      onNext={handleNext}
+      onSubmit={() => void handleSubmit()}
+      loading={loading}
+      submitLabel="Créer l’envoi"
+      onStepSelect={(index) => {
+        if (index < stepIndex) setStepIndex(index);
+      }}
+    >
+      {error ? (
+        <div style={{ marginBottom: '1rem' }}>
+          <InlineAlert message={error} variant="error" />
         </div>
       ) : null}
-      {error ? (
-        <InlineAlert message={error} variant="error" onDismiss={() => setError(null)} />
+
+      {stepIndex === 0 ? (
+        <section style={{ display: 'grid', gap: '1rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {(['courier_pickup', 'merchant_dropoff'] as const).map((type) => (
+              <button
+                key={type}
+                type="button"
+                disabled={loading}
+                onClick={() => setPickupType(type)}
+                style={{
+                  flex: '1 1 200px',
+                  padding: '0.875rem 1rem',
+                  border:
+                    pickupType === type ? `2px solid ${colors.primary}` : borderSubtle(),
+                  borderRadius: 8,
+                  background: pickupType === type ? '#F0FDF4' : colors.surface,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                {SHIPMENT_PICKUP_TYPE_LABELS[type]}
+              </button>
+            ))}
+          </div>
+          <TextField
+            label="Nom expéditeur"
+            name="senderName"
+            value={senderName}
+            onChange={(e) => setSenderName(e.target.value)}
+            disabled={loading}
+            required
+          />
+          <TextField
+            label="Téléphone expéditeur"
+            name="senderPhone"
+            value={senderPhone}
+            onChange={(e) => setSenderPhone(e.target.value)}
+            disabled={loading}
+            required
+          />
+          {pickupType === 'courier_pickup' ? (
+            <TextField
+              label="Adresse d’enlèvement"
+              name="senderAddress"
+              value={senderAddress}
+              onChange={(e) => setSenderAddress(e.target.value)}
+              disabled={loading}
+              required
+              placeholder="Rue, quartier, ville…"
+            />
+          ) : (
+            <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>
+              Dépôt au point : l’adresse expéditeur n’est pas requise.
+            </p>
+          )}
+        </section>
       ) : null}
 
-      <Wizard
-        steps={STEPS}
-        currentStepIndex={stepIndex}
-        onBack={handleBack}
-        onNext={handleNext}
-        onSubmit={() => void handleSubmit()}
-        onStepSelect={(index) => {
-          if (index < stepIndex) setStepIndex(index);
-        }}
-        loading={loading}
-        nextDisabled={formLocked && !loading}
-        submitLabel={loading ? 'Création…' : success ? 'Colis créé' : 'Créer le colis'}
-      >
-        {stepIndex === 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing[5] }}>
-            <TextField
-              label="Référence marchande (optionnel)"
-              name="reference"
-              value={reference}
-              onChange={(e) => setReference(e.target.value)}
-              placeholder="CMD-2026-001"
-              disabled={formLocked}
-              hint="Un numéro de suivi Eveider (EVD…) sera généré automatiquement."
-            />
-            <TextField
-              label="Nom destinataire"
-              name="recipientName"
-              value={recipientName}
-              onChange={(e) => setRecipientName(e.target.value)}
-              placeholder="Jean Mukendi"
-              disabled={formLocked}
-            />
-            <TextField
-              label="Téléphone destinataire"
-              name="recipientPhone"
-              type="tel"
-              value={recipientPhone}
-              onChange={(e) => {
-                setRecipientPhone(e.target.value);
-                setFieldErrors((current) => ({ ...current, recipientPhone: undefined }));
-              }}
-              placeholder="+243800000000"
-              required
-              disabled={formLocked}
-              error={fieldErrors.recipientPhone}
-            />
-            <TextField
-              label="Email destinataire (optionnel)"
-              name="recipientEmail"
-              type="email"
-              value={recipientEmail}
-              onChange={(e) => setRecipientEmail(e.target.value)}
-              placeholder="client@exemple.cd"
-              disabled={formLocked}
+      {stepIndex === 1 ? (
+        <section style={{ display: 'grid', gap: '1rem' }}>
+          <TextField
+            label="Nom destinataire"
+            name="recipientName"
+            value={recipientName}
+            onChange={(e) => setRecipientName(e.target.value)}
+            disabled={loading}
+            required
+          />
+          <TextField
+            label="Téléphone destinataire"
+            name="recipientPhone"
+            value={recipientPhone}
+            onChange={(e) => setRecipientPhone(e.target.value)}
+            disabled={loading}
+            required
+          />
+          <TextField
+            label="Email destinataire (optionnel)"
+            name="recipientEmail"
+            value={recipientEmail}
+            onChange={(e) => setRecipientEmail(e.target.value)}
+            disabled={loading}
+          />
+          <TextField
+            label="Référence marchande (optionnel)"
+            name="reference"
+            value={reference}
+            onChange={(e) => setReference(e.target.value)}
+            disabled={loading}
+            placeholder="CMD-2026-001"
+          />
+        </section>
+      ) : null}
+
+      {stepIndex === 2 ? (
+        <section style={{ display: 'grid', gap: '1.25rem' }}>
+          <div>
+            <p style={{ margin: '0 0 0.5rem', fontWeight: 700, fontSize: '0.8125rem' }}>
+              Point de retrait (obligatoire)
+            </p>
+            <LockerPicker
+              lockers={lockers}
+              selectedLockerId={lockerId}
+              onSelectLocker={setLockerId}
             />
           </div>
-        ) : null}
 
-        {stepIndex === 1 ? (
-          <div>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                marginBottom: spacing[4],
-              }}
-            >
-              {lockerId ? (
-                <Button variant="secondary" size="sm" onClick={handleClearLocker} disabled={formLocked}>
-                  Effacer la sélection
-                </Button>
+          {needsCompartment ? (
+            <div>
+              <p style={{ margin: '0 0 0.5rem', fontWeight: 700, fontSize: '0.8125rem' }}>
+                Compartiment
+              </p>
+              {loadingCompartments ? (
+                <p style={{ color: colors.textMuted }}>Chargement…</p>
+              ) : compartmentError ? (
+                <InlineAlert message={compartmentError} variant="error" />
+              ) : compartmentData ? (
+                <CompartmentSelectGrid
+                  rows={compartmentData.locker.rows}
+                  columns={compartmentData.locker.columns}
+                  compartments={compartmentData.compartments}
+                  selectedId={compartmentId || null}
+                  onSelect={setCompartmentId}
+                />
               ) : null}
             </div>
+          ) : null}
 
-            {lockers.length === 0 ? (
-              <p style={{ margin: 0, fontSize: typography.bodySm.fontSize, fontWeight: 500 }}>
-                Aucun point en base. Exécutez <code>pnpm db:seed</code> puis rechargez la page.
-              </p>
-            ) : (
-              <LockerPicker
-                lockers={lockers}
-                selectedLockerId={lockerId}
-                onSelectLocker={handleSelectLocker}
-              />
-            )}
+          <label style={{ display: 'block' }}>
+            <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Taille</span>
+            <select
+              value={packageSize}
+              disabled={loading}
+              onChange={(e) => setPackageSize(e.target.value as PackageSize)}
+              style={selectStyle}
+            >
+              {PACKAGE_SIZES.map((size) => (
+                <option key={size} value={size}>
+                  {PACKAGE_SIZE_LABELS[size]}
+                </option>
+              ))}
+            </select>
+          </label>
 
-            {fieldErrors.compartmentId ? (
-              <p
-                role="alert"
-                style={{
-                  margin: `${spacing[4]}px 0 0`,
-                  color: colors.danger,
-                  fontSize: typography.caption.fontSize,
-                  fontWeight: typography.weights.semibold,
-                }}
-              >
-                {fieldErrors.compartmentId}
-              </p>
-            ) : null}
+          <label style={{ display: 'block' }}>
+            <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Catégorie</span>
+            <select
+              value={packageCategory}
+              disabled={loading}
+              onChange={(e) => setPackageCategory(e.target.value as PackageCategory)}
+              style={selectStyle}
+            >
+              {PACKAGE_CATEGORIES.map((category) => (
+                <option key={category} value={category}>
+                  {PACKAGE_CATEGORY_LABELS[category]}
+                </option>
+              ))}
+            </select>
+          </label>
 
-            {lockerId && needsCompartment ? (
-              <div
-                style={{
-                  marginTop: spacing[7],
-                  paddingTop: spacing[6],
-                  borderTop: borderSubtle(),
-                }}
-              >
-                <p
-                  style={{
-                    margin: `0 0 ${spacing[1]}px`,
-                    fontWeight: typography.weights.bold,
-                    fontSize: typography.bodySm.fontSize,
-                  }}
-                >
-                  {selectedLocker?.name ?? compartmentData?.locker.name}
-                </p>
-                <p
-                  style={{
-                    margin: `0 0 ${spacing[4]}px`,
-                    fontSize: typography.bodySm.fontSize,
-                    color: colors.textMuted,
-                  }}
-                >
-                  {loadingCompartments
-                    ? 'Chargement des compartiments…'
-                    : `${availableCount} compartiment${availableCount > 1 ? 's' : ''} disponible${availableCount > 1 ? 's' : ''} — cliquez pour réserver`}
-                </p>
-
-                {loadingCompartments ? null : compartmentData ? (
-                  <>
-                    <CompartmentSelectGrid
-                      rows={compartmentData.locker.rows}
-                      columns={compartmentData.locker.columns}
-                      compartments={compartmentData.compartments}
-                      selectedId={compartmentId}
-                      onSelect={(id) => {
-                        setCompartmentId(id);
-                        setFieldErrors((current) => ({ ...current, compartmentId: undefined }));
-                      }}
-                    />
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: spacing[4],
-                        marginTop: spacing[4],
-                        fontSize: typography.caption.fontSize,
-                        fontWeight: typography.weights.semibold,
-                        color: colors.textMuted,
-                      }}
-                    >
-                      <span>■ Disponible</span>
-                      <span>■ Réservé</span>
-                      <span>■ Occupé</span>
-                    </div>
-                  </>
-                ) : (
-                  <p style={{ margin: 0, fontSize: typography.bodySm.fontSize, color: colors.danger }}>
-                    {compartmentError ?? 'Impossible d’afficher la grille de ce casier.'}
-                  </p>
-                )}
-              </div>
-            ) : null}
-
-            {lockerId && selectedLocker && !needsCompartment ? (
-              <p
-                style={{
-                  margin: `${spacing[5]}px 0 0`,
-                  fontSize: typography.bodySm.fontSize,
-                  fontWeight: 500,
-                }}
-              >
-                Point sélectionné — {selectedLocker.availableSlots ?? selectedLocker.availableCompartments}{' '}
-                place(s) libre(s). Pas de compartiment à choisir.
-              </p>
-            ) : null}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+              gap: '0.75rem',
+            }}
+          >
+            <TextField
+              label="Longueur cm"
+              name="packageLengthCm"
+              value={packageLengthCm}
+              onChange={(e) => setPackageLengthCm(e.target.value)}
+              disabled={loading}
+            />
+            <TextField
+              label="Largeur cm"
+              name="packageWidthCm"
+              value={packageWidthCm}
+              onChange={(e) => setPackageWidthCm(e.target.value)}
+              disabled={loading}
+            />
+            <TextField
+              label="Hauteur cm"
+              name="packageHeightCm"
+              value={packageHeightCm}
+              onChange={(e) => setPackageHeightCm(e.target.value)}
+              disabled={loading}
+            />
+            <TextField
+              label="Poids kg"
+              name="packageWeightKg"
+              value={packageWeightKg}
+              onChange={(e) => setPackageWeightKg(e.target.value)}
+              disabled={loading}
+            />
           </div>
-        ) : null}
 
-        {stepIndex === 2 ? (
-          <div>
-            <dl
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+              gap: '0.75rem',
+            }}
+          >
+            <TextField
+              label="Valeur déclarée (CDF)"
+              name="declaredValueCdf"
+              value={declaredValueCdf}
+              onChange={(e) => setDeclaredValueCdf(e.target.value)}
+              disabled={loading}
+            />
+            <TextField
+              label="Valeur déclarée (USD)"
+              name="declaredValueUsd"
+              value={declaredValueUsd}
+              onChange={(e) => setDeclaredValueUsd(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+        </section>
+      ) : null}
+
+      {stepIndex === 3 ? (
+        <section style={{ display: 'grid', gap: '1rem' }}>
+          <div style={{ display: 'grid', gap: '0.5rem' }}>
+            {PAYMENT_RESPONSIBILITIES.map((mode) => {
+              const disabledMode = loading || (mode === 'cod' && !codAllowed);
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  disabled={disabledMode}
+                  onClick={() => setPaymentResponsibility(mode)}
+                  style={{
+                    textAlign: 'left',
+                    padding: '0.875rem 1rem',
+                    border:
+                      paymentResponsibility === mode
+                        ? `2px solid ${colors.primary}`
+                        : borderSubtle(),
+                    borderRadius: 8,
+                    background:
+                      paymentResponsibility === mode ? '#F0FDF4' : colors.surface,
+                    opacity: mode === 'cod' && !codAllowed ? 0.5 : 1,
+                    cursor: disabledMode ? 'not-allowed' : 'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  {PAYMENT_RESPONSIBILITY_LABELS[mode]}
+                  {mode === 'cod' && !codAllowed ? ' — indisponible (casier intelligent)' : ''}
+                </button>
+              );
+            })}
+          </div>
+
+          {paymentResponsibility === 'cod' ? (
+            <div
               style={{
-                margin: 0,
                 display: 'grid',
-                gap: spacing[3],
+                gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                gap: '0.75rem',
               }}
             >
-              {reviewRows.map((row) => (
-                <div
-                  key={row.label}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'minmax(120px, 160px) 1fr',
-                    gap: spacing[3],
-                    paddingBottom: spacing[3],
-                    borderBottom: borderSubtle(),
-                  }}
-                >
-                  <dt
-                    style={{
-                      margin: 0,
-                      fontSize: typography.bodySm.fontSize,
-                      fontWeight: typography.weights.semibold,
-                      color: colors.textMuted,
-                    }}
-                  >
-                    {row.label}
-                  </dt>
-                  <dd
-                    style={{
-                      margin: 0,
-                      fontSize: typography.bodySm.fontSize,
-                      fontWeight: typography.weights.semibold,
-                      color: colors.secondary,
-                      wordBreak: 'break-word',
-                    }}
-                  >
-                    {row.value}
-                  </dd>
-                </div>
-              ))}
-            </dl>
+              <TextField
+                label="Montant COD (CDF)"
+                name="codAmountCdf"
+                value={codAmountCdf}
+                onChange={(e) => setCodAmountCdf(e.target.value)}
+                disabled={loading}
+              />
+              <TextField
+                label="Montant COD (USD)"
+                name="codAmountUsd"
+                value={codAmountUsd}
+                onChange={(e) => setCodAmountUsd(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+          ) : null}
+
+          <div
+            style={{
+              border: borderSubtle(),
+              borderRadius: 8,
+              padding: '1rem',
+              display: 'grid',
+              gap: '0.35rem',
+              fontSize: '0.875rem',
+            }}
+          >
+            <strong>Revue</strong>
+            <span>
+              Enlèvement : {SHIPMENT_PICKUP_TYPE_LABELS[pickupType]} · {senderName}
+            </span>
+            <span>
+              Destinataire : {recipientName} · {recipientPhone}
+            </span>
+            <span>Point : {selectedLocker?.name ?? '—'}</span>
+            <span>
+              Colis : {PACKAGE_SIZE_LABELS[packageSize]} ·{' '}
+              {PACKAGE_CATEGORY_LABELS[packageCategory]}
+            </span>
+            <span>Paiement : {PAYMENT_RESPONSIBILITY_LABELS[paymentResponsibility]}</span>
           </div>
-        ) : null}
-      </Wizard>
-    </div>
+        </section>
+      ) : null}
+    </Wizard>
   );
 }

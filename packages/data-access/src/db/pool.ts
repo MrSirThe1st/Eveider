@@ -49,12 +49,18 @@ function createPool(): pg.Pool {
     Number.parseInt(process.env.PG_POOL_MAX ?? '', 10) ||
     (process.env.NODE_ENV === 'development' ? 5 : 3);
 
-  return new Pool({
+  const pool = new Pool({
     connectionString,
     max,
     idleTimeoutMillis: 20_000,
     connectionTimeoutMillis: 10_000,
   });
+
+  pool.on('error', (err) => {
+    console.error('Unexpected error on idle pg client:', err);
+  });
+
+  return pool;
 }
 
 export function getPool(): pg.Pool {

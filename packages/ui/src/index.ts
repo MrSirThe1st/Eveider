@@ -1,6 +1,6 @@
 export { colors, typography, radius, spacing } from '@eveider/config-ui';
 
-export { AppShell, type AppShellProps, type NavItem } from './app-shell.js';
+export { AppShell, type AppShellProps, type NavItem, type NavModule } from './app-shell.js';
 export {
   PageHeader,
   type BreadcrumbItem,
@@ -46,12 +46,20 @@ export {
   type FilterChipGroupProps,
   type FilterChipItem,
 } from './filter-bar.js';
+export {
+  FilterToolbar,
+  type FilterDimension,
+  type FilterMenuOption,
+  type FilterToolbarProps,
+} from './filter-toolbar.js';
 export { ParcelStatusFilters, type ParcelStatusFilter } from './parcel-status-filters.js';
 export {
   IconAlert,
   IconBuilding,
+  IconHome,
   IconLayout,
   IconLock,
+  IconMapPin,
   IconChevronDown,
   IconChevronLeft,
   IconChevronRight,
@@ -62,6 +70,7 @@ export {
   IconMoreHorizontal,
   IconPackage,
   IconPlus,
+  IconTruck,
   IconUser,
 } from './icons.js';
 export { PasswordInput, type PasswordInputProps } from './password-input.js';

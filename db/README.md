@@ -16,7 +16,9 @@ pnpm db:migrate
 | `006_20260721153000_business_onboarding_kyc.sql` | Business onboarding / KYC |
 | `007_20260722140000_operator_role.sql` | Add `operator` to `UserRole` enum |
 | `008_20260722150000_uuid_and_timestamp_defaults.sql` | DB defaults for `id` / `updated_at` (Prisma used to set these in the client) |
+| `009_20260722230000_eveider_point_types.sql` | Eveider Point types + soft capacity + commission |
 | `010_20260723001000_tracking_and_point_codes.sql` | Parcel `tracking_number`, optional merchant `reference`, global EVP point codes, unique pickup PINs |
+| `011_20260724001000_shipment_fields.sql` | Create Shipment fields (sender, package, payment responsibility, COD) |
 
 Applied migrations are recorded in `schema_migrations`.
 

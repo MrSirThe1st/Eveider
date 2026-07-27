@@ -7,7 +7,8 @@ export type InvitePreview = {
   recipientName: string | null;
   parcel: {
     id: string;
-    reference: string;
+    trackingNumber: string;
+    reference: string | null;
     locker: string | null;
   };
 };

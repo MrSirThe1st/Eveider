@@ -3,7 +3,6 @@
 import { colors, spacing, typography, borderSubtle } from '@eveider/config-ui';
 import {
   Button,
-  CardHeader,
   DataTable,
   type DataTableColumn,
   Drawer,
@@ -177,13 +176,7 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
     : [];
 
   return (
-    <section aria-labelledby="admin-parcels-heading">
-      <CardHeader
-        title="Colis"
-        description="Suivi des envois sur le réseau."
-        titleId="admin-parcels-heading"
-      />
-
+    <section>
       <ParcelStatusFilters value={statusFilter} onChange={setStatusFilter} />
 
       {isFetching && parcels.length > 0 ? (

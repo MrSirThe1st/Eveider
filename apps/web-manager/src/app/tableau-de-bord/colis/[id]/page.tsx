@@ -13,8 +13,8 @@ export default async function AdminParcelDetailPage({ params }: PageProps) {
       title="Détail colis"
       description="Statut, destinataire et historique de l'envoi."
       breadcrumbs={[
-        { label: "Vue d'ensemble", href: '/tableau-de-bord' },
-        { label: 'Colis' },
+        { label: 'Colis', href: '/tableau-de-bord/colis' },
+        { label: 'Détail' },
       ]}
     >
       <AdminParcelDetail parcelId={id} />

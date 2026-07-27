@@ -2,70 +2,239 @@
 
 import { colors, radius, spacing, typography, borderSubtle } from '@eveider/config-ui';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useEffect, useState, type ReactNode } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { Suspense, useId, useState, useEffect, useRef, type ReactNode } from 'react';
 import { Button } from './button.js';
-import { IconChevronLeft, IconChevronRight } from './icons.js';
+import { IconUser } from './icons.js';
 
 export type NavItem = {
   href: string;
   label: string;
-  icon: ReactNode;
-  isActive?: (pathname: string) => boolean;
+  icon?: ReactNode;
+  /** Optional active matcher (pathname + search string, e.g. "?status=assigned"). */
+  isActive?: (pathname: string, search: string) => boolean;
+};
+
+export type NavModule = {
+  id: string;
+  label: string;
+  href: string;
+  match: (pathname: string) => boolean;
+  icon?: ReactNode;
+  items?: NavItem[];
 };
 
 export type AppShellProps = {
   brand: string;
   brandShort?: string;
-  navItems: NavItem[];
+  modules: NavModule[];
   onSignOut: () => void | Promise<void>;
   signOutLabel?: string;
   children: ReactNode;
   maxWidth?: number;
-  storageKey?: string;
+  profileHref?: string;
 };
 
-const SIDEBAR_EXPANDED = 248;
-const SIDEBAR_COLLAPSED = 72;
-const HEADER_HEIGHT = 56;
+const MODULE_SIDEBAR_WIDTH = 220;
+const TOP_BAR_HEIGHT = 64;
 
-export function AppShell({
+function defaultItemActive(href: string, pathname: string, search: string): boolean {
+  const qIndex = href.indexOf('?');
+  const path = qIndex >= 0 ? href.slice(0, qIndex) : href;
+  const queryPart = qIndex >= 0 ? href.slice(qIndex + 1) : '';
+
+  if (pathname !== path) {
+    return pathname.startsWith(`${path}/`) && !queryPart;
+  }
+
+  const current = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
+  if (!queryPart) {
+    return !current.get('status');
+  }
+
+  const hrefParams = new URLSearchParams(queryPart);
+  for (const [key, value] of hrefParams.entries()) {
+    if (current.get(key) !== value) return false;
+  }
+  return true;
+}
+
+type ProfileDropdownProps = {
+  profileHref: string;
+  onSignOut: () => void | Promise<void>;
+  signOutLabel?: string;
+};
+
+function ProfileDropdownItem({
+  children,
+  href,
+  onClick,
+  tone = 'default',
+}: {
+  children: ReactNode;
+  href?: string;
+  onClick?: () => void;
+  tone?: 'default' | 'danger';
+}) {
+  const [hovered, setHovered] = useState(false);
+
+  const style: React.CSSProperties = {
+    display: 'block',
+    width: '100%',
+    textAlign: 'left',
+    padding: '8px 12px',
+    borderRadius: radius.sm,
+    textDecoration: 'none',
+    border: 'none',
+    background: hovered ? colors.surfaceSubtle : 'transparent',
+    color: tone === 'danger' ? colors.danger : colors.secondary,
+    fontSize: typography.bodySm.fontSize,
+    fontWeight: typography.weights.semibold,
+    cursor: 'pointer',
+    transition: 'background 0.15s ease',
+    fontFamily: typography.fontFamily,
+    boxSizing: 'border-box',
+  };
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        style={style}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onClick={onClick}
+      >
+        {children}
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      style={style}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ProfileDropdown({ profileHref, onSignOut, signOutLabel = 'Déconnexion' }: ProfileDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const menuId = useId();
+
+  useEffect(() => {
+    if (!open) return;
+
+    function onPointerDown(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setOpen(false);
+    }
+
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div
+      ref={rootRef}
+      className="nb-profile-dropdown"
+      style={{ position: 'relative', display: 'inline-flex' }}
+    >
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={menuId}
+        aria-label="Menu profil"
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 36,
+          height: 36,
+          padding: 0,
+          border: `1px solid ${colors.borderSubtle}`,
+          borderRadius: '50%',
+          background: open ? colors.surfaceSubtle : colors.surface,
+          color: colors.secondary,
+          cursor: 'pointer',
+          boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
+          transition: 'background 0.2s ease, border-color 0.2s ease',
+        }}
+      >
+        <IconUser width={20} height={20} />
+      </button>
+
+      {open ? (
+        <div
+          id={menuId}
+          role="menu"
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 8px)',
+            right: 0,
+            zIndex: 40,
+            minWidth: 160,
+            padding: 4,
+            background: colors.surface,
+            border: `1px solid ${colors.borderSubtle}`,
+            borderRadius: radius.md,
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+          }}
+        >
+          <ProfileDropdownItem href={profileHref} onClick={() => setOpen(false)}>
+            Modifier le profil
+          </ProfileDropdownItem>
+          <ProfileDropdownItem
+            tone="danger"
+            onClick={() => {
+              setOpen(false);
+              void onSignOut();
+            }}
+          >
+            {signOutLabel}
+          </ProfileDropdownItem>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function AppShellChrome({
   brand,
   brandShort = 'EV',
-  navItems,
+  modules,
   onSignOut,
   signOutLabel = 'Déconnexion',
   children,
   maxWidth = 1200,
-  storageKey = 'eveider-sidebar-collapsed',
-}: AppShellProps) {
+  search,
+  profileHref,
+}: AppShellProps & { search: string }) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
-  const [ready, setReady] = useState(false);
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored === '1') setCollapsed(true);
-    } catch {
-      // ignore
-    }
-    setReady(true);
-  }, [storageKey]);
-
-  function toggleSidebar() {
-    setCollapsed((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem(storageKey, next ? '1' : '0');
-      } catch {
-        // ignore
-      }
-      return next;
-    });
-  }
-
-  const sidebarWidth = collapsed ? SIDEBAR_COLLAPSED : SIDEBAR_EXPANDED;
+  const activeModule = modules.find((mod) => mod.match(pathname)) ?? modules[0] ?? null;
+  const moduleItems = activeModule?.items ?? [];
+  const showModuleSidebar = moduleItems.length >= 2;
 
   return (
     <div
@@ -74,204 +243,255 @@ export function AppShell({
         minHeight: '100vh',
         background: colors.background,
         display: 'flex',
-        opacity: ready ? 1 : 0.98,
+        flexDirection: 'column',
       }}
     >
       <a href="#main-content" className="nb-skip-link">
         Aller au contenu
       </a>
 
-      <aside
-        aria-label="Navigation principale"
+      <header
+        className="nb-top-nav"
         style={{
-          width: sidebarWidth,
-          flexShrink: 0,
-          background: colors.surface,
-          borderRight: borderSubtle(),
-          display: 'flex',
-          flexDirection: 'column',
           position: 'sticky',
           top: 0,
-          height: '100vh',
-          transition: 'width 200ms ease',
-          overflow: 'hidden',
+          zIndex: 20,
+          minHeight: TOP_BAR_HEIGHT,
+          flexShrink: 0,
+          background: colors.surface,
+          borderBottom: borderSubtle(),
+          boxShadow: '0 1px 2px rgba(16, 24, 40, 0.04)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: spacing[4],
+          paddingTop: `max(${spacing[3]}px, env(safe-area-inset-top, 0px))`,
+          paddingBottom: spacing[3],
+          paddingLeft: spacing[5],
+          paddingRight: spacing[5],
+          boxSizing: 'border-box',
         }}
       >
         <div
           style={{
-            padding: collapsed ? `${spacing[4]}px 0` : `${spacing[4]}px ${spacing[4]}px`,
-            borderBottom: borderSubtle(),
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: collapsed ? 'center' : 'flex-start',
-            minHeight: HEADER_HEIGHT,
-            boxSizing: 'border-box',
+            alignItems: 'baseline',
+            gap: spacing[2],
+            flexShrink: 0,
+            minWidth: 0,
           }}
         >
-          {collapsed ? (
-            <span
-              style={{
-                fontWeight: typography.weights.bold,
-                fontSize: typography.caption.fontSize,
-                color: colors.secondary,
-              }}
-            >
-              {brandShort}
-            </span>
-          ) : (
-            <div>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: typography.caption.fontSize,
-                  fontWeight: typography.weights.medium,
-                  lineHeight: typography.caption.lineHeight,
-                  color: colors.textMuted,
-                }}
-              >
-                Eveider
-              </p>
-              <p
-                style={{
-                  margin: `${spacing[1]}px 0 0`,
-                  fontSize: typography.body.fontSize,
-                  fontWeight: typography.weights.bold,
-                  lineHeight: 1.3,
-                  color: colors.secondary,
-                }}
-              >
-                {brand}
-              </p>
-            </div>
-          )}
+          <span
+            style={{
+              fontWeight: typography.weights.bold,
+              fontSize: typography.body.fontSize,
+              color: colors.secondary,
+            }}
+          >
+            Eveider
+          </span>
+          <span
+            style={{
+              fontSize: typography.caption.fontSize,
+              fontWeight: typography.weights.semibold,
+              color: colors.textMuted,
+            }}
+            title={brand}
+          >
+            {brandShort}
+          </span>
         </div>
 
         <nav
+          aria-label="Modules"
           style={{
             flex: 1,
-            padding: `${spacing[3]}px ${spacing[2]}px`,
             display: 'flex',
-            flexDirection: 'column',
+            alignItems: 'center',
             gap: spacing[1],
-            overflowY: 'auto',
+            overflowX: 'auto',
+            minWidth: 0,
           }}
         >
-          {navItems.map((item) => {
-            const active = item.isActive ? item.isActive(pathname) : pathname === item.href;
+          {modules.map((mod) => {
+            const active = activeModule?.id === mod.id;
             return (
               <Link
-                key={item.href}
-                href={item.href}
-                title={collapsed ? item.label : undefined}
+                key={mod.id}
+                href={mod.href}
+                className="nb-top-nav__link"
                 aria-current={active ? 'page' : undefined}
-                className="nb-nav-link"
                 style={{
-                  position: 'relative',
-                  display: 'flex',
+                  flexShrink: 0,
+                  display: 'inline-flex',
                   alignItems: 'center',
-                  gap: spacing[3],
-                  padding: collapsed ? `${spacing[3]}px 0` : `${spacing[3]}px ${spacing[3]}px`,
-                  justifyContent: collapsed ? 'center' : 'flex-start',
-                  borderRadius: radius.button,
+                  gap: spacing[2],
+                  padding: `${spacing[2]}px ${spacing[3]}px`,
+                  borderRadius: radius.badge,
                   textDecoration: 'none',
-                  color: active ? colors.secondary : colors.textMuted,
-                  background: active ? colors.surfaceSubtle : 'transparent',
-                  fontWeight: active ? typography.weights.semibold : typography.weights.medium,
                   fontSize: typography.bodySm.fontSize,
-                  lineHeight: 1.2,
+                  fontWeight: active
+                    ? typography.weights.semibold
+                    : typography.weights.medium,
+                  color: colors.secondary,
+                  background: active ? colors.successMuted : 'transparent',
+                  whiteSpace: 'nowrap',
                 }}
               >
-                {active ? (
+                {mod.icon ? (
                   <span
-                    aria-hidden="true"
+                    aria-hidden
                     style={{
-                      position: 'absolute',
-                      left: 0,
-                      top: '20%',
-                      bottom: '20%',
-                      width: 3,
-                      borderRadius: 2,
-                      background: colors.primary,
+                      display: 'inline-flex',
+                      flexShrink: 0,
+                      color: active ? colors.primary : colors.textMuted,
                     }}
-                  />
+                  >
+                    {mod.icon}
+                  </span>
                 ) : null}
-                <span
-                  style={{
-                    display: 'flex',
-                    flexShrink: 0,
-                    opacity: active ? 1 : 0.75,
-                    color: active ? colors.secondary : 'inherit',
-                  }}
-                >
-                  {item.icon}
-                </span>
-                {!collapsed ? <span>{item.label}</span> : null}
+                {mod.label}
               </Link>
             );
           })}
         </nav>
-      </aside>
 
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-        <header
-          style={{
-            height: HEADER_HEIGHT,
-            flexShrink: 0,
-            background: colors.surface,
-            borderBottom: borderSubtle(),
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: `0 ${spacing[5]}px`,
-            gap: spacing[4],
-            position: 'sticky',
-            top: 0,
-            zIndex: 10,
-          }}
-        >
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            aria-label={collapsed ? 'Ouvrir le menu' : 'Réduire le menu'}
-            aria-expanded={!collapsed}
-            className="nb-shell-icon-btn"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: spacing.buttonHeightSm,
-              height: spacing.buttonHeightSm,
-              border: borderSubtle(),
-              borderRadius: radius.button,
-              background: 'transparent',
-              color: colors.secondary,
-              cursor: 'pointer',
-              transition: 'background-color 0.15s ease, border-color 0.15s ease',
-            }}
-          >
-            {collapsed ? <IconChevronRight /> : <IconChevronLeft />}
-          </button>
-
+        {profileHref ? (
+          <ProfileDropdown
+            profileHref={profileHref}
+            onSignOut={onSignOut}
+            signOutLabel={signOutLabel}
+          />
+        ) : (
           <Button variant="secondary" size="sm" onClick={() => void onSignOut()}>
             {signOutLabel}
           </Button>
-        </header>
+        )}
+      </header>
+
+      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        {showModuleSidebar && activeModule ? (
+          <aside
+            className="nb-module-sidebar"
+            aria-label={`${activeModule.label} — navigation`}
+            style={{
+              width: MODULE_SIDEBAR_WIDTH,
+              flexShrink: 0,
+              background: colors.surface,
+              borderRight: borderSubtle(),
+              position: 'sticky',
+              top: 0,
+              alignSelf: 'flex-start',
+              height: '100vh',
+              maxHeight: '100vh',
+              overflowY: 'auto',
+              padding: `${spacing[5]}px ${spacing[3]}px`,
+              boxSizing: 'border-box',
+            }}
+          >
+            <p
+              style={{
+                margin: `0 0 ${spacing[3]}px`,
+                padding: `0 ${spacing[2]}px`,
+                fontSize: typography.caption.fontSize,
+                fontWeight: typography.weights.bold,
+                color: colors.secondary,
+                letterSpacing: '0.02em',
+              }}
+            >
+              {activeModule.label}
+            </p>
+            <nav
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: spacing[1],
+              }}
+            >
+              {moduleItems.map((item) => {
+                const active = item.isActive
+                  ? item.isActive(pathname, search)
+                  : defaultItemActive(item.href, pathname, search);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="nb-module-nav__link"
+                    aria-current={active ? 'page' : undefined}
+                    style={{
+                      position: 'relative',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: spacing[2],
+                      padding: `${spacing[2] + 2}px ${spacing[3]}px`,
+                      borderRadius: radius.md,
+                      textDecoration: 'none',
+                      fontSize: typography.bodySm.fontSize,
+                      fontWeight: active
+                        ? typography.weights.semibold
+                        : typography.weights.medium,
+                      color: active ? colors.secondary : colors.textMuted,
+                      background: active ? colors.surfaceSubtle : 'transparent',
+                    }}
+                  >
+                    {active ? (
+                      <span
+                        aria-hidden
+                        style={{
+                          position: 'absolute',
+                          left: 0,
+                          top: '22%',
+                          bottom: '22%',
+                          width: 3,
+                          borderRadius: 2,
+                          background: colors.primary,
+                        }}
+                      />
+                    ) : null}
+                    {item.icon ? (
+                      <span style={{ display: 'flex', flexShrink: 0, opacity: 0.85 }}>
+                        {item.icon}
+                      </span>
+                    ) : null}
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+          </aside>
+        ) : null}
 
         <main
           id="main-content"
           tabIndex={-1}
           style={{
             flex: 1,
+            minWidth: 0,
             width: '100%',
-            maxWidth,
-            margin: '0 auto',
             padding: `${spacing[7]}px ${spacing[6]}px ${spacing[12]}px`,
             boxSizing: 'border-box',
           }}
         >
-          {children}
+          <div style={{ width: '100%', maxWidth, margin: '0 auto' }}>{children}</div>
         </main>
       </div>
     </div>
+  );
+}
+
+function AppShellWithSearch(props: AppShellProps) {
+  const searchParams = useSearchParams();
+  const search = searchParams.toString() ? `?${searchParams.toString()}` : '';
+  return <AppShellChrome {...props} search={search} />;
+}
+
+/**
+ * Portal chrome: top module bar + optional page-level module sidebar.
+ * No global sidebar.
+ */
+export function AppShell(props: AppShellProps) {
+  return (
+    <Suspense fallback={<AppShellChrome {...props} search="" />}>
+      <AppShellWithSearch {...props} />
+    </Suspense>
   );
 }

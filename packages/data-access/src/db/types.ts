@@ -13,7 +13,11 @@ import type {
   IssueType,
   LockerStatus,
   LockerType,
+  PackageCategory,
+  PackageSize,
   ParcelStatus,
+  PaymentResponsibility,
+  ShipmentPickupType,
   UserRole,
 } from '@eveider/domain';
 
@@ -146,6 +150,21 @@ export type Parcel = {
   recipientName: string | null;
   lockerId: string | null;
   compartmentId: string | null;
+  pickupType: ShipmentPickupType;
+  senderName: string;
+  senderPhone: string;
+  senderAddress: string | null;
+  packageSize: PackageSize;
+  packageLengthCm: number | null;
+  packageWidthCm: number | null;
+  packageHeightCm: number | null;
+  packageWeightKg: number | null;
+  packageCategory: PackageCategory;
+  declaredValueCdf: number | null;
+  declaredValueUsd: number | null;
+  paymentResponsibility: PaymentResponsibility;
+  codAmountCdf: number | null;
+  codAmountUsd: number | null;
   createdAt: Date;
   updatedAt: Date;
 };

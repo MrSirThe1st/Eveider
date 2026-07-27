@@ -38,5 +38,4 @@ export type DashboardParcelItem = {
 export type AdminDashboardData = {
   stats: DashboardStats;
   analytics: AnalyticsReport;
-  parcels: DashboardParcelItem[];
 };

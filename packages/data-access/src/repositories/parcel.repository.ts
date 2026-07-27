@@ -1,10 +1,17 @@
 import {
   generatePickupPinCode,
   generateTrackingNumber,
+  isCodAllowedForLockerType,
   normalizeTrackingNumber,
+  requiresSenderAddress,
   transitionParcel,
+  usesCompartmentGrid,
   type DeliveryStatus,
+  type PackageCategory,
+  type PackageSize,
   type ParcelStatus,
+  type PaymentResponsibility,
+  type ShipmentPickupType,
 } from '@eveider/domain';
 import {
   assertAdmin,
@@ -99,12 +106,27 @@ export type CreateParcelInput = {
   businessId: string;
   /** Merchant order reference (optional). */
   reference?: string | null;
+  pickupType: ShipmentPickupType;
+  senderName: string;
+  senderPhone: string;
+  senderAddress?: string | null;
   recipientPhone: string;
-  recipientName?: string;
+  recipientName: string;
   recipientEmail?: string;
   customerId?: string;
-  lockerId?: string;
+  lockerId: string;
   compartmentId?: string;
+  packageSize: PackageSize;
+  packageLengthCm?: number | null;
+  packageWidthCm?: number | null;
+  packageHeightCm?: number | null;
+  packageWeightKg?: number | null;
+  packageCategory: PackageCategory;
+  declaredValueCdf?: number | null;
+  declaredValueUsd?: number | null;
+  paymentResponsibility: PaymentResponsibility;
+  codAmountCdf?: number | null;
+  codAmountUsd?: number | null;
 };
 
 export type CreateParcelResult = {
@@ -143,15 +165,63 @@ export class ParcelRepository {
       await this.businesses.assertCanSubmitParcels(input.businessId);
     }
 
+    if (requiresSenderAddress(input.pickupType) && !input.senderAddress?.trim()) {
+      throw new Error('Adresse expéditeur requise pour un enlèvement coursier');
+    }
+
+    const selectable = await this.lockers.assertSelectable(input.lockerId);
+
+    if (input.paymentResponsibility === 'cod' && !isCodAllowedForLockerType(selectable.type)) {
+      throw new Error('Le COD n’est pas disponible pour les casiers intelligents');
+    }
+
+    if (input.paymentResponsibility === 'cod' && input.codAmountCdf == null && input.codAmountUsd == null) {
+      throw new Error('Montant COD requis (CDF ou USD)');
+    }
+
+    if (usesCompartmentGrid(selectable.type) && !input.compartmentId) {
+      throw new Error('Compartiment requis pour un casier intelligent');
+    }
+
     const reference = input.reference?.trim() ? input.reference.trim() : null;
     const trackingNumber = await allocateTrackingNumber(this.db);
+    const senderAddress =
+      input.pickupType === 'courier_pickup' ? (input.senderAddress?.trim() ?? null) : null;
+
+    const shipmentValues = [
+      input.businessId,
+      trackingNumber,
+      reference,
+      input.recipientPhone,
+      input.recipientName.trim(),
+      input.customerId ?? null,
+      input.lockerId,
+      input.pickupType,
+      input.senderName.trim(),
+      input.senderPhone.trim(),
+      senderAddress,
+      input.packageSize,
+      input.packageLengthCm ?? null,
+      input.packageWidthCm ?? null,
+      input.packageHeightCm ?? null,
+      input.packageWeightKg ?? null,
+      input.packageCategory,
+      input.declaredValueCdf ?? null,
+      input.declaredValueUsd ?? null,
+      input.paymentResponsibility,
+      input.paymentResponsibility === 'cod' ? (input.codAmountCdf ?? null) : null,
+      input.paymentResponsibility === 'cod' ? (input.codAmountUsd ?? null) : null,
+    ];
+
+    const insertColumns = `
+      business_id, tracking_number, reference, recipient_phone, recipient_name,
+      customer_id, locker_id, pickup_type, sender_name, sender_phone, sender_address,
+      package_size, package_length_cm, package_width_cm, package_height_cm, package_weight_kg,
+      package_category, declared_value_cdf, declared_value_usd,
+      payment_responsibility, cod_amount_cdf, cod_amount_usd, status
+    `;
 
     if (input.compartmentId) {
-      if (!input.lockerId) {
-        throw new Error('Point requis pour réserver un compartiment');
-      }
-
-      const selectable = await this.lockers.assertSelectable(input.lockerId);
       if (selectable.type !== 'SMART_LOCKER') {
         throw new Error('Ce point ne dispose pas de compartiments');
       }
@@ -175,20 +245,13 @@ export class ParcelRepository {
         );
         const created = await tx.query(
           `INSERT INTO parcels (
-             business_id, tracking_number, reference, recipient_phone, recipient_name,
-             customer_id, locker_id, compartment_id, status
-           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'created')
+             ${insertColumns}, compartment_id
+           ) VALUES (
+             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+             $17, $18, $19, $20, $21, $22, 'created', $23
+           )
            RETURNING *`,
-          [
-            input.businessId,
-            trackingNumber,
-            reference,
-            input.recipientPhone,
-            input.recipientName ?? null,
-            input.customerId ?? null,
-            input.lockerId,
-            compartment.id,
-          ],
+          [...shipmentValues, compartment.id],
         );
         return mapParcel(created.rows[0]!);
       });
@@ -196,25 +259,15 @@ export class ParcelRepository {
       return this.finalizeCreate(parcel, input);
     }
 
-    if (input.lockerId) {
-      await this.lockers.assertSelectable(input.lockerId);
-    }
-
     const created = await this.db.query(
       `INSERT INTO parcels (
-         business_id, tracking_number, reference, recipient_phone, recipient_name,
-         customer_id, locker_id, status
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'created')
+         ${insertColumns}
+       ) VALUES (
+         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+         $17, $18, $19, $20, $21, $22, 'created'
+       )
        RETURNING *`,
-      [
-        input.businessId,
-        trackingNumber,
-        reference,
-        input.recipientPhone,
-        input.recipientName ?? null,
-        input.customerId ?? null,
-        input.lockerId ?? null,
-      ],
+      shipmentValues,
     );
 
     return this.finalizeCreate(mapParcel(created.rows[0]!), input);

@@ -78,7 +78,7 @@ export function ParcelList() {
           </p>
           <p style={{ margin: '0.75rem 0 0', fontWeight: 500 }}>
             {statusFilter === 'all'
-              ? 'Créez votre premier envoi pour le réseau de casiers Eveider.'
+              ? 'Créez votre premier colis pour le réseau de casiers Eveider.'
               : 'Essayez un autre filtre ou créez un nouveau colis.'}
           </p>
           <Link

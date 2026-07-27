@@ -27,16 +27,16 @@ const STATUS_STYLES: Record<
     border: '#FFCCD8',
   },
   created: {
-    bg: '#F0F4EE',
+    bg: '#F3F4F6',
     color: '#475467',
     dot: '#98A2B3',
-    border: '#E2E8E0',
+    border: '#E5E7EB',
   },
   collected: {
-    bg: '#F0F4EE',
+    bg: '#F3F4F6',
     color: '#475467',
     dot: '#98A2B3',
-    border: '#E2E8E0',
+    border: '#E5E7EB',
   },
 };
 

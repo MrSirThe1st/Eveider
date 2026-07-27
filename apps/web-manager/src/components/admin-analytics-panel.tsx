@@ -13,33 +13,52 @@ function formatDayLabel(isoDate: string) {
   }).format(new Date(year, month - 1, day));
 }
 
-function RateCard({ label, value, hint }: { label: string; value: string; hint: string }) {
+function RateItem({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <article
+    <div
       style={{
-        ...webCardStyle,
-        padding: '1.25rem 1rem',
-        flex: '1 1 200px',
+        flex: '1 1 140px',
+        padding: '0.5rem 1.5rem',
+        minWidth: 140,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
       }}
     >
-      <p
+      <span
         style={{
-          margin: 0,
           fontSize: '0.6875rem',
           fontWeight: 700,
+          color: colors.textMuted,
+          textTransform: 'uppercase',
           letterSpacing: '0.08em',
-          opacity: 0.7,
         }}
       >
         {label}
-      </p>
-      <p style={{ margin: '0.5rem 0 0', fontSize: '2rem', fontWeight: 700, lineHeight: 1 }}>
+      </span>
+      <span
+        style={{
+          margin: '0.25rem 0 0',
+          fontSize: '1.75rem',
+          fontWeight: 700,
+          color: colors.secondary,
+          lineHeight: 1.1,
+        }}
+      >
         {value}
-      </p>
-      <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', fontWeight: 500, opacity: 0.65 }}>
+      </span>
+      <span
+        style={{
+          margin: '0.25rem 0 0',
+          fontSize: '0.6875rem',
+          color: colors.textMuted,
+          opacity: 0.8,
+          fontWeight: 500,
+        }}
+      >
         {hint}
-      </p>
-    </article>
+      </span>
+    </div>
   );
 }
 
@@ -56,13 +75,24 @@ export function AdminAnalyticsPanel({ analytics }: AdminAnalyticsPanelProps) {
         Analytiques · 7 jours
       </h2>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem' }}>
-        <RateCard
+      <div
+        style={{
+          display: 'flex',
+          borderBottom: `1px solid ${colors.borderSubtle}`,
+          padding: '1.25rem 0',
+          marginBottom: '1.5rem',
+          width: '100%',
+          flexWrap: 'wrap',
+          gap: '0.5rem 0',
+        }}
+      >
+        <RateItem
           label="Taux de retrait"
           value={`${analytics.pickupSuccessRate}%`}
           hint={`${analytics.collected} retirés · ${analytics.awaitingPickup} en attente`}
         />
-        <RateCard
+        <div style={{ width: 1, height: 32, backgroundColor: colors.borderSubtle, alignSelf: 'center', flexShrink: 0 }} />
+        <RateItem
           label="Utilisation casiers"
           value={`${analytics.lockerUsageRate}%`}
           hint="Compartiments occupés"

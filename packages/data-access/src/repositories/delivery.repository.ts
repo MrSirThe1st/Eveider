@@ -79,7 +79,8 @@ export type CourierAdminDetail = {
     completedAt: Date | null;
     parcel: {
       id: string;
-      reference: string;
+      trackingNumber: string;
+      reference: string | null;
       businessName: string;
       locker: { name: string; address: string } | null;
     };
