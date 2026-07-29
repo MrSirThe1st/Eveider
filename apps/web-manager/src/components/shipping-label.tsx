@@ -107,7 +107,6 @@ export function ShippingLabel({ data }: ShippingLabelProps) {
             </p>
           </div>
           {qrDataUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
             <img src={qrDataUrl} alt={`QR ${data.trackingNumber}`} width={96} height={96} />
           ) : (
             <div

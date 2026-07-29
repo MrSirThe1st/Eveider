@@ -1,6 +1,6 @@
 import { PageFrame } from '@eveider/ui';
 import { requireWebRole } from '@/lib/require-web-role';
-import { colors, webCardStyle } from '@eveider/config-ui';
+import { webCardStyle } from '@eveider/config-ui';
 
 export default async function AdminProfilePage() {
   const profile = await requireWebRole(['admin']);

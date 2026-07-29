@@ -78,7 +78,6 @@ export function LockerGoogleMap({
   selectedLockerId,
   onSelectLocker,
   onMapClick,
-  highlightLockerId,
   draftMarker,
   draftMarkerDraggable = false,
   onDraftMarkerDrag,

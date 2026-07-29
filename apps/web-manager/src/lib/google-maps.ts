@@ -1,4 +1,4 @@
-import { haversineDistanceKm, KINSHASA_CENTER } from '@eveider/domain';
+import { KINSHASA_CENTER } from '@eveider/domain';
 import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
 
 /** Approximate geographic bounds of the Democratic Republic of the Congo. */

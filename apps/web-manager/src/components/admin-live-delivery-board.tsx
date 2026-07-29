@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius, spacing, borderSubtle, webCardStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
+import { colors, radius, spacing, borderSubtle, webSecondaryButtonStyle } from '@eveider/config-ui';
 import { DELIVERY_STATUS_LABELS } from '@eveider/domain';
 import { FilterToolbar, LoadingSpinner } from '@eveider/ui';
 import Link from 'next/link';

@@ -114,7 +114,6 @@ export function KycDocumentPreview({ document, open, onClose }: KycDocumentPrevi
           }}
         >
           {isImage ? (
-            // eslint-disable-next-line @next/next/no-img-element -- admin KYC remote URL preview
             <img
               src={document.fileUrl}
               alt={title}
