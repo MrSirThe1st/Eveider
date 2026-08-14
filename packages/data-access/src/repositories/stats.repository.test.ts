@@ -86,6 +86,18 @@ describe('StatsRepository', () => {
       if (sqlIncludes(sql, 'FROM deliveries') && sqlIncludes(sql, 'completed_at')) {
         return [{ completed_at: new Date() }, { completed_at: new Date() }];
       }
+      if (sqlIncludes(sql, 'FROM parcels') && sqlIncludes(sql, 'created_at >=') && !sqlIncludes(sql, 'GROUP BY')) {
+        return [{ created_at: new Date() }, { created_at: new Date() }, { created_at: new Date() }];
+      }
+      if (sqlIncludes(sql, 'FROM parcels') && sqlIncludes(sql, 'GROUP BY status')) {
+        return [
+          { status: 'created', count: 2 },
+          { status: 'ready_for_pickup', count: 1 },
+        ];
+      }
+      if (sqlIncludes(sql, 'FROM issues') && sqlIncludes(sql, 'GROUP BY type')) {
+        return [{ type: 'failed_delivery', count: 1 }];
+      }
       if (sqlIncludes(sql, 'GROUP BY locker_id')) {
         return [{ locker_id: 'locker-1', count: 4 }];
       }
@@ -109,5 +121,15 @@ describe('StatsRepository', () => {
     expect(analytics.topLockers[0]?.lockerName).toBe('GOMBE');
     expect(analytics.topBusinesses[0]?.businessName).toBe('Shop');
     expect(analytics.dailyDeliveries).toHaveLength(7);
+    expect(analytics.dailyParcelsCreated).toHaveLength(7);
+    expect(analytics.parcelsByStatus).toEqual(
+      expect.arrayContaining([
+        { status: 'created', count: 2 },
+        { status: 'ready_for_pickup', count: 1 },
+      ]),
+    );
+    expect(analytics.openIssuesByType).toEqual(
+      expect.arrayContaining([{ type: 'failed_delivery', count: 1 }]),
+    );
   });
 });

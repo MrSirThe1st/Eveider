@@ -1,5 +1,6 @@
 import { assertAdmin, type DataAccessContext } from '../context.js';
 import type { Queryable } from '../db/index.js';
+import { ISSUE_TYPES, PARCEL_STATUSES, type IssueType, type ParcelStatus } from '@eveider/domain';
 
 export type DashboardStats = {
   parcelsToday: number;
@@ -14,10 +15,13 @@ export type DashboardStats = {
   };
 };
 
-export type DailyDeliveryCount = {
+export type DailyCount = {
   date: string;
   count: number;
 };
+
+/** @deprecated Use DailyCount */
+export type DailyDeliveryCount = DailyCount;
 
 export type RankedLocker = {
   lockerId: string;
@@ -31,12 +35,25 @@ export type RankedBusiness = {
   parcelCount: number;
 };
 
+export type ParcelStatusCount = {
+  status: ParcelStatus;
+  count: number;
+};
+
+export type IssueTypeCount = {
+  type: IssueType;
+  count: number;
+};
+
 export type AnalyticsReport = {
   pickupSuccessRate: number;
   lockerUsageRate: number;
   collected: number;
   awaitingPickup: number;
-  dailyDeliveries: DailyDeliveryCount[];
+  dailyDeliveries: DailyCount[];
+  dailyParcelsCreated: DailyCount[];
+  parcelsByStatus: ParcelStatusCount[];
+  openIssuesByType: IssueTypeCount[];
   topLockers: RankedLocker[];
   topBusinesses: RankedBusiness[];
 };
@@ -60,9 +77,10 @@ function toDateKey(date: Date): string {
 }
 
 function buildDailySeries(
-  deliveries: { completedAt: Date | null }[],
+  timestamps: { at: Date | null }[],
   days: number,
-): DailyDeliveryCount[] {
+  pickDate: (entry: { at: Date | null }) => Date | null = (entry) => entry.at,
+): DailyCount[] {
   const start = startOfDaysAgo(days - 1);
   const counts = new Map<string, number>();
 
@@ -72,15 +90,40 @@ function buildDailySeries(
     counts.set(toDateKey(day), 0);
   }
 
-  for (const delivery of deliveries) {
-    if (!delivery.completedAt) continue;
-    const key = toDateKey(delivery.completedAt);
+  for (const entry of timestamps) {
+    const at = pickDate(entry);
+    if (!at) continue;
+    const key = toDateKey(at);
     if (counts.has(key)) {
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
   }
 
   return Array.from(counts.entries()).map(([date, count]) => ({ date, count }));
+}
+
+function mapParcelStatusCounts(rows: { status: string; count: unknown }[]): ParcelStatusCount[] {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    counts.set(String(row.status), Number(row.count));
+  }
+
+  return PARCEL_STATUSES.map((status) => ({
+    status,
+    count: counts.get(status) ?? 0,
+  }));
+}
+
+function mapIssueTypeCounts(rows: { type: string; count: unknown }[]): IssueTypeCount[] {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    counts.set(String(row.type), Number(row.count));
+  }
+
+  return ISSUE_TYPES.map((type) => ({
+    type,
+    count: counts.get(type) ?? 0,
+  }));
 }
 
 export class StatsRepository {
@@ -134,17 +177,44 @@ export class StatsRepository {
 
     const since = startOfDaysAgo(days - 1);
 
-    const [collectedResult, awaitingResult, compartmentCountsResult, completedResult, lockerGroupsResult, businessGroupsResult] = await Promise.all([
+    const [
+      collectedResult,
+      awaitingResult,
+      compartmentCountsResult,
+      completedResult,
+      createdParcelsResult,
+      parcelStatusResult,
+      openIssuesByTypeResult,
+      lockerGroupsResult,
+      businessGroupsResult,
+    ] = await Promise.all([
       this.db.query(`SELECT COUNT(*)::int AS count FROM parcels WHERE status = 'collected'`),
       this.db.query(`SELECT COUNT(*)::int AS count FROM parcels WHERE status = 'ready_for_pickup'`),
       this.db.query(`SELECT status, COUNT(*)::int AS count FROM compartments GROUP BY status`),
       this.db.query(`SELECT completed_at FROM deliveries WHERE status = 'completed' AND completed_at >= $1`, [since]),
-      this.db.query(`SELECT locker_id, COUNT(*)::int AS count FROM parcels WHERE locker_id IS NOT NULL AND status = ANY($1) GROUP BY locker_id ORDER BY count DESC LIMIT 5`, [['delivered_to_locker', 'ready_for_pickup', 'collected']]),
+      this.db.query(`SELECT created_at FROM parcels WHERE created_at >= $1`, [since]),
+      this.db.query(
+        `SELECT status, COUNT(*)::int AS count FROM parcels WHERE created_at >= $1 GROUP BY status`,
+        [since],
+      ),
+      this.db.query(
+        `SELECT type, COUNT(*)::int AS count FROM issues WHERE status = ANY($1) GROUP BY type`,
+        [['open', 'in_progress']],
+      ),
+      this.db.query(
+        `SELECT locker_id, COUNT(*)::int AS count FROM parcels WHERE locker_id IS NOT NULL AND created_at >= $1 GROUP BY locker_id ORDER BY count DESC LIMIT 5`,
+        [since],
+      ),
       this.db.query(`SELECT business_id, COUNT(*)::int AS count FROM parcels GROUP BY business_id ORDER BY count DESC LIMIT 5`),
     ]);
     const collected = Number(collectedResult.rows[0]?.count ?? 0);
     const awaitingPickup = Number(awaitingResult.rows[0]?.count ?? 0);
-    const completedDeliveries = completedResult.rows.map((row) => ({ completedAt: row.completed_at == null ? null : new Date(String(row.completed_at)) }));
+    const completedDeliveries = completedResult.rows.map((row) => ({
+      at: row.completed_at == null ? null : new Date(String(row.completed_at)),
+    }));
+    const createdParcels = createdParcelsResult.rows.map((row) => ({
+      at: row.created_at == null ? null : new Date(String(row.created_at)),
+    }));
     const lockerGroups = lockerGroupsResult.rows;
     const businessGroups = businessGroupsResult.rows;
 
@@ -178,6 +248,13 @@ export class StatsRepository {
       collected,
       awaitingPickup,
       dailyDeliveries: buildDailySeries(completedDeliveries, days),
+      dailyParcelsCreated: buildDailySeries(createdParcels, days),
+      parcelsByStatus: mapParcelStatusCounts(
+        parcelStatusResult.rows as Array<{ status: string; count: unknown }>,
+      ),
+      openIssuesByType: mapIssueTypeCounts(
+        openIssuesByTypeResult.rows as Array<{ type: string; count: unknown }>,
+      ),
       topLockers: lockerGroups
         .map((g) => ({
           lockerId: String(g.locker_id),

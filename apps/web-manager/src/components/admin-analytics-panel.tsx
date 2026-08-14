@@ -1,204 +1,43 @@
 'use client';
 
+import { ISSUE_TYPE_LABELS, PARCEL_STATUS_LABELS } from '@eveider/domain';
 import { colors, webCardStyle } from '@eveider/config-ui';
-import Link from 'next/link';
-import type { AnalyticsReport } from '@/components/admin-dashboard-types';
-
-function formatDayLabel(isoDate: string) {
-  const [year = 2026, month = 1, day = 1] = isoDate.split('-').map(Number);
-  return new Intl.DateTimeFormat('fr-CD', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  }).format(new Date(year, month - 1, day));
-}
-
-function RateItem({ label, value, hint }: { label: string; value: string; hint: string }) {
-  return (
-    <div
-      style={{
-        flex: '1 1 140px',
-        padding: '0.5rem 1.5rem',
-        minWidth: 140,
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-      }}
-    >
-      <span
-        style={{
-          fontSize: '0.6875rem',
-          fontWeight: 700,
-          color: colors.textMuted,
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-        }}
-      >
-        {label}
-      </span>
-      <span
-        style={{
-          margin: '0.25rem 0 0',
-          fontSize: '1.75rem',
-          fontWeight: 700,
-          color: colors.secondary,
-          lineHeight: 1.1,
-        }}
-      >
-        {value}
-      </span>
-      <span
-        style={{
-          margin: '0.25rem 0 0',
-          fontSize: '0.6875rem',
-          color: colors.textMuted,
-          opacity: 0.8,
-          fontWeight: 500,
-        }}
-      >
-        {hint}
-      </span>
-    </div>
-  );
-}
+import type { ReactNode } from 'react';
+import { Bar, Doughnut, Line } from 'react-chartjs-2';
+import type { ChartOptions } from 'chart.js';
+import type { AnalyticsReport, DashboardDayRange } from '@/components/admin-dashboard-types';
+import {
+  baseBarOptions,
+  baseDoughnutOptions,
+  baseLineOptions,
+  chartPalette,
+  formatDayLabel,
+  issueTypeColors,
+  parcelStatusColors,
+} from '@/lib/admin-chart-theme';
 
 type AdminAnalyticsPanelProps = {
   analytics: AnalyticsReport;
+  days: DashboardDayRange;
+  loading?: boolean;
 };
 
-export function AdminAnalyticsPanel({ analytics }: AdminAnalyticsPanelProps) {
-  const maxDaily = Math.max(...analytics.dailyDeliveries.map((d) => d.count), 1);
-
-  return (
-    <section style={{ marginBottom: '2.5rem' }}>
-      <h2 style={{ margin: '0 0 1rem', fontSize: '0.875rem', fontWeight: 700, opacity: 0.7 }}>
-        Analytiques · 7 jours
-      </h2>
-
-      <div
-        style={{
-          display: 'flex',
-          borderBottom: `1px solid ${colors.borderSubtle}`,
-          padding: '1.25rem 0',
-          marginBottom: '1.5rem',
-          width: '100%',
-          flexWrap: 'wrap',
-          gap: '0.5rem 0',
-        }}
-      >
-        <RateItem
-          label="Taux de retrait"
-          value={`${analytics.pickupSuccessRate}%`}
-          hint={`${analytics.collected} retirés · ${analytics.awaitingPickup} en attente`}
-        />
-        <div style={{ width: 1, height: 32, backgroundColor: colors.borderSubtle, alignSelf: 'center', flexShrink: 0 }} />
-        <RateItem
-          label="Utilisation casiers"
-          value={`${analytics.lockerUsageRate}%`}
-          hint="Compartiments occupés"
-        />
-      </div>
-
-      <div
-        style={{
-          ...webCardStyle,
-          padding: '1.25rem',
-          marginBottom: '1.5rem',
-        }}
-      >
-        <p
-          style={{
-            margin: '0 0 1rem',
-            fontSize: '0.6875rem',
-            fontWeight: 700,
-            letterSpacing: '0.08em',
-            opacity: 0.7,
-          }}
-        >
-          Livraisons terminées par jour
-        </p>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem', minHeight: 120 }}>
-          {analytics.dailyDeliveries.map((day) => (
-            <div
-              key={day.date}
-              style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '0.35rem',
-              }}
-            >
-              <span style={{ fontSize: '0.6875rem', fontWeight: 700 }}>{day.count}</span>
-              <div
-                style={{
-                  width: '100%',
-                  maxWidth: 48,
-                  height: `${Math.max((day.count / maxDaily) * 80, day.count > 0 ? 8 : 4)}px`,
-                  background: day.count > 0 ? colors.primary : colors.border,
-                  borderRadius: 4,
-                }}
-              />
-              <span
-                style={{
-                  fontSize: '0.625rem',
-                  fontWeight: 600,
-                  textAlign: 'center',
-                  opacity: 0.7,
-                  lineHeight: 1.2,
-                }}
-              >
-                {formatDayLabel(day.date)}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
-        <RankingTable
-          title="TOP CASIERS"
-          emptyLabel="Aucune activité casier"
-          rows={analytics.topLockers.map((item) => ({
-            id: item.lockerId,
-            name: item.lockerName,
-            count: item.parcelCount,
-            href: `/tableau-de-bord/points/${item.lockerId}`,
-          }))}
-        />
-        <RankingTable
-          title="TOP ENTREPRISES"
-          emptyLabel="Aucun colis enregistré"
-          rows={analytics.topBusinesses.map((item) => ({
-            id: item.businessId,
-            name: item.businessName,
-            count: item.parcelCount,
-          }))}
-        />
-      </div>
-    </section>
-  );
-}
-
-function RankingTable({
+function ChartCard({
   title,
-  emptyLabel,
-  rows,
+  subtitle,
+  children,
+  loading,
 }: {
   title: string;
-  emptyLabel: string;
-  rows: { id: string; name: string; count: number; href?: string }[];
+  subtitle?: string;
+  children: ReactNode;
+  loading?: boolean;
 }) {
   return (
-    <div
-      style={{
-        ...webCardStyle,
-        padding: '1.25rem',
-      }}
-    >
+    <div style={{ ...webCardStyle, padding: '1.25rem', opacity: loading ? 0.65 : 1 }}>
       <p
         style={{
-          margin: '0 0 1rem',
+          margin: 0,
           fontSize: '0.6875rem',
           fontWeight: 700,
           letterSpacing: '0.08em',
@@ -207,73 +46,196 @@ function RankingTable({
       >
         {title}
       </p>
-      {rows.length === 0 ? (
-        <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 500, opacity: 0.65 }}>{emptyLabel}</p>
+      {subtitle ? (
+        <p
+          style={{
+            margin: '0.35rem 0 0.85rem',
+            fontSize: '0.75rem',
+            fontWeight: 500,
+            color: colors.textMuted,
+          }}
+        >
+          {subtitle}
+        </p>
       ) : (
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {rows.map((row, index) => (
-            <li
-              key={row.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '0.75rem',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
-                <span
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 12,
-                    background: colors.background,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.6875rem',
-                    fontWeight: 700,
-                    flexShrink: 0,
-                  }}
-                >
-                  {index + 1}
-                </span>
-                {row.href ? (
-                  <Link
-                    href={row.href}
-                    style={{
-                      fontWeight: 600,
-                      fontSize: '0.875rem',
-                      color: colors.secondary,
-                      textDecoration: 'none',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {row.name}
-                  </Link>
-                ) : (
-                  <span
-                    style={{
-                      fontWeight: 600,
-                      fontSize: '0.875rem',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {row.name}
-                  </span>
-                )}
-              </div>
-              <span style={{ fontWeight: 700, fontSize: '0.875rem', flexShrink: 0 }}>
-                {row.count}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div style={{ marginBottom: '0.85rem' }} />
       )}
+      <div style={{ height: 220 }}>{children}</div>
+    </div>
+  );
+}
+
+export function AdminAnalyticsPanel({ analytics, days, loading }: AdminAnalyticsPanelProps) {
+  const dayLabels = analytics.dailyDeliveries.map((entry) => formatDayLabel(entry.date));
+
+  const completedDeliveriesData = {
+    labels: dayLabels,
+    datasets: [
+      {
+        label: 'Livraisons terminées',
+        data: analytics.dailyDeliveries.map((entry) => entry.count),
+        backgroundColor: chartPalette.primary,
+        borderRadius: 6,
+        maxBarThickness: 36,
+      },
+    ],
+  };
+
+  const parcelsCreatedData = {
+    labels: analytics.dailyParcelsCreated.map((entry) => formatDayLabel(entry.date)),
+    datasets: [
+      {
+        label: 'Colis créés',
+        data: analytics.dailyParcelsCreated.map((entry) => entry.count),
+        borderColor: chartPalette.secondary,
+        backgroundColor: 'rgba(18, 18, 18, 0.08)',
+        fill: true,
+        tension: 0.35,
+        pointRadius: 3,
+        pointBackgroundColor: chartPalette.secondary,
+      },
+    ],
+  };
+
+  const statusEntries = analytics.parcelsByStatus.filter((entry) => entry.count > 0);
+  const parcelsByStatusData = {
+    labels: statusEntries.map((entry) => PARCEL_STATUS_LABELS[entry.status]),
+    datasets: [
+      {
+        data: statusEntries.map((entry) => entry.count),
+        backgroundColor: statusEntries.map((entry) => parcelStatusColors[entry.status] ?? chartPalette.muted),
+        borderWidth: 0,
+      },
+    ],
+  };
+
+  const topLockers = analytics.topLockers.slice(0, 5);
+  const topLockersData = {
+    labels: topLockers.map((locker) => locker.lockerName),
+    datasets: [
+      {
+        label: 'Colis',
+        data: topLockers.map((locker) => locker.parcelCount),
+        backgroundColor: chartPalette.secondary,
+        borderRadius: 6,
+        maxBarThickness: 22,
+      },
+    ],
+  };
+
+  const issueEntries = analytics.openIssuesByType.filter((entry) => entry.count > 0);
+  const openIssuesData = {
+    labels: issueEntries.map((entry) => ISSUE_TYPE_LABELS[entry.type]),
+    datasets: [
+      {
+        label: 'Incidents ouverts',
+        data: issueEntries.map((entry) => entry.count),
+        backgroundColor: issueEntries.map((entry) => issueTypeColors[entry.type] ?? chartPalette.muted),
+        borderRadius: 6,
+        maxBarThickness: 40,
+      },
+    ],
+  };
+
+  const barOptions = baseBarOptions();
+  const lineOptions = baseLineOptions();
+  const horizontalBarOptions: ChartOptions<'bar'> = {
+    ...barOptions,
+    indexAxis: 'y',
+    scales: {
+      ...barOptions.scales,
+      x: {
+        ...barOptions.scales?.x,
+        grid: { color: colors.borderSubtle },
+      },
+      y: {
+        ...barOptions.scales?.y,
+        grid: { display: false },
+      },
+    },
+  };
+
+  return (
+    <section style={{ marginBottom: '2.5rem' }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gap: '1rem',
+          marginBottom: '1rem',
+        }}
+      >
+        <ChartCard
+          title="LIVRAISONS TERMINÉES / JOUR"
+          subtitle={`${days} derniers jours`}
+          loading={loading}
+        >
+          <Bar data={completedDeliveriesData} options={barOptions} />
+        </ChartCard>
+
+        <ChartCard
+          title="COLIS PAR STATUT"
+          subtitle={`Colis créés sur ${days} jours · statut actuel`}
+          loading={loading}
+        >
+          {statusEntries.length > 0 ? (
+            <Doughnut data={parcelsByStatusData} options={baseDoughnutOptions()} />
+          ) : (
+            <EmptyChart message="Aucun colis sur la période" />
+          )}
+        </ChartCard>
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gap: '1rem',
+          marginBottom: '1rem',
+        }}
+      >
+        <ChartCard title="COLIS CRÉÉS / JOUR" subtitle={`${days} derniers jours`} loading={loading}>
+          <Line data={parcelsCreatedData} options={lineOptions} />
+        </ChartCard>
+
+        <ChartCard title="TOP POINTS" subtitle="Activité casier sur la période" loading={loading}>
+          {topLockers.length > 0 ? (
+            <Bar data={topLockersData} options={horizontalBarOptions} />
+          ) : (
+            <EmptyChart message="Aucune activité casier" />
+          )}
+        </ChartCard>
+      </div>
+
+      <ChartCard
+        title="INCIDENTS OUVERTS PAR TYPE"
+        subtitle="Ouverts et en cours de traitement"
+        loading={loading}
+      >
+        {issueEntries.length > 0 ? (
+          <Bar data={openIssuesData} options={barOptions} />
+        ) : (
+          <EmptyChart message="Aucun incident ouvert" />
+        )}
+      </ChartCard>
+    </section>
+  );
+}
+
+function EmptyChart({ message }: { message: string }) {
+  return (
+    <div
+      style={{
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: colors.textMuted,
+        fontSize: '0.875rem',
+        fontWeight: 500,
+      }}
+    >
+      {message}
     </div>
   );
 }
