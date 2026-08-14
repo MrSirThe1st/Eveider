@@ -1,11 +1,16 @@
 import { haversineDistanceKm } from '@eveider/domain';
 import type { Queryable } from '../db/index.js';
+import { formatLocationQuery, geocodeAddressQuery } from './geocode-address.js';
 
 export type PickupCoordinates = {
   latitude: number;
   longitude: number;
   source: 'pickup_point' | 'business_address' | 'fallback';
 };
+
+function mapLocationSource(type: string): PickupCoordinates['source'] {
+  return type === 'pickup_point' ? 'pickup_point' : 'business_address';
+}
 
 /** Resolve pickup coordinates from business locations for distance-based pricing. */
 export async function resolveBusinessPickupCoordinates(
@@ -16,11 +21,9 @@ export async function resolveBusinessPickupCoordinates(
   const normalizedAddress = senderAddress?.trim().toLowerCase() ?? '';
 
   const locations = await db.query(
-    `SELECT type, street, lat, lng
+    `SELECT type, street, city, country, lat, lng
      FROM business_locations
      WHERE business_id = $1
-       AND lat IS NOT NULL
-       AND lng IS NOT NULL
      ORDER BY
        CASE type
          WHEN 'pickup_point' THEN 0
@@ -43,19 +46,40 @@ export async function resolveBusinessPickupCoordinates(
       return {
         latitude: Number(row.lat),
         longitude: Number(row.lng),
-        source: type === 'pickup_point' ? 'pickup_point' : 'business_address',
+        source: mapLocationSource(type),
       };
     }
   }
 
-  const first = locations.rows[0];
-  if (first?.lat != null && first?.lng != null) {
-    const type = String(first.type);
+  for (const row of locations.rows) {
+    if (row.lat == null || row.lng == null) continue;
+    const type = String(row.type);
     return {
-      latitude: Number(first.lat),
-      longitude: Number(first.lng),
-      source: type === 'pickup_point' ? 'pickup_point' : 'business_address',
+      latitude: Number(row.lat),
+      longitude: Number(row.lng),
+      source: mapLocationSource(type),
     };
+  }
+
+  if (normalizedAddress) {
+    const geocoded = await geocodeAddressQuery(normalizedAddress);
+    if (geocoded) {
+      return { ...geocoded, source: 'fallback' };
+    }
+  }
+
+  for (const row of locations.rows) {
+    const query = formatLocationQuery({
+      street: row.street == null ? null : String(row.street),
+      city: row.city == null ? null : String(row.city),
+      country: row.country == null ? null : String(row.country),
+    });
+    if (!query) continue;
+
+    const geocoded = await geocodeAddressQuery(query);
+    if (geocoded) {
+      return { ...geocoded, source: 'fallback' };
+    }
   }
 
   return null;

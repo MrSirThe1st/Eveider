@@ -1,7 +1,6 @@
 'use client';
 
 import { colors, webCardStyle } from '@eveider/config-ui';
-import { usesCompartmentGrid } from '@eveider/domain';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { LockerStatusBadge } from '@/components/locker-status-badge';

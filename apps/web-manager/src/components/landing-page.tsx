@@ -379,8 +379,13 @@ export function LandingPage() {
               <p style={{ margin: 0, fontSize: '0.875rem', color: '#64748B', lineHeight: 1.5, flex: 1 }}>
                 Consultez vos trajets assignés, scannez les colis à déposer et confirmez la fermeture des casiers.
               </p>
-              <div style={{ marginTop: '2rem', textAlign: 'center', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.05em', color: '#94A3B8', border: '1px dashed #E2E8F0', padding: '10px', borderRadius: 12 }}>
-                Bientôt sur iOS & Android
+              <div style={{ marginTop: '2rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <Link href="/connexion" className="btn btn-primary" style={{ flex: 1, minWidth: 140, height: 40, borderRadius: 12 }}>
+                  Connexion coursier
+                </Link>
+                <span style={{ flex: 1, minWidth: 140, textAlign: 'center', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.05em', color: '#94A3B8', border: '1px dashed #E2E8F0', padding: '10px', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  App mobile · BETA
+                </span>
               </div>
             </article>
 

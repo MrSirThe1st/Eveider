@@ -1,4 +1,4 @@
-import { PARCEL_STATUS_LABELS, type ParcelStatus } from '@eveider/domain';
+import { formatDeliveryFeeFc, PARCEL_STATUS_LABELS, PACKAGE_SIZE_LABELS, type PackageSize, type ParcelStatus } from '@eveider/domain';
 
 export type LockerSummaryDto = {
   id: string;
@@ -22,6 +22,11 @@ export type AdminParcelDto = {
   lockerId: string | null;
   locker: LockerSummaryDto | null;
   business: BusinessSummaryDto;
+  deliveryFeeFc: number | null;
+  deliveryFeeLabel: string | null;
+  deliveryDistanceKm: number | null;
+  pricingSizeUsed: PackageSize | null;
+  pricingSizeLabel: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -38,6 +43,9 @@ export function toAdminParcelDto(parcel: {
   updatedAt: Date;
   locker?: { id: string; name: string; address: string } | null;
   business: { id: string; name: string };
+  deliveryFeeFc?: number | null;
+  deliveryDistanceKm?: number | null;
+  pricingSizeUsed?: PackageSize | null;
 }): AdminParcelDto {
   return {
     id: parcel.id,
@@ -52,6 +60,14 @@ export function toAdminParcelDto(parcel: {
       ? { id: parcel.locker.id, name: parcel.locker.name, address: parcel.locker.address }
       : null,
     business: { id: parcel.business.id, name: parcel.business.name },
+    deliveryFeeFc: parcel.deliveryFeeFc ?? null,
+    deliveryFeeLabel:
+      parcel.deliveryFeeFc != null ? formatDeliveryFeeFc(parcel.deliveryFeeFc) : null,
+    deliveryDistanceKm: parcel.deliveryDistanceKm ?? null,
+    pricingSizeUsed: parcel.pricingSizeUsed ?? null,
+    pricingSizeLabel: parcel.pricingSizeUsed
+      ? PACKAGE_SIZE_LABELS[parcel.pricingSizeUsed]
+      : null,
     createdAt: parcel.createdAt.toISOString(),
     updatedAt: parcel.updatedAt.toISOString(),
   };

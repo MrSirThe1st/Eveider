@@ -4,7 +4,6 @@ import {
   distanceKmToLocker,
   getPool,
   resolveBusinessPickupCoordinates,
-  toDeliveryPricingRules,
 } from '@eveider/data-access';
 
 export type DeliveryQuoteInput = {

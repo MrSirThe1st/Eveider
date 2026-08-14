@@ -21,7 +21,7 @@ A single mobile app serves customers and couriers. After login, the UI and navig
 Login → Home → Tracking → PIN Screen → Pickup complete
 ```
 
-1. **Login / register** — OTP or SMS verification
+1. **Login / register** — Email + password (Supabase); SMS OTP planned
 2. **Home** — Active parcels, delivery status cards, PIN quick access, notification preview
 3. **Tracking** — Full parcel list and status detail per parcel
 4. **PIN screen** — Active pickup code, parcel details, locker location, collection instructions

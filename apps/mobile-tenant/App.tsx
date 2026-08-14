@@ -9,6 +9,7 @@ import { supabase } from './src/lib/supabase';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SettingsProvider } from './src/context/settings-context';
 import { MobileTabs } from './src/navigation/MobileTabs';
 
 type AppState =
@@ -251,19 +252,21 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer
-        linking={{
-          prefixes: ['eveider://', 'http://localhost:3000', 'http://localhost:19006'],
-          config: {
-            screens: {
-              Colis: 'invite/:token',
+      <SettingsProvider>
+        <NavigationContainer
+          linking={{
+            prefixes: ['eveider://', 'http://localhost:3000', 'http://localhost:19006'],
+            config: {
+              screens: {
+                Colis: 'invite/:token',
+              },
             },
-          },
-        }}
-      >
-        <MobileTabs role={state.role} initialParcelId={state.initialParcelId} />
-      </NavigationContainer>
-      <StatusBar style="dark" />
+          }}
+        >
+          <MobileTabs role={state.role} initialParcelId={state.initialParcelId} />
+        </NavigationContainer>
+        <StatusBar style="dark" />
+      </SettingsProvider>
     </SafeAreaProvider>
   );
 }
