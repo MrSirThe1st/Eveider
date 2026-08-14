@@ -9,10 +9,12 @@ export const scanDeliverySchema = z.object({
 });
 
 export const listDeliveriesQuerySchema = z.object({
+  view: z.enum(['active', 'au_casier', 'collected', 'all']).optional(),
   status: z.enum(['assigned', 'scanned', 'drop_off_pending', 'completed', 'failed']).optional(),
   courierId: z.string().uuid('Coursier invalide').optional(),
   lockerId: z.string().uuid('Casier invalide').optional(),
   businessId: z.string().uuid('Entreprise invalide').optional(),
+  search: z.string().trim().max(64).optional(),
 });
 
 export type AssignCourierInput = z.infer<typeof assignCourierSchema>;

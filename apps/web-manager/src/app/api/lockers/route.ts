@@ -6,7 +6,7 @@ import { createRequestTimer } from '@/lib/perf/request-timer';
 import { requireAdminSession } from '@/lib/session';
 import { listLockers } from '@/server/lockers';
 
-export async function GET() {
+export async function GET(request: Request) {
   const perf = createRequestTimer('GET /api/lockers');
   const auth = await requireAdminSession(perf);
   if ('error' in auth) {
@@ -14,8 +14,13 @@ export async function GET() {
     return NextResponse.json(fail(auth.error), { status: auth.status });
   }
 
+  const { searchParams } = new URL(request.url);
+  const search = searchParams.get('search') ?? undefined;
+
   try {
-    const lockers = await perf.measure('db.lockers.list', () => listLockers(auth.session.ctx));
+    const lockers = await perf.measure('db.lockers.list', () =>
+      listLockers(auth.session.ctx, { search }),
+    );
 
     perf.flush(200);
     return NextResponse.json(ok({ lockers }));

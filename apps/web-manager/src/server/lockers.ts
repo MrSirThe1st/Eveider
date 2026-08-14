@@ -4,8 +4,11 @@ import { toLockerSummaryDto, type LockerSummaryDto } from '@/lib/locker-presente
 
 export type { LockerSummaryDto };
 
-export async function listLockers(ctx: DataAccessContext): Promise<LockerSummaryDto[]> {
+export async function listLockers(
+  ctx: DataAccessContext,
+  options?: { search?: string },
+): Promise<LockerSummaryDto[]> {
   const { lockers } = createRepositories();
-  const items = await lockers.listAll(ctx);
+  const items = await lockers.listAll(ctx, options);
   return items.map(toLockerSummaryDto);
 }

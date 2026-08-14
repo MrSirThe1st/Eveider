@@ -20,7 +20,6 @@ import {
 } from '@/components/parcel-status-filters';
 import { ParcelStatusBadge } from '@/components/parcel-status-badge';
 import { useAdminParcelsQuery } from '@/hooks/queries/use-parcels-query';
-import { matchesListSearch } from '@/lib/list-search';
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat('fr-CD', {
@@ -39,29 +38,24 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
   const toast = useToast();
   const [statusFilter, setStatusFilter] = useState<ParcelStatusFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [previewParcel, setPreviewParcel] = useState<DashboardParcelItem | null>(null);
-  const useSeed = statusFilter === 'all' && seedParcels !== undefined;
+  const useSeed = statusFilter === 'all' && seedParcels !== undefined && !debouncedSearch;
   const refreshToastShown = useRef(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const { data: fetchedParcels = [], isLoading, isFetching, isError, error, refetch } =
     useAdminParcelsQuery(statusFilter, {
-      enabled: !useSeed,
+      enabled: !useSeed || Boolean(debouncedSearch),
       initialData: useSeed ? seedParcels : undefined,
+      search: debouncedSearch,
     });
 
-  const parcels = useSeed ? seedParcels : fetchedParcels;
-
-  const filteredParcels = useMemo(
-    () =>
-      parcels.filter((parcel) =>
-        matchesListSearch(
-          searchQuery,
-          parcel.reference,
-          parcel.trackingNumber,
-        ),
-      ),
-    [parcels, searchQuery],
-  );
+  const parcels = useSeed ? seedParcels ?? [] : fetchedParcels;
 
   const showInitialLoader = isLoading && parcels.length === 0;
   const showFatalError = isError && parcels.length === 0;
@@ -234,24 +228,24 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
       {!showInitialLoader && !showFatalError ? (
         <DataTable
           columns={columns}
-          rows={filteredParcels}
+          rows={parcels}
           getRowId={(row) => row.id}
           caption={
-            filteredParcels.length > 0
-              ? searchQuery.trim()
-                ? `${filteredParcels.length} colis sur ${parcels.length}`
-                : `${filteredParcels.length} colis`
+            parcels.length > 0
+              ? debouncedSearch.trim()
+                ? `${parcels.length} colis`
+                : `${parcels.length} colis`
               : undefined
           }
           emptyTitle={
-            searchQuery.trim()
+            debouncedSearch.trim()
               ? 'Aucun colis pour cette recherche'
               : statusFilter === 'all'
                 ? 'Aucun colis'
                 : 'Aucun colis pour ce filtre'
           }
           emptyDescription={
-            searchQuery.trim()
+            debouncedSearch.trim()
               ? 'Essayez une autre référence ou un autre numéro de suivi.'
               : "Les nouveaux envois apparaîtront ici dès qu'ils seront créés."
           }

@@ -23,7 +23,8 @@ export type AdminDeliveryDto = {
     recipientName: string | null;
     recipientPhone: string;
     business: { id: string; name: string };
-    locker: { id: string; name: string; address: string } | null;
+    locker: { id: string; name: string; code: string; address: string } | null;
+    compartment: { label: string; size: string } | null;
   };
 };
 
@@ -46,6 +47,7 @@ export function toAdminDeliveryDto(delivery: AdminDeliveryListItem): AdminDelive
       recipientPhone: delivery.parcel.recipientPhone,
       business: delivery.parcel.business,
       locker: delivery.parcel.locker,
+      compartment: delivery.parcel.compartment,
     },
   };
 }

@@ -4,7 +4,7 @@ import { createRequestTimer } from '@/lib/perf/request-timer';
 import { requireAdminSession } from '@/lib/session';
 import { listBusinesses } from '@/server/businesses';
 
-export async function GET() {
+export async function GET(request: Request) {
   const perf = createRequestTimer('GET /api/businesses');
   const auth = await requireAdminSession(perf);
   if ('error' in auth) {
@@ -12,9 +12,15 @@ export async function GET() {
     return NextResponse.json(fail(auth.error), { status: auth.status });
   }
 
+  const { searchParams } = new URL(request.url);
+  const search = searchParams.get('search') ?? undefined;
+
   try {
     const businesses = await perf.measure('db.businesses.list', () =>
-      listBusinesses(auth.session.ctx),
+      listBusinesses(auth.session.ctx, {
+        statuses: ['active'],
+        search,
+      }),
     );
 
     perf.flush(200);

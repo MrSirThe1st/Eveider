@@ -127,6 +127,9 @@ export type CreateParcelInput = {
   paymentResponsibility: PaymentResponsibility;
   codAmountCdf?: number | null;
   codAmountUsd?: number | null;
+  deliveryFeeFc?: number | null;
+  deliveryDistanceKm?: number | null;
+  pricingSizeUsed?: PackageSize | null;
 };
 
 export type CreateParcelResult = {
@@ -211,6 +214,9 @@ export class ParcelRepository {
       input.paymentResponsibility,
       input.paymentResponsibility === 'cod' ? (input.codAmountCdf ?? null) : null,
       input.paymentResponsibility === 'cod' ? (input.codAmountUsd ?? null) : null,
+      input.deliveryFeeFc ?? null,
+      input.deliveryDistanceKm ?? null,
+      input.pricingSizeUsed ?? null,
     ];
 
     const insertColumns = `
@@ -218,7 +224,8 @@ export class ParcelRepository {
       customer_id, locker_id, pickup_type, sender_name, sender_phone, sender_address,
       package_size, package_length_cm, package_width_cm, package_height_cm, package_weight_kg,
       package_category, declared_value_cdf, declared_value_usd,
-      payment_responsibility, cod_amount_cdf, cod_amount_usd, status
+      payment_responsibility, cod_amount_cdf, cod_amount_usd,
+      delivery_fee_fc, delivery_distance_km, pricing_size_used, status
     `;
 
     if (input.compartmentId) {
@@ -248,7 +255,7 @@ export class ParcelRepository {
              ${insertColumns}, compartment_id
            ) VALUES (
              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-             $17, $18, $19, $20, $21, $22, 'created', $23
+             $17, $18, $19, $20, $21, $22, $23, $24, $25, 'created', $26
            )
            RETURNING *`,
           [...shipmentValues, compartment.id],
@@ -264,7 +271,7 @@ export class ParcelRepository {
          ${insertColumns}
        ) VALUES (
          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-         $17, $18, $19, $20, $21, $22, 'created'
+         $17, $18, $19, $20, $21, $22, $23, $24, $25, 'created'
        )
        RETURNING *`,
       shipmentValues,
@@ -457,16 +464,25 @@ export class ParcelRepository {
 
   async listAll(
     ctx: DataAccessContext,
-    options?: { status?: ParcelStatus },
+    options?: { status?: ParcelStatus; search?: string },
   ): Promise<ParcelWithLocker[]> {
     assertAdmin(ctx);
     const params: unknown[] = [];
-    let sql = `SELECT id FROM parcels`;
+    const conditions: string[] = [];
+
     if (options?.status) {
       params.push(options.status);
-      sql += ` WHERE status = $1`;
+      conditions.push(`status = $${params.length}`);
     }
-    sql += ` ORDER BY created_at DESC`;
+    if (options?.search?.trim()) {
+      params.push(`%${options.search.trim()}%`);
+      conditions.push(
+        `(tracking_number ILIKE $${params.length} OR COALESCE(reference, '') ILIKE $${params.length})`,
+      );
+    }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const sql = `SELECT id FROM parcels ${where} ORDER BY created_at DESC`;
     const ids = await this.db.query(sql, params);
     return this.loadParcelsWithRelations(ids.rows.map((r) => String(r.id)));
   }
@@ -698,5 +714,127 @@ export class ParcelRepository {
       return;
     }
     throw new Error('Role cannot update parcel status');
+  }
+
+  async listForAdminBoard(
+    ctx: DataAccessContext,
+    options: {
+      parcelStatuses: ParcelStatus[];
+      search?: string;
+    },
+  ): Promise<
+    Array<{
+      parcelId: string;
+      trackingNumber: string;
+      reference: string | null;
+      parcelStatus: ParcelStatus;
+      recipientName: string | null;
+      recipientPhone: string;
+      updatedAt: Date;
+      business: { id: string; name: string };
+      locker: { id: string; name: string; code: string; address: string } | null;
+      compartment: { label: string; size: string } | null;
+      delivery: {
+        id: string;
+        status: DeliveryStatus;
+        courier: {
+          id: string;
+          fullName: string | null;
+          email: string | null;
+          phone: string | null;
+        };
+      } | null;
+    }>
+  > {
+    assertAdmin(ctx);
+    const params: unknown[] = [options.parcelStatuses];
+    const conditions = [`p.status = ANY($1)`];
+
+    if (options.search?.trim()) {
+      params.push(`%${options.search.trim()}%`);
+      conditions.push(
+        `(p.tracking_number ILIKE $${params.length} OR COALESCE(p.reference, '') ILIKE $${params.length})`,
+      );
+    }
+
+    const result = await this.db.query(
+      `SELECT p.id AS parcel_id,
+              p.tracking_number,
+              p.reference,
+              p.status AS parcel_status,
+              p.recipient_name,
+              p.recipient_phone,
+              p.updated_at,
+              b.id AS business_id,
+              b.name AS business_name,
+              l.id AS locker_id,
+              l.name AS locker_name,
+              l.code AS locker_code,
+              l.address AS locker_address,
+              c.label AS compartment_label,
+              c.size AS compartment_size,
+              d.id AS delivery_id,
+              d.status AS delivery_status,
+              u.id AS courier_id,
+              u.full_name AS courier_full_name,
+              u.email AS courier_email,
+              u.phone AS courier_phone
+       FROM parcels p
+       JOIN businesses b ON b.id = p.business_id
+       LEFT JOIN lockers l ON l.id = p.locker_id
+       LEFT JOIN compartments c ON c.id = p.compartment_id
+       LEFT JOIN LATERAL (
+         SELECT d2.*
+         FROM deliveries d2
+         WHERE d2.parcel_id = p.id
+         ORDER BY d2.updated_at DESC
+         LIMIT 1
+       ) d ON TRUE
+       LEFT JOIN users u ON u.id = d.courier_id
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY p.updated_at DESC`,
+      params,
+    );
+
+    return result.rows.map((row) => ({
+      parcelId: String(row.parcel_id),
+      trackingNumber: String(row.tracking_number),
+      reference:
+        row.reference == null || row.reference === '' ? null : String(row.reference),
+      parcelStatus: row.parcel_status as ParcelStatus,
+      recipientName: row.recipient_name == null ? null : String(row.recipient_name),
+      recipientPhone: String(row.recipient_phone),
+      updatedAt: new Date(String(row.updated_at)),
+      business: {
+        id: String(row.business_id),
+        name: String(row.business_name),
+      },
+      locker: row.locker_id
+        ? {
+            id: String(row.locker_id),
+            name: String(row.locker_name),
+            code: String(row.locker_code),
+            address: String(row.locker_address),
+          }
+        : null,
+      compartment: row.compartment_label
+        ? {
+            label: String(row.compartment_label),
+            size: String(row.compartment_size),
+          }
+        : null,
+      delivery: row.delivery_id
+        ? {
+            id: String(row.delivery_id),
+            status: row.delivery_status as DeliveryStatus,
+            courier: {
+              id: String(row.courier_id),
+              fullName: row.courier_full_name == null ? null : String(row.courier_full_name),
+              email: row.courier_email == null ? null : String(row.courier_email),
+              phone: row.courier_phone == null ? null : String(row.courier_phone),
+            },
+          }
+        : null,
+    }));
   }
 }

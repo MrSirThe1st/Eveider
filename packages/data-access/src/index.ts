@@ -14,7 +14,12 @@ export { UserRepository } from './repositories/user.repository.js';
 export { IssueRepository, type IssueWithRelations } from './repositories/issue.repository.js';
 export { NotificationRepository, type CustomerNotification } from './repositories/notification.repository.js';
 export { StatsRepository, type DashboardStats, type AnalyticsReport } from './repositories/stats.repository.js';
-export { ParcelInviteRepository } from './repositories/parcel-invite.repository.js';
+export { PricingRepository, toDeliveryPricingRules } from './repositories/pricing.repository.js';
+export {
+  resolveBusinessPickupCoordinates,
+  distanceKmToLocker,
+  type PickupCoordinates,
+} from './pricing/delivery-distance.js';
 export { buildInviteLinks, getInviteConfig, buildParcelPickupLink, buildParcelTrackLink } from './invitations/invite-links.js';
 export { sendInvitation } from './invitations/invitation.service.js';
 export {
@@ -48,6 +53,7 @@ import { NotificationRepository } from './repositories/notification.repository.j
 import { StatsRepository } from './repositories/stats.repository.js';
 import { ParcelInviteRepository } from './repositories/parcel-invite.repository.js';
 import { PaymentRepository } from './payments/payment.repository.js';
+import { PricingRepository } from './repositories/pricing.repository.js';
 import { OnboardingService } from './auth/onboarding.service.js';
 import { UserRepository } from './repositories/user.repository.js';
 
@@ -58,6 +64,7 @@ export function createRepositories() {
   const notifications = new NotificationRepository(db);
   const invites = new ParcelInviteRepository(db);
   const payments = new PaymentRepository(db);
+  const pricing = new PricingRepository(db);
 
   return {
     users,
@@ -70,6 +77,7 @@ export function createRepositories() {
     notifications,
     invites,
     payments,
+    pricing,
     stats: new StatsRepository(db),
     onboarding: new OnboardingService(users, businesses, db),
   };

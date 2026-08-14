@@ -8,12 +8,16 @@ const CHECK_ALPHABET = `${CROCKFORD_ALPHABET}*~$=`;
 
 export const TRACKING_NUMBER_PREFIX = 'EVD';
 export const POINT_CODE_PREFIX = 'EVP';
+export const BUSINESS_ACCESS_CODE_PREFIX = 'EVB';
 
 /** EVD + YY + 8 body + 1 check → 14 chars */
 export const TRACKING_NUMBER_PATTERN = /^EVD\d{2}[0-9A-HJKMNP-TV-Z]{8}[0-9A-HJKMNP-TV-Z*~$=]$/;
 
 /** EVP + 6 body + 1 check → 10 chars */
 export const POINT_CODE_PATTERN = /^EVP[0-9A-HJKMNP-TV-Z]{6}[0-9A-HJKMNP-TV-Z*~$=]$/;
+
+/** EVB- + 6 Crockford chars → e.g. EVB-A7K3M2 */
+export const BUSINESS_ACCESS_CODE_PATTERN = /^EVB-[0-9A-HJKMNP-TV-Z]{6}$/;
 
 function normalizeCrockford(input: string): string {
   return input
@@ -113,6 +117,19 @@ export function normalizePointCode(value: string): string {
 export function isValidPointCode(value: string): boolean {
   const normalized = normalizePointCode(value);
   return POINT_CODE_PATTERN.test(normalized) && isValidCrockfordChecksum(normalized);
+}
+
+/** Operational business identifier. Example: EVB-A7K3M2 */
+export function generateBusinessAccessCode(): string {
+  return `${BUSINESS_ACCESS_CODE_PREFIX}-${randomCrockford(6)}`;
+}
+
+export function normalizeBusinessAccessCode(value: string): string {
+  return normalizeCrockford(value);
+}
+
+export function isValidBusinessAccessCode(value: string): boolean {
+  return BUSINESS_ACCESS_CODE_PATTERN.test(normalizeBusinessAccessCode(value));
 }
 
 /** 6-digit locker PIN (100000–999999), crypto-strong when Web Crypto is available. */

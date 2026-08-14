@@ -7,6 +7,7 @@ export type BusinessDto = {
   statusLabel: string;
   contactEmail: string | null;
   contactPhone: string | null;
+  accessCode: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -17,6 +18,7 @@ export function toBusinessDto(business: {
   status: BusinessStatus;
   contactEmail: string | null;
   contactPhone: string | null;
+  accessCode?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }): BusinessDto {
@@ -27,6 +29,7 @@ export function toBusinessDto(business: {
     statusLabel: BUSINESS_STATUS_LABELS[business.status],
     contactEmail: business.contactEmail,
     contactPhone: business.contactPhone,
+    accessCode: business.accessCode ?? null,
     createdAt: business.createdAt.toISOString(),
     updatedAt: business.updatedAt.toISOString(),
   };

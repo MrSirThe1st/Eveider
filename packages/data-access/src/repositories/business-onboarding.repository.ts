@@ -5,7 +5,7 @@ import type {
   OperationsSetupStepInput,
   PaymentSetupStepInput,
 } from '@eveider/api-contracts';
-import { canTransitionBusiness, transitionBusiness, type BusinessStatus } from '@eveider/domain';
+import { canTransitionBusiness, generateBusinessAccessCode, transitionBusiness, type BusinessStatus } from '@eveider/domain';
 import { assertAdmin, type DataAccessContext } from '../context.js';
 import type { Queryable } from '../db/index.js';
 import {
@@ -343,10 +343,19 @@ export class BusinessOnboardingRepository {
     return loadSummary(this.db, businessId);
   }
 
-  async listApplications(ctx: DataAccessContext) {
+  async listApplications(ctx: DataAccessContext, options?: { search?: string }) {
     assertAdmin(ctx);
+    const params: unknown[] = [];
+    const conditions = [`status != 'active'`];
+    if (options?.search?.trim()) {
+      params.push(`%${options.search.trim()}%`);
+      conditions.push(
+        `(name ILIKE $${params.length} OR COALESCE(contact_email, '') ILIKE $${params.length} OR COALESCE(access_code, '') ILIKE $${params.length})`,
+      );
+    }
     const result = await this.db.query(
-      `SELECT id FROM businesses WHERE status != 'active' ORDER BY updated_at DESC`,
+      `SELECT id FROM businesses WHERE ${conditions.join(' AND ')} ORDER BY updated_at DESC`,
+      params,
     );
     return Promise.all(
       result.rows.map(async (row: Row) => {
@@ -386,9 +395,26 @@ export class BusinessOnboardingRepository {
 
       if (input.action === 'approve') {
         const nextStatus = transitionBusiness(business.status, 'active');
+        let accessCode = business.accessCode;
+        if (!accessCode) {
+          for (let attempt = 0; attempt < 8; attempt++) {
+            const candidate = generateBusinessAccessCode();
+            const existing = await tx.query(
+              `SELECT id FROM businesses WHERE access_code = $1 LIMIT 1`,
+              [candidate],
+            );
+            if (!existing.rows[0]) {
+              accessCode = candidate;
+              break;
+            }
+          }
+          if (!accessCode) {
+            throw new Error('Impossible de générer un code d’accès entreprise unique');
+          }
+        }
         const updatedResult = await tx.query(
-          `UPDATE businesses SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
-          [nextStatus, businessId],
+          `UPDATE businesses SET status = $1, access_code = $2, updated_at = NOW() WHERE id = $3 RETURNING *`,
+          [nextStatus, accessCode, businessId],
         );
         if (currentVerification) {
           await tx.query(

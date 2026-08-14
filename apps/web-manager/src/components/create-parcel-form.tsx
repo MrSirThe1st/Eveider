@@ -10,6 +10,7 @@ import {
   PAYMENT_RESPONSIBILITIES,
   PAYMENT_RESPONSIBILITY_LABELS,
   SHIPMENT_PICKUP_TYPE_LABELS,
+  suggestPackageSizeFromDimensions,
   usesCompartmentGrid,
   type PackageCategory,
   type PackageSize,
@@ -84,6 +85,8 @@ export function CreateParcelForm() {
   const [loadingCompartments, setLoadingCompartments] = useState(false);
 
   const [packageSize, setPackageSize] = useState<PackageSize>('medium');
+  const [sizeManuallySet, setSizeManuallySet] = useState(false);
+  const [deliveryQuoteLabel, setDeliveryQuoteLabel] = useState<string | null>(null);
   const [packageCategory, setPackageCategory] = useState<PackageCategory>('other');
   const [packageLengthCm, setPackageLengthCm] = useState('');
   const [packageWidthCm, setPackageWidthCm] = useState('');
@@ -222,6 +225,42 @@ export function CreateParcelForm() {
       setPaymentResponsibility('receiver_pays');
     }
   }, [codAllowed, paymentResponsibility]);
+
+  useEffect(() => {
+    const suggested = suggestPackageSizeFromDimensions({
+      lengthCm: optionalNumber(packageLengthCm),
+      widthCm: optionalNumber(packageWidthCm),
+      heightCm: optionalNumber(packageHeightCm),
+    });
+    if (suggested && !sizeManuallySet) {
+      setPackageSize(suggested);
+    }
+  }, [packageLengthCm, packageWidthCm, packageHeightCm, sizeManuallySet]);
+
+  useEffect(() => {
+    if (!lockerId) {
+      setDeliveryQuoteLabel(null);
+      return;
+    }
+    const params = new URLSearchParams({ lockerId, packageSize });
+    if (compartmentId) params.set('compartmentId', compartmentId);
+    if (senderAddress.trim()) params.set('senderAddress', senderAddress.trim());
+
+    let cancelled = false;
+    void fetch(`/api/entreprise/delivery-quote?${params.toString()}`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (!cancelled && json.success) {
+          setDeliveryQuoteLabel(json.data.deliveryFeeLabel as string);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setDeliveryQuoteLabel(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [compartmentId, lockerId, packageSize, senderAddress]);
 
   function validatePickup(): boolean {
     if (senderName.trim().length < 2) {
@@ -515,7 +554,10 @@ export function CreateParcelForm() {
             <select
               value={packageSize}
               disabled={loading}
-              onChange={(e) => setPackageSize(e.target.value as PackageSize)}
+              onChange={(e) => {
+                setSizeManuallySet(true);
+                setPackageSize(e.target.value as PackageSize);
+              }}
               style={selectStyle}
             >
               {PACKAGE_SIZES.map((size) => (
@@ -524,6 +566,15 @@ export function CreateParcelForm() {
                 </option>
               ))}
             </select>
+            {suggestPackageSizeFromDimensions({
+              lengthCm: optionalNumber(packageLengthCm),
+              widthCm: optionalNumber(packageWidthCm),
+              heightCm: optionalNumber(packageHeightCm),
+            }) ? (
+              <p style={{ margin: '0.35rem 0 0', fontSize: '0.8125rem', color: colors.textMuted }}>
+                Suggestion automatique selon les dimensions — vous pouvez modifier la taille.
+              </p>
+            ) : null}
           </label>
 
           <label style={{ display: 'block' }}>
@@ -685,6 +736,13 @@ export function CreateParcelForm() {
               {PACKAGE_CATEGORY_LABELS[packageCategory]}
             </span>
             <span>Paiement : {PAYMENT_RESPONSIBILITY_LABELS[paymentResponsibility]}</span>
+            {deliveryQuoteLabel ? (
+              <span>Frais de livraison (estimés, verrouillés à la création) : {deliveryQuoteLabel}</span>
+            ) : null}
+            <span style={{ fontSize: '0.8125rem', color: colors.textMuted }}>
+              Les frais de retrait client (pickup) restent distincts et s’appliquent au destinataire si
+              « Destinataire paie ».
+            </span>
           </div>
         </section>
       ) : null}

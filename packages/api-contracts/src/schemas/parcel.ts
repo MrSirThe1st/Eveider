@@ -30,6 +30,7 @@ const optionalPositiveNumber = z
 
 export const listParcelsQuerySchema = z.object({
   status: parcelStatusSchema.optional(),
+  search: z.string().trim().max(64).optional(),
 });
 
 export const createParcelSchema = z

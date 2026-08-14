@@ -1,4 +1,4 @@
-import type { DeliveryStatus } from '@eveider/domain';
+import type { DeliveryStatus, ParcelStatus } from '@eveider/domain';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { BusinessListItem } from '@/hooks/queries/use-businesses-query';
 import type { CourierListItem } from '@/hooks/queries/use-couriers-query';
@@ -7,18 +7,22 @@ import { fetchJson } from '@/lib/api/fetch-json';
 
 export const DELIVERIES_REFRESH_MS = 30_000;
 
+export type DeliveryBoardView = 'active' | 'au_casier' | 'collected' | 'all';
 export type DeliveryStatusFilter = 'all' | DeliveryStatus;
 
 export type DeliveryFilters = {
+  view: DeliveryBoardView;
   status: DeliveryStatusFilter;
   courierId: string;
   lockerId: string;
   businessId: string;
+  search: string;
 };
 
-export type DeliveryItem = {
+export type DeliveryBoardItem = {
   id: string;
-  status: DeliveryStatus;
+  kind: 'delivery' | 'parcel';
+  status: DeliveryStatus | ParcelStatus | string;
   statusLabel: string;
   updatedAt: string;
   courier: {
@@ -26,15 +30,17 @@ export type DeliveryItem = {
     fullName: string | null;
     email: string | null;
     phone: string | null;
-  };
+  } | null;
   parcel: {
     id: string;
     trackingNumber: string;
     reference: string | null;
+    status: string;
     recipientName: string | null;
     recipientPhone: string;
     business: { id: string; name: string };
-    locker: { id: string; name: string; address: string } | null;
+    locker: { id: string; name: string; code: string; address: string } | null;
+    compartment: { label: string; size: string } | null;
   };
 };
 
@@ -45,12 +51,10 @@ export type DeliverySummary = {
   total: number;
 };
 
-type DeliveriesResponse = {
-  deliveries: DeliveryItem[];
-  summary: DeliverySummary;
-};
-
-export type DeliveriesBoardResponse = DeliveriesResponse & {
+export type DeliveriesBoardResponse = {
+  view: DeliveryBoardView;
+  items: DeliveryBoardItem[];
+  summary: DeliverySummary | null;
   couriers: CourierListItem[];
   lockers: LockerListItem[];
   businesses: BusinessListItem[];
@@ -58,19 +62,19 @@ export type DeliveriesBoardResponse = DeliveriesResponse & {
 
 function buildDeliveriesBoardUrl(filters: DeliveryFilters) {
   const params = new URLSearchParams();
+  params.set('view', filters.view);
   if (filters.status !== 'all') params.set('status', filters.status);
   if (filters.courierId) params.set('courierId', filters.courierId);
   if (filters.lockerId) params.set('lockerId', filters.lockerId);
   if (filters.businessId) params.set('businessId', filters.businessId);
-  const query = params.toString();
-  return query ? `/api/deliveries/board?${query}` : '/api/deliveries/board';
+  if (filters.search.trim()) params.set('search', filters.search.trim());
+  return `/api/deliveries/board?${params.toString()}`;
 }
 
 export async function fetchDeliveriesBoard(filters: DeliveryFilters): Promise<DeliveriesBoardResponse> {
   return fetchJson<DeliveriesBoardResponse>(buildDeliveriesBoardUrl(filters));
 }
 
-/** Livraisons screen — one request for deliveries + filter dropdown data. */
 export function useDeliveriesBoardQuery(filters: DeliveryFilters) {
   const [data, setData] = useState<DeliveriesBoardResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -101,7 +105,14 @@ export function useDeliveriesBoardQuery(filters: DeliveryFilters) {
         setIsFetching(false);
       }
     },
-    [filters.status, filters.courierId, filters.lockerId, filters.businessId],
+    [
+      filters.view,
+      filters.status,
+      filters.courierId,
+      filters.lockerId,
+      filters.businessId,
+      filters.search,
+    ],
   );
 
   useEffect(() => {
@@ -110,12 +121,12 @@ export function useDeliveriesBoardQuery(filters: DeliveryFilters) {
   }, [load]);
 
   useEffect(() => {
+    if (filters.view !== 'active') return undefined;
     const intervalId = setInterval(() => {
       void load({ silent: true });
     }, DELIVERIES_REFRESH_MS);
-
     return () => clearInterval(intervalId);
-  }, [load]);
+  }, [filters.view, load]);
 
   return {
     data,

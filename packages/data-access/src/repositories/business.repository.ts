@@ -1,3 +1,4 @@
+import { generateBusinessAccessCode } from '@eveider/domain';
 import {
   canSubmitParcelsAsBusiness,
   canTransitionBusiness,
@@ -80,7 +81,11 @@ export class BusinessRepository {
 
   async list(
     ctx: DataAccessContext,
-    options?: { statuses?: BusinessStatus[]; excludeStatuses?: BusinessStatus[] },
+    options?: {
+      statuses?: BusinessStatus[];
+      excludeStatuses?: BusinessStatus[];
+      search?: string;
+    },
   ): Promise<Business[]> {
     if (ctx.role === 'admin') {
       const conditions: string[] = [];
@@ -93,6 +98,12 @@ export class BusinessRepository {
       if (options?.excludeStatuses?.length) {
         params.push(options.excludeStatuses);
         conditions.push(`NOT (status = ANY($${params.length}))`);
+      }
+      if (options?.search?.trim()) {
+        params.push(`%${options.search.trim()}%`);
+        conditions.push(
+          `(name ILIKE $${params.length} OR COALESCE(contact_email, '') ILIKE $${params.length} OR COALESCE(access_code, '') ILIKE $${params.length})`,
+        );
       }
 
       const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -128,6 +139,18 @@ export class BusinessRepository {
       [status, id],
     );
     return mapBusiness(result.rows[0]!);
+  }
+
+  async allocateAccessCode(): Promise<string> {
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const accessCode = generateBusinessAccessCode();
+      const existing = await this.db.query(
+        `SELECT id FROM businesses WHERE access_code = $1 LIMIT 1`,
+        [accessCode],
+      );
+      if (!existing.rows[0]) return accessCode;
+    }
+    throw new Error('Impossible de générer un code d’accès entreprise unique');
   }
 
   async assertCanSubmitParcels(businessId: string): Promise<void> {

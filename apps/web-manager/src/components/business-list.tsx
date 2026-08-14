@@ -3,10 +3,10 @@
 import { colors, typography } from '@eveider/config-ui';
 import { DataTable, type DataTableColumn } from '@eveider/ui';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ListSearchField } from '@/components/list-search-field';
+import { fetchJson } from '@/lib/api/fetch-json';
 import type { BusinessListItem } from '@/server/businesses';
-import { matchesListSearch } from '@/lib/list-search';
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat('fr-CD', {
@@ -17,24 +17,42 @@ function formatDate(iso: string) {
 }
 
 type BusinessListProps = {
-  businesses: BusinessListItem[];
+  businesses?: BusinessListItem[];
 };
 
-export function BusinessList({ businesses }: BusinessListProps) {
+export function BusinessList({ businesses: seedBusinesses = [] }: BusinessListProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [businesses, setBusinesses] = useState<BusinessListItem[]>(seedBusinesses);
+  const [loading, setLoading] = useState(false);
 
-  const filteredBusinesses = useMemo(
-    () =>
-      businesses.filter((business) =>
-        matchesListSearch(
-          searchQuery,
-          business.name,
-          business.contactEmail,
-          business.contactPhone,
-        ),
-      ),
-    [businesses, searchQuery],
-  );
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (!debouncedSearch && seedBusinesses.length > 0) {
+      setBusinesses(seedBusinesses);
+      return;
+    }
+
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      try {
+        const params = debouncedSearch ? `?search=${encodeURIComponent(debouncedSearch)}` : '';
+        const data = await fetchJson<{ businesses: BusinessListItem[] }>(`/api/businesses${params}`);
+        if (!cancelled) setBusinesses(data.businesses);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedSearch, seedBusinesses]);
 
   const columns = useMemo<DataTableColumn<BusinessListItem>[]>(
     () => [
@@ -53,6 +71,14 @@ export function BusinessList({ businesses }: BusinessListProps) {
         ),
       },
       {
+        id: 'accessCode',
+        header: 'Code d’accès',
+        sortable: true,
+        sortValue: (row) => row.accessCode ?? '',
+        hideOnMobile: true,
+        cell: (row) => row.accessCode ?? '—',
+      },
+      {
         id: 'contact',
         header: 'Contact',
         sortable: true,
@@ -60,9 +86,7 @@ export function BusinessList({ businesses }: BusinessListProps) {
         hideOnMobile: true,
         cell: (row) => (
           <div>
-            <div style={{ fontWeight: typography.weights.semibold }}>
-              {row.contactEmail ?? '—'}
-            </div>
+            <div style={{ fontWeight: typography.weights.semibold }}>{row.contactEmail ?? '—'}</div>
             {row.contactPhone ? (
               <div style={{ fontSize: typography.caption.fontSize, color: colors.textMuted }}>
                 {row.contactPhone}
@@ -93,27 +117,26 @@ export function BusinessList({ businesses }: BusinessListProps) {
         <ListSearchField
           value={searchQuery}
           onChange={setSearchQuery}
-          placeholder="Rechercher une entreprise (nom, e-mail, téléphone)…"
+          placeholder="Rechercher (nom, e-mail, code d’accès)…"
           ariaLabel="Rechercher une entreprise active"
         />
       </div>
+      {loading ? (
+        <p style={{ margin: '0 0 1rem', fontSize: '0.8125rem', color: colors.textMuted }}>
+          Recherche…
+        </p>
+      ) : null}
       <DataTable
         columns={columns}
-        rows={filteredBusinesses}
+        rows={businesses}
         getRowId={(row) => row.id}
-        caption={
-          filteredBusinesses.length > 0
-            ? searchQuery.trim()
-              ? `${filteredBusinesses.length} entreprise${filteredBusinesses.length > 1 ? 's' : ''} sur ${businesses.length}`
-              : `${filteredBusinesses.length} entreprise${filteredBusinesses.length > 1 ? 's' : ''} active${filteredBusinesses.length > 1 ? 's' : ''}`
-            : undefined
-        }
+        caption={businesses.length > 0 ? `${businesses.length} entreprise(s) active(s)` : undefined}
         emptyTitle={
-          searchQuery.trim() ? 'Aucune entreprise pour cette recherche' : 'Aucune entreprise active'
+          debouncedSearch.trim() ? 'Aucune entreprise pour cette recherche' : 'Aucune entreprise active'
         }
         emptyDescription={
-          searchQuery.trim()
-            ? 'Essayez un autre nom ou contact.'
+          debouncedSearch.trim()
+            ? 'Essayez un autre nom, e-mail ou code d’accès.'
             : 'Les comptes partenaires vérifiés apparaîtront ici une fois activés.'
         }
         initialSortId="createdAt"

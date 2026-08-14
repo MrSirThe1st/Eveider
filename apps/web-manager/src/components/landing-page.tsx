@@ -7,25 +7,25 @@ const GUIDE_STEPS = [
     step: '01',
     title: 'Expédition',
     description:
-      'Une entreprise enregistrée crée un envoi, choisit un point Eveider et invite le destinataire par WhatsApp ou lien de suivi.',
+      'L’entreprise crée un envoi et le dépose ou le fait enlever par un coursier Eveider vers le réseau de casiers.',
   },
   {
     step: '02',
     title: 'Livraison au casier',
     description:
-      'Un coursier assigné dépose le colis dans le compartiment réservé. Le statut passe à « prêt pour retrait ».',
+      'Le coursier dépose le colis dans le compartiment réservé. Le statut passe à « prêt pour retrait ».',
   },
   {
     step: '03',
-    title: 'Suivi sans compte',
+    title: 'Notification & paiement',
     description:
-      'Le destinataire consulte son colis sur la page Suivi avec le numéro de suivi ou son téléphone — aucune inscription requise.',
+      'Le client reçoit une notification et paie les frais de retrait si nécessaire, via mobile money ou l’application.',
   },
   {
     step: '04',
-    title: 'Retrait sécurisé',
+    title: 'Retrait PIN',
     description:
-      'Après paiement mobile money si nécessaire, le code PIN s’affiche pour ouvrir le casier et retirer le colis.',
+      'Le client utilise son code PIN unique pour ouvrir le casier et retirer son colis en toute sécurité.',
   },
 ] as const;
 
@@ -218,9 +218,16 @@ export function LandingPage() {
               Vous vendez en ligne (e-commerce) ? Vous gérez des livraisons ?<br />
               Expédiez vos produits à travers le Congo avec Eveider.
             </p>
-            <p style={{ margin: '0 0 2rem', fontWeight: 500, lineHeight: 1.6, fontSize: '1rem', color: '#475569' }}>
+            <p style={{ margin: '0 0 1.5rem', fontWeight: 500, lineHeight: 1.6, fontSize: '1rem', color: '#475569' }}>
               De l&apos;inscription aux casiers connectés 24/7 en passant par la vérification KYC rapide, accédez à la première infrastructure logistique unifiée pour marchands et grandes entreprises.
             </p>
+
+            <div style={{ marginBottom: '2rem' }}>
+              <p style={{ margin: '0 0 0.75rem', fontWeight: 700, fontSize: '0.8125rem', letterSpacing: '0.08em', color: '#64748B' }}>
+                SUIVI CLIENT — SANS COMPTE
+              </p>
+              <LandingTrackingForm />
+            </div>
 
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               <Link href="/inscription" className="btn btn-primary" style={{ height: 48, padding: '0 1.75rem', fontSize: '0.875rem' }}>
@@ -230,34 +237,6 @@ export function LandingPage() {
                 LOGIN
               </Link>
             </div>
-          </section>
-
-          {/* Guest tracking — no login required */}
-          <section
-            style={{
-              ...webCardStyle,
-              padding: '2rem',
-              marginBottom: '3rem',
-              borderColor: '#09D40B',
-            }}
-          >
-            <div style={{ display: 'inline-block', padding: '0.25rem 0.75rem', background: '#F0FDF4', color: '#166534', borderRadius: 6, fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.1em', marginBottom: '1rem' }}>
-              SUIVI CLIENT
-            </div>
-            <h2 style={{ margin: '0 0 0.75rem', fontSize: '1.5rem', fontWeight: 800, color: '#121212' }}>
-              Suivre un colis sans compte
-            </h2>
-            <p style={{ margin: '0 0 1.5rem', fontWeight: 500, lineHeight: 1.6, fontSize: '0.9375rem', color: '#475569', maxWidth: 640 }}>
-              Entrez votre numéro de suivi Eveider pour consulter le statut, payer les frais de retrait si nécessaire et obtenir votre code PIN.
-            </p>
-            <LandingTrackingForm />
-            <p style={{ margin: '1rem 0 0', fontSize: '0.8125rem', color: '#64748B' }}>
-              Vous pouvez aussi{' '}
-              <Link href="/suivi" style={{ color: '#121212', fontWeight: 600 }}>
-                ouvrir la page de suivi complète
-              </Link>{' '}
-              pour rechercher par téléphone.
-            </p>
           </section>
 
           {/* How it works */}

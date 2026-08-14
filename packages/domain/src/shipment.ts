@@ -78,3 +78,20 @@ export function requiresCustomerPickupPayment(
 ): boolean {
   return paymentResponsibility === 'receiver_pays';
 }
+
+/** Suggest compartment size from package dimensions (cm). Business may override. */
+export function suggestPackageSizeFromDimensions(input: {
+  lengthCm?: number | null;
+  widthCm?: number | null;
+  heightCm?: number | null;
+}): PackageSize | null {
+  const dims = [input.lengthCm, input.widthCm, input.heightCm].filter(
+    (value): value is number => value != null && Number.isFinite(value) && value > 0,
+  );
+  if (dims.length === 0) return null;
+
+  const maxEdge = Math.max(...dims);
+  if (maxEdge <= 35) return 'small';
+  if (maxEdge <= 55) return 'medium';
+  return 'large';
+}

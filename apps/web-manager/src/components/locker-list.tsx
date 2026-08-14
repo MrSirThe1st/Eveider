@@ -3,41 +3,55 @@
 import { colors, webCardStyle } from '@eveider/config-ui';
 import { usesCompartmentGrid } from '@eveider/domain';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { LockerStatusBadge } from '@/components/locker-status-badge';
 import { ListSearchField } from '@/components/list-search-field';
+import { fetchJson } from '@/lib/api/fetch-json';
 import type { LockerSummaryDto } from '@/lib/locker-presenter';
-import { matchesListSearch } from '@/lib/list-search';
 
 type LockerListProps = {
   lockers: LockerSummaryDto[];
 };
 
-export function LockerList({ lockers }: LockerListProps) {
+export function LockerList({ lockers: seedLockers }: LockerListProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [lockers, setLockers] = useState(seedLockers);
+  const [loading, setLoading] = useState(false);
 
-  const filteredLockers = useMemo(
-    () =>
-      lockers.filter((locker) =>
-        matchesListSearch(searchQuery, locker.name, locker.code, locker.address),
-      ),
-    [lockers, searchQuery],
-  );
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-  if (lockers.length === 0) {
+  useEffect(() => {
+    if (!debouncedSearch) {
+      setLockers(seedLockers);
+      return;
+    }
+
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      try {
+        const data = await fetchJson<{ lockers: LockerSummaryDto[] }>(
+          `/api/lockers?search=${encodeURIComponent(debouncedSearch)}`,
+        );
+        if (!cancelled) setLockers(data.lockers);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedSearch, seedLockers]);
+
+  if (seedLockers.length === 0 && !debouncedSearch) {
     return (
-      <section
-        style={{
-          ...webCardStyle,
-          padding: '2.5rem',
-          textAlign: 'center',
-        }}
-      >
+      <section style={{ ...webCardStyle, padding: '2.5rem', textAlign: 'center' }}>
         <p style={{ margin: 0, fontWeight: 600 }}>Aucun point Eveider</p>
-        <p style={{ margin: '0.75rem 0 0', fontWeight: 500, fontSize: '0.875rem' }}>
-          Placez un repère sur la carte pour créer le premier point, ou exécutez{' '}
-          <code>pnpm db:seed</code>.
-        </p>
       </section>
     );
   }
@@ -53,65 +67,49 @@ export function LockerList({ lockers }: LockerListProps) {
         />
       </div>
       <p style={{ margin: '0 0 1rem', fontWeight: 600, fontSize: '0.8125rem' }}>
-        {searchQuery.trim()
-          ? `${filteredLockers.length} point${filteredLockers.length > 1 ? 's' : ''} sur ${lockers.length}`
-          : `${lockers.length} points`}
+        {loading ? 'Recherche…' : `${lockers.length} point${lockers.length > 1 ? 's' : ''}`}
       </p>
-      {filteredLockers.length === 0 ? (
-        <section
-          style={{
-            ...webCardStyle,
-            padding: '2rem',
-            textAlign: 'center',
-          }}
-        >
+      {lockers.length === 0 ? (
+        <section style={{ ...webCardStyle, padding: '2rem', textAlign: 'center' }}>
           <p style={{ margin: 0, fontWeight: 600 }}>Aucun point pour cette recherche</p>
-          <p style={{ margin: '0.75rem 0 0', fontWeight: 500, fontSize: '0.875rem' }}>
-            Essayez un autre code EVP ou nom de point.
-          </p>
         </section>
       ) : (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        {filteredLockers.map((locker) => (
-          <Link
-            key={locker.id}
-            href={`/tableau-de-bord/points/${locker.id}`}
-            style={{
-              display: 'block',
-              ...webCardStyle,
-              padding: '1.25rem 1.5rem',
-              textDecoration: 'none',
-              color: colors.secondary,
-            }}
-          >
-            <div
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {lockers.map((locker) => (
+            <Link
+              key={locker.id}
+              href={`/tableau-de-bord/points/${locker.id}`}
               style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                gap: '1rem',
-                flexWrap: 'wrap',
+                display: 'block',
+                ...webCardStyle,
+                padding: '1.25rem 1.5rem',
+                textDecoration: 'none',
+                color: colors.secondary,
               }}
             >
-              <div>
-                <p style={{ margin: 0, fontWeight: 700 }}>{locker.name}</p>
-                <p style={{ margin: '0.35rem 0 0', fontWeight: 500, fontSize: '0.8125rem' }}>
-                  {locker.typeLabel} · {locker.code}
-                </p>
-                <p style={{ margin: '0.35rem 0 0', fontWeight: 500, fontSize: '0.875rem' }}>
-                  {locker.address}
-                </p>
-                <p style={{ margin: '0.35rem 0 0', fontWeight: 500, fontSize: '0.8125rem' }}>
-                  {usesCompartmentGrid(locker.type)
-                    ? `${locker.compartmentCounts.available} dispo · ${locker.compartmentCounts.occupied} occupé · ${locker.compartmentCounts.reserved} réservé`
-                    : `${locker.availableSlots} places libres / ${locker.maxCapacity ?? '—'} max`}
-                </p>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  gap: '1rem',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div>
+                  <p style={{ margin: 0, fontWeight: 700 }}>{locker.name}</p>
+                  <p style={{ margin: '0.35rem 0 0', fontWeight: 500, fontSize: '0.8125rem' }}>
+                    {locker.typeLabel} · {locker.code}
+                  </p>
+                  <p style={{ margin: '0.35rem 0 0', fontWeight: 500, fontSize: '0.875rem' }}>
+                    {locker.address}
+                  </p>
+                </div>
+                <LockerStatusBadge status={locker.status} />
               </div>
-              <LockerStatusBadge status={locker.status} />
-            </div>
-          </Link>
-        ))}
-      </div>
+            </Link>
+          ))}
+        </div>
       )}
     </div>
   );
