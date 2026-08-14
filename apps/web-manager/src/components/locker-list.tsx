@@ -3,14 +3,27 @@
 import { colors, webCardStyle } from '@eveider/config-ui';
 import { usesCompartmentGrid } from '@eveider/domain';
 import Link from 'next/link';
+import { useMemo, useState } from 'react';
 import { LockerStatusBadge } from '@/components/locker-status-badge';
+import { ListSearchField } from '@/components/list-search-field';
 import type { LockerSummaryDto } from '@/lib/locker-presenter';
+import { matchesListSearch } from '@/lib/list-search';
 
 type LockerListProps = {
   lockers: LockerSummaryDto[];
 };
 
 export function LockerList({ lockers }: LockerListProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredLockers = useMemo(
+    () =>
+      lockers.filter((locker) =>
+        matchesListSearch(searchQuery, locker.name, locker.code, locker.address),
+      ),
+    [lockers, searchQuery],
+  );
+
   if (lockers.length === 0) {
     return (
       <section
@@ -31,11 +44,35 @@ export function LockerList({ lockers }: LockerListProps) {
 
   return (
     <div>
+      <div style={{ marginBottom: '1rem' }}>
+        <ListSearchField
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Rechercher un point par code ou nom…"
+          ariaLabel="Rechercher un point Eveider"
+        />
+      </div>
       <p style={{ margin: '0 0 1rem', fontWeight: 600, fontSize: '0.8125rem' }}>
-        {lockers.length} points
+        {searchQuery.trim()
+          ? `${filteredLockers.length} point${filteredLockers.length > 1 ? 's' : ''} sur ${lockers.length}`
+          : `${lockers.length} points`}
       </p>
+      {filteredLockers.length === 0 ? (
+        <section
+          style={{
+            ...webCardStyle,
+            padding: '2rem',
+            textAlign: 'center',
+          }}
+        >
+          <p style={{ margin: 0, fontWeight: 600 }}>Aucun point pour cette recherche</p>
+          <p style={{ margin: '0.75rem 0 0', fontWeight: 500, fontSize: '0.875rem' }}>
+            Essayez un autre code EVP ou nom de point.
+          </p>
+        </section>
+      ) : (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        {lockers.map((locker) => (
+        {filteredLockers.map((locker) => (
           <Link
             key={locker.id}
             href={`/tableau-de-bord/points/${locker.id}`}
@@ -75,6 +112,7 @@ export function LockerList({ lockers }: LockerListProps) {
           </Link>
         ))}
       </div>
+      )}
     </div>
   );
 }
