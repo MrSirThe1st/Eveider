@@ -3,8 +3,10 @@
 import { colors, typography } from '@eveider/config-ui';
 import { DataTable, type DataTableColumn } from '@eveider/ui';
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { ListSearchField } from '@/components/list-search-field';
 import type { BusinessListItem } from '@/server/businesses';
+import { matchesListSearch } from '@/lib/list-search';
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat('fr-CD', {
@@ -19,6 +21,21 @@ type BusinessListProps = {
 };
 
 export function BusinessList({ businesses }: BusinessListProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredBusinesses = useMemo(
+    () =>
+      businesses.filter((business) =>
+        matchesListSearch(
+          searchQuery,
+          business.name,
+          business.contactEmail,
+          business.contactPhone,
+        ),
+      ),
+    [businesses, searchQuery],
+  );
+
   const columns = useMemo<DataTableColumn<BusinessListItem>[]>(
     () => [
       {
@@ -71,26 +88,44 @@ export function BusinessList({ businesses }: BusinessListProps) {
   );
 
   return (
-    <DataTable
-      columns={columns}
-      rows={businesses}
-      getRowId={(row) => row.id}
-      caption={
-        businesses.length > 0
-          ? `${businesses.length} entreprise${businesses.length > 1 ? 's' : ''} active${businesses.length > 1 ? 's' : ''}`
-          : undefined
-      }
-      emptyTitle="Aucune entreprise active"
-      emptyDescription="Les comptes partenaires vérifiés apparaîtront ici une fois activés."
-      initialSortId="createdAt"
-      initialSortDirection="desc"
-      rowActions={(row) => [
-        {
-          id: 'view',
-          label: 'Voir le dossier',
-          href: `/tableau-de-bord/entreprises/applications/${row.id}`,
-        },
-      ]}
-    />
+    <div>
+      <div style={{ marginBottom: '1rem' }}>
+        <ListSearchField
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Rechercher une entreprise (nom, e-mail, téléphone)…"
+          ariaLabel="Rechercher une entreprise active"
+        />
+      </div>
+      <DataTable
+        columns={columns}
+        rows={filteredBusinesses}
+        getRowId={(row) => row.id}
+        caption={
+          filteredBusinesses.length > 0
+            ? searchQuery.trim()
+              ? `${filteredBusinesses.length} entreprise${filteredBusinesses.length > 1 ? 's' : ''} sur ${businesses.length}`
+              : `${filteredBusinesses.length} entreprise${filteredBusinesses.length > 1 ? 's' : ''} active${filteredBusinesses.length > 1 ? 's' : ''}`
+            : undefined
+        }
+        emptyTitle={
+          searchQuery.trim() ? 'Aucune entreprise pour cette recherche' : 'Aucune entreprise active'
+        }
+        emptyDescription={
+          searchQuery.trim()
+            ? 'Essayez un autre nom ou contact.'
+            : 'Les comptes partenaires vérifiés apparaîtront ici une fois activés.'
+        }
+        initialSortId="createdAt"
+        initialSortDirection="desc"
+        rowActions={(row) => [
+          {
+            id: 'view',
+            label: 'Voir le dossier',
+            href: `/tableau-de-bord/entreprises/applications/${row.id}`,
+          },
+        ]}
+      />
+    </div>
   );
 }

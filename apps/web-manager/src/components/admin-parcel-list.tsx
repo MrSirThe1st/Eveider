@@ -13,12 +13,14 @@ import {
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { DashboardParcelItem } from '@/components/admin-dashboard-types';
+import { ListSearchField } from '@/components/list-search-field';
 import {
   ParcelStatusFilters,
   type ParcelStatusFilter,
 } from '@/components/parcel-status-filters';
 import { ParcelStatusBadge } from '@/components/parcel-status-badge';
 import { useAdminParcelsQuery } from '@/hooks/queries/use-parcels-query';
+import { matchesListSearch } from '@/lib/list-search';
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat('fr-CD', {
@@ -36,6 +38,7 @@ type AdminParcelListProps = {
 export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
   const toast = useToast();
   const [statusFilter, setStatusFilter] = useState<ParcelStatusFilter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [previewParcel, setPreviewParcel] = useState<DashboardParcelItem | null>(null);
   const useSeed = statusFilter === 'all' && seedParcels !== undefined;
   const refreshToastShown = useRef(false);
@@ -47,6 +50,18 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
     });
 
   const parcels = useSeed ? seedParcels : fetchedParcels;
+
+  const filteredParcels = useMemo(
+    () =>
+      parcels.filter((parcel) =>
+        matchesListSearch(
+          searchQuery,
+          parcel.reference,
+          parcel.trackingNumber,
+        ),
+      ),
+    [parcels, searchQuery],
+  );
 
   const showInitialLoader = isLoading && parcels.length === 0;
   const showFatalError = isError && parcels.length === 0;
@@ -179,6 +194,15 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
     <section>
       <ParcelStatusFilters value={statusFilter} onChange={setStatusFilter} />
 
+      <div style={{ marginBottom: spacing[4] }}>
+        <ListSearchField
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Rechercher par référence ou numéro de suivi…"
+          ariaLabel="Rechercher un colis par référence ou numéro de suivi"
+        />
+      </div>
+
       {isFetching && parcels.length > 0 ? (
         <p
           style={{
@@ -210,11 +234,27 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
       {!showInitialLoader && !showFatalError ? (
         <DataTable
           columns={columns}
-          rows={parcels}
+          rows={filteredParcels}
           getRowId={(row) => row.id}
-          caption={parcels.length > 0 ? `${parcels.length} colis` : undefined}
-          emptyTitle={statusFilter === 'all' ? 'Aucun colis' : 'Aucun colis pour ce filtre'}
-          emptyDescription="Les nouveaux envois apparaîtront ici dès qu'ils seront créés."
+          caption={
+            filteredParcels.length > 0
+              ? searchQuery.trim()
+                ? `${filteredParcels.length} colis sur ${parcels.length}`
+                : `${filteredParcels.length} colis`
+              : undefined
+          }
+          emptyTitle={
+            searchQuery.trim()
+              ? 'Aucun colis pour cette recherche'
+              : statusFilter === 'all'
+                ? 'Aucun colis'
+                : 'Aucun colis pour ce filtre'
+          }
+          emptyDescription={
+            searchQuery.trim()
+              ? 'Essayez une autre référence ou un autre numéro de suivi.'
+              : "Les nouveaux envois apparaîtront ici dès qu'ils seront créés."
+          }
           initialSortId="createdAt"
           initialSortDirection="desc"
           rowActions={(row) => [

@@ -7,9 +7,11 @@ import {
   StatusBadge,
 } from '@eveider/ui';
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { BusinessStatusBadge } from '@/components/business-status-badge';
+import { ListSearchField } from '@/components/list-search-field';
 import type { BusinessApplicationItem } from '@/server/business-applications';
+import { matchesListSearch } from '@/lib/list-search';
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat('fr-CD', {
@@ -32,6 +34,27 @@ type AdminBusinessApplicationsProps = {
 };
 
 export function AdminBusinessApplications({ applications }: AdminBusinessApplicationsProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredApplications = useMemo(
+    () =>
+      applications.filter((application) => {
+        const owner = application.users?.[0]?.fullName ?? '';
+        const address =
+          application.locations?.find((location) => location.type === 'business_address')?.street ??
+          '';
+        return matchesListSearch(
+          searchQuery,
+          application.name,
+          owner,
+          application.contactEmail,
+          application.contactPhone,
+          address,
+        );
+      }),
+    [applications, searchQuery],
+  );
+
   const columns = useMemo<DataTableColumn<BusinessApplicationItem>[]>(
     () => [
       {
@@ -114,26 +137,42 @@ export function AdminBusinessApplications({ applications }: AdminBusinessApplica
   );
 
   return (
-    <DataTable
-      columns={columns}
-      rows={applications}
-      getRowId={(row) => row.id}
-      caption={
-        applications.length > 0
-          ? `${applications.length} dossier${applications.length > 1 ? 's' : ''}`
-          : undefined
-      }
-      emptyTitle="Aucun dossier"
-      emptyDescription="Les nouvelles demandes d'inscription entreprise apparaîtront ici."
-      initialSortId="updatedAt"
-      initialSortDirection="desc"
-      rowActions={(row) => [
-        {
-          id: 'review',
-          label: 'Examiner le dossier',
-          href: `/tableau-de-bord/entreprises/applications/${row.id}`,
-        },
-      ]}
-    />
+    <div>
+      <div style={{ marginBottom: '1rem' }}>
+        <ListSearchField
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Rechercher un dossier (entreprise, propriétaire, contact)…"
+          ariaLabel="Rechercher un dossier de vérification"
+        />
+      </div>
+      <DataTable
+        columns={columns}
+        rows={filteredApplications}
+        getRowId={(row) => row.id}
+        caption={
+          filteredApplications.length > 0
+            ? searchQuery.trim()
+              ? `${filteredApplications.length} dossier${filteredApplications.length > 1 ? 's' : ''} sur ${applications.length}`
+              : `${filteredApplications.length} dossier${filteredApplications.length > 1 ? 's' : ''}`
+            : undefined
+        }
+        emptyTitle={searchQuery.trim() ? 'Aucun dossier pour cette recherche' : 'Aucun dossier'}
+        emptyDescription={
+          searchQuery.trim()
+            ? 'Essayez un autre nom ou contact.'
+            : "Les nouvelles demandes d'inscription entreprise apparaîtront ici."
+        }
+        initialSortId="updatedAt"
+        initialSortDirection="desc"
+        rowActions={(row) => [
+          {
+            id: 'review',
+            label: 'Examiner le dossier',
+            href: `/tableau-de-bord/entreprises/applications/${row.id}`,
+          },
+        ]}
+      />
+    </div>
   );
 }

@@ -1,5 +1,33 @@
 import { colors, webCardStyle } from '@eveider/config-ui';
 import Link from 'next/link';
+import { LandingTrackingForm } from '@/components/landing-tracking-form';
+
+const GUIDE_STEPS = [
+  {
+    step: '01',
+    title: 'Expédition',
+    description:
+      'Une entreprise enregistrée crée un envoi, choisit un point Eveider et invite le destinataire par WhatsApp ou lien de suivi.',
+  },
+  {
+    step: '02',
+    title: 'Livraison au casier',
+    description:
+      'Un coursier assigné dépose le colis dans le compartiment réservé. Le statut passe à « prêt pour retrait ».',
+  },
+  {
+    step: '03',
+    title: 'Suivi sans compte',
+    description:
+      'Le destinataire consulte son colis sur la page Suivi avec le numéro de suivi ou son téléphone — aucune inscription requise.',
+  },
+  {
+    step: '04',
+    title: 'Retrait sécurisé',
+    description:
+      'Après paiement mobile money si nécessaire, le code PIN s’affiche pour ouvrir le casier et retirer le colis.',
+  },
+] as const;
 
 export function LandingPage() {
   return (
@@ -121,7 +149,14 @@ export function LandingPage() {
               EVEIDER
             </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <Link
+              href="/suivi"
+              className="btn btn-secondary"
+              style={{ height: 38, padding: '0 1rem' }}
+            >
+              SUIVRE UN COLIS
+            </Link>
             <Link
               href="/connexion"
               className="btn btn-secondary"
@@ -194,6 +229,90 @@ export function LandingPage() {
               <Link href="/connexion" className="btn btn-secondary" style={{ height: 48, padding: '0 1.5rem', fontSize: '0.875rem' }}>
                 LOGIN
               </Link>
+            </div>
+          </section>
+
+          {/* Guest tracking — no login required */}
+          <section
+            style={{
+              ...webCardStyle,
+              padding: '2rem',
+              marginBottom: '3rem',
+              borderColor: '#09D40B',
+            }}
+          >
+            <div style={{ display: 'inline-block', padding: '0.25rem 0.75rem', background: '#F0FDF4', color: '#166534', borderRadius: 6, fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.1em', marginBottom: '1rem' }}>
+              SUIVI CLIENT
+            </div>
+            <h2 style={{ margin: '0 0 0.75rem', fontSize: '1.5rem', fontWeight: 800, color: '#121212' }}>
+              Suivre un colis sans compte
+            </h2>
+            <p style={{ margin: '0 0 1.5rem', fontWeight: 500, lineHeight: 1.6, fontSize: '0.9375rem', color: '#475569', maxWidth: 640 }}>
+              Entrez votre numéro de suivi Eveider pour consulter le statut, payer les frais de retrait si nécessaire et obtenir votre code PIN.
+            </p>
+            <LandingTrackingForm />
+            <p style={{ margin: '1rem 0 0', fontSize: '0.8125rem', color: '#64748B' }}>
+              Vous pouvez aussi{' '}
+              <Link href="/suivi" style={{ color: '#121212', fontWeight: 600 }}>
+                ouvrir la page de suivi complète
+              </Link>{' '}
+              pour rechercher par téléphone.
+            </p>
+          </section>
+
+          {/* How it works */}
+          <section style={{ marginBottom: '3rem' }}>
+            <p
+              style={{
+                margin: '0 0 0.75rem',
+                fontSize: '0.6875rem',
+                fontWeight: 700,
+                letterSpacing: '0.15em',
+                color: '#64748B',
+                textTransform: 'uppercase',
+              }}
+            >
+              Comment ça marche
+            </p>
+            <h2 style={{ margin: '0 0 1.5rem', fontSize: '1.75rem', fontWeight: 800, color: '#121212' }}>
+              De l&apos;expédition au retrait en quatre étapes
+            </h2>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '1rem',
+              }}
+            >
+              {GUIDE_STEPS.map((item) => (
+                <article
+                  key={item.step}
+                  style={{
+                    ...webCardStyle,
+                    padding: '1.5rem',
+                    minHeight: 180,
+                  }}
+                >
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      fontSize: '0.6875rem',
+                      fontWeight: 800,
+                      letterSpacing: '0.12em',
+                      color: '#09D40B',
+                      marginBottom: '0.75rem',
+                    }}
+                  >
+                    {item.step}
+                  </span>
+                  <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.0625rem', fontWeight: 700, color: '#121212' }}>
+                    {item.title}
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '0.875rem', color: '#475569', lineHeight: 1.55 }}>
+                    {item.description}
+                  </p>
+                </article>
+              ))}
             </div>
           </section>
 
@@ -307,8 +426,13 @@ export function LandingPage() {
               <p style={{ margin: 0, fontSize: '0.875rem', color: '#64748B', lineHeight: 1.5, flex: 1 }}>
                 Suivez vos colis reçus, générez votre code PIN unique et ouvrez votre compartiment de casier en toute sécurité.
               </p>
-              <div style={{ marginTop: '2rem', textAlign: 'center', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.05em', color: '#94A3B8', border: '1px dashed #E2E8F0', padding: '10px', borderRadius: 12 }}>
-                Bientôt sur iOS & Android
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '2rem', flexWrap: 'wrap' }}>
+                <Link href="/suivi" className="btn btn-primary" style={{ flex: 1, minWidth: 140, height: 40, borderRadius: 12 }}>
+                  Suivre un colis
+                </Link>
+                <span style={{ flex: 1, minWidth: 140, textAlign: 'center', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.05em', color: '#94A3B8', border: '1px dashed #E2E8F0', padding: '10px', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  App mobile · BETA
+                </span>
               </div>
             </article>
           </section>
