@@ -6,7 +6,10 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { ListSearchField } from '@/components/list-search-field';
 import { fetchJson } from '@/lib/api/fetch-json';
+import { useMemo, useState } from 'react';
+import { ListSearchField } from '@/components/list-search-field';
 import type { BusinessListItem } from '@/server/businesses';
+import { matchesListSearch } from '@/lib/list-search';
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat('fr-CD', {
@@ -20,39 +23,21 @@ type BusinessListProps = {
   businesses?: BusinessListItem[];
 };
 
-export function BusinessList({ businesses: seedBusinesses = [] }: BusinessListProps) {
+export function BusinessList({ businesses }: BusinessListProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [businesses, setBusinesses] = useState<BusinessListItem[]>(seedBusinesses);
-  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
-
-  useEffect(() => {
-    if (!debouncedSearch && seedBusinesses.length > 0) {
-      setBusinesses(seedBusinesses);
-      return;
-    }
-
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      try {
-        const params = debouncedSearch ? `?search=${encodeURIComponent(debouncedSearch)}` : '';
-        const data = await fetchJson<{ businesses: BusinessListItem[] }>(`/api/businesses${params}`);
-        if (!cancelled) setBusinesses(data.businesses);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [debouncedSearch, seedBusinesses]);
+  const filteredBusinesses = useMemo(
+    () =>
+      businesses.filter((business) =>
+        matchesListSearch(
+          searchQuery,
+          business.name,
+          business.contactEmail,
+          business.contactPhone,
+        ),
+      ),
+    [businesses, searchQuery],
+  );
 
   const columns = useMemo<DataTableColumn<BusinessListItem>[]>(
     () => [
@@ -137,6 +122,27 @@ export function BusinessList({ businesses: seedBusinesses = [] }: BusinessListPr
         emptyDescription={
           debouncedSearch.trim()
             ? 'Essayez un autre nom, e-mail ou code d’accès.'
+          placeholder="Rechercher une entreprise (nom, e-mail, téléphone)…"
+          ariaLabel="Rechercher une entreprise active"
+        />
+      </div>
+      <DataTable
+        columns={columns}
+        rows={filteredBusinesses}
+        getRowId={(row) => row.id}
+        caption={
+          filteredBusinesses.length > 0
+            ? searchQuery.trim()
+              ? `${filteredBusinesses.length} entreprise${filteredBusinesses.length > 1 ? 's' : ''} sur ${businesses.length}`
+              : `${filteredBusinesses.length} entreprise${filteredBusinesses.length > 1 ? 's' : ''} active${filteredBusinesses.length > 1 ? 's' : ''}`
+            : undefined
+        }
+        emptyTitle={
+          searchQuery.trim() ? 'Aucune entreprise pour cette recherche' : 'Aucune entreprise active'
+        }
+        emptyDescription={
+          searchQuery.trim()
+            ? 'Essayez un autre nom ou contact.'
             : 'Les comptes partenaires vérifiés apparaîtront ici une fois activés.'
         }
         initialSortId="createdAt"

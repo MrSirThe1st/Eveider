@@ -7,7 +7,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { BusinessStatusBadge } from '@/components/business-status-badge';
 import { ListSearchField } from '@/components/list-search-field';
 import { fetchJson } from '@/lib/api/fetch-json';
+import { useMemo, useState } from 'react';
+import { BusinessStatusBadge } from '@/components/business-status-badge';
+import { ListSearchField } from '@/components/list-search-field';
 import type { BusinessApplicationItem } from '@/server/business-applications';
+import { matchesListSearch } from '@/lib/list-search';
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat('fr-CD', {
@@ -29,43 +33,27 @@ type AdminBusinessApplicationsProps = {
   applications?: BusinessApplicationItem[];
 };
 
-export function AdminBusinessApplications({
-  applications: seedApplications = [],
-}: AdminBusinessApplicationsProps) {
+export function AdminBusinessApplications({ applications }: AdminBusinessApplicationsProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [applications, setApplications] = useState<BusinessApplicationItem[]>(seedApplications);
-  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
-
-  useEffect(() => {
-    if (!debouncedSearch && seedApplications.length > 0) {
-      setApplications(seedApplications);
-      return;
-    }
-
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      try {
-        const params = debouncedSearch ? `?search=${encodeURIComponent(debouncedSearch)}` : '';
-        const data = await fetchJson<BusinessApplicationItem[]>(
-          `/api/businesses/applications${params}`,
+  const filteredApplications = useMemo(
+    () =>
+      applications.filter((application) => {
+        const owner = application.users?.[0]?.fullName ?? '';
+        const address =
+          application.locations?.find((location) => location.type === 'business_address')?.street ??
+          '';
+        return matchesListSearch(
+          searchQuery,
+          application.name,
+          owner,
+          application.contactEmail,
+          application.contactPhone,
+          address,
         );
-        if (!cancelled) setApplications(data);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [debouncedSearch, seedApplications]);
+      }),
+    [applications, searchQuery],
+  );
 
   const columns = useMemo<DataTableColumn<BusinessApplicationItem>[]>(
     () => [
@@ -172,6 +160,25 @@ export function AdminBusinessApplications({
         emptyDescription={
           debouncedSearch.trim()
             ? 'Essayez un autre nom, e-mail ou code d’accès.'
+          placeholder="Rechercher un dossier (entreprise, propriétaire, contact)…"
+          ariaLabel="Rechercher un dossier de vérification"
+        />
+      </div>
+      <DataTable
+        columns={columns}
+        rows={filteredApplications}
+        getRowId={(row) => row.id}
+        caption={
+          filteredApplications.length > 0
+            ? searchQuery.trim()
+              ? `${filteredApplications.length} dossier${filteredApplications.length > 1 ? 's' : ''} sur ${applications.length}`
+              : `${filteredApplications.length} dossier${filteredApplications.length > 1 ? 's' : ''}`
+            : undefined
+        }
+        emptyTitle={searchQuery.trim() ? 'Aucun dossier pour cette recherche' : 'Aucun dossier'}
+        emptyDescription={
+          searchQuery.trim()
+            ? 'Essayez un autre nom ou contact.'
             : "Les nouvelles demandes d'inscription entreprise apparaîtront ici."
         }
         initialSortId="updatedAt"

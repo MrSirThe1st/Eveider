@@ -7,7 +7,7 @@ const GUIDE_STEPS = [
     step: '01',
     title: 'Expédition',
     description:
-      'L’entreprise crée un envoi et le dépose ou le fait enlever par un coursier Eveider vers le réseau de casiers.',
+      'Une entreprise enregistrée crée un envoi, choisit un point Eveider et invite le destinataire par WhatsApp ou lien de suivi.',
   },
   {
     step: '02',
@@ -26,6 +26,19 @@ const GUIDE_STEPS = [
     title: 'Retrait PIN',
     description:
       'Le client utilise son code PIN unique pour ouvrir le casier et retirer son colis en toute sécurité.',
+      'Un coursier assigné dépose le colis dans le compartiment réservé. Le statut passe à « prêt pour retrait ».',
+  },
+  {
+    step: '03',
+    title: 'Suivi sans compte',
+    description:
+      'Le destinataire consulte son colis sur la page Suivi avec le numéro de suivi ou son téléphone — aucune inscription requise.',
+  },
+  {
+    step: '04',
+    title: 'Retrait sécurisé',
+    description:
+      'Après paiement mobile money si nécessaire, le code PIN s’affiche pour ouvrir le casier et retirer le colis.',
   },
 ] as const;
 
@@ -237,6 +250,34 @@ export function LandingPage() {
                 LOGIN
               </Link>
             </div>
+          </section>
+
+          {/* Guest tracking — no login required */}
+          <section
+            style={{
+              ...webCardStyle,
+              padding: '2rem',
+              marginBottom: '3rem',
+              borderColor: '#09D40B',
+            }}
+          >
+            <div style={{ display: 'inline-block', padding: '0.25rem 0.75rem', background: '#F0FDF4', color: '#166534', borderRadius: 6, fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.1em', marginBottom: '1rem' }}>
+              SUIVI CLIENT
+            </div>
+            <h2 style={{ margin: '0 0 0.75rem', fontSize: '1.5rem', fontWeight: 800, color: '#121212' }}>
+              Suivre un colis sans compte
+            </h2>
+            <p style={{ margin: '0 0 1.5rem', fontWeight: 500, lineHeight: 1.6, fontSize: '0.9375rem', color: '#475569', maxWidth: 640 }}>
+              Entrez votre numéro de suivi Eveider pour consulter le statut, payer les frais de retrait si nécessaire et obtenir votre code PIN.
+            </p>
+            <LandingTrackingForm />
+            <p style={{ margin: '1rem 0 0', fontSize: '0.8125rem', color: '#64748B' }}>
+              Vous pouvez aussi{' '}
+              <Link href="/suivi" style={{ color: '#121212', fontWeight: 600 }}>
+                ouvrir la page de suivi complète
+              </Link>{' '}
+              pour rechercher par téléphone.
+            </p>
           </section>
 
           {/* How it works */}

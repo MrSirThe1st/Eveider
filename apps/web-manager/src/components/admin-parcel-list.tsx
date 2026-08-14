@@ -20,6 +20,7 @@ import {
 } from '@/components/parcel-status-filters';
 import { ParcelStatusBadge } from '@/components/parcel-status-badge';
 import { useAdminParcelsQuery } from '@/hooks/queries/use-parcels-query';
+import { matchesListSearch } from '@/lib/list-search';
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat('fr-CD', {
@@ -56,6 +57,18 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
     });
 
   const parcels = useSeed ? seedParcels ?? [] : fetchedParcels;
+
+  const filteredParcels = useMemo(
+    () =>
+      parcels.filter((parcel) =>
+        matchesListSearch(
+          searchQuery,
+          parcel.reference,
+          parcel.trackingNumber,
+        ),
+      ),
+    [parcels, searchQuery],
+  );
 
   const showInitialLoader = isLoading && parcels.length === 0;
   const showFatalError = isError && parcels.length === 0;
@@ -228,7 +241,7 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
       {!showInitialLoader && !showFatalError ? (
         <DataTable
           columns={columns}
-          rows={parcels}
+          rows={filteredParcels}
           getRowId={(row) => row.id}
           caption={
             parcels.length > 0
@@ -239,6 +252,14 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
           }
           emptyTitle={
             debouncedSearch.trim()
+            filteredParcels.length > 0
+              ? searchQuery.trim()
+                ? `${filteredParcels.length} colis sur ${parcels.length}`
+                : `${filteredParcels.length} colis`
+              : undefined
+          }
+          emptyTitle={
+            searchQuery.trim()
               ? 'Aucun colis pour cette recherche'
               : statusFilter === 'all'
                 ? 'Aucun colis'
@@ -246,6 +267,7 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
           }
           emptyDescription={
             debouncedSearch.trim()
+            searchQuery.trim()
               ? 'Essayez une autre référence ou un autre numéro de suivi.'
               : "Les nouveaux envois apparaîtront ici dès qu'ils seront créés."
           }
