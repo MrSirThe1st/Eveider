@@ -1,12 +1,12 @@
 'use client';
 
 import { colors, typography } from '@eveider/config-ui';
-import {
-  DataTable,
-  type DataTableColumn,
-  StatusBadge,
-} from '@eveider/ui';
+import { DataTable, type DataTableColumn, StatusBadge } from '@eveider/ui';
 import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+import { BusinessStatusBadge } from '@/components/business-status-badge';
+import { ListSearchField } from '@/components/list-search-field';
+import { fetchJson } from '@/lib/api/fetch-json';
 import { useMemo, useState } from 'react';
 import { BusinessStatusBadge } from '@/components/business-status-badge';
 import { ListSearchField } from '@/components/list-search-field';
@@ -30,7 +30,7 @@ function typeLabel(app: BusinessApplicationItem): string {
 }
 
 type AdminBusinessApplicationsProps = {
-  applications: BusinessApplicationItem[];
+  applications?: BusinessApplicationItem[];
 };
 
 export function AdminBusinessApplications({ applications }: AdminBusinessApplicationsProps) {
@@ -70,13 +70,7 @@ export function AdminBusinessApplications({ applications }: AdminBusinessApplica
             >
               {row.name}
             </Link>
-            <p
-              style={{
-                margin: '4px 0 0',
-                fontSize: typography.caption.fontSize,
-                color: colors.textMuted,
-              }}
-            >
+            <p style={{ margin: '4px 0 0', fontSize: typography.caption.fontSize, color: colors.textMuted }}>
               {row.locations?.find((l) => l.type === 'business_address')?.street ?? '—'}
             </p>
           </div>
@@ -142,6 +136,30 @@ export function AdminBusinessApplications({ applications }: AdminBusinessApplica
         <ListSearchField
           value={searchQuery}
           onChange={setSearchQuery}
+          placeholder="Rechercher (entreprise, e-mail, code d’accès)…"
+          ariaLabel="Rechercher un dossier de vérification"
+        />
+      </div>
+      {loading ? (
+        <p style={{ margin: '0 0 1rem', fontSize: '0.8125rem', color: colors.textMuted }}>
+          Recherche…
+        </p>
+      ) : null}
+      <DataTable
+        columns={columns}
+        rows={applications}
+        getRowId={(row) => row.id}
+        caption={
+          applications.length > 0
+            ? `${applications.length} dossier${applications.length > 1 ? 's' : ''}`
+            : undefined
+        }
+        emptyTitle={
+          debouncedSearch.trim() ? 'Aucun dossier pour cette recherche' : 'Aucun dossier'
+        }
+        emptyDescription={
+          debouncedSearch.trim()
+            ? 'Essayez un autre nom, e-mail ou code d’accès.'
           placeholder="Rechercher un dossier (entreprise, propriétaire, contact)…"
           ariaLabel="Rechercher un dossier de vérification"
         />

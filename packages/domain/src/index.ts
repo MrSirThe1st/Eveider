@@ -10,3 +10,4 @@ export * from './geo.js';
 export * from './locker-layout.js';
 export * from './identifiers.js';
 export * from './shipment.js';
+export * from './pricing.js';

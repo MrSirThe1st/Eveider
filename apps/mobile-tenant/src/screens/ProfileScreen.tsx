@@ -11,8 +11,7 @@ import {
 } from 'react-native';
 import { ProfileMenuItem } from '../components/ProfileMenuItem';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { NotificationsScreen } from './NotificationsScreen';
-import { useHideTabBar } from '../navigation/useHideTabBar';
+import { LANGUAGE_LABELS, THEME_LABELS, useSettings } from '../context/settings-context';
 import { fetchCustomerNotifications, fetchProfile, type UserProfile } from '../lib/api';
 import { supabase } from '../lib/supabase';
 
@@ -26,12 +25,30 @@ const ROLE_LABELS: Record<UserRole, string> = {
 
 type ProfileScreenProps = {
   mode: 'CLIENT' | 'COURSIER';
+  onOpenNotifications?: () => void;
+  onOpenPersonalInfo: () => void;
+  onOpenNotificationPreferences: () => void;
+  onOpenLanguage: () => void;
+  onOpenAppearance: () => void;
+  onOpenHelp: () => void;
+  onOpenTerms: () => void;
+  onOpenPrivacy: () => void;
+  onOpenAbout: () => void;
 };
 
-type ProfileView = { name: 'main' } | { name: 'notifications' };
-
-export function ProfileScreen({ mode }: ProfileScreenProps) {
-  const [view, setView] = useState<ProfileView>({ name: 'main' });
+export function ProfileScreen({
+  mode,
+  onOpenNotifications,
+  onOpenPersonalInfo,
+  onOpenNotificationPreferences,
+  onOpenLanguage,
+  onOpenAppearance,
+  onOpenHelp,
+  onOpenTerms,
+  onOpenPrivacy,
+  onOpenAbout,
+}: ProfileScreenProps) {
+  const { language, theme } = useSettings();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -39,8 +56,6 @@ export function ProfileScreen({ mode }: ProfileScreenProps) {
   const [error, setError] = useState<string | null>(null);
 
   const isCustomer = mode === 'CLIENT';
-
-  useHideTabBar(view.name !== 'main');
 
   const loadProfile = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -69,22 +84,10 @@ export function ProfileScreen({ mode }: ProfileScreenProps) {
     void loadProfile();
   }, [loadProfile]);
 
-  if (view.name === 'notifications' && isCustomer) {
-    return (
-      <NotificationsScreen
-        mode={mode}
-        onBack={() => {
-          setView({ name: 'main' });
-          void loadProfile(true);
-        }}
-      />
-    );
-  }
-
   if (loading && !profile) {
     return (
       <View style={styles.container}>
-        <ScreenHeader mode={mode} title="PROFIL" />
+        <ScreenHeader mode={mode} title="PARAMÈTRES" />
         <ActivityIndicator color={colors.secondary} style={styles.loader} />
       </View>
     );
@@ -95,7 +98,7 @@ export function ProfileScreen({ mode }: ProfileScreenProps) {
   const notificationSubtitle =
     unreadCount > 0
       ? `${unreadCount} non lue${unreadCount > 1 ? 's' : ''}`
-      : 'Alertes colis et livraisons';
+      : 'Historique des alertes colis';
 
   return (
     <ScrollView
@@ -112,7 +115,7 @@ export function ProfileScreen({ mode }: ProfileScreenProps) {
         />
       }
     >
-      <ScreenHeader mode={mode} title="PROFIL" />
+      <ScreenHeader mode={mode} title="PARAMÈTRES" />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -130,20 +133,58 @@ export function ProfileScreen({ mode }: ProfileScreenProps) {
       <ProfileMenuItem
         icon="user"
         label="INFORMATIONS PERSONNELLES"
-        subtitle="Modifier nom et téléphone"
-        disabled
+        subtitle="Nom, téléphone et e-mail"
+        onPress={onOpenPersonalInfo}
+      />
+      {isCustomer ? (
+        <ProfileMenuItem
+          icon="bell"
+          label="NOTIFICATIONS"
+          subtitle={notificationSubtitle}
+          onPress={onOpenNotifications}
+        />
+      ) : null}
+      <ProfileMenuItem
+        icon="sliders"
+        label="PRÉFÉRENCES DE NOTIFICATION"
+        subtitle="Push, e-mail et SMS"
+        onPress={onOpenNotificationPreferences}
+      />
+
+      <Text style={styles.sectionLabel}>APPLICATION</Text>
+      <ProfileMenuItem
+        icon="globe"
+        label="LANGUE"
+        subtitle="Langue de l’interface"
+        value={LANGUAGE_LABELS[language]}
+        onPress={onOpenLanguage}
       />
       <ProfileMenuItem
-        icon="bell"
-        label="NOTIFICATIONS"
-        subtitle={isCustomer ? notificationSubtitle : 'Alertes colis et livraisons'}
-        disabled={!isCustomer}
-        onPress={isCustomer ? () => setView({ name: 'notifications' }) : undefined}
+        icon="moon"
+        label="APPARENCE"
+        subtitle="Mode clair ou sombre"
+        value={THEME_LABELS[theme]}
+        onPress={onOpenAppearance}
       />
 
       <Text style={styles.sectionLabel}>ASSISTANCE</Text>
-      <ProfileMenuItem icon="help-circle" label="AIDE & SUPPORT" subtitle="FAQ et contact" disabled />
-      <ProfileMenuItem icon="file-text" label="CONDITIONS D'UTILISATION" disabled />
+      <ProfileMenuItem
+        icon="help-circle"
+        label="AIDE & SUPPORT"
+        subtitle="FAQ et contact"
+        onPress={onOpenHelp}
+      />
+      <ProfileMenuItem
+        icon="file-text"
+        label="CONDITIONS D'UTILISATION"
+        onPress={onOpenTerms}
+      />
+      <ProfileMenuItem
+        icon="shield"
+        label="CONFIDENTIALITÉ"
+        onPress={onOpenPrivacy}
+      />
+      <ProfileMenuItem icon="info" label="À PROPOS" onPress={onOpenAbout} />
 
       <Text style={styles.sectionLabel}>SESSION</Text>
       <ProfileMenuItem
@@ -151,6 +192,7 @@ export function ProfileScreen({ mode }: ProfileScreenProps) {
         label="DÉCONNEXION"
         onPress={() => void supabase.auth.signOut()}
         destructive
+        showChevron={false}
       />
 
       <Text style={styles.version}>EVEIDER MOBILE · MVP</Text>

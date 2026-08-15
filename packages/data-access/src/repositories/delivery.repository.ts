@@ -52,7 +52,8 @@ export type AdminDeliveryListItem = Delivery & {
     status: string;
     recipientName: string | null;
     recipientPhone: string;
-    locker: { id: string; name: string; address: string } | null;
+    locker: { id: string; name: string; code: string; address: string } | null;
+    compartment: { label: string; size: string } | null;
     business: { id: string; name: string };
   };
 };
@@ -225,6 +226,8 @@ export class DeliveryRepository {
       courierId?: string;
       lockerId?: string;
       businessId?: string;
+      search?: string;
+      includeAllStatuses?: boolean;
     },
   ): Promise<AdminDeliveryListItem[]> {
     assertAdmin(ctx);
@@ -235,7 +238,7 @@ export class DeliveryRepository {
     if (filters?.status) {
       params.push(filters.status);
       conditions.push(`d.status = $${params.length}`);
-    } else {
+    } else if (!filters?.includeAllStatuses) {
       params.push(ACTIVE_DELIVERY_STATUSES);
       conditions.push(`d.status = ANY($${params.length})`);
     }
@@ -252,6 +255,12 @@ export class DeliveryRepository {
       params.push(filters.businessId);
       conditions.push(`p.business_id = $${params.length}`);
     }
+    if (filters?.search?.trim()) {
+      params.push(`%${filters.search.trim()}%`);
+      conditions.push(
+        `(p.tracking_number ILIKE $${params.length} OR COALESCE(p.reference, '') ILIKE $${params.length})`,
+      );
+    }
 
     const result = await this.db.query(
       `SELECT d.*,
@@ -261,14 +270,17 @@ export class DeliveryRepository {
               p.reference AS parcel_reference,
               p.status AS parcel_status, p.recipient_name AS parcel_recipient_name,
               p.recipient_phone AS parcel_recipient_phone,
-              l.id AS locker_relation_id, l.name AS locker_name, l.address AS locker_address,
+              l.id AS locker_relation_id, l.name AS locker_name, l.code AS locker_code,
+              l.address AS locker_address,
+              c.label AS compartment_label, c.size AS compartment_size,
               b.id AS business_relation_id, b.name AS business_name
        FROM deliveries d
        JOIN users u ON u.id = d.courier_id
        JOIN parcels p ON p.id = d.parcel_id
        JOIN businesses b ON b.id = p.business_id
        LEFT JOIN lockers l ON l.id = p.locker_id
-       WHERE ${conditions.join(' AND ')}
+       LEFT JOIN compartments c ON c.id = p.compartment_id
+       WHERE ${conditions.length > 0 ? conditions.join(' AND ') : 'TRUE'}
        ORDER BY d.updated_at DESC`,
       params,
     );
@@ -295,7 +307,14 @@ export class DeliveryRepository {
           ? {
               id: String(row.locker_relation_id),
               name: String(row.locker_name),
+              code: String(row.locker_code),
               address: String(row.locker_address),
+            }
+          : null,
+        compartment: row.compartment_label
+          ? {
+              label: String(row.compartment_label),
+              size: String(row.compartment_size),
             }
           : null,
         business: {

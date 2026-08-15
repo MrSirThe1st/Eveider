@@ -927,6 +927,7 @@ export function AdminApplicationReview({
                   </div>
                   <dl style={{ margin: 0 }}>
                     <InfoRow label="Nom" value={business.name} />
+                    <InfoRow label="Code d'accès" value={business.accessCode ?? '—'} />
                     <InfoRow label="Risque" value={business.riskClassification ?? 'INDIVIDUAL_SELLER'} />
                     <InfoRow label="Secteur" value={business.industry ?? 'Non renseigné'} />
                     <InfoRow

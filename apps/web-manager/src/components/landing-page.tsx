@@ -13,6 +13,19 @@ const GUIDE_STEPS = [
     step: '02',
     title: 'Livraison au casier',
     description:
+      'Le coursier dépose le colis dans le compartiment réservé. Le statut passe à « prêt pour retrait ».',
+  },
+  {
+    step: '03',
+    title: 'Notification & paiement',
+    description:
+      'Le client reçoit une notification et paie les frais de retrait si nécessaire, via mobile money ou l’application.',
+  },
+  {
+    step: '04',
+    title: 'Retrait PIN',
+    description:
+      'Le client utilise son code PIN unique pour ouvrir le casier et retirer son colis en toute sécurité.',
       'Un coursier assigné dépose le colis dans le compartiment réservé. Le statut passe à « prêt pour retrait ».',
   },
   {
@@ -218,9 +231,16 @@ export function LandingPage() {
               Vous vendez en ligne (e-commerce) ? Vous gérez des livraisons ?<br />
               Expédiez vos produits à travers le Congo avec Eveider.
             </p>
-            <p style={{ margin: '0 0 2rem', fontWeight: 500, lineHeight: 1.6, fontSize: '1rem', color: '#475569' }}>
+            <p style={{ margin: '0 0 1.5rem', fontWeight: 500, lineHeight: 1.6, fontSize: '1rem', color: '#475569' }}>
               De l&apos;inscription aux casiers connectés 24/7 en passant par la vérification KYC rapide, accédez à la première infrastructure logistique unifiée pour marchands et grandes entreprises.
             </p>
+
+            <div style={{ marginBottom: '2rem' }}>
+              <p style={{ margin: '0 0 0.75rem', fontWeight: 700, fontSize: '0.8125rem', letterSpacing: '0.08em', color: '#64748B' }}>
+                SUIVI CLIENT — SANS COMPTE
+              </p>
+              <LandingTrackingForm />
+            </div>
 
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               <Link href="/inscription" className="btn btn-primary" style={{ height: 48, padding: '0 1.75rem', fontSize: '0.875rem' }}>
@@ -400,8 +420,13 @@ export function LandingPage() {
               <p style={{ margin: 0, fontSize: '0.875rem', color: '#64748B', lineHeight: 1.5, flex: 1 }}>
                 Consultez vos trajets assignés, scannez les colis à déposer et confirmez la fermeture des casiers.
               </p>
-              <div style={{ marginTop: '2rem', textAlign: 'center', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.05em', color: '#94A3B8', border: '1px dashed #E2E8F0', padding: '10px', borderRadius: 12 }}>
-                Bientôt sur iOS & Android
+              <div style={{ marginTop: '2rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <Link href="/connexion" className="btn btn-primary" style={{ flex: 1, minWidth: 140, height: 40, borderRadius: 12 }}>
+                  Connexion coursier
+                </Link>
+                <span style={{ flex: 1, minWidth: 140, textAlign: 'center', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.05em', color: '#94A3B8', border: '1px dashed #E2E8F0', padding: '10px', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  App mobile · BETA
+                </span>
               </div>
             </article>
 

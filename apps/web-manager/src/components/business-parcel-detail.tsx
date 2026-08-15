@@ -159,6 +159,25 @@ export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
               {parcel.paymentResponsibilityLabel}
             </dd>
           </div>
+          {parcel.deliveryFeeLabel ? (
+            <div>
+              <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
+                Frais de livraison
+              </dt>
+              <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
+                {parcel.deliveryFeeLabel}
+                {parcel.deliveryDistanceKm != null ? (
+                  <>
+                    <br />
+                    <span style={{ fontSize: '0.875rem', opacity: 0.85 }}>
+                      {parcel.deliveryDistanceKm.toLocaleString('fr-CD')} km
+                      {parcel.pricingSizeLabel ? ` · ${parcel.pricingSizeLabel}` : ''}
+                    </span>
+                  </>
+                ) : null}
+              </dd>
+            </div>
+          ) : null}
           <div>
             <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>Créé le</dt>
             <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>

@@ -3,6 +3,9 @@
 import { colors, typography } from '@eveider/config-ui';
 import { DataTable, type DataTableColumn } from '@eveider/ui';
 import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+import { ListSearchField } from '@/components/list-search-field';
+import { fetchJson } from '@/lib/api/fetch-json';
 import { useMemo, useState } from 'react';
 import { ListSearchField } from '@/components/list-search-field';
 import type { BusinessListItem } from '@/server/businesses';
@@ -17,7 +20,7 @@ function formatDate(iso: string) {
 }
 
 type BusinessListProps = {
-  businesses: BusinessListItem[];
+  businesses?: BusinessListItem[];
 };
 
 export function BusinessList({ businesses }: BusinessListProps) {
@@ -53,6 +56,14 @@ export function BusinessList({ businesses }: BusinessListProps) {
         ),
       },
       {
+        id: 'accessCode',
+        header: 'Code d’accès',
+        sortable: true,
+        sortValue: (row) => row.accessCode ?? '',
+        hideOnMobile: true,
+        cell: (row) => row.accessCode ?? '—',
+      },
+      {
         id: 'contact',
         header: 'Contact',
         sortable: true,
@@ -60,9 +71,7 @@ export function BusinessList({ businesses }: BusinessListProps) {
         hideOnMobile: true,
         cell: (row) => (
           <div>
-            <div style={{ fontWeight: typography.weights.semibold }}>
-              {row.contactEmail ?? '—'}
-            </div>
+            <div style={{ fontWeight: typography.weights.semibold }}>{row.contactEmail ?? '—'}</div>
             {row.contactPhone ? (
               <div style={{ fontSize: typography.caption.fontSize, color: colors.textMuted }}>
                 {row.contactPhone}
@@ -93,6 +102,26 @@ export function BusinessList({ businesses }: BusinessListProps) {
         <ListSearchField
           value={searchQuery}
           onChange={setSearchQuery}
+          placeholder="Rechercher (nom, e-mail, code d’accès)…"
+          ariaLabel="Rechercher une entreprise active"
+        />
+      </div>
+      {loading ? (
+        <p style={{ margin: '0 0 1rem', fontSize: '0.8125rem', color: colors.textMuted }}>
+          Recherche…
+        </p>
+      ) : null}
+      <DataTable
+        columns={columns}
+        rows={businesses}
+        getRowId={(row) => row.id}
+        caption={businesses.length > 0 ? `${businesses.length} entreprise(s) active(s)` : undefined}
+        emptyTitle={
+          debouncedSearch.trim() ? 'Aucune entreprise pour cette recherche' : 'Aucune entreprise active'
+        }
+        emptyDescription={
+          debouncedSearch.trim()
+            ? 'Essayez un autre nom, e-mail ou code d’accès.'
           placeholder="Rechercher une entreprise (nom, e-mail, téléphone)…"
           ariaLabel="Rechercher une entreprise active"
         />

@@ -265,9 +265,15 @@ export class LockerRepository {
       .map(({ distanceKm, ...locker }) => ({ ...locker, distanceKm }));
   }
 
-  async listAll(ctx: DataAccessContext): Promise<LockerSummary[]> {
+  async listAll(ctx: DataAccessContext, options?: { search?: string }): Promise<LockerSummary[]> {
     assertAdmin(ctx);
-    return this.listSummaries(`status <> 'archived'`);
+    const params: unknown[] = [];
+    let where = `status <> 'archived'`;
+    if (options?.search?.trim()) {
+      params.push(`%${options.search.trim()}%`);
+      where += ` AND (name ILIKE $${params.length} OR code ILIKE $${params.length})`;
+    }
+    return this.listSummaries(where, params);
   }
 
   async listAllIncludingArchived(ctx: DataAccessContext): Promise<LockerSummary[]> {
@@ -275,9 +281,10 @@ export class LockerRepository {
     return this.listSummaries('TRUE');
   }
 
-  private async listSummaries(where: string): Promise<LockerSummary[]> {
+  private async listSummaries(where: string, params: unknown[] = []): Promise<LockerSummary[]> {
     const lockersResult = await this.db.query(
       `SELECT * FROM lockers WHERE ${where} ORDER BY name ASC`,
+      params,
     );
     const lockers = lockersResult.rows.map(mapLocker);
     if (lockers.length === 0) return [];

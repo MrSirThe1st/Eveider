@@ -39,17 +39,24 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
   const toast = useToast();
   const [statusFilter, setStatusFilter] = useState<ParcelStatusFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [previewParcel, setPreviewParcel] = useState<DashboardParcelItem | null>(null);
-  const useSeed = statusFilter === 'all' && seedParcels !== undefined;
+  const useSeed = statusFilter === 'all' && seedParcels !== undefined && !debouncedSearch;
   const refreshToastShown = useRef(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const { data: fetchedParcels = [], isLoading, isFetching, isError, error, refetch } =
     useAdminParcelsQuery(statusFilter, {
-      enabled: !useSeed,
+      enabled: !useSeed || Boolean(debouncedSearch),
       initialData: useSeed ? seedParcels : undefined,
+      search: debouncedSearch,
     });
 
-  const parcels = useSeed ? seedParcels : fetchedParcels;
+  const parcels = useSeed ? seedParcels ?? [] : fetchedParcels;
 
   const filteredParcels = useMemo(
     () =>
@@ -237,6 +244,14 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
           rows={filteredParcels}
           getRowId={(row) => row.id}
           caption={
+            parcels.length > 0
+              ? debouncedSearch.trim()
+                ? `${parcels.length} colis`
+                : `${parcels.length} colis`
+              : undefined
+          }
+          emptyTitle={
+            debouncedSearch.trim()
             filteredParcels.length > 0
               ? searchQuery.trim()
                 ? `${filteredParcels.length} colis sur ${parcels.length}`
@@ -251,6 +266,7 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
                 : 'Aucun colis pour ce filtre'
           }
           emptyDescription={
+            debouncedSearch.trim()
             searchQuery.trim()
               ? 'Essayez une autre référence ou un autre numéro de suivi.'
               : "Les nouveaux envois apparaîtront ici dès qu'ils seront créés."

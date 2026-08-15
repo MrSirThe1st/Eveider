@@ -42,15 +42,20 @@ const ADMIN_MODULES: NavModule[] = [
     match: (p) =>
       p.startsWith('/tableau-de-bord/livraisons') || p.startsWith('/tableau-de-bord/incidents'),
     items: [
-      { href: '/tableau-de-bord/livraisons', label: 'Toutes actives' },
-      { href: '/tableau-de-bord/livraisons?status=assigned', label: 'Assignées' },
-      { href: '/tableau-de-bord/livraisons?status=scanned', label: 'Scannées' },
-      {
-        href: '/tableau-de-bord/livraisons?status=drop_off_pending',
-        label: 'Au casier',
-      },
+      { href: '/tableau-de-bord/livraisons', label: 'Actives' },
+      { href: '/tableau-de-bord/livraisons?view=au_casier', label: 'Au casier' },
+      { href: '/tableau-de-bord/livraisons?view=collected', label: 'Collectés' },
+      { href: '/tableau-de-bord/livraisons?view=all', label: 'Toutes les activités' },
       { href: '/tableau-de-bord/incidents', label: 'Incidents' },
     ],
+  },
+  {
+    id: 'parametres',
+    label: 'Paramètres',
+    href: '/tableau-de-bord/parametres/tarifs',
+    icon: <IconBuilding {...NAV_ICON_PROPS} />,
+    match: (p) => p.startsWith('/tableau-de-bord/parametres'),
+    items: [{ href: '/tableau-de-bord/parametres/tarifs', label: 'Tarifs livraison' }],
   },
   {
     id: 'entreprises',

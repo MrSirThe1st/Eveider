@@ -4,12 +4,15 @@ import { toBusinessDto, type BusinessDto } from '@/lib/business-presenter';
 
 export type BusinessListItem = Pick<
   BusinessDto,
-  'id' | 'name' | 'status' | 'contactEmail' | 'contactPhone' | 'createdAt'
+  'id' | 'name' | 'status' | 'contactEmail' | 'contactPhone' | 'accessCode' | 'createdAt'
 >;
 
 export async function listBusinesses(
   ctx: DataAccessContext,
-  options?: { statuses?: BusinessListItem['status'][] },
+  options?: {
+    statuses?: BusinessListItem['status'][];
+    search?: string;
+  },
 ): Promise<BusinessListItem[]> {
   const { businesses } = createRepositories();
   const items = await businesses.list(ctx, options);
@@ -21,6 +24,7 @@ export async function listBusinesses(
       status: dto.status,
       contactEmail: dto.contactEmail,
       contactPhone: dto.contactPhone,
+      accessCode: dto.accessCode,
       createdAt: dto.createdAt,
     };
   });

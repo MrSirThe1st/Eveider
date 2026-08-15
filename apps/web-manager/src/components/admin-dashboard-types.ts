@@ -1,4 +1,4 @@
-import type { ParcelStatus } from '@eveider/domain';
+import type { IssueType, ParcelStatus } from '@eveider/domain';
 
 export type DashboardStats = {
   parcelsToday: number;
@@ -19,6 +19,9 @@ export type AnalyticsReport = {
   collected: number;
   awaitingPickup: number;
   dailyDeliveries: { date: string; count: number }[];
+  dailyParcelsCreated: { date: string; count: number }[];
+  parcelsByStatus: { status: ParcelStatus; count: number }[];
+  openIssuesByType: { type: IssueType; count: number }[];
   topLockers: { lockerId: string; lockerName: string; parcelCount: number }[];
   topBusinesses: { businessId: string; businessName: string; parcelCount: number }[];
 };
@@ -39,3 +42,6 @@ export type AdminDashboardData = {
   stats: DashboardStats;
   analytics: AnalyticsReport;
 };
+
+export const DASHBOARD_DAY_OPTIONS = [7, 14, 30] as const;
+export type DashboardDayRange = (typeof DASHBOARD_DAY_OPTIONS)[number];

@@ -1,5 +1,6 @@
 import {
   COMPARTMENT_SIZE_FULL_LABELS,
+  formatDeliveryFeeFc,
   PACKAGE_CATEGORY_LABELS,
   PACKAGE_SIZE_LABELS,
   PARCEL_STATUS_LABELS,
@@ -56,6 +57,11 @@ export type ParcelDto = {
   paymentResponsibilityLabel: string;
   codAmountCdf: number | null;
   codAmountUsd: number | null;
+  deliveryFeeFc: number | null;
+  deliveryFeeLabel: string | null;
+  deliveryDistanceKm: number | null;
+  pricingSizeUsed: PackageSize | null;
+  pricingSizeLabel: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -83,6 +89,9 @@ export function toParcelDto(parcel: {
   paymentResponsibility: PaymentResponsibility;
   codAmountCdf: number | null;
   codAmountUsd: number | null;
+  deliveryFeeFc?: number | null;
+  deliveryDistanceKm?: number | null;
+  pricingSizeUsed?: PackageSize | null;
   createdAt: Date;
   updatedAt: Date;
   locker?: { id: string; name: string; address: string; type?: string } | null;
@@ -132,6 +141,14 @@ export function toParcelDto(parcel: {
     paymentResponsibilityLabel: PAYMENT_RESPONSIBILITY_LABELS[parcel.paymentResponsibility],
     codAmountCdf: parcel.codAmountCdf,
     codAmountUsd: parcel.codAmountUsd,
+    deliveryFeeFc: parcel.deliveryFeeFc ?? null,
+    deliveryFeeLabel:
+      parcel.deliveryFeeFc != null ? formatDeliveryFeeFc(parcel.deliveryFeeFc) : null,
+    deliveryDistanceKm: parcel.deliveryDistanceKm ?? null,
+    pricingSizeUsed: parcel.pricingSizeUsed ?? null,
+    pricingSizeLabel: parcel.pricingSizeUsed
+      ? PACKAGE_SIZE_LABELS[parcel.pricingSizeUsed]
+      : null,
     createdAt: parcel.createdAt.toISOString(),
     updatedAt: parcel.updatedAt.toISOString(),
   };

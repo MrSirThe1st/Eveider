@@ -17,10 +17,13 @@ export type BusinessParcelItem = {
 
 type ParcelsScope = 'business' | 'admin';
 
-function parcelsUrl(scope: ParcelsScope, status: ParcelStatusFilter) {
+function parcelsUrl(scope: ParcelsScope, status: ParcelStatusFilter, search?: string) {
   const base = scope === 'business' ? '/api/entreprise/parcels' : '/api/parcels';
-  const query = status === 'all' ? '' : `?status=${status}`;
-  return `${base}${query}`;
+  const params = new URLSearchParams();
+  if (status !== 'all') params.set('status', status);
+  if (search?.trim()) params.set('search', search.trim());
+  const query = params.toString();
+  return query ? `${base}?${query}` : base;
 }
 
 export async function fetchBusinessParcels(status: ParcelStatusFilter): Promise<BusinessParcelItem[]> {
@@ -28,8 +31,13 @@ export async function fetchBusinessParcels(status: ParcelStatusFilter): Promise<
   return data.parcels;
 }
 
-export async function fetchAdminParcels(status: ParcelStatusFilter): Promise<DashboardParcelItem[]> {
-  const data = await fetchJson<{ parcels: DashboardParcelItem[] }>(parcelsUrl('admin', status));
+export async function fetchAdminParcels(
+  status: ParcelStatusFilter,
+  search?: string,
+): Promise<DashboardParcelItem[]> {
+  const data = await fetchJson<{ parcels: DashboardParcelItem[] }>(
+    parcelsUrl('admin', status, search),
+  );
   return data.parcels;
 }
 
@@ -79,6 +87,7 @@ export function useBusinessParcelsQuery(status: ParcelStatusFilter) {
 type UseAdminParcelsQueryOptions = {
   enabled?: boolean;
   initialData?: DashboardParcelItem[];
+  search?: string;
 };
 
 export function useAdminParcelsQuery(
@@ -86,6 +95,7 @@ export function useAdminParcelsQuery(
   options?: UseAdminParcelsQueryOptions,
 ) {
   const enabled = options?.enabled ?? true;
+  const search = options?.search ?? '';
   const [parcels, setParcels] = useState<DashboardParcelItem[]>(options?.initialData ?? []);
   const [isLoading, setIsLoading] = useState(enabled && options?.initialData === undefined);
   const [isFetching, setIsFetching] = useState(false);
@@ -104,7 +114,7 @@ export function useAdminParcelsQuery(
     setError(null);
 
     try {
-      const next = await fetchAdminParcels(status);
+      const next = await fetchAdminParcels(status, search);
       setParcels(next);
       hasDataRef.current = true;
     } catch (e) {
@@ -113,7 +123,7 @@ export function useAdminParcelsQuery(
       setIsLoading(false);
       setIsFetching(false);
     }
-  }, [enabled, status]);
+  }, [enabled, search, status]);
 
   useEffect(() => {
     if (!enabled) {
@@ -125,15 +135,15 @@ export function useAdminParcelsQuery(
       return;
     }
 
-    hasDataRef.current = options?.initialData !== undefined;
-    if (options?.initialData !== undefined) {
+    hasDataRef.current = options?.initialData !== undefined && !search;
+    if (options?.initialData !== undefined && !search) {
       setParcels(options.initialData);
       setIsLoading(false);
       return;
     }
 
     void load();
-  }, [enabled, load, options?.initialData]);
+  }, [enabled, load, options?.initialData, search]);
 
   return {
     data: parcels,

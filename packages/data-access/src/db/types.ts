@@ -102,6 +102,7 @@ export type Business = {
   individualFullName: string | null;
   idPassportNumber: string | null;
   residentialAddress: string | null;
+  accessCode: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -165,8 +166,23 @@ export type Parcel = {
   paymentResponsibility: PaymentResponsibility;
   codAmountCdf: number | null;
   codAmountUsd: number | null;
+  deliveryFeeFc: number | null;
+  deliveryDistanceKm: number | null;
+  pricingSizeUsed: PackageSize | null;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type DeliveryPricingRuleRow = {
+  id: string;
+  distanceThresholdKm: number;
+  belowThresholdAmountFc: number;
+  aboveThresholdAmountFc: number;
+  smallCoefficient: number;
+  mediumCoefficient: number;
+  largeCoefficient: number;
+  updatedAt: Date;
+  updatedBy: string | null;
 };
 
 export type Delivery = {

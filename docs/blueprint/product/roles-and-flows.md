@@ -21,7 +21,7 @@ A single mobile app serves customers and couriers. After login, the UI and navig
 Login → Home → Tracking → PIN Screen → Pickup complete
 ```
 
-1. **Login / register** — OTP or SMS verification
+1. **Login / register** — Email + password (Supabase); SMS OTP planned
 2. **Home** — Active parcels, delivery status cards, PIN quick access, notification preview
 3. **Tracking** — Full parcel list and status detail per parcel
 4. **PIN screen** — Active pickup code, parcel details, locker location, collection instructions
@@ -56,7 +56,7 @@ Login → Assigned deliveries → Scan → Drop-off → Confirm
 1. **Login** — Same auth stack as customer; role routes to courier dashboard
 2. **Delivery dashboard** — Assigned deliveries, priority / scheduled items
 3. **Delivery detail** — Parcel info, destination locker, customer reference
-4. **Scan & confirm** — Barcode / parcel scan; confirm pickup from warehouse or hub
+4. **Scan & confirm** — Manual tracking entry today; barcode scan planned
 5. **Locker drop-off** — Select compartment, confirm drop-off completion
 6. **Complete** — Delivery recorded; appears in delivery history
 
@@ -83,8 +83,8 @@ Both customers and couriers use:
 
 | Area | Screens |
 |------|---------|
-| Authentication | Splash, login, register, OTP / SMS verification |
-| Profile | View profile, edit profile, settings, logout |
+| Authentication | Splash, login, register (email/password) |
+| Profile & settings | Profile hub, notifications, language, appearance, help, terms, privacy, logout (placeholders for editable prefs) |
 
 ## Authorization Boundaries
 

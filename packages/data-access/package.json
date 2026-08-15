@@ -17,7 +17,8 @@
     "test": "vitest run",
     "db:migrate": "dotenv -e ../../.env -- tsx scripts/migrate.ts",
     "db:deploy": "dotenv -e ../../.env -- tsx scripts/migrate.ts",
-    "db:seed": "dotenv -e ../../.env -- tsx scripts/seed.ts"
+    "db:seed": "dotenv -e ../../.env -- tsx scripts/seed.ts",
+    "db:backfill-access-codes": "dotenv -e ../../.env -- tsx scripts/backfill-business-access-codes.ts"
   },
   "dependencies": {
     "@eveider/api-contracts": "workspace:*",

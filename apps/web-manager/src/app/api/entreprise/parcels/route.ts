@@ -1,6 +1,7 @@
 import { createParcelSchema, fail, listParcelsQuerySchema, ok } from '@eveider/api-contracts';
 import { createRepositories } from '@eveider/data-access';
 import { NextResponse } from 'next/server';
+import { buildDeliveryQuote } from '@/lib/delivery-quote';
 import { toParcelDto } from '@/lib/business-parcel-presenter';
 import { requireBusinessSession } from '@/lib/session';
 
@@ -48,6 +49,14 @@ export async function POST(request: Request) {
   }
 
   try {
+    const quote = await buildDeliveryQuote({
+      businessId: auth.session.profile.businessId!,
+      lockerId: body.data.lockerId,
+      compartmentId: body.data.compartmentId,
+      packageSize: body.data.packageSize,
+      senderAddress: body.data.senderAddress,
+    });
+
     const { parcels } = createRepositories();
     const result = await parcels.create(auth.session.ctx, {
       businessId: auth.session.profile.businessId!,
@@ -72,6 +81,9 @@ export async function POST(request: Request) {
       paymentResponsibility: body.data.paymentResponsibility,
       codAmountCdf: body.data.codAmountCdf,
       codAmountUsd: body.data.codAmountUsd,
+      deliveryFeeFc: quote.deliveryFeeFc,
+      deliveryDistanceKm: quote.deliveryDistanceKm,
+      pricingSizeUsed: quote.pricingSizeUsed,
     });
 
     return NextResponse.json(

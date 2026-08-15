@@ -16,6 +16,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = listParcelsQuerySchema.safeParse({
     status: searchParams.get('status') ?? undefined,
+    search: searchParams.get('search') ?? undefined,
   });
 
   if (!query.success) {
@@ -26,10 +27,10 @@ export async function GET(request: Request) {
   try {
     const { parcels } = createRepositories();
     const items = await perf.measure('db.parcels.list', () =>
-      parcels.listAll(
-        auth.session.ctx,
-        query.data.status ? { status: query.data.status } : undefined,
-      ),
+      parcels.listAll(auth.session.ctx, {
+        status: query.data.status,
+        search: query.data.search,
+      }),
     );
 
     perf.flush(200);

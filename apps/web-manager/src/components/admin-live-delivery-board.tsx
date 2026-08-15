@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius, spacing, borderSubtle, webSecondaryButtonStyle } from '@eveider/config-ui';
+import { colors, radius, borderSubtle, webSecondaryButtonStyle } from '@eveider/config-ui';
 import { DELIVERY_STATUS_LABELS } from '@eveider/domain';
 import { FilterToolbar, LoadingSpinner } from '@eveider/ui';
 import Link from 'next/link';
@@ -8,13 +8,22 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { DeliveryStatusBadge } from '@/components/delivery-status-badge';
 import { FlashBanner } from '@/components/flash-banner';
+import { ListSearchField } from '@/components/list-search-field';
+import { ParcelStatusBadge } from '@/components/parcel-status-badge';
 import {
   DELIVERIES_REFRESH_MS,
+  type DeliveryBoardView,
   type DeliveryFilters,
-  type DeliveryItem,
   type DeliveryStatusFilter,
   useDeliveriesBoardQuery,
 } from '@/hooks/queries/use-deliveries-query';
+
+const VIEW_TABS: { value: DeliveryBoardView; label: string }[] = [
+  { value: 'active', label: 'Actives' },
+  { value: 'au_casier', label: 'Au casier' },
+  { value: 'collected', label: 'Collectés' },
+  { value: 'all', label: 'Toutes les activités' },
+];
 
 const STATUS_OPTIONS: { value: DeliveryStatusFilter; label: string }[] = [
   { value: 'all', label: 'Toutes actives' },
@@ -22,6 +31,11 @@ const STATUS_OPTIONS: { value: DeliveryStatusFilter; label: string }[] = [
   { value: 'scanned', label: DELIVERY_STATUS_LABELS.scanned },
   { value: 'drop_off_pending', label: DELIVERY_STATUS_LABELS.drop_off_pending },
 ];
+
+function parseViewParam(raw: string | null): DeliveryBoardView {
+  if (raw === 'au_casier' || raw === 'collected' || raw === 'all') return raw;
+  return 'active';
+}
 
 function parseStatusParam(raw: string | null): DeliveryStatusFilter {
   if (raw === 'assigned' || raw === 'scanned' || raw === 'drop_off_pending') return raw;
@@ -37,32 +51,61 @@ function formatDateTime(iso: string) {
   }).format(new Date(iso));
 }
 
-function courierLabel(courier: DeliveryItem['courier']) {
-  return courier.fullName ?? courier.email ?? courier.phone ?? 'Coursier';
+function lockerCell(
+  locker: { id: string; name: string; code: string; address: string } | null,
+  compartment: { label: string; size: string } | null,
+) {
+  if (!locker) return '—';
+  return (
+    <div>
+      <Link
+        href={`/tableau-de-bord/points/${locker.id}`}
+        style={{ color: colors.secondary, textDecoration: 'none', fontWeight: 600 }}
+      >
+        {locker.name}
+      </Link>
+      <div style={{ fontSize: '0.8125rem', opacity: 0.75 }}>
+        {locker.code}
+        {compartment ? ` · ${compartment.label} (${compartment.size})` : ''}
+      </div>
+    </div>
+  );
 }
 
 export function AdminLiveDeliveryBoard() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const viewFromUrl = parseViewParam(searchParams.get('view'));
   const statusFromUrl = parseStatusParam(searchParams.get('status'));
 
   const [filters, setFilters] = useState<DeliveryFilters>({
+    view: viewFromUrl,
     status: statusFromUrl,
     courierId: '',
     lockerId: '',
     businessId: '',
+    search: '',
   });
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFilters((current) => ({ ...current, search: debouncedSearch }));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [debouncedSearch]);
 
   useEffect(() => {
     setFilters((current) =>
-      current.status === statusFromUrl ? current : { ...current, status: statusFromUrl },
+      current.view === viewFromUrl && current.status === statusFromUrl
+        ? current
+        : { ...current, view: viewFromUrl, status: statusFromUrl },
     );
-  }, [statusFromUrl]);
+  }, [statusFromUrl, viewFromUrl]);
 
   const boardQuery = useDeliveriesBoardQuery(filters);
-
-  const deliveries = boardQuery.data?.deliveries ?? [];
+  const items = boardQuery.data?.items ?? [];
   const summary = boardQuery.data?.summary ?? null;
 
   const couriers = useMemo(
@@ -92,9 +135,9 @@ export function AdminLiveDeliveryBoard() {
     [boardQuery.data?.businesses],
   );
 
-  const showInitialLoader = boardQuery.isLoading && deliveries.length === 0;
-  const showFatalError = boardQuery.isError && deliveries.length === 0;
-  const showRefreshError = boardQuery.isError && deliveries.length > 0;
+  const showInitialLoader = boardQuery.isLoading && items.length === 0;
+  const showFatalError = boardQuery.isError && items.length === 0;
+  const showRefreshError = boardQuery.isError && items.length > 0;
   const errorMessage =
     boardQuery.error instanceof Error
       ? boardQuery.error.message
@@ -115,9 +158,13 @@ export function AdminLiveDeliveryBoard() {
     [summary],
   );
 
-  function writeStatusToUrl(status: DeliveryStatusFilter) {
+  function writeUrlParams(next: { view?: DeliveryBoardView; status?: DeliveryStatusFilter }) {
     const params = new URLSearchParams(searchParams.toString());
-    if (status === 'all') params.delete('status');
+    const view = next.view ?? filters.view;
+    const status = next.status ?? filters.status;
+    if (view === 'active') params.delete('view');
+    else params.set('view', view);
+    if (view !== 'active' || status === 'all') params.delete('status');
     else params.set('status', status);
     const query = params.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
@@ -125,19 +172,21 @@ export function AdminLiveDeliveryBoard() {
 
   function updateFilter<K extends keyof DeliveryFilters>(key: K, value: DeliveryFilters[K]) {
     setFilters((current) => ({ ...current, [key]: value }));
-    if (key === 'status') {
-      writeStatusToUrl(value as DeliveryStatusFilter);
-    }
+    if (key === 'view') writeUrlParams({ view: value as DeliveryBoardView });
+    if (key === 'status') writeUrlParams({ status: value as DeliveryStatusFilter });
   }
 
   function clearAllFilters() {
+    setDebouncedSearch('');
     setFilters({
+      view: filters.view,
       status: 'all',
       courierId: '',
       lockerId: '',
       businessId: '',
+      search: '',
     });
-    writeStatusToUrl('all');
+    writeUrlParams({ status: 'all' });
   }
 
   return (
@@ -145,232 +194,202 @@ export function AdminLiveDeliveryBoard() {
       <div
         style={{
           display: 'flex',
-          borderBottom: `1px solid ${colors.borderSubtle}`,
-          padding: '1.25rem 0',
-          marginBottom: '1.5rem',
-          width: '100%',
+          gap: '0.5rem',
           flexWrap: 'wrap',
-          gap: '0.5rem 0',
+          marginBottom: '1.5rem',
         }}
       >
-        {summaryCards.map((card, index) => {
-          const isActive = filters.status === card.key;
-          return (
-            <Fragment key={card.key}>
-              {index > 0 && (
-                <div
-                  style={{
-                    width: 1,
-                    height: 32,
-                    backgroundColor: colors.borderSubtle,
-                    alignSelf: 'center',
-                    flexShrink: 0,
-                  }}
-                />
-              )}
-              <button
-                type="button"
-                onClick={() =>
-                  updateFilter('status', filters.status === card.key ? 'all' : card.key)
-                }
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.backgroundColor = colors.surfaceSubtle;
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
-                }}
-                style={{
-                  flex: '1 1 140px',
-                  padding: '0.5rem 1.5rem',
-                  minWidth: 140,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  textAlign: 'left',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  borderRadius: radius.sm,
-                  transition: 'background-color 0.2s ease',
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: '0.6875rem',
-                    fontWeight: 700,
-                    color: colors.textMuted,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                  }}
-                >
-                  {card.label}
-                </span>
-                <span
-                  style={{
-                    margin: '0.25rem 0 0',
-                    fontSize: '1.75rem',
-                    fontWeight: 700,
-                    color: isActive ? colors.primary : colors.secondary,
-                    lineHeight: 1.1,
-                  }}
-                >
-                  {card.value}
-                </span>
-              </button>
-            </Fragment>
-          );
-        })}
-        
-        <div
-          style={{
-            width: 1,
-            height: 32,
-            backgroundColor: colors.borderSubtle,
-            alignSelf: 'center',
-            flexShrink: 0,
-          }}
-        />
-
-        <div
-          style={{
-            flex: '1 1 140px',
-            padding: '0.5rem 1.5rem',
-            minWidth: 140,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-          }}
-        >
-          <span
+        {VIEW_TABS.map((tab) => (
+          <button
+            key={tab.value}
+            type="button"
+            onClick={() => updateFilter('view', tab.value)}
             style={{
-              fontSize: '0.6875rem',
+              padding: '0.5rem 1rem',
+              borderRadius: radius.sm,
+              border: `1px solid ${filters.view === tab.value ? colors.primary : colors.borderSubtle}`,
+              background: filters.view === tab.value ? colors.surfaceSubtle : colors.surface,
               fontWeight: 700,
-              color: colors.textMuted,
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
+              fontSize: '0.8125rem',
+              cursor: 'pointer',
             }}
           >
-            Total actif
-          </span>
-          <span
-            style={{
-              margin: '0.25rem 0 0',
-              fontSize: '1.75rem',
-              fontWeight: 700,
-              color: colors.secondary,
-              lineHeight: 1.1,
-            }}
-          >
-            {summary?.total ?? 0}
-          </span>
-        </div>
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      <FilterToolbar
-        onClearAll={clearAllFilters}
-        filters={[
-          {
-            id: 'status',
-            label: 'Statut',
-            value: filters.status,
-            emptyValue: 'all',
-            options: STATUS_OPTIONS,
-            onChange: (value) => updateFilter('status', value as DeliveryStatusFilter),
-          },
-          {
-            id: 'courier',
-            label: 'Coursier',
-            value: filters.courierId,
-            emptyValue: '',
-            options: [
-              { value: '', label: 'Tous les coursiers' },
-              ...couriers.map((c) => ({ value: c.id, label: c.label })),
-            ],
-            onChange: (value) => updateFilter('courierId', value),
-          },
-          {
-            id: 'locker',
-            label: 'Casier',
-            value: filters.lockerId,
-            emptyValue: '',
-            options: [
-              { value: '', label: 'Tous les casiers' },
-              ...lockers.map((l) => ({ value: l.id, label: l.label })),
-            ],
-            onChange: (value) => updateFilter('lockerId', value),
-          },
-          {
-            id: 'business',
-            label: 'Entreprise',
-            value: filters.businessId,
-            emptyValue: '',
-            options: [
-              { value: '', label: 'Toutes les entreprises' },
-              ...businesses.map((b) => ({ value: b.id, label: b.label })),
-            ],
-            onChange: (value) => updateFilter('businessId', value),
-          },
-        ]}
-      />
+      {filters.view === 'active' ? (
+        <div
+          style={{
+            display: 'flex',
+            borderBottom: `1px solid ${colors.borderSubtle}`,
+            padding: '1.25rem 0',
+            marginBottom: '1.5rem',
+            width: '100%',
+            flexWrap: 'wrap',
+            gap: '0.5rem 0',
+          }}
+        >
+          {summaryCards.map((card, index) => {
+            const isActive = filters.status === card.key;
+            return (
+              <Fragment key={card.key}>
+                {index > 0 ? (
+                  <div
+                    style={{
+                      width: 1,
+                      height: 32,
+                      backgroundColor: colors.borderSubtle,
+                      alignSelf: 'center',
+                    }}
+                  />
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateFilter('status', filters.status === card.key ? 'all' : card.key)
+                  }
+                  style={{
+                    flex: '1 1 140px',
+                    padding: '0.5rem 1.5rem',
+                    minWidth: 140,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    textAlign: 'left',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    borderRadius: radius.sm,
+                  }}
+                >
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: colors.textMuted }}>
+                    {card.label}
+                  </span>
+                  <span
+                    style={{
+                      margin: '0.25rem 0 0',
+                      fontSize: '1.75rem',
+                      fontWeight: 700,
+                      color: isActive ? colors.primary : colors.secondary,
+                    }}
+                  >
+                    {card.value}
+                  </span>
+                </button>
+              </Fragment>
+            );
+          })}
+          <div style={{ width: 1, height: 32, backgroundColor: colors.borderSubtle, alignSelf: 'center' }} />
+          <div style={{ flex: '1 1 140px', padding: '0.5rem 1.5rem', minWidth: 140 }}>
+            <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: colors.textMuted }}>
+              Total actif
+            </span>
+            <span style={{ display: 'block', marginTop: '0.25rem', fontSize: '1.75rem', fontWeight: 700 }}>
+              {summary?.total ?? 0}
+            </span>
+          </div>
+        </div>
+      ) : null}
 
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '0.75rem',
-          marginBottom: '1.5rem',
-          alignItems: 'center',
-        }}
-      >
-        {boardQuery.isFetching && deliveries.length > 0 ? (
-          <span style={{ fontSize: '0.75rem', fontWeight: 500, color: colors.secondary, opacity: 0.7 }}>
-            Mise à jour…
-          </span>
+      {filters.view === 'all' || filters.view === 'au_casier' || filters.view === 'collected' ? (
+        <div style={{ marginBottom: '1rem' }}>
+          <ListSearchField
+            value={debouncedSearch}
+            onChange={setDebouncedSearch}
+            placeholder="Rechercher par numéro de suivi…"
+            ariaLabel="Rechercher une activité par numéro de suivi"
+          />
+        </div>
+      ) : null}
+
+      {filters.view === 'active' || filters.view === 'all' ? (
+        <FilterToolbar
+          onClearAll={clearAllFilters}
+          filters={[
+            ...(filters.view === 'active'
+              ? [
+                  {
+                    id: 'status',
+                    label: 'Statut',
+                    value: filters.status,
+                    emptyValue: 'all',
+                    options: STATUS_OPTIONS,
+                    onChange: (value: string) =>
+                      updateFilter('status', value as DeliveryStatusFilter),
+                  },
+                ]
+              : []),
+            {
+              id: 'courier',
+              label: 'Coursier',
+              value: filters.courierId,
+              emptyValue: '',
+              options: [
+                { value: '', label: 'Tous les coursiers' },
+                ...couriers.map((c) => ({ value: c.id, label: c.label })),
+              ],
+              onChange: (value) => updateFilter('courierId', value),
+            },
+            {
+              id: 'locker',
+              label: 'Casier',
+              value: filters.lockerId,
+              emptyValue: '',
+              options: [
+                { value: '', label: 'Tous les casiers' },
+                ...lockers.map((l) => ({ value: l.id, label: l.label })),
+              ],
+              onChange: (value) => updateFilter('lockerId', value),
+            },
+            {
+              id: 'business',
+              label: 'Entreprise',
+              value: filters.businessId,
+              emptyValue: '',
+              options: [
+                { value: '', label: 'Toutes les entreprises' },
+                ...businesses.map((b) => ({ value: b.id, label: b.label })),
+              ],
+              onChange: (value) => updateFilter('businessId', value),
+            },
+          ]}
+        />
+      ) : null}
+
+      <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', alignItems: 'center' }}>
+        {boardQuery.isFetching && items.length > 0 ? (
+          <span style={{ fontSize: '0.75rem', color: colors.textMuted }}>Mise à jour…</span>
         ) : null}
-        {lastRefresh ? (
-          <span style={{ fontSize: '0.75rem', fontWeight: 500, color: colors.secondary, opacity: 0.7 }}>
+        {lastRefresh && filters.view === 'active' ? (
+          <span style={{ fontSize: '0.75rem', color: colors.textMuted }}>
             Actualisé à {formatDateTime(lastRefresh.toISOString())} · auto {DELIVERIES_REFRESH_MS / 1000}s
           </span>
         ) : null}
       </div>
 
-      {showInitialLoader ? <LoadingSpinner label="Chargement des livraisons…" /> : null}
-
+      {showInitialLoader ? <LoadingSpinner label="Chargement…" /> : null}
       {showFatalError ? (
         <div>
           <FlashBanner message={errorMessage} variant="error" />
-          <button
-            type="button"
-            onClick={() => void boardQuery.refetch()}
-            style={{
-              ...webSecondaryButtonStyle,
-              marginTop: '1rem',
-              height: spacing.buttonHeight,
-              padding: '0 1.25rem',
-              background: colors.surface,
-            }}
-          >
+          <button type="button" onClick={() => void boardQuery.refetch()} style={webSecondaryButtonStyle}>
             Réessayer
           </button>
         </div>
       ) : null}
-
       {showRefreshError ? (
-        <FlashBanner
-          message={`${errorMessage} Les données affichées peuvent être obsolètes.`}
-          variant="error"
-        />
+        <FlashBanner message={`${errorMessage} Les données affichées peuvent être obsolètes.`} variant="error" />
       ) : null}
 
-      {!showInitialLoader && !showFatalError && deliveries.length === 0 ? (
+      {!showInitialLoader && !showFatalError && items.length === 0 ? (
         <p style={{ fontWeight: 500, color: colors.secondary, opacity: 0.8 }}>
-          Aucune livraison active pour ces filtres.
+          Aucun élément pour ces filtres.
         </p>
       ) : null}
 
-      {!showInitialLoader && !showFatalError && deliveries.length > 0 ? (
+      {!showInitialLoader && !showFatalError && items.length > 0 ? (
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 880 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 980 }}>
             <thead>
               <tr>
                 {['COLIS', 'STATUT', 'COURSIER', 'ENTREPRISE', 'CASIER', 'DESTINATAIRE', 'MAJ', ''].map(
@@ -382,7 +401,6 @@ export function AdminLiveDeliveryBoard() {
                         padding: '0.75rem',
                         fontSize: '0.6875rem',
                         fontWeight: 600,
-                        letterSpacing: '0.08em',
                         borderBottom: borderSubtle(),
                       }}
                     >
@@ -393,71 +411,53 @@ export function AdminLiveDeliveryBoard() {
               </tr>
             </thead>
             <tbody>
-              {deliveries.map((delivery) => (
-                <tr key={delivery.id}>
+              {items.map((item) => (
+                <tr key={`${item.kind}-${item.id}`}>
                   <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle() }}>
                     <Link
-                      href={`/tableau-de-bord/colis/${delivery.parcel.id}`}
+                      href={`/tableau-de-bord/colis/${item.parcel.id}`}
                       style={{ fontWeight: 700, color: colors.secondary, textDecoration: 'none' }}
                     >
-                      {delivery.parcel.trackingNumber}
+                      {item.parcel.trackingNumber}
                     </Link>
                   </td>
                   <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle() }}>
-                    <DeliveryStatusBadge status={delivery.status} />
+                    {item.kind === 'delivery' ? (
+                      <DeliveryStatusBadge status={item.status as never} />
+                    ) : (
+                      <ParcelStatusBadge status={item.status as never} />
+                    )}
                   </td>
                   <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle() }}>
-                    <Link
-                      href={`/tableau-de-bord/utilisateurs/${delivery.courier.id}`}
-                      style={{ fontWeight: 500, color: colors.secondary, textDecoration: 'none' }}
-                    >
-                      {courierLabel(delivery.courier)}
-                    </Link>
-                  </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle(), fontWeight: 500 }}>
-                    {delivery.parcel.business.name}
-                  </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle(), fontWeight: 500 }}>
-                    {delivery.parcel.locker ? (
+                    {item.courier ? (
                       <Link
-                        href={`/tableau-de-bord/points/${delivery.parcel.locker.id}`}
+                        href={`/tableau-de-bord/utilisateurs/${item.courier.id}`}
                         style={{ color: colors.secondary, textDecoration: 'none' }}
                       >
-                        {delivery.parcel.locker.name}
+                        {item.courier.fullName ?? item.courier.email ?? 'Coursier'}
                       </Link>
                     ) : (
                       '—'
                     )}
                   </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle(), fontWeight: 500 }}>
-                    {delivery.parcel.recipientName ?? '—'}
-                    <br />
-                    <span style={{ fontSize: '0.8125rem', opacity: 0.75 }}>
-                      {delivery.parcel.recipientPhone}
-                    </span>
-                  </td>
-                  <td
-                    style={{
-                      padding: '0.85rem 0.75rem',
-                      borderBottom: borderSubtle(),
-                      fontWeight: 500,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {formatDateTime(delivery.updatedAt)}
+                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle() }}>
+                    {item.parcel.business.name}
                   </td>
                   <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle() }}>
-                    <Link
-                      href={`/tableau-de-bord/colis/${delivery.parcel.id}`}
-                      style={{
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        letterSpacing: '0.04em',
-                        color: colors.secondary,
-                      }}
-                    >
-                      DÉTAIL →
-                    </Link>
+                    {lockerCell(item.parcel.locker, item.parcel.compartment)}
+                  </td>
+                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle() }}>
+                    {item.parcel.recipientName ?? '—'}
+                    <br />
+                    <span style={{ fontSize: '0.8125rem', opacity: 0.75 }}>
+                      {item.parcel.recipientPhone}
+                    </span>
+                  </td>
+                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle(), whiteSpace: 'nowrap' }}>
+                    {formatDateTime(item.updatedAt)}
+                  </td>
+                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle() }}>
+                    <Link href={`/tableau-de-bord/colis/${item.parcel.id}`}>DÉTAIL →</Link>
                   </td>
                 </tr>
               ))}

@@ -92,6 +92,12 @@ export default async function BusinessProfilePage() {
                 </dd>
               </div>
               <div>
+                <dt style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em', opacity: 0.7 }}>CODE D&apos;ACCÈS EVEIDER</dt>
+                <dd style={{ margin: '0.25rem 0 0', fontWeight: 700, letterSpacing: '0.06em' }}>
+                  {business.accessCode ?? '—'}
+                </dd>
+              </div>
+              <div>
                 <dt style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em', opacity: 0.7 }}>EMAIL CONTACT</dt>
                 <dd style={{ margin: '0.25rem 0 0', fontWeight: 500 }}>{business.contactEmail ?? '—'}</dd>
               </div>

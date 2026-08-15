@@ -76,6 +76,7 @@ export function mapBusiness(row: Record<string, unknown>): Business {
     individualFullName: row.individual_full_name == null ? null : String(row.individual_full_name),
     idPassportNumber: row.id_passport_number == null ? null : String(row.id_passport_number),
     residentialAddress: row.residential_address == null ? null : String(row.residential_address),
+    accessCode: row.access_code == null || row.access_code === '' ? null : String(row.access_code),
     createdAt: asDate(row.created_at),
     updatedAt: asDate(row.updated_at),
   };
@@ -155,6 +156,9 @@ export function mapParcel(row: Record<string, unknown>): Parcel {
       (row.payment_responsibility as Parcel['paymentResponsibility']) ?? 'receiver_pays',
     codAmountCdf: asNumberOrNull(row.cod_amount_cdf),
     codAmountUsd: asNumberOrNull(row.cod_amount_usd),
+    deliveryFeeFc: asNumberOrNull(row.delivery_fee_fc),
+    deliveryDistanceKm: asNumberOrNull(row.delivery_distance_km),
+    pricingSizeUsed: (row.pricing_size_used as Parcel['pricingSizeUsed']) ?? null,
     createdAt: asDate(row.created_at),
     updatedAt: asDate(row.updated_at),
   };

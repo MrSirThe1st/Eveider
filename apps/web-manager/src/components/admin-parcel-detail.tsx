@@ -38,6 +38,11 @@ type ParcelDetailData = {
   recipientPhone: string;
   business: { id: string; name: string };
   locker: { id: string; name: string; address: string } | null;
+  deliveryFeeFc: number | null;
+  deliveryFeeLabel: string | null;
+  deliveryDistanceKm: number | null;
+  pricingSizeUsed: string | null;
+  pricingSizeLabel: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -257,6 +262,25 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
               )}
             </dd>
           </div>
+          {parcel.deliveryFeeLabel ? (
+            <div>
+              <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
+                Frais de livraison
+              </dt>
+              <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
+                {parcel.deliveryFeeLabel}
+                {parcel.deliveryDistanceKm != null ? (
+                  <>
+                    <br />
+                    <span style={{ fontSize: '0.875rem', opacity: 0.85 }}>
+                      Distance estimée : {parcel.deliveryDistanceKm.toLocaleString('fr-CD')} km
+                      {parcel.pricingSizeLabel ? ` · Taille tarifée : ${parcel.pricingSizeLabel}` : ''}
+                    </span>
+                  </>
+                ) : null}
+              </dd>
+            </div>
+          ) : null}
           <div>
             <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>Créé le</dt>
             <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>{formatDateTime(parcel.createdAt)}</dd>

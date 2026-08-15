@@ -6,18 +6,22 @@ type ProfileMenuItemProps = {
   icon: keyof typeof Feather.glyphMap;
   label: string;
   subtitle?: string;
+  value?: string;
   onPress?: () => void;
   disabled?: boolean;
   destructive?: boolean;
+  showChevron?: boolean;
 };
 
 export function ProfileMenuItem({
   icon,
   label,
   subtitle,
+  value,
   onPress,
   disabled,
   destructive,
+  showChevron = true,
 }: ProfileMenuItemProps) {
   const content = (
     <View style={[styles.row, disabled && styles.disabled]}>
@@ -33,11 +37,11 @@ export function ProfileMenuItem({
         <Text style={[styles.label, destructive && styles.labelDestructive]}>{label}</Text>
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
       </View>
-      {!disabled ? (
+      {value ? <Text style={styles.value}>{value}</Text> : null}
+      {showChevron && !disabled && onPress ? (
         <Feather name="chevron-right" size={18} color={colors.border} />
-      ) : (
-        <Text style={styles.badge}>BIENTÔT</Text>
-      )}
+      ) : null}
+      {disabled ? <Text style={styles.badge}>BIENTÔT</Text> : null}
     </View>
   );
 
@@ -99,6 +103,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: colors.secondary,
     opacity: 0.7,
+  },
+  value: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.secondary,
+    opacity: 0.75,
+    marginRight: 2,
   },
   badge: {
     fontSize: 9,

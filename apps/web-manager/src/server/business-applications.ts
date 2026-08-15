@@ -7,6 +7,7 @@ export type BusinessApplicationItem = {
   id: string;
   name: string;
   status: BusinessStatus;
+  accessCode: string | null;
   riskClassification: string | null;
   businessType: string | null;
   contactEmail: string | null;
@@ -84,6 +85,7 @@ function toApplicationItem(row: ApplicationRow | SummaryRow): BusinessApplicatio
     id: row.id,
     name: row.name,
     status: row.status as BusinessStatus,
+    accessCode: row.accessCode ?? null,
     riskClassification: row.riskClassification,
     businessType: row.businessType,
     contactEmail: row.contactEmail,
@@ -127,9 +129,10 @@ function toApplicationItem(row: ApplicationRow | SummaryRow): BusinessApplicatio
 
 export async function listBusinessApplications(
   ctx: DataAccessContext,
+  options?: { search?: string },
 ): Promise<BusinessApplicationItem[]> {
   const { businessOnboarding } = createRepositories();
-  const rows = await businessOnboarding.listApplications(ctx);
+  const rows = await businessOnboarding.listApplications(ctx, options);
   return rows
     .map(toApplicationItem)
     .filter((application) => !canSubmitParcelsAsBusiness(application.status));
