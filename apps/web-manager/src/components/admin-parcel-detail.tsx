@@ -9,6 +9,7 @@ import {
   type DeliveryStatus,
   type ParcelStatus,
 } from '@eveider/domain';
+import { CardListSkeleton } from '@eveider/ui';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { FlashBanner } from '@/components/flash-banner';
@@ -174,7 +175,7 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
   }
 
   if (loading) {
-    return <p style={{ fontWeight: 500 }}>Chargement…</p>;
+    return <CardListSkeleton cards={2} />;
   }
 
   if (error || !parcel) {
@@ -191,7 +192,7 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
   const nextStatuses = getNextStatuses(parcel.status);
 
   return (
-    <div style={{ maxWidth: 720 }}>
+    <div style={{ width: '100%' }}>
       {successMessage ? <FlashBanner message={successMessage} /> : null}
       {actionError ? <FlashBanner message={actionError} variant="error" /> : null}
 

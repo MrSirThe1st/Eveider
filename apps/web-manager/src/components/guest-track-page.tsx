@@ -1,6 +1,7 @@
 'use client';
 
 import { colors, radius, spacing, borderSubtle, webCardStyle } from '@eveider/config-ui';
+import { Spinner } from '@eveider/ui';
 import type { CustomerParcelDto } from '@/lib/customer-parcel-presenter';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -384,7 +385,8 @@ export function GuestTrackPage() {
             className="nb-btn nb-btn-primary"
             style={{ width: '100%', opacity: loading ? 0.7 : 1 }}
           >
-            {loading ? 'RECHERCHE…' : 'SUIVRE MON COLIS'}
+            {loading ? <Spinner size="sm" color="currentColor" /> : null}
+            {loading ? 'Recherche…' : 'Suivre mon colis'}
           </button>
         </form>
 

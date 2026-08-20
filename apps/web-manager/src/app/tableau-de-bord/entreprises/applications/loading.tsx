@@ -1,5 +1,13 @@
-import { CardListSkeleton } from '@eveider/ui';
+import { CardListSkeleton, PageFrame } from '@eveider/ui';
 
-export default function BusinessApplicationsLoading() {
-  return <CardListSkeleton cards={4} />;
+export default function AdminApplicationsLoading() {
+  return (
+    <PageFrame
+      title="Dossiers"
+      description="Dossiers en cours de vérification, corrections et comptes non actifs."
+      layout="wide"
+    >
+      <CardListSkeleton />
+    </PageFrame>
+  );
 }

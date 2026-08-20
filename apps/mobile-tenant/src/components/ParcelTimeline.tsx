@@ -1,4 +1,4 @@
-import { colors, radius } from '@eveider/config-ui';
+import { nativeColors as colors, radius } from '@eveider/config-ui';
 import { PARCEL_STATUSES, PARCEL_STATUS_LABELS, type ParcelStatus } from '@eveider/domain';
 import { StyleSheet, Text, View } from 'react-native';
 

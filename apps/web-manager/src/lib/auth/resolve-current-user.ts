@@ -1,6 +1,7 @@
 import { createRepositories } from '@eveider/data-access';
 import type { User } from '@eveider/data-access';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 
 export type CurrentUser = {
@@ -13,12 +14,23 @@ export type CurrentUser = {
  * Uses getSession() only — middleware already refreshes tokens.
  */
 export async function resolveCurrentUser(): Promise<CurrentUser | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const cookieStore = await cookies();
+  const hasSession = cookieStore.getAll().some((cookie) => cookie.name.includes('-auth-token'));
+  if (!hasSession) {
+    return null;
+  }
 
-  const authUser = user;
+  const supabase = await createClient();
+  let authUser: SupabaseUser | null = null;
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    authUser = user;
+  } catch {
+    return null;
+  }
+
   if (!authUser) {
     return null;
   }

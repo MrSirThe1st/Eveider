@@ -19,14 +19,18 @@ export type OnboardingSummary = {
   residentialAddress: string | null;
   contactEmail: string | null;
   contactPhone: string | null;
+  accessCode: string | null;
   isPhoneVerified: boolean;
   locations: Array<{
     type: string;
     street: string | null;
     city: string | null;
+    country?: string | null;
     pickupMethod?: string | null;
     contactPerson?: string | null;
     contactPhone?: string | null;
+    availableDays?: string | null;
+    availableHours?: string | null;
     dropoffLockerId?: string | null;
   }>;
   documents: Array<{

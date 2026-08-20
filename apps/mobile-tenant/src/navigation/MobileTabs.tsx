@@ -1,5 +1,5 @@
 import type { UserRole } from '@eveider/domain';
-import { colors } from '@eveider/config-ui';
+import { nativeColors as colors } from '@eveider/config-ui';
 import { Feather } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import type { BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';

@@ -13,7 +13,7 @@ import {
   type CompartmentStatus,
   type LockerStatus,
 } from '@eveider/domain';
-import { LoadingSpinner } from '@eveider/ui';
+import { CardListSkeleton } from '@eveider/ui';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { CompartmentStatusBadge } from '@/components/compartment-status-badge';
@@ -177,7 +177,7 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
   }
 
   if (loading) {
-    return <LoadingSpinner label="Chargement du point…" />;
+    return <CardListSkeleton cards={3} />;
   }
 
   if (error || !locker) {
@@ -198,7 +198,7 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
   const smartLocker = usesCompartmentGrid(locker.type);
 
   return (
-    <div style={{ maxWidth: 1080 }}>
+    <div style={{ width: '100%' }}>
       {successMessage ? <FlashBanner message={successMessage} /> : null}
       {actionError ? <FlashBanner message={actionError} variant="error" /> : null}
 

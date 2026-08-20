@@ -1,4 +1,4 @@
-import { colors, radius, borders } from '@eveider/config-ui';
+import { nativeColors as colors, radius, borders } from '@eveider/config-ui';
 import { formatDistanceKm, KINSHASA_CENTER } from '@eveider/domain';
 import * as Location from 'expo-location';
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';

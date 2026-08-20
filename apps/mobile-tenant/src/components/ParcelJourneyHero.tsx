@@ -1,4 +1,4 @@
-import { colors, radius, borders, PARCEL_STATUS_FILLS } from '@eveider/config-ui';
+import { nativeColors as colors, radius, borders, PARCEL_STATUS_FILLS } from '@eveider/config-ui';
 import { Feather } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { CustomerParcel } from '../lib/api';

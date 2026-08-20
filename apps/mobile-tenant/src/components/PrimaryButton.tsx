@@ -1,4 +1,4 @@
-import { colors, radius, spacing, borders, nativeShadow } from '@eveider/config-ui';
+import { nativeColors as colors, radius, spacing, borders, nativeShadow } from '@eveider/config-ui';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 type PrimaryButtonProps = {

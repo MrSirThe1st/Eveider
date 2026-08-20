@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius, spacing, typography, borderSubtle, shadows } from '@eveider/config-ui';
+import { colors, spacing, typography } from '@eveider/config-ui';
 import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { DropdownMenu, type DropdownMenuItem } from './dropdown-menu.js';
 import { EmptyState } from './empty-state.js';
@@ -126,25 +126,10 @@ export function DataTable<T>({
         </p>
       ) : null}
 
-      <div
-        className="nb-data-table__scroll"
-        style={{
-          overflowX: 'auto',
-          border: borderSubtle(),
-          borderRadius: radius.card,
-          background: colors.surface,
-          boxShadow: shadows.soft,
-        }}
-      >
-        <table
-          style={{
-            width: '100%',
-            borderCollapse: 'collapse',
-            minWidth: 640,
-          }}
-        >
+      <div className="nb-data-table__scroll">
+        <table>
           <thead>
-            <tr style={{ background: colors.surfaceMuted }}>
+            <tr>
               {columns.map((column) => {
                 const active = sortId === column.id;
                 const align = column.align ?? 'left';
@@ -153,47 +138,27 @@ export function DataTable<T>({
                     key={column.id}
                     scope="col"
                     className={column.hideOnMobile ? 'nb-data-table__hide-mobile' : undefined}
-                    style={{
-                      padding: `${spacing[3]}px ${spacing[4]}px`,
-                      textAlign: align,
-                      fontSize: typography.caption.fontSize,
-                      fontWeight: typography.weights.semibold,
-                      color: colors.textMuted,
-                      borderBottom: borderSubtle(),
-                      whiteSpace: 'nowrap',
-                      width: column.width,
-                    }}
+                    style={{ textAlign: align, width: column.width }}
                   >
                     {column.sortable ? (
                       <button
                         type="button"
                         className="nb-data-table__sort"
                         onClick={() => toggleSort(column)}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: spacing[1],
-                          margin: 0,
-                          padding: `${spacing[1]}px ${spacing[1]}px`,
-                          border: 'none',
-                          background: 'transparent',
-                          color: active ? colors.secondary : colors.textMuted,
-                          font: 'inherit',
-                          fontWeight: typography.weights.semibold,
-                          cursor: 'pointer',
-                        }}
                         aria-sort={
                           active ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'
                         }
                       >
                         {column.header}
-                        <span aria-hidden style={{ display: 'inline-flex', opacity: active ? 1 : 0.35 }}>
-                          {active && sortDirection === 'desc' ? (
-                            <IconChevronDown width={14} height={14} />
-                          ) : (
-                            <IconChevronUp width={14} height={14} />
-                          )}
-                        </span>
+                        {active ? (
+                          <span aria-hidden className="nb-data-table__sort-icon">
+                            {sortDirection === 'desc' ? (
+                              <IconChevronDown width={12} height={12} />
+                            ) : (
+                              <IconChevronUp width={12} height={12} />
+                            )}
+                          </span>
+                        ) : null}
                       </button>
                     ) : (
                       column.header
@@ -202,18 +167,7 @@ export function DataTable<T>({
                 );
               })}
               {showActions ? (
-                <th
-                  scope="col"
-                  style={{
-                    padding: `${spacing[3]}px ${spacing[4]}px`,
-                    textAlign: 'right',
-                    fontSize: typography.caption.fontSize,
-                    fontWeight: typography.weights.semibold,
-                    color: colors.textMuted,
-                    borderBottom: borderSubtle(),
-                    width: 56,
-                  }}
-                >
+                <th scope="col" className="nb-data-table__actions">
                   <span className="sr-only">Actions</span>
                 </th>
               ) : null}
@@ -228,28 +182,13 @@ export function DataTable<T>({
                     <td
                       key={column.id}
                       className={column.hideOnMobile ? 'nb-data-table__hide-mobile' : undefined}
-                      style={{
-                        padding: `${spacing[4]}px ${spacing[4]}px`,
-                        textAlign: column.align ?? 'left',
-                        borderBottom: borderSubtle(),
-                        fontSize: typography.bodySm.fontSize,
-                        fontWeight: typography.bodySm.fontWeight,
-                        color: colors.secondary,
-                        verticalAlign: 'middle',
-                      }}
+                      style={{ textAlign: column.align ?? 'left' }}
                     >
                       {column.cell(row)}
                     </td>
                   ))}
                   {showActions ? (
-                    <td
-                      style={{
-                        padding: `${spacing[3]}px ${spacing[4]}px`,
-                        textAlign: 'right',
-                        borderBottom: borderSubtle(),
-                        verticalAlign: 'middle',
-                      }}
-                    >
+                    <td className="nb-data-table__actions">
                       {actions.length > 0 ? (
                         <DropdownMenu label="Actions de la ligne" items={actions} align="end" />
                       ) : null}

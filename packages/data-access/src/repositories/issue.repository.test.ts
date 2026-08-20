@@ -133,4 +133,65 @@ describe('IssueRepository', () => {
       'Admin role required',
     );
   });
+
+  it('creates issue for business on owned parcel', async () => {
+    const ctx = createDataAccessContext('business', {
+      userId: 'user-biz',
+      businessId: 'biz-1',
+    });
+
+    setup((sql) => {
+      if (sqlIncludes(sql, 'FROM parcels') && sqlIncludes(sql, 'business_id')) {
+        return { business_id: 'biz-1', locker_id: 'locker-1' };
+      }
+      if (sqlIncludes(sql, 'FROM lockers')) {
+        return { id: 'locker-1' };
+      }
+      if (sqlIncludes(sql, 'INSERT INTO issues')) {
+        return { id: 'issue-biz' };
+      }
+      if (sqlIncludes(sql, 'FROM issues i')) {
+        return {
+          ...issueWithRelations({
+            id: 'issue-biz',
+            reporter_id: 'user-biz',
+            type: 'parcel_problem',
+          }),
+          reporter_relation_id: 'user-biz',
+          reporter_role: 'business',
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const issue = await repo.create(ctx, {
+      type: 'parcel_problem',
+      parcelId: 'parcel-1',
+      description: 'Destinataire injoignable',
+    });
+
+    expect(issue.id).toBe('issue-biz');
+  });
+
+  it('rejects business issue on another company parcel', async () => {
+    const ctx = createDataAccessContext('business', {
+      userId: 'user-biz',
+      businessId: 'biz-1',
+    });
+
+    setup((sql) => {
+      if (sqlIncludes(sql, 'FROM parcels') && sqlIncludes(sql, 'business_id')) {
+        return { business_id: 'biz-other', locker_id: null };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    await expect(
+      repo.create(ctx, {
+        type: 'parcel_problem',
+        parcelId: 'parcel-1',
+        description: 'Colis perdu',
+      }),
+    ).rejects.toThrow('Business scope violation');
+  });
 });

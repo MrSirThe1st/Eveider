@@ -62,3 +62,9 @@ export function assertCourierRole(ctx: DataAccessContext): void {
     throw new AccessDeniedError('Courier role required');
   }
 }
+
+export function assertBusinessRole(ctx: DataAccessContext): void {
+  if (ctx.role !== 'business' || !ctx.userId || !ctx.businessId) {
+    throw new AccessDeniedError('Business role required');
+  }
+}

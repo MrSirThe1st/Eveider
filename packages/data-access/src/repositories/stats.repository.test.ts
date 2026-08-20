@@ -21,33 +21,19 @@ describe('StatsRepository', () => {
     vi.clearAllMocks();
   });
 
-  it('returns dashboard stats for admin', async () => {
+  it('returns dashboard stats for admin in a single aggregate query', async () => {
     setup((sql) => {
-      if (sqlIncludes(sql, 'FROM parcels') && sqlIncludes(sql, 'created_at >=')) {
-        return { count: 5 };
-      }
-      if (
-        sqlIncludes(sql, 'FROM deliveries') &&
-        sqlIncludes(sql, 'status = ANY') &&
-        !sqlIncludes(sql, 'completed')
-      ) {
-        return { count: 3 };
-      }
-      if (sqlIncludes(sql, 'FROM deliveries') && sqlIncludes(sql, "status = 'completed'")) {
-        return { count: 1 };
-      }
-      if (sqlIncludes(sql, 'FROM parcels') && sqlIncludes(sql, "status = 'ready_for_pickup'")) {
-        return { count: 2 };
-      }
-      if (sqlIncludes(sql, 'FROM issues')) {
-        return { count: 4 };
-      }
-      if (sqlIncludes(sql, 'FROM compartments') && sqlIncludes(sql, 'GROUP BY status')) {
-        return [
-          { status: 'occupied', count: 8 },
-          { status: 'available', count: 12 },
-          { status: 'reserved', count: 2 },
-        ];
+      if (sqlIncludes(sql, 'AS parcels_today') && sqlIncludes(sql, 'FROM compartments')) {
+        return {
+          parcels_today: 5,
+          active_deliveries: 3,
+          completed_today: 1,
+          ready_for_pickup: 2,
+          open_issues: 4,
+          occupied: 8,
+          available: 12,
+          total: 22,
+        };
       }
       throw new Error(`Unexpected SQL: ${sql}`);
     });
@@ -55,6 +41,7 @@ describe('StatsRepository', () => {
     const ctx = createDataAccessContext('admin', { userId: 'admin-1' });
     const stats = await repo.getDashboard(ctx);
 
+    expect(db.query).toHaveBeenCalledTimes(1);
     expect(stats.parcelsToday).toBe(5);
     expect(stats.activeDeliveries).toBe(3);
     expect(stats.completedToday).toBe(1);
@@ -69,46 +56,30 @@ describe('StatsRepository', () => {
     await expect(repo.getDashboard(ctx)).rejects.toThrow('Admin role required');
   });
 
-  it('returns analytics report for admin', async () => {
+  it('returns analytics report for admin without loading raw event rows', async () => {
     setup((sql) => {
-      if (sqlIncludes(sql, 'FROM parcels') && sqlIncludes(sql, "status = 'collected'")) {
-        return { count: 8 };
+      if (sqlIncludes(sql, 'AS collected') && sqlIncludes(sql, 'AS awaiting')) {
+        return {
+          collected: 8,
+          awaiting: 2,
+          occupied: 5,
+          total: 10,
+        };
       }
-      if (sqlIncludes(sql, 'FROM parcels') && sqlIncludes(sql, "status = 'ready_for_pickup'")) {
-        return { count: 2 };
-      }
-      if (sqlIncludes(sql, 'FROM compartments') && sqlIncludes(sql, 'GROUP BY status')) {
-        return [
-          { status: 'occupied', count: 5 },
-          { status: 'available', count: 5 },
-        ];
-      }
-      if (sqlIncludes(sql, 'FROM deliveries') && sqlIncludes(sql, 'completed_at')) {
-        return [{ completed_at: new Date() }, { completed_at: new Date() }];
-      }
-      if (sqlIncludes(sql, 'FROM parcels') && sqlIncludes(sql, 'created_at >=') && !sqlIncludes(sql, 'GROUP BY')) {
-        return [{ created_at: new Date() }, { created_at: new Date() }, { created_at: new Date() }];
-      }
-      if (sqlIncludes(sql, 'FROM parcels') && sqlIncludes(sql, 'GROUP BY status')) {
-        return [
-          { status: 'created', count: 2 },
-          { status: 'ready_for_pickup', count: 1 },
-        ];
-      }
-      if (sqlIncludes(sql, 'FROM issues') && sqlIncludes(sql, 'GROUP BY type')) {
-        return [{ type: 'failed_delivery', count: 1 }];
-      }
-      if (sqlIncludes(sql, 'GROUP BY locker_id')) {
-        return [{ locker_id: 'locker-1', count: 4 }];
-      }
-      if (sqlIncludes(sql, 'GROUP BY business_id')) {
-        return [{ business_id: 'biz-1', count: 10 }];
-      }
-      if (sqlIncludes(sql, 'FROM lockers')) {
-        return [{ id: 'locker-1', name: 'GOMBE' }];
-      }
-      if (sqlIncludes(sql, 'FROM businesses')) {
-        return [{ id: 'biz-1', name: 'Shop' }];
+      if (sqlIncludes(sql, 'AS daily_deliveries') && sqlIncludes(sql, 'AS top_businesses')) {
+        const today = new Date();
+        const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        return {
+          daily_deliveries: [{ date, count: 2 }],
+          daily_parcels: [{ date, count: 3 }],
+          parcels_by_status: [
+            { status: 'created', count: 2 },
+            { status: 'ready_for_pickup', count: 1 },
+          ],
+          open_issues_by_type: [{ type: 'failed_delivery', count: 1 }],
+          top_lockers: [{ lockerId: 'locker-1', lockerName: 'GOMBE', parcelCount: 4 }],
+          top_businesses: [{ businessId: 'biz-1', businessName: 'Shop', parcelCount: 10 }],
+        };
       }
       throw new Error(`Unexpected SQL: ${sql}`);
     });
@@ -116,6 +87,7 @@ describe('StatsRepository', () => {
     const ctx = createDataAccessContext('admin', { userId: 'admin-1' });
     const analytics = await repo.getAnalytics(ctx, 7);
 
+    expect(db.query).toHaveBeenCalledTimes(2);
     expect(analytics.pickupSuccessRate).toBe(80);
     expect(analytics.lockerUsageRate).toBe(50);
     expect(analytics.topLockers[0]?.lockerName).toBe('GOMBE');
@@ -131,5 +103,62 @@ describe('StatsRepository', () => {
     expect(analytics.openIssuesByType).toEqual(
       expect.arrayContaining([{ type: 'failed_delivery', count: 1 }]),
     );
+  });
+
+  it('returns public network stats without an admin context', async () => {
+    setup((sql) => {
+      if (sqlIncludes(sql, 'AS kolwezi_lockers') && sqlIncludes(sql, 'AS parcels_handled')) {
+        return { kolwezi_lockers: 2, lualaba_lockers: 3, parcels_handled: 41 };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const stats = await repo.getPublicNetworkStats();
+
+    expect(db.query).toHaveBeenCalledTimes(1);
+    expect(stats).toEqual({
+      kolweziLockers: 2,
+      lualabaLockers: 3,
+      parcelsHandled: 41,
+    });
+  });
+
+  it('returns business analytics scoped to the company', async () => {
+    setup((sql) => {
+      if (sqlIncludes(sql, 'AS volume_this_month') && sqlIncludes(sql, 'AS top_lockers')) {
+        const today = new Date();
+        const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        return {
+          total: 40,
+          delivered: 28,
+          in_transit: 4,
+          awaiting_pickup: 6,
+          failed: 2,
+          avg_seconds: 36000,
+          volume_this_month: 12,
+          volume_last_month: 10,
+          daily_parcels: [{ date, count: 3 }],
+          top_lockers: [{ lockerId: 'locker-1', lockerName: 'GOMBE', parcelCount: 9 }],
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const ctx = createDataAccessContext('business', { userId: 'u1', businessId: 'biz-1' });
+    const analytics = await repo.getBusinessAnalytics(ctx, 'biz-1');
+
+    expect(analytics.total).toBe(40);
+    expect(analytics.delivered).toBe(28);
+    expect(analytics.pickupRate).toBe(82);
+    expect(analytics.volumeChangePct).toBe(20);
+    expect(analytics.returnRate).toBeNull();
+    expect(analytics.dailyVolume).toHaveLength(30);
+    expect(analytics.topLockers[0]?.lockerName).toBe('GOMBE');
+  });
+
+  it('denies business analytics outside company scope', async () => {
+    setup(() => null);
+    const ctx = createDataAccessContext('business', { userId: 'u1', businessId: 'biz-1' });
+    await expect(repo.getBusinessAnalytics(ctx, 'biz-other')).rejects.toThrow('Business scope violation');
   });
 });

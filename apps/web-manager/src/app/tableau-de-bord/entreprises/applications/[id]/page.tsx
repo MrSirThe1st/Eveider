@@ -31,9 +31,10 @@ export default async function AdminApplicationReviewPage({
     <PageFrame
       title={`Revue KYC — ${business.name}`}
       description={`Mode revue · Statut : ${statusLabel}`}
+      layout="standard"
       breadcrumbs={[
         {
-          label: 'Dossiers business',
+          label: 'Dossiers',
           href: '/tableau-de-bord/entreprises/applications',
         },
         { label: business.name },

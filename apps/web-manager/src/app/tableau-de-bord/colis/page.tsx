@@ -5,7 +5,8 @@ export default function AdminParcelsPage() {
   return (
     <PageFrame
       title="Colis"
-      description="Tous les colis du réseau Eveider."
+      description="Suivi des colis du réseau Eveider."
+      layout="wide"
     >
       <AdminParcelList />
     </PageFrame>

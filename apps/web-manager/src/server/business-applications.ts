@@ -163,10 +163,11 @@ export async function getNextBusinessApplicationId(
   ctx: DataAccessContext,
   currentBusinessId: string,
 ): Promise<string | null> {
-  const applications = await listBusinessApplications(ctx);
-  const index = applications.findIndex((app) => app.id === currentBusinessId);
+  const { businessOnboarding } = createRepositories();
+  const ids = await businessOnboarding.listApplicationIds(ctx);
+  const index = ids.findIndex((id) => id === currentBusinessId);
   if (index < 0) {
-    return applications[0]?.id ?? null;
+    return ids[0] ?? null;
   }
-  return applications[index + 1]?.id ?? applications[0]?.id ?? null;
+  return ids[index + 1] ?? ids[0] ?? null;
 }

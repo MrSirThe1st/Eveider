@@ -1,7 +1,16 @@
 'use client';
 
-import { AppShell, IconHome, IconPackage, type NavModule } from '@eveider/ui';
+import {
+  AppShell,
+  IconAlert,
+  IconHome,
+  IconLayout,
+  IconPackage,
+  IconReceipt,
+  type NavModule,
+} from '@eveider/ui';
 import { useRouter } from 'next/navigation';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { createClient } from '@/lib/supabase/client';
 import { WEB_ROUTES } from '@/lib/auth-routing';
 
@@ -11,11 +20,10 @@ type BusinessDashboardShellProps = {
 
 const NAV_ICON_PROPS = { width: 16, height: 16 } as const;
 
-/** Top-bar modules only — no left sidebar under Accueil / Colis. */
 const BUSINESS_MODULES: NavModule[] = [
   {
-    id: 'accueil',
-    label: 'Accueil',
+    id: 'dashboard',
+    label: 'Tableau de bord',
     href: WEB_ROUTES.businessDashboard,
     icon: <IconHome {...NAV_ICON_PROPS} />,
     match: (p) => p === WEB_ROUTES.businessDashboard,
@@ -26,6 +34,27 @@ const BUSINESS_MODULES: NavModule[] = [
     href: WEB_ROUTES.businessParcels,
     icon: <IconPackage {...NAV_ICON_PROPS} />,
     match: (p) => p.startsWith(WEB_ROUTES.businessParcels),
+  },
+  {
+    id: 'incidents',
+    label: 'Incidents',
+    href: WEB_ROUTES.businessIssues,
+    icon: <IconAlert {...NAV_ICON_PROPS} />,
+    match: (p) => p.startsWith(WEB_ROUTES.businessIssues),
+  },
+  {
+    id: 'facturation',
+    label: 'Facturation',
+    href: WEB_ROUTES.businessBilling,
+    icon: <IconReceipt {...NAV_ICON_PROPS} />,
+    match: (p) => p.startsWith(WEB_ROUTES.businessBilling),
+  },
+  {
+    id: 'parametres',
+    label: 'Paramètres',
+    href: WEB_ROUTES.businessSettings,
+    icon: <IconLayout {...NAV_ICON_PROPS} />,
+    match: (p) => p.startsWith(WEB_ROUTES.businessSettings) || p.startsWith('/entreprise/tableau-de-bord/profil'),
   },
 ];
 
@@ -40,12 +69,13 @@ export function BusinessDashboardShell({ children }: BusinessDashboardShellProps
 
   return (
     <AppShell
-      brand="Entreprises"
-      brandShort="Entreprises"
-      maxWidth={1080}
+      brand="Eveider"
+      brandShort="Eveider"
       onSignOut={handleSignOut}
       modules={BUSINESS_MODULES}
-      profileHref="/entreprise/tableau-de-bord/profil"
+      profileHref={WEB_ROUTES.businessSettings}
+      profileLabel="Paramètres"
+      toolbar={<ThemeToggle variant="menu" />}
     >
       {children}
     </AppShell>

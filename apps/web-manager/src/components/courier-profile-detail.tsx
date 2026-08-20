@@ -1,6 +1,7 @@
 'use client';
 
 import { colors, radius, spacing, borderSubtle, webCardStyle } from '@eveider/config-ui';
+import { CardListSkeleton } from '@eveider/ui';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { FlashBanner } from '@/components/flash-banner';
@@ -171,7 +172,7 @@ export function CourierProfileDetail({ courierId }: CourierDetailProps) {
   }
 
   if (loading) {
-    return <p style={{ fontWeight: 500 }}>Chargement du profil coursier…</p>;
+    return <CardListSkeleton cards={2} />;
   }
 
   if (error || !profile) {
@@ -286,6 +287,7 @@ export function CourierProfileDetail({ courierId }: CourierDetailProps) {
 
       {/* Assigned deliveries history */}
       <section
+        className="nb-data-table"
         style={{
           ...webCardStyle,
           overflow: 'hidden',
@@ -302,45 +304,47 @@ export function CourierProfileDetail({ courierId }: CourierDetailProps) {
             Aucune livraison enregistrée pour ce coursier.
           </p>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+          <table>
             <thead>
-              <tr style={{ borderBottom: borderSubtle() }}>
-                <th style={{ padding: '1rem', fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.08em' }}>COLIS</th>
-                <th style={{ padding: '1rem', fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.08em' }}>ENTREPRISE</th>
-                <th style={{ padding: '1rem', fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.08em' }}>CASIER</th>
-                <th style={{ padding: '1rem', fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.08em' }}>ASSIGNÉ LE</th>
-                <th style={{ padding: '1rem', fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.08em' }}>STATUT</th>
+              <tr>
+                <th>Colis</th>
+                <th>Entreprise</th>
+                <th>Casier</th>
+                <th>Assigné le</th>
+                <th>Statut</th>
               </tr>
             </thead>
             <tbody>
               {deliveries.map((delivery) => (
-                <tr key={delivery.id} style={{ borderBottom: borderSubtle() }}>
-                  <td style={{ padding: '1rem', fontWeight: 700 }}>
+                <tr key={delivery.id} className="nb-data-table__row">
+                  <td>
                     <Link
                       href={`/tableau-de-bord/colis/${delivery.parcel.id}`}
-                      style={{ color: colors.secondary, textDecoration: 'none' }}
+                      className="nb-data-table__link"
                     >
                       {delivery.parcel.trackingNumber ?? delivery.parcel.reference}
                     </Link>
                   </td>
-                  <td style={{ padding: '1rem', fontWeight: 500, color: '#555555' }}>
+                  <td style={{ color: 'var(--color-text-muted)' }}>
                     {delivery.parcel.businessName}
                   </td>
-                  <td style={{ padding: '1rem', fontWeight: 500, color: '#555555' }}>
+                  <td>
                     {delivery.parcel.locker ? (
                       <>
-                        <span style={{ fontWeight: 600, color: colors.secondary }}>{delivery.parcel.locker.name}</span>
+                        {delivery.parcel.locker.name}
                         <br />
-                        <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>{delivery.parcel.locker.address}</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                          {delivery.parcel.locker.address}
+                        </span>
                       </>
                     ) : (
                       '—'
                     )}
                   </td>
-                  <td style={{ padding: '1rem', fontWeight: 500, color: '#555555' }}>
+                  <td style={{ color: 'var(--color-text-muted)' }}>
                     {formatDateTime(delivery.createdAt)}
                   </td>
-                  <td style={{ padding: '1rem' }}>
+                  <td>
                     <span
                       style={{
                         display: 'inline-block',
@@ -349,7 +353,7 @@ export function CourierProfileDetail({ courierId }: CourierDetailProps) {
                         letterSpacing: '0.05em',
                         padding: '3px 8px',
                         borderRadius: '4px',
-                        backgroundColor: `${DELIVERY_STATUS_COLORS[delivery.status]}1A`, // opacity 10%
+                        backgroundColor: `${DELIVERY_STATUS_COLORS[delivery.status]}1A`,
                         color: DELIVERY_STATUS_COLORS[delivery.status],
                       }}
                     >

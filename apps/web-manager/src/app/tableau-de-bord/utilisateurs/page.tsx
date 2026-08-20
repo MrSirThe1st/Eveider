@@ -1,7 +1,7 @@
 'use client';
 
-import { colors, radius, borderSubtle, webCardStyle, webInputStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
-import { ConfirmDialog, LoadingSpinner, PageFrame, useToast } from '@eveider/ui';
+import { colors, radius, webInputStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
+import { ConfirmDialog, LoadingSpinner, PageFrame, TableSkeleton, useToast } from '@eveider/ui';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { FlashBanner } from '@/components/flash-banner';
@@ -84,8 +84,9 @@ export default function UsersPage() {
 
   return (
     <PageFrame
-      title="Gestion des utilisateurs"
+      title="Utilisateurs"
       description="Consultez et gérez les comptes des clients et des coursiers."
+      layout="wide"
     >
       {success ? <FlashBanner message={success} onDismiss={() => setSuccess(null)} /> : null}
       {actionError ? (
@@ -169,20 +170,17 @@ export default function UsersPage() {
         />
       </div>
 
-      <div
-        style={{
-          ...webCardStyle,
-          overflow: 'hidden',
-        }}
-      >
+      <div className="nb-data-table">
         {isFetching && users.length > 0 ? (
-          <p style={{ padding: '1rem 2rem 0', fontSize: '0.75rem', fontWeight: 500, opacity: 0.7 }}>
-            Mise à jour…
-          </p>
+          <div style={{ padding: '1rem 2rem 0' }}>
+            <LoadingSpinner compact size="sm" label="Mise à jour…" />
+          </div>
         ) : null}
 
         {showInitialLoader ? (
-          <LoadingSpinner label="Chargement des utilisateurs…" minHeight="16rem" />
+          <div style={{ padding: '1rem' }}>
+            <TableSkeleton />
+          </div>
         ) : isError && users.length === 0 ? (
           <div style={{ padding: '2rem', textAlign: 'center' }}>
             <p style={{ fontWeight: 500, marginBottom: '1rem' }}>{errorMessage}</p>
@@ -199,50 +197,31 @@ export default function UsersPage() {
             Aucun utilisateur trouvé.
           </p>
         ) : (
-          <table
-            style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              textAlign: 'left',
-              fontSize: '0.875rem',
-            }}
-          >
+          <table>
             <thead>
-              <tr style={{ borderBottom: borderSubtle(), background: colors.background }}>
-                <th style={{ padding: '1rem', fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.08em' }}>
-                  NOM
-                </th>
-                <th style={{ padding: '1rem', fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.08em' }}>
-                  EMAIL
-                </th>
-                <th style={{ padding: '1rem', fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.08em' }}>
-                  TÉLÉPHONE
-                </th>
-                <th style={{ padding: '1rem', fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.08em' }}>
-                  INSCRIT LE
-                </th>
-                <th style={{ padding: '1rem', fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.08em' }}>
-                  STATUT
-                </th>
-                <th style={{ padding: '1rem', fontWeight: 700, fontSize: '0.6875rem', letterSpacing: '0.08em', textAlign: 'right' }}>
-                  ACTIONS
-                </th>
+              <tr>
+                <th>Nom</th>
+                <th>Email</th>
+                <th>Téléphone</th>
+                <th>Inscrit le</th>
+                <th>Statut</th>
+                <th className="nb-data-table__actions">Actions</th>
               </tr>
             </thead>
             <tbody>
               {users.map((user) => (
                 <tr
                   key={user.id}
+                  className="nb-data-table__row"
                   style={{
-                    borderBottom: borderSubtle(),
-                    backgroundColor: user.isBlocked ? 'rgba(229, 57, 53, 0.02)' : 'transparent',
+                    backgroundColor: user.isBlocked ? 'rgba(229, 57, 53, 0.02)' : undefined,
                   }}
                 >
-                  <td style={{ padding: '1rem', fontWeight: 600 }}>
+                  <td>
                     {role === 'courier' ? (
                       <Link
                         href={`/tableau-de-bord/utilisateurs/${user.id}`}
-                        style={{ color: colors.secondary, textDecoration: 'none', fontWeight: 700 }}
+                        className="nb-data-table__link"
                       >
                         {user.fullName?.toUpperCase() ?? '—'}
                       </Link>
@@ -250,16 +229,16 @@ export default function UsersPage() {
                       user.fullName?.toUpperCase() ?? '—'
                     )}
                   </td>
-                  <td style={{ padding: '1rem', fontWeight: 500, color: '#555555' }}>
+                  <td style={{ color: 'var(--color-text-muted)' }}>
                     {user.email ?? '—'}
                   </td>
-                  <td style={{ padding: '1rem', fontWeight: 500, color: '#555555' }}>
+                  <td style={{ color: 'var(--color-text-muted)' }}>
                     {user.phone ?? '—'}
                   </td>
-                  <td style={{ padding: '1rem', fontWeight: 500, color: '#555555' }}>
+                  <td style={{ color: 'var(--color-text-muted)' }}>
                     {formatDate(user.createdAt)}
                   </td>
-                  <td style={{ padding: '1rem' }}>
+                  <td>
                     <span
                       style={{
                         display: 'inline-block',
@@ -277,7 +256,7 @@ export default function UsersPage() {
                       {user.isBlocked ? 'BLOQUÉ' : 'ACTIF'}
                     </span>
                   </td>
-                  <td style={{ padding: '1rem', textAlign: 'right' }}>
+                  <td className="nb-data-table__actions">
                     <div style={{ display: 'inline-flex', gap: '0.5rem', alignItems: 'center' }}>
                       {role === 'courier' ? (
                         <Link

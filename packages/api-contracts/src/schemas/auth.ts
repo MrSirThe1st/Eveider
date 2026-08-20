@@ -30,6 +30,39 @@ export const verifyPhoneOtpSchema = z.object({
   token: z.string().length(6, 'Le code doit contenir 6 chiffres'),
 });
 
+export const registerMobileAccountSchema = z
+  .object({
+    role: z.enum(['customer', 'courier']),
+    email: emailSchema,
+    password: passwordSchema,
+    phone: z.string().optional(),
+    fullName: z.string().min(2, 'Nom requis').optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.role === 'customer') {
+      const parsed = phoneSchema.safeParse(data.phone);
+      if (!parsed.success) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['phone'],
+          message: parsed.error.errors[0]?.message ?? 'Téléphone requis',
+        });
+      }
+      return;
+    }
+
+    if (data.phone?.trim()) {
+      const parsed = phoneSchema.safeParse(data.phone);
+      if (!parsed.success) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['phone'],
+          message: parsed.error.errors[0]?.message ?? 'Téléphone invalide',
+        });
+      }
+    }
+  });
+
 export const onboardUserSchema = z.object({
   role: userRoleSchema,
   fullName: z.string().min(2).optional(),
@@ -50,3 +83,4 @@ export type SignUpInput = z.infer<typeof signUpSchema>;
 export type RequestPhoneOtpInput = z.infer<typeof requestPhoneOtpSchema>;
 export type VerifyPhoneOtpInput = z.infer<typeof verifyPhoneOtpSchema>;
 export type OnboardUserInput = z.infer<typeof onboardUserSchema>;
+export type RegisterMobileAccountInput = z.infer<typeof registerMobileAccountSchema>;

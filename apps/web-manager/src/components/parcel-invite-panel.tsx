@@ -1,6 +1,7 @@
 'use client';
 
 import { colors, radius, webCardStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
+import { CardListSkeleton } from '@eveider/ui';
 import { useEffect, useState } from 'react';
 
 type InviteInfo = {
@@ -94,7 +95,7 @@ export function ParcelInvitePanel({ parcelId, initialInvite }: ParcelInvitePanel
           padding: '1.5rem',
         }}
       >
-        <p style={{ margin: 0, fontWeight: 500 }}>Chargement de l&apos;invitation…</p>
+        <CardListSkeleton cards={1} />
       </section>
     );
   }

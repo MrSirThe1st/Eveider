@@ -1,5 +1,6 @@
 import { PageFrame } from '@eveider/ui';
 import { AdminBusinessApplications } from '@/components/admin-business-applications';
+import { AdminEntreprisesTabs } from '@/components/admin-module-tabs';
 import { listBusinessApplications } from '@/server/business-applications';
 import { getAdminSession } from '@/server/session';
 
@@ -9,9 +10,11 @@ export default async function BusinessApplicationsPage() {
 
   return (
     <PageFrame
-      title="Dossiers d'inscription Business"
-      description="Dossiers en cours de vérification, corrections et comptes non actifs — hors entreprises déjà activées."
+      title="Dossiers"
+      description="Dossiers en cours de vérification, corrections et comptes non actifs."
+      layout="wide"
     >
+      <AdminEntreprisesTabs />
       <AdminBusinessApplications applications={applications} />
     </PageFrame>
   );

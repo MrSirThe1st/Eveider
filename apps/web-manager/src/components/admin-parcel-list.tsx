@@ -7,6 +7,7 @@ import {
   type DataTableColumn,
   Drawer,
   ErrorState,
+  LoadingSpinner,
   TableSkeleton,
   useToast,
 } from '@eveider/ui';
@@ -70,9 +71,10 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
     [parcels, searchQuery],
   );
 
-  const showInitialLoader = isLoading && parcels.length === 0;
-  const showFatalError = isError && parcels.length === 0;
-  const showRefreshError = isError && parcels.length > 0;
+  const showInitialLoader = isLoading && parcels.length === 0 && !isFetching;
+  const showFilterLoader = isFetching || (isLoading && parcels.length > 0);
+  const showFatalError = isError && parcels.length === 0 && !showFilterLoader;
+  const showRefreshError = isError && parcels.length > 0 && !showFilterLoader;
   const errorMessage =
     error instanceof Error ? error.message : 'Impossible de charger les colis.';
 
@@ -210,21 +212,20 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
         />
       </div>
 
-      {isFetching && parcels.length > 0 ? (
-        <p
+      {showFilterLoader ? (
+        <div
           style={{
-            margin: `0 0 ${spacing[3]}px`,
-            fontSize: typography.caption.fontSize,
-            fontWeight: typography.caption.fontWeight,
-            lineHeight: typography.caption.lineHeight,
-            color: colors.textMuted,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: `${spacing[10]}px 0`,
           }}
         >
-          Mise à jour…
-        </p>
+          <LoadingSpinner compact size="md" label="Chargement des colis…" />
+        </div>
       ) : null}
 
-      {showInitialLoader ? <TableSkeleton rows={5} /> : null}
+      {showInitialLoader ? <TableSkeleton /> : null}
 
       {showFatalError ? (
         <ErrorState
@@ -238,20 +239,12 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
         />
       ) : null}
 
-      {!showInitialLoader && !showFatalError ? (
+      {!showInitialLoader && !showFatalError && !showFilterLoader ? (
         <DataTable
           columns={columns}
           rows={filteredParcels}
           getRowId={(row) => row.id}
           caption={
-            parcels.length > 0
-              ? debouncedSearch.trim()
-                ? `${parcels.length} colis`
-                : `${parcels.length} colis`
-              : undefined
-          }
-          emptyTitle={
-            debouncedSearch.trim()
             filteredParcels.length > 0
               ? searchQuery.trim()
                 ? `${filteredParcels.length} colis sur ${parcels.length}`
@@ -266,7 +259,6 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
                 : 'Aucun colis pour ce filtre'
           }
           emptyDescription={
-            debouncedSearch.trim()
             searchQuery.trim()
               ? 'Essayez une autre référence ou un autre numéro de suivi.'
               : "Les nouveaux envois apparaîtront ici dès qu'ils seront créés."

@@ -1,4 +1,4 @@
-import { colors, borders } from '@eveider/config-ui';
+import { nativeColors as colors, borders } from '@eveider/config-ui';
 import { getFocusedRouteNameFromRoute, useNavigation, useRoute } from '@react-navigation/native';
 import { useEffect } from 'react';
 

@@ -1,5 +1,5 @@
 import type { UserRole } from '@eveider/domain';
-import { colors, radius, borders } from '@eveider/config-ui';
+import { nativeColors as colors, radius, borders } from '@eveider/config-ui';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,

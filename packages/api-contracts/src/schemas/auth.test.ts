@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { onboardUserSchema, signInSchema, verifyPhoneOtpSchema } from './auth.js';
+import {
+  onboardUserSchema,
+  registerMobileAccountSchema,
+  signInSchema,
+  verifyPhoneOtpSchema,
+} from './auth.js';
 
 describe('auth schemas', () => {
   it('validates email and password sign-in', () => {
@@ -16,6 +21,31 @@ describe('auth schemas', () => {
     expect(verifyPhoneOtpSchema.safeParse({ phone: '+243800000000', token: '12' }).success).toBe(
       false,
     );
+  });
+
+  it('requires a phone for customer signup and allows courier without one', () => {
+    expect(
+      registerMobileAccountSchema.safeParse({
+        role: 'customer',
+        email: 'client@eveider.cd',
+        password: 'secret123',
+        phone: '+243800000000',
+      }).success,
+    ).toBe(true);
+    expect(
+      registerMobileAccountSchema.safeParse({
+        role: 'customer',
+        email: 'client@eveider.cd',
+        password: 'secret123',
+      }).success,
+    ).toBe(false);
+    expect(
+      registerMobileAccountSchema.safeParse({
+        role: 'courier',
+        email: 'coursier@eveider.cd',
+        password: 'secret123',
+      }).success,
+    ).toBe(true);
   });
 
   it('requires business payload for business role', () => {

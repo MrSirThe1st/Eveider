@@ -5,6 +5,7 @@ import type { Issue, Locker, Parcel, User } from '../db/types.js';
 import {
   AccessDeniedError,
   assertAdmin,
+  assertBusinessRole,
   assertCourierRole,
   assertCustomerOwnsParcel,
   assertCustomerRole,
@@ -21,6 +22,12 @@ const COURIER_ISSUE_TYPES: IssueType[] = [
   'failed_delivery',
   'locker_unavailable',
   'parcel_problem',
+];
+
+const BUSINESS_ISSUE_TYPES: IssueType[] = [
+  'parcel_problem',
+  'locker_unavailable',
+  'locker_system',
 ];
 
 export type IssueWithRelations = Issue & {
@@ -67,18 +74,56 @@ export class IssueRepository {
     if (ctx.role === 'courier') {
       return this.createForCourier(ctx, input);
     }
-    throw new AccessDeniedError('Customer or courier role required');
+    if (ctx.role === 'business') {
+      return this.createForBusiness(ctx, input);
+    }
+    throw new AccessDeniedError('Customer, courier or business role required');
   }
 
   async listForReporter(ctx: DataAccessContext): Promise<IssueWithRelations[]> {
     if (!ctx.userId) {
       throw new AccessDeniedError('User required');
     }
+    if (ctx.role === 'business') {
+      return this.listForBusiness(ctx);
+    }
     if (ctx.role !== 'customer' && ctx.role !== 'courier') {
       throw new AccessDeniedError('Customer or courier role required');
     }
 
     return this.loadWithRelations('i.reporter_id = $1', [ctx.userId]);
+  }
+
+  async listForBusiness(
+    ctx: DataAccessContext,
+    options?: { parcelId?: string; status?: IssueStatus },
+  ): Promise<IssueWithRelations[]> {
+    assertBusinessRole(ctx);
+    const params: unknown[] = [ctx.businessId];
+    const conditions = ['p.business_id = $1'];
+
+    if (options?.parcelId) {
+      params.push(options.parcelId);
+      conditions.push(`i.parcel_id = $${params.length}`);
+    }
+    if (options?.status) {
+      params.push(options.status);
+      conditions.push(`i.status = $${params.length}`);
+    }
+
+    return this.loadWithRelations(conditions.join(' AND '), params);
+  }
+
+  async countOpenForBusiness(ctx: DataAccessContext): Promise<number> {
+    assertBusinessRole(ctx);
+    const result = await this.db.query(
+      `SELECT COUNT(*)::int AS count
+       FROM issues i
+       JOIN parcels p ON p.id = i.parcel_id
+       WHERE p.business_id = $1 AND i.status IN ('open', 'in_progress')`,
+      [ctx.businessId],
+    );
+    return Number(result.rows[0]?.count ?? 0);
   }
 
   async listAll(
@@ -157,6 +202,42 @@ export class IssueRepository {
     }
 
     const created = await this.db.query(`INSERT INTO issues (type, description, parcel_id, locker_id, reporter_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`, [input.type, input.description, input.parcelId, lockerId ?? null, ctx.userId!]);
+    return (await this.loadWithRelations('i.id = $1', [created.rows[0]!.id]))[0]!;
+  }
+
+  private async createForBusiness(
+    ctx: DataAccessContext,
+    input: CreateIssueInput,
+  ): Promise<IssueWithRelations> {
+    assertBusinessRole(ctx);
+    this.assertAllowedType(input.type, BUSINESS_ISSUE_TYPES);
+
+    if (!input.parcelId) {
+      throw new Error('Le colis est requis pour signaler un incident');
+    }
+
+    const parcelResult = await this.db.query(
+      `SELECT business_id, locker_id FROM parcels WHERE id = $1 LIMIT 1`,
+      [input.parcelId],
+    );
+    if (!parcelResult.rows[0]) throw new Error(`Parcel ${input.parcelId} not found`);
+    if (String(parcelResult.rows[0].business_id) !== ctx.businessId) {
+      throw new AccessDeniedError('Business scope violation');
+    }
+
+    const lockerId =
+      input.lockerId ??
+      (parcelResult.rows[0].locker_id == null ? undefined : String(parcelResult.rows[0].locker_id));
+
+    if (lockerId) {
+      const locker = await this.db.query(`SELECT id FROM lockers WHERE id = $1`, [lockerId]);
+      if (!locker.rows[0]) throw new Error(`Locker ${lockerId} not found`);
+    }
+
+    const created = await this.db.query(
+      `INSERT INTO issues (type, description, parcel_id, locker_id, reporter_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [input.type, input.description, input.parcelId, lockerId ?? null, ctx.userId!],
+    );
     return (await this.loadWithRelations('i.id = $1', [created.rows[0]!.id]))[0]!;
   }
 

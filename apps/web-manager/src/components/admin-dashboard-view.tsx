@@ -1,44 +1,45 @@
 'use client';
 
 import { colors } from '@eveider/config-ui';
-import { useEffect, useRef, useState } from 'react';
+import { CardListSkeleton } from '@eveider/ui';
+import { useEffect, useState, type ReactNode } from 'react';
 import { AdminAnalyticsPanel } from '@/components/admin-analytics-panel';
 import { AdminKpiRow } from '@/components/admin-kpi-row';
-import type { AdminDashboardData, DashboardDayRange } from '@/components/admin-dashboard-types';
+import type { AnalyticsReport, DashboardDayRange, DashboardStats } from '@/components/admin-dashboard-types';
 import { DASHBOARD_DAY_OPTIONS } from '@/components/admin-dashboard-types';
 
 type AdminDashboardViewProps = {
-  data: AdminDashboardData;
+  stats: DashboardStats;
+  children: ReactNode;
 };
 
-export function AdminDashboardView({ data: initialData }: AdminDashboardViewProps) {
+export function AdminDashboardView({ stats, children }: AdminDashboardViewProps) {
   const [days, setDays] = useState<DashboardDayRange>(7);
-  const [data, setData] = useState(initialData);
+  const [analytics, setAnalytics] = useState<AnalyticsReport | null>(null);
   const [loading, setLoading] = useState(false);
-  const skipInitialFetch = useRef(true);
 
   useEffect(() => {
-    if (skipInitialFetch.current) {
-      skipInitialFetch.current = false;
+    if (days === 7) {
+      setAnalytics(null);
       return;
     }
 
     let cancelled = false;
 
-    async function loadDashboard() {
+    async function loadAnalytics() {
       setLoading(true);
       try {
-        const response = await fetch(`/api/dashboard?days=${days}`, { cache: 'no-store' });
+        const response = await fetch(`/api/analytics?days=${days}`, { cache: 'no-store' });
         const result = await response.json();
         if (!cancelled && result.success) {
-          setData(result.data);
+          setAnalytics(result.data.analytics as AnalyticsReport);
         }
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
 
-    void loadDashboard();
+    void loadAnalytics();
     return () => {
       cancelled = true;
     };
@@ -46,7 +47,7 @@ export function AdminDashboardView({ data: initialData }: AdminDashboardViewProp
 
   return (
     <>
-      <AdminKpiRow stats={data.stats} />
+      <AdminKpiRow stats={stats} />
 
       <div
         style={{
@@ -81,8 +82,8 @@ export function AdminDashboardView({ data: initialData }: AdminDashboardViewProp
                 onClick={() => setDays(option)}
                 style={{
                   border: 'none',
-                  background: active ? colors.secondary : 'transparent',
-                  color: active ? colors.surface : colors.secondary,
+                  background: active ? colors.primary : 'transparent',
+                  color: active ? '#ffffff' : colors.secondary,
                   padding: '0.45rem 0.9rem',
                   fontSize: '0.6875rem',
                   fontWeight: 700,
@@ -97,7 +98,13 @@ export function AdminDashboardView({ data: initialData }: AdminDashboardViewProp
         </div>
       </div>
 
-      <AdminAnalyticsPanel analytics={data.analytics} days={days} loading={loading} />
+      {loading ? (
+        <CardListSkeleton cards={1} />
+      ) : analytics ? (
+        <AdminAnalyticsPanel analytics={analytics} days={days} />
+      ) : (
+        children
+      )}
     </>
   );
 }

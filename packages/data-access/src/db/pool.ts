@@ -1,5 +1,11 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import pg from 'pg';
 import { getServerEnv } from '../env.js';
+import {
+  createQueryConcurrencyGate,
+  resolveQueryConcurrency,
+  type QueryConcurrencyGate,
+} from './query-concurrency.js';
 
 const { Pool } = pg;
 
@@ -12,7 +18,94 @@ export type Queryable = {
 
 type GlobalPool = typeof globalThis & {
   __eveiderPgPool?: pg.Pool;
+  __eveiderQueryGate?: QueryConcurrencyGate;
 };
+
+export type DbQueryTraceEntry = {
+  sql: string;
+  durationMs: number;
+  waitingBefore: number;
+};
+
+export type DbQueryTrace = {
+  label: string;
+  queries: DbQueryTraceEntry[];
+};
+
+const dbQueryTrace = new AsyncLocalStorage<DbQueryTrace>();
+
+function isDbTraceEnabled(): boolean {
+  return process.env.NODE_ENV === 'development' || process.env.PG_QUERY_LOG === '1';
+}
+
+function sqlPreview(sql: string): string {
+  return sql.replace(/\s+/g, ' ').trim().slice(0, 160);
+}
+
+function extractSql(config: unknown): string {
+  if (typeof config === 'string') return config;
+  if (config && typeof config === 'object' && 'text' in config) {
+    return String((config as { text: unknown }).text);
+  }
+  return '[pg query]';
+}
+
+function recordQuery(pool: pg.Pool, sql: string, durationMs: number, waitingBefore: number): void {
+  const entry: DbQueryTraceEntry = {
+    sql: sqlPreview(sql),
+    durationMs: Math.round(durationMs),
+    waitingBefore,
+  };
+
+  const trace = dbQueryTrace.getStore();
+  if (trace) {
+    trace.queries.push(entry);
+  }
+
+  if (!isDbTraceEnabled()) return;
+
+  if (trace) return;
+
+  if (process.env.PG_QUERY_LOG === '1' || durationMs >= 100 || waitingBefore > 0) {
+    console.log(
+      `[@eveider/data-access] query ${entry.durationMs}ms wait=${waitingBefore} pool=${pool.totalCount}/${pool.options.max ?? '?'} idle=${pool.idleCount} | ${entry.sql}`,
+    );
+  }
+}
+
+function logTraceSummary(trace: DbQueryTrace, pool: pg.Pool): void {
+  if (!isDbTraceEnabled()) return;
+
+  const totalMs = trace.queries.reduce((sum, query) => sum + query.durationMs, 0);
+  const waited = trace.queries.filter((query) => query.waitingBefore > 0).length;
+  console.log(
+    `[@eveider/data-access] ${trace.label} — ${trace.queries.length} queries, ${totalMs}ms SQL, ${waited} waited for checkout, pool ${pool.totalCount}/${pool.options.max ?? '?'} idle=${pool.idleCount} waiting=${pool.waitingCount}`,
+  );
+  for (const [index, query] of trace.queries.entries()) {
+    const wait = query.waitingBefore > 0 ? ` wait=${query.waitingBefore}` : '';
+    console.log(`  ${String(index + 1).padStart(2, ' ')}. ${String(query.durationMs).padStart(4)}ms${wait}  ${query.sql}`);
+  }
+}
+
+/**
+ * Collects query counts/timings for a loader in development (`PG_QUERY_LOG=1` or NODE_ENV=development).
+ * Request-scoped only — never caches tenant data.
+ */
+export async function withDbQueryTrace<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  if (!isDbTraceEnabled()) return fn();
+
+  const trace: DbQueryTrace = { label, queries: [] };
+  return dbQueryTrace.run(trace, async () => {
+    try {
+      return await fn();
+    } finally {
+      const globalStore = globalThis as GlobalPool;
+      if (globalStore.__eveiderPgPool) {
+        logTraceSummary(trace, globalStore.__eveiderPgPool);
+      }
+    }
+  });
+}
 
 /**
  * Prefer Supabase transaction pooler (6543) for serverless/HMR.
@@ -38,6 +131,44 @@ export function resolveDatabaseUrl(url = process.env.DATABASE_URL): string | und
   return resolved;
 }
 
+/**
+ * Shared Client/Pool options. pg 8.22 treats sslmode=require as verify-full;
+ * Supabase's pooler cert chain fails that check and stalls until
+ * connectionTimeoutMillis. `rejectUnauthorized: false` keeps TLS without
+ * the verify-full hang.
+ *
+ * Fail checkout in ~5s so exhausted pools surface quickly instead of hanging
+ * a request for 20s. This is not a substitute for reducing query fan-out.
+ */
+export function getPgClientConfig(connectionString: string): pg.PoolConfig {
+  const isSupabase = connectionString.includes('supabase.com');
+  return {
+    connectionString,
+    keepAlive: true,
+    connectionTimeoutMillis: 5_000,
+    ...(isSupabase ? { ssl: { rejectUnauthorized: false } } : {}),
+  };
+}
+
+function wrapPoolQuery(pool: pg.Pool, gate: QueryConcurrencyGate): void {
+  const nativeQuery = pool.query.bind(pool) as (...args: unknown[]) => unknown;
+
+  const wrapped = (...args: unknown[]) => {
+    const sql = extractSql(args[0]);
+    return gate.run(async () => {
+      const waitingBefore = pool.waitingCount;
+      const started = performance.now();
+      try {
+        return await Promise.resolve(nativeQuery(...args));
+      } finally {
+        recordQuery(pool, sql, performance.now() - started, waitingBefore);
+      }
+    });
+  };
+
+  pool.query = wrapped as typeof pool.query;
+}
+
 function createPool(): pg.Pool {
   const env = getServerEnv();
   const connectionString = resolveDatabaseUrl(env.DATABASE_URL);
@@ -50,11 +181,16 @@ function createPool(): pg.Pool {
     (process.env.NODE_ENV === 'development' ? 5 : 3);
 
   const pool = new Pool({
-    connectionString,
+    ...getPgClientConfig(connectionString),
     max,
     idleTimeoutMillis: 20_000,
-    connectionTimeoutMillis: 10_000,
+    allowExitOnIdle: process.env.NODE_ENV === 'development',
   });
+
+  const globalStore = globalThis as GlobalPool;
+  const gate = createQueryConcurrencyGate(resolveQueryConcurrency(max));
+  globalStore.__eveiderQueryGate = gate;
+  wrapPoolQuery(pool, gate);
 
   pool.on('error', (err) => {
     console.error('Unexpected error on idle pg client:', err);

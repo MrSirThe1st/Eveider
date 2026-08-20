@@ -67,7 +67,7 @@ export function Wizard({
   return (
     <div
       className={['nb-wizard', className].filter(Boolean).join(' ')}
-      style={{ width: '100%', maxWidth: 840, ...style }}
+      style={{ width: '100%', ...style }}
     >
       <WizardStepper
         steps={steps}

@@ -42,7 +42,7 @@ export function FilterChipGroup<T extends string>({
               borderRadius: radius.badge,
               border: active ? `1px solid ${colors.primary}` : borderSubtle(),
               background: active ? colors.successMuted : colors.surface,
-              color: active ? '#067A07' : colors.secondary,
+              color: active ? colors.successFg : colors.secondary,
               fontWeight: active ? typography.weights.semibold : typography.weights.medium,
               fontSize: typography.bodySm.fontSize,
               cursor: 'pointer',

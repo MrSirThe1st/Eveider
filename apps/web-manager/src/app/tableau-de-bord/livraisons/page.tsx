@@ -1,14 +1,15 @@
-import { PageFrame } from '@eveider/ui';
+import { PageFrame, TableSkeleton } from '@eveider/ui';
 import { Suspense } from 'react';
 import { AdminLiveDeliveryBoard } from '@/components/admin-live-delivery-board';
 
 export default function AdminDeliveriesPage() {
   return (
     <PageFrame
-      title="Suivi des livraisons"
-      description="Livraisons actives en temps réel — assignation, scan et dépôt au casier."
+      title="Livraisons"
+      description="Gestion des livraisons et des retraits."
+      layout="fluid"
     >
-      <Suspense fallback={<p style={{ fontWeight: 500 }}>Chargement…</p>}>
+      <Suspense fallback={<TableSkeleton rows={8} />}>
         <AdminLiveDeliveryBoard />
       </Suspense>
     </PageFrame>

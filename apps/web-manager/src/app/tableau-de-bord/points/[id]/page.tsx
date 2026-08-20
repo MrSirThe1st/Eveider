@@ -12,6 +12,7 @@ export default async function AdminPointDetailPage({ params }: PageProps) {
     <PageFrame
       title="Point Eveider"
       description="Détail, capacité et gestion du point de retrait."
+      layout="standard"
       breadcrumbs={[
         { label: 'Points', href: '/tableau-de-bord/points' },
         { label: 'Détail' },

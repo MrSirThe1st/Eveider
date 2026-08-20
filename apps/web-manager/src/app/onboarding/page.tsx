@@ -1,7 +1,8 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { OnboardingWizard } from '@/components/onboarding-wizard';
 import type { OnboardingSummary } from '@/hooks/queries/use-onboarding-summary-query';
 import { requireBusinessPageContext, loadOnboardingPageData } from '@/server/business';
+import { WEB_ROUTES } from '@/lib/auth-routing';
 
 export default async function OnboardingPage() {
   const { profile } = await requireBusinessPageContext();
@@ -9,6 +10,10 @@ export default async function OnboardingPage() {
 
   if (!summary) {
     notFound();
+  }
+
+  if (summary.status !== 'onboarding' && summary.status !== 'draft' && summary.status !== 'pending_correction') {
+    redirect(WEB_ROUTES.businessSettings);
   }
 
   return (

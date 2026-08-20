@@ -1,4 +1,4 @@
-import { colors, radius, borders } from '@eveider/config-ui';
+import { nativeColors as colors, radius, borders } from '@eveider/config-ui';
 import { Feather } from '@expo/vector-icons';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ScreenHeader } from './ScreenHeader';

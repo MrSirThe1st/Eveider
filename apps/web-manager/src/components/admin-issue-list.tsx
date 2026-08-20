@@ -1,9 +1,9 @@
 'use client';
 
-import { colors, webCardStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
+import { colors, webCardStyle } from '@eveider/config-ui';
 import type { IssueStatus } from '@eveider/domain';
 import { ISSUE_STATUS_LABELS } from '@eveider/domain';
-import { FilterToolbar } from '@eveider/ui';
+import { Button, FilterToolbar } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { FlashBanner } from '@/components/flash-banner';
@@ -148,25 +148,15 @@ export function AdminIssueList({ issues }: AdminIssueListProps) {
                 </p>
 
                 {next ? (
-                  <button
-                    type="button"
-                    disabled={actingId === issue.id}
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    loading={actingId === issue.id}
                     onClick={() => void advanceStatus(issue)}
-                    style={{
-                      ...webSecondaryButtonStyle,
-                      marginTop: '0.75rem',
-                      padding: '0.5rem 0.875rem',
-                      fontSize: '0.6875rem',
-                      cursor: actingId === issue.id ? 'wait' : 'pointer',
-                      opacity: actingId === issue.id ? 0.7 : 1,
-                    }}
+                    style={{ marginTop: '0.75rem' }}
                   >
-                    {actingId === issue.id
-                      ? 'Mise à jour…'
-                      : next === 'in_progress'
-                        ? 'Prendre en charge'
-                        : 'Marquer résolu'}
-                  </button>
+                    {next === 'in_progress' ? 'Prendre en charge' : 'Marquer résolu'}
+                  </Button>
                 ) : null}
               </article>
             );

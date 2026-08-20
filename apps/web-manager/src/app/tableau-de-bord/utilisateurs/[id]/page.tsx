@@ -12,6 +12,7 @@ export default async function CourierDetailPage({ params }: PageProps) {
     <PageFrame
       title="Profil coursier"
       description="Identité, statut et historique des livraisons."
+      layout="standard"
       breadcrumbs={[
         { label: 'Utilisateurs', href: '/tableau-de-bord/utilisateurs' },
         { label: 'Coursier' },

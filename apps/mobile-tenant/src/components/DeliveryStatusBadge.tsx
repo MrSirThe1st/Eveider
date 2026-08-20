@@ -1,7 +1,7 @@
 import type { DeliveryStatus } from '@eveider/domain';
 import { DELIVERY_STATUS_LABELS } from '@eveider/domain';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, radius } from '@eveider/config-ui';
+import { nativeColors as colors, radius } from '@eveider/config-ui';
 
 const STATUS_COLORS: Record<DeliveryStatus, string> = {
   assigned: colors.border,

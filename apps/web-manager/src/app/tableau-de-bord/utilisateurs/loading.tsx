@@ -1,5 +1,9 @@
-import { TableSkeleton } from '@eveider/ui';
+import { PageFrame, TableSkeleton } from '@eveider/ui';
 
-export default function UsersLoading() {
-  return <TableSkeleton rows={8} />;
+export default function AdminUsersLoading() {
+  return (
+    <PageFrame title="Utilisateurs" layout="wide">
+      <TableSkeleton />
+    </PageFrame>
+  );
 }

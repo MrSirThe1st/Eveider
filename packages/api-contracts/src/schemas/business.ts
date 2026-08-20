@@ -7,6 +7,12 @@ export const updateBusinessStatusSchema = z.object({
   reason: z.string().optional(),
 });
 
+export const updateBusinessProfileSchema = z.object({
+  fullName: z.string().trim().min(2, 'Nom requis').max(80).optional(),
+  contactEmail: emailSchema,
+  contactPhone: phoneSchema,
+});
+
 export const businessUserRoleSchema = z.enum(['owner', 'manager', 'logistics_employee']);
 export const businessTypeSchema = z.enum(['registered_company', 'individual_seller', 'marketplace', 'enterprise_partner']);
 export const locationTypeSchema = z.enum(['business_address', 'warehouse', 'pickup_point']);
@@ -99,6 +105,42 @@ export const operationsSetupStepSchema = z.object({
   dropoffLockerId: z.string().uuid().optional(),
 });
 
+const optionalPhone = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value) => (value ? value : undefined))
+  .pipe(phoneSchema.optional());
+
+export const updateBusinessSettingsSchema = z.object({
+  fullName: z.string().trim().min(2, 'Nom requis').max(80).optional(),
+  name: z.string().trim().min(2, 'Nom entreprise requis'),
+  businessType: businessTypeSchema.optional(),
+  industry: z.string().trim().min(2, 'Secteur requis').optional(),
+  description: z.string().optional(),
+  contactEmail: emailSchema,
+  contactPhone: phoneSchema,
+  country: z.string().trim().min(2).default('RDC'),
+  city: z.string().trim().min(2, 'Ville requise'),
+  address: z.string().trim().min(5, 'Adresse requise'),
+  legalCompanyName: z.string().trim().optional(),
+  rccmNumber: z.string().trim().optional(),
+  nifNumber: z.string().trim().optional(),
+  legalRepName: z.string().trim().optional(),
+  pickupMethod: pickupMethodSchema,
+  pickupAddress: z.string().trim().optional(),
+  contactPerson: z.string().trim().optional(),
+  pickupContactPhone: optionalPhone,
+  availableDays: z.string().trim().optional(),
+  availableHours: z.string().trim().optional(),
+  dropoffLockerId: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => (value ? value : undefined))
+    .pipe(z.string().uuid().optional()),
+});
+
 // Wizard Step 4: Payment & Settlement Setup
 export const paymentSetupStepSchema = z.object({
   paymentRule: deliveryPaymentRuleSchema,
@@ -158,6 +200,8 @@ export const adminReviewDecisionSchema = z
   });
 
 export type UpdateBusinessStatusInput = z.infer<typeof updateBusinessStatusSchema>;
+export type UpdateBusinessProfileInput = z.infer<typeof updateBusinessProfileSchema>;
+export type UpdateBusinessSettingsInput = z.infer<typeof updateBusinessSettingsSchema>;
 export type RegisterBusinessAccountInput = z.infer<typeof registerBusinessAccountSchema>;
 
 export const registerBusinessAccountResponseSchema = z.object({

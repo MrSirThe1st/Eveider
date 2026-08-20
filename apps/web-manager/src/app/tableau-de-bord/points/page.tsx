@@ -10,8 +10,9 @@ export default async function AdminPointsPage() {
 
   return (
     <PageFrame
-      title="Points Eveider"
+      title="Points"
       description="Casiers intelligents, points partenaires et points résidentiels."
+      layout="wide"
     >
       <AdminLockerManager lockers={lockers} />
       <div style={{ marginTop: '2.5rem' }}>

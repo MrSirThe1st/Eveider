@@ -1,8 +1,9 @@
 'use client';
 
-import { colors, radius, borderSubtle, webSecondaryButtonStyle } from '@eveider/config-ui';
+import { colors, radius, webSecondaryButtonStyle } from '@eveider/config-ui';
 import { DELIVERY_STATUS_LABELS } from '@eveider/domain';
-import { FilterToolbar, LoadingSpinner } from '@eveider/ui';
+import { FilterToolbar, LoadingSpinner, TableSkeleton } from '@eveider/ui';
+import { AdminLivraisonsTabs } from '@/components/admin-module-tabs';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Fragment, useEffect, useMemo, useState } from 'react';
@@ -17,13 +18,6 @@ import {
   type DeliveryStatusFilter,
   useDeliveriesBoardQuery,
 } from '@/hooks/queries/use-deliveries-query';
-
-const VIEW_TABS: { value: DeliveryBoardView; label: string }[] = [
-  { value: 'active', label: 'Actives' },
-  { value: 'au_casier', label: 'Au casier' },
-  { value: 'collected', label: 'Collectés' },
-  { value: 'all', label: 'Toutes les activités' },
-];
 
 const STATUS_OPTIONS: { value: DeliveryStatusFilter; label: string }[] = [
   { value: 'all', label: 'Toutes actives' },
@@ -191,34 +185,7 @@ export function AdminLiveDeliveryBoard() {
 
   return (
     <div>
-      <div
-        style={{
-          display: 'flex',
-          gap: '0.5rem',
-          flexWrap: 'wrap',
-          marginBottom: '1.5rem',
-        }}
-      >
-        {VIEW_TABS.map((tab) => (
-          <button
-            key={tab.value}
-            type="button"
-            onClick={() => updateFilter('view', tab.value)}
-            style={{
-              padding: '0.5rem 1rem',
-              borderRadius: radius.sm,
-              border: `1px solid ${filters.view === tab.value ? colors.primary : colors.borderSubtle}`,
-              background: filters.view === tab.value ? colors.surfaceSubtle : colors.surface,
-              fontWeight: 700,
-              fontSize: '0.8125rem',
-              cursor: 'pointer',
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
+      <AdminLivraisonsTabs />
       {filters.view === 'active' ? (
         <div
           style={{
@@ -292,74 +259,70 @@ export function AdminLiveDeliveryBoard() {
         </div>
       ) : null}
 
-      {filters.view === 'all' || filters.view === 'au_casier' || filters.view === 'collected' ? (
-        <div style={{ marginBottom: '1rem' }}>
-          <ListSearchField
-            value={debouncedSearch}
-            onChange={setDebouncedSearch}
-            placeholder="Rechercher par numéro de suivi…"
-            ariaLabel="Rechercher une activité par numéro de suivi"
-          />
-        </div>
-      ) : null}
-
-      {filters.view === 'active' || filters.view === 'all' ? (
-        <FilterToolbar
-          onClearAll={clearAllFilters}
-          filters={[
-            ...(filters.view === 'active'
-              ? [
-                  {
-                    id: 'status',
-                    label: 'Statut',
-                    value: filters.status,
-                    emptyValue: 'all',
-                    options: STATUS_OPTIONS,
-                    onChange: (value: string) =>
-                      updateFilter('status', value as DeliveryStatusFilter),
-                  },
-                ]
-              : []),
-            {
-              id: 'courier',
-              label: 'Coursier',
-              value: filters.courierId,
-              emptyValue: '',
-              options: [
-                { value: '', label: 'Tous les coursiers' },
-                ...couriers.map((c) => ({ value: c.id, label: c.label })),
-              ],
-              onChange: (value) => updateFilter('courierId', value),
-            },
-            {
-              id: 'locker',
-              label: 'Casier',
-              value: filters.lockerId,
-              emptyValue: '',
-              options: [
-                { value: '', label: 'Tous les casiers' },
-                ...lockers.map((l) => ({ value: l.id, label: l.label })),
-              ],
-              onChange: (value) => updateFilter('lockerId', value),
-            },
-            {
-              id: 'business',
-              label: 'Entreprise',
-              value: filters.businessId,
-              emptyValue: '',
-              options: [
-                { value: '', label: 'Toutes les entreprises' },
-                ...businesses.map((b) => ({ value: b.id, label: b.label })),
-              ],
-              onChange: (value) => updateFilter('businessId', value),
-            },
-          ]}
+      <div style={{ marginBottom: '1rem' }}>
+        <ListSearchField
+          value={debouncedSearch}
+          onChange={setDebouncedSearch}
+          placeholder="Rechercher par numéro de suivi…"
+          ariaLabel="Rechercher une activité par numéro de suivi"
         />
-      ) : null}
+      </div>
+
+      <FilterToolbar
+        onClearAll={clearAllFilters}
+        filters={[
+          ...(filters.view === 'active'
+            ? [
+                {
+                  id: 'status',
+                  label: 'Statut',
+                  value: filters.status,
+                  emptyValue: 'all',
+                  options: STATUS_OPTIONS,
+                  onChange: (value: string) =>
+                    updateFilter('status', value as DeliveryStatusFilter),
+                },
+              ]
+            : []),
+          {
+            id: 'courier',
+            label: 'Coursier',
+            value: filters.courierId,
+            emptyValue: '',
+            options: [
+              { value: '', label: 'Tous les coursiers' },
+              ...couriers.map((c) => ({ value: c.id, label: c.label })),
+            ],
+            onChange: (value) => updateFilter('courierId', value),
+          },
+          {
+            id: 'locker',
+            label: 'Casier',
+            value: filters.lockerId,
+            emptyValue: '',
+            options: [
+              { value: '', label: 'Tous les casiers' },
+              ...lockers.map((l) => ({ value: l.id, label: l.label })),
+            ],
+            onChange: (value) => updateFilter('lockerId', value),
+          },
+          {
+            id: 'business',
+            label: 'Entreprise',
+            value: filters.businessId,
+            emptyValue: '',
+            options: [
+              { value: '', label: 'Toutes les entreprises' },
+              ...businesses.map((b) => ({ value: b.id, label: b.label })),
+            ],
+            onChange: (value) => updateFilter('businessId', value),
+          },
+        ]}
+      />
 
       <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', alignItems: 'center' }}>
         {boardQuery.isFetching && items.length > 0 ? (
-          <span style={{ fontSize: '0.75rem', color: colors.textMuted }}>Mise à jour…</span>
+          <LoadingSpinner compact size="sm" label="Mise à jour…" />
         ) : null}
         {lastRefresh && filters.view === 'active' ? (
           <span style={{ fontSize: '0.75rem', color: colors.textMuted }}>
@@ -368,7 +331,7 @@ export function AdminLiveDeliveryBoard() {
         ) : null}
       </div>
 
-      {showInitialLoader ? <LoadingSpinner label="Chargement…" /> : null}
+      {showInitialLoader ? <TableSkeleton rows={8} /> : null}
       {showFatalError ? (
         <div>
           <FlashBanner message={errorMessage} variant="error" />
@@ -388,51 +351,41 @@ export function AdminLiveDeliveryBoard() {
       ) : null}
 
       {!showInitialLoader && !showFatalError && items.length > 0 ? (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 980 }}>
+        <div className="nb-data-table">
+        <div className="nb-data-table__scroll">
+          <table>
             <thead>
               <tr>
-                {['COLIS', 'STATUT', 'COURSIER', 'ENTREPRISE', 'CASIER', 'DESTINATAIRE', 'MAJ', ''].map(
+                {['Colis', 'Statut', 'Coursier', 'Entreprise', 'Casier', 'Destinataire', 'Maj', ''].map(
                   (heading) => (
-                    <th
-                      key={heading || 'actions'}
-                      style={{
-                        textAlign: 'left',
-                        padding: '0.75rem',
-                        fontSize: '0.6875rem',
-                        fontWeight: 600,
-                        borderBottom: borderSubtle(),
-                      }}
-                    >
-                      {heading}
-                    </th>
+                    <th key={heading || 'actions'}>{heading}</th>
                   ),
                 )}
               </tr>
             </thead>
             <tbody>
               {items.map((item) => (
-                <tr key={`${item.kind}-${item.id}`}>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle() }}>
+                <tr key={`${item.kind}-${item.id}`} className="nb-data-table__row">
+                  <td>
                     <Link
                       href={`/tableau-de-bord/colis/${item.parcel.id}`}
-                      style={{ fontWeight: 700, color: colors.secondary, textDecoration: 'none' }}
+                      className="nb-data-table__link"
                     >
                       {item.parcel.trackingNumber}
                     </Link>
                   </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle() }}>
+                  <td>
                     {item.kind === 'delivery' ? (
                       <DeliveryStatusBadge status={item.status as never} />
                     ) : (
                       <ParcelStatusBadge status={item.status as never} />
                     )}
                   </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle() }}>
+                  <td>
                     {item.courier ? (
                       <Link
                         href={`/tableau-de-bord/utilisateurs/${item.courier.id}`}
-                        style={{ color: colors.secondary, textDecoration: 'none' }}
+                        className="nb-data-table__link"
                       >
                         {item.courier.fullName ?? item.courier.email ?? 'Coursier'}
                       </Link>
@@ -440,29 +393,28 @@ export function AdminLiveDeliveryBoard() {
                       '—'
                     )}
                   </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle() }}>
-                    {item.parcel.business.name}
-                  </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle() }}>
-                    {lockerCell(item.parcel.locker, item.parcel.compartment)}
-                  </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle() }}>
+                  <td>{item.parcel.business.name}</td>
+                  <td>{lockerCell(item.parcel.locker, item.parcel.compartment)}</td>
+                  <td>
                     {item.parcel.recipientName ?? '—'}
                     <br />
-                    <span style={{ fontSize: '0.8125rem', opacity: 0.75 }}>
+                    <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>
                       {item.parcel.recipientPhone}
                     </span>
                   </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle(), whiteSpace: 'nowrap' }}>
+                  <td style={{ whiteSpace: 'nowrap', color: 'var(--color-text-muted)' }}>
                     {formatDateTime(item.updatedAt)}
                   </td>
-                  <td style={{ padding: '0.85rem 0.75rem', borderBottom: borderSubtle() }}>
-                    <Link href={`/tableau-de-bord/colis/${item.parcel.id}`}>DÉTAIL →</Link>
+                  <td className="nb-data-table__actions">
+                    <Link href={`/tableau-de-bord/colis/${item.parcel.id}`} className="nb-data-table__link">
+                      Détail
+                    </Link>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
         </div>
       ) : null}
     </div>

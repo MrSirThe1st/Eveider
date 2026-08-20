@@ -10,23 +10,13 @@ export default async function BusinessDashboardPage() {
     redirect('/onboarding');
   }
 
-  const { summary, parcelList, deliveredCount, pendingCount } = dashboard;
+  const { summary, analytics } = dashboard;
 
   if (summary.status === 'onboarding' || summary.status === 'draft') {
     redirect('/onboarding');
   }
 
   return (
-    <MerchantDashboard
-      businessName={summary.name}
-      status={summary.status}
-      isPhoneVerified={summary.isPhoneVerified}
-      permissions={summary.permissions}
-      limit={summary.limit}
-      parcelsCount={parcelList.length}
-      deliveredCount={deliveredCount}
-      pendingCount={pendingCount}
-      balanceUsd={0.0}
-    />
+    <MerchantDashboard businessName={summary.name} status={summary.status} analytics={analytics} />
   );
 }

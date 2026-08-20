@@ -13,8 +13,9 @@ export default async function BusinessParcelDetailPage({ params }: PageProps) {
     <PageFrame
       title="Détail colis"
       description="Suivi et informations du colis."
+      layout="standard"
       breadcrumbs={[
-        { label: 'Mes colis', href: WEB_ROUTES.businessParcels },
+        { label: 'Colis', href: WEB_ROUTES.businessParcels },
         { label: 'Détail' },
       ]}
     >

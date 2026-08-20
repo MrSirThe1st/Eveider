@@ -9,7 +9,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
-import { resolveDatabaseUrl } from '../src/db/pool.js';
+import { getPgClientConfig, resolveDatabaseUrl } from '../src/db/pool.js';
 
 const { Client } = pg;
 
@@ -22,7 +22,7 @@ async function main() {
     throw new Error('DATABASE_URL is required');
   }
 
-  const client = new Client({ connectionString });
+  const client = new Client(getPgClientConfig(connectionString));
   await client.connect();
 
   try {

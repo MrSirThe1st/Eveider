@@ -1,4 +1,4 @@
-import { colors, radius, borders, nativeShadow } from '@eveider/config-ui';
+import { nativeColors as colors, radius, borders, nativeShadow } from '@eveider/config-ui';
 import { StyleSheet, Text, View } from 'react-native';
 import type { CustomerParcel } from '../lib/api';
 import { pickupCardHint } from '../lib/pickup-payment';

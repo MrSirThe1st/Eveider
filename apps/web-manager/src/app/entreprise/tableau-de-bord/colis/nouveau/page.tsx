@@ -8,8 +8,9 @@ export default function NewParcelPage() {
     <PageFrame
       title="Créer un colis"
       description="Créez un colis Eveider avec suivi, QR et étiquette."
+      layout="standard"
       breadcrumbs={[
-        { label: 'Mes colis', href: WEB_ROUTES.businessParcels },
+        { label: 'Colis', href: WEB_ROUTES.businessParcels },
         { label: 'Nouveau colis' },
       ]}
       action={

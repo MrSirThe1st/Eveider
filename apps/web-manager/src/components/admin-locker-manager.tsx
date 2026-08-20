@@ -261,11 +261,7 @@ export function AdminLockerManager({ lockers }: AdminLockerManagerProps) {
       {error ? <FlashBanner message={error} variant="error" /> : null}
       {success ? <FlashBanner message={success} /> : null}
       {(saving || archiving) ? (
-        <LoadingSpinner
-          label={saving ? 'Création du point…' : 'Archivage…'}
-          minHeight="4rem"
-          size={28}
-        />
+        <LoadingSpinner label={saving ? 'Création du point…' : 'Archivage…'} />
       ) : null}
 
       <div style={{ display: 'grid', gap: '1.25rem' }}>
@@ -455,56 +451,38 @@ export function AdminLockerManager({ lockers }: AdminLockerManagerProps) {
       </div>
 
       {lockers.length > 0 ? (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div className="nb-data-table">
+        <div className="nb-data-table__scroll">
+          <table>
             <thead>
               <tr>
-                {['CODE', 'POINT', 'TYPE', 'STATUT', 'CAPACITÉ', ''].map((heading) => (
-                  <th
-                    key={heading || 'link'}
-                    style={{
-                      textAlign: 'left',
-                      padding: '0.75rem',
-                      fontSize: '0.6875rem',
-                      fontWeight: 600,
-                      letterSpacing: '0.08em',
-                      borderBottom: borderSubtle(),
-                    }}
-                  >
-                    {heading}
-                  </th>
+                {['Code', 'Point', 'Type', 'Statut', 'Capacité', ''].map((heading) => (
+                  <th key={heading || 'link'}>{heading}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {lockers.map((locker) => (
-                <tr key={locker.id}>
-                  <td style={{ padding: '0.75rem', borderBottom: borderSubtle(), fontWeight: 700 }}>
-                    {locker.code}
-                  </td>
-                  <td style={{ padding: '0.75rem', borderBottom: borderSubtle(), fontWeight: 600 }}>
-                    {locker.name}
-                  </td>
-                  <td style={{ padding: '0.75rem', borderBottom: borderSubtle(), fontSize: '0.8125rem' }}>
-                    {locker.typeLabel}
-                  </td>
-                  <td style={{ padding: '0.75rem', borderBottom: borderSubtle() }}>
-                    {locker.statusLabel}
-                  </td>
-                  <td style={{ padding: '0.75rem', borderBottom: borderSubtle() }}>
+                <tr key={locker.id} className="nb-data-table__row">
+                  <td style={{ fontWeight: 600 }}>{locker.code}</td>
+                  <td>{locker.name}</td>
+                  <td style={{ color: 'var(--color-text-muted)' }}>{locker.typeLabel}</td>
+                  <td>{locker.statusLabel}</td>
+                  <td>
                     {usesCompartmentGrid(locker.type)
                       ? `${locker.availableSlots} / ${locker.compartmentCounts.total}`
                       : `${locker.availableSlots} / ${locker.maxCapacity ?? '—'}`}
                   </td>
-                  <td style={{ padding: '0.75rem', borderBottom: borderSubtle() }}>
-                    <a href={`/tableau-de-bord/points/${locker.id}`} style={{ fontWeight: 600 }}>
-                      DÉTAIL →
+                  <td className="nb-data-table__actions">
+                    <a href={`/tableau-de-bord/points/${locker.id}`} className="nb-data-table__link">
+                      Détail
                     </a>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
         </div>
       ) : null}
     </div>

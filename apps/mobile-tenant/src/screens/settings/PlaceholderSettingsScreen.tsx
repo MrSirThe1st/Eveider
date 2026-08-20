@@ -1,4 +1,4 @@
-import { colors, radius, borders } from '@eveider/config-ui';
+import { nativeColors as colors, radius, borders } from '@eveider/config-ui';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ScreenHeader } from '../../components/ScreenHeader';
 

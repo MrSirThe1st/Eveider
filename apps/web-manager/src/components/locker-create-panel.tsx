@@ -15,6 +15,7 @@ import {
   type LockerLayoutPreset,
   type LockerType,
 } from '@eveider/domain';
+import { Button } from '@eveider/ui';
 import { useEffect, useState } from 'react';
 import {
   LAYOUT_PRESET_LABELS,
@@ -528,21 +529,16 @@ export function LockerCreatePanel({
         {smartLocker ? <LockerLayoutPreview layout={layout} compact /> : null}
       </div>
 
-      <button
+      <Button
         type="button"
-        disabled={saving || !canCreate}
+        variant="secondary"
+        loading={saving}
+        disabled={!canCreate}
         onClick={submit}
-        style={{
-          ...webSecondaryButtonStyle,
-          width: '100%',
-          height: spacing.buttonHeight,
-          fontWeight: 700,
-          cursor: saving ? 'wait' : 'pointer',
-          opacity: canCreate ? 1 : 0.55,
-        }}
+        style={{ width: '100%', height: spacing.buttonHeight, fontWeight: 700 }}
       >
-        {saving ? 'CRÉATION…' : 'CRÉER LE POINT'}
-      </button>
+        Créer le point
+      </Button>
     </div>
   );
 }

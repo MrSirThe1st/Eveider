@@ -2,7 +2,7 @@ import type { UserRole } from '@eveider/domain';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, StyleSheet, View } from 'react-native';
-import { colors } from '@eveider/config-ui';
+import { nativeColors as colors } from '@eveider/config-ui';
 import { apiFetch } from './src/lib/api-fetch';
 import { acceptInvite, fetchInvitePreview, parseInviteToken, type InvitePreview } from './src/lib/invite';
 import { supabase } from './src/lib/supabase';

@@ -1,4 +1,4 @@
-import { colors } from '@eveider/config-ui';
+import { nativeColors as colors } from '@eveider/config-ui';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 type ScreenHeaderProps = {

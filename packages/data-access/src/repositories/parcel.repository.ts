@@ -428,18 +428,61 @@ export class ParcelRepository {
   async listForBusiness(
     ctx: DataAccessContext,
     businessId: string,
-    options?: { status?: ParcelStatus },
+    options?: { status?: ParcelStatus; search?: string; take?: number },
   ): Promise<ParcelWithLocker[]> {
     assertBusinessScope(ctx, businessId);
     const params: unknown[] = [businessId];
     let sql = `SELECT id FROM parcels WHERE business_id = $1`;
     if (options?.status) {
       params.push(options.status);
-      sql += ` AND status = $2`;
+      sql += ` AND status = $${params.length}`;
+    }
+    if (options?.search?.trim()) {
+      params.push(`%${options.search.trim()}%`);
+      sql += ` AND (tracking_number ILIKE $${params.length} OR COALESCE(reference, '') ILIKE $${params.length} OR COALESCE(recipient_name, '') ILIKE $${params.length} OR recipient_phone ILIKE $${params.length})`;
     }
     sql += ` ORDER BY created_at DESC`;
+    if (options?.take && options.take > 0) {
+      params.push(options.take);
+      sql += ` LIMIT $${params.length}`;
+    }
     const ids = await this.db.query(sql, params);
     return this.loadParcelsWithRelations(ids.rows.map((r) => String(r.id)));
+  }
+
+  async countForBusiness(
+    ctx: DataAccessContext,
+    businessId: string,
+  ): Promise<{
+    total: number;
+    delivered: number;
+    pending: number;
+    createdToday: number;
+    collectedToday: number;
+    readyForPickup: number;
+  }> {
+    assertBusinessScope(ctx, businessId);
+    const result = await this.db.query(
+      `SELECT
+         COUNT(*)::int AS total,
+         COUNT(*) FILTER (WHERE status = 'collected')::int AS delivered,
+         COUNT(*) FILTER (WHERE status <> 'collected')::int AS pending,
+         COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE)::int AS created_today,
+         COUNT(*) FILTER (WHERE status = 'collected' AND updated_at >= CURRENT_DATE)::int AS collected_today,
+         COUNT(*) FILTER (WHERE status = 'ready_for_pickup')::int AS ready_for_pickup
+       FROM parcels
+       WHERE business_id = $1`,
+      [businessId],
+    );
+    const row = result.rows[0] ?? {};
+    return {
+      total: Number(row.total ?? 0),
+      delivered: Number(row.delivered ?? 0),
+      pending: Number(row.pending ?? 0),
+      createdToday: Number(row.created_today ?? 0),
+      collectedToday: Number(row.collected_today ?? 0),
+      readyForPickup: Number(row.ready_for_pickup ?? 0),
+    };
   }
 
   async listForCustomer(ctx: DataAccessContext): Promise<CustomerParcel[]> {
@@ -454,12 +497,7 @@ export class ParcelRepository {
     }
     sql += ` ORDER BY created_at DESC`;
     const ids = await this.db.query(sql, params);
-    const parcels: CustomerParcel[] = [];
-    for (const row of ids.rows) {
-      const parcel = await this.loadCustomerParcel(String(row.id));
-      if (parcel) parcels.push(parcel);
-    }
-    return parcels;
+    return this.loadCustomerParcels(ids.rows.map((row) => String(row.id)));
   }
 
   async listAll(
@@ -586,12 +624,28 @@ export class ParcelRepository {
   }
 
   private async loadParcelsWithRelations(ids: string[]): Promise<ParcelWithLocker[]> {
-    const parcels: ParcelWithLocker[] = [];
-    for (const id of ids) {
-      const parcel = await this.loadParcelWithRelations(id);
-      if (parcel) parcels.push(parcel);
-    }
-    return parcels;
+    if (ids.length === 0) return [];
+    const result = await this.db.query(
+      `SELECT p.*,
+              CASE WHEN l.id IS NULL THEN NULL ELSE row_to_json(l.*) END AS locker_row,
+              row_to_json(b.*) AS business_row,
+              CASE WHEN c.id IS NULL THEN NULL
+                   ELSE json_build_object('id', c.id, 'label', c.label, 'size', c.size)
+              END AS compartment_json
+       FROM parcels p
+       LEFT JOIN lockers l ON l.id = p.locker_id
+       JOIN businesses b ON b.id = p.business_id
+       LEFT JOIN compartments c ON c.id = p.compartment_id
+       WHERE p.id = ANY($1::uuid[])`,
+      [ids],
+    );
+    const byId = new Map(
+      result.rows.map((row) => [String(row.id), this.mapParcelWithRelations(row)]),
+    );
+    return ids.flatMap((id) => {
+      const parcel = byId.get(id);
+      return parcel ? [parcel] : [];
+    });
   }
 
   private mapParcelWithRelations(row: Record<string, unknown>): ParcelWithLocker {
@@ -639,7 +693,41 @@ export class ParcelRepository {
     );
     const row = result.rows[0];
     if (!row) return null;
+    return this.mapCustomerParcel(row);
+  }
 
+  private async loadCustomerParcels(ids: string[]): Promise<CustomerParcel[]> {
+    if (ids.length === 0) return [];
+    const result = await this.db.query(
+      `SELECT p.*,
+              CASE WHEN l.id IS NULL THEN NULL ELSE row_to_json(l.*) END AS locker_row,
+              b.id AS business_relation_id, b.name AS business_name,
+              CASE WHEN c.id IS NULL THEN NULL
+                   ELSE json_build_object('id', c.id, 'label', c.label)
+              END AS compartment_json,
+              CASE WHEN pp.id IS NULL THEN NULL ELSE row_to_json(pp.*) END AS pickup_pin_row,
+              (
+                SELECT d.status FROM deliveries d
+                WHERE d.parcel_id = p.id
+                ORDER BY d.created_at DESC
+                LIMIT 1
+              ) AS latest_delivery_status
+       FROM parcels p
+       LEFT JOIN lockers l ON l.id = p.locker_id
+       JOIN businesses b ON b.id = p.business_id
+       LEFT JOIN compartments c ON c.id = p.compartment_id
+       LEFT JOIN pickup_pins pp ON pp.parcel_id = p.id
+       WHERE p.id = ANY($1::uuid[])`,
+      [ids],
+    );
+    const byId = new Map(result.rows.map((row) => [String(row.id), this.mapCustomerParcel(row)]));
+    return ids.flatMap((id) => {
+      const parcel = byId.get(id);
+      return parcel ? [parcel] : [];
+    });
+  }
+
+  private mapCustomerParcel(row: Record<string, unknown>): CustomerParcel {
     const lockerRow = row.locker_row as Record<string, unknown> | null;
     const pickupPinRow = row.pickup_pin_row as Record<string, unknown> | null;
     const compartmentJson = row.compartment_json as { id: string; label: string } | null;

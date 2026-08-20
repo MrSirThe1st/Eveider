@@ -1,4 +1,4 @@
-import { colors, radius, borders } from '@eveider/config-ui';
+import { nativeColors as colors, radius, borders } from '@eveider/config-ui';
 import type { IssueType } from '@eveider/domain';
 import { ISSUE_TYPE_LABELS } from '@eveider/domain';
 import { useState } from 'react';

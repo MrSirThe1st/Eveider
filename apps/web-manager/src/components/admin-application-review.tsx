@@ -640,7 +640,7 @@ export function AdminApplicationReview({
       style={
         hidePageChrome
           ? { paddingBottom: 104 }
-          : { maxWidth: 1080, margin: '1.5rem auto', padding: '0 1rem 7rem' }
+          : { width: '100%', padding: '0 0 7rem' }
       }
     >
       {!hidePageChrome ? (
@@ -1176,7 +1176,6 @@ export function AdminApplicationReview({
                         display: 'grid',
                         gap: spacing[3],
                         gridTemplateColumns: '1fr 1fr',
-                        maxWidth: 720,
                       }}
                     >
                       <label style={{ display: 'grid', gap: spacing[1] }}>
@@ -1349,7 +1348,6 @@ export function AdminApplicationReview({
                           display: 'grid',
                           gap: spacing[3],
                           gridTemplateColumns: '1fr 1fr',
-                          maxWidth: 720,
                         }}
                       >
                         <label style={{ display: 'grid', gap: spacing[1] }}>
@@ -1578,7 +1576,6 @@ export function AdminApplicationReview({
           <div
             style={{
               width: '100%',
-              maxWidth: 1080,
               display: 'flex',
               gap: spacing[2],
               flexWrap: 'wrap',

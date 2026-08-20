@@ -1,4 +1,4 @@
-import { colors, radius, spacing, borders, nativeShadow } from '@eveider/config-ui';
+import { nativeColors as colors, radius, spacing, borders, nativeShadow } from '@eveider/config-ui';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,

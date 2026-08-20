@@ -6,7 +6,8 @@ export {
   type BreadcrumbItem,
   type PageHeaderProps,
 } from './page-header.js';
-export { PageFrame, type PageFrameProps } from './page-frame.js';
+export { PageFrame, type PageFrameProps, type PageLayout } from './page-frame.js';
+export { PageTabs, type PageTab, type PageTabsProps } from './page-tabs.js';
 export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from './button.js';
 export { TextField, type TextFieldProps } from './text-field.js';
 export { Card, CardHeader, type CardPadding, type CardProps, type CardHeaderProps } from './card.js';
@@ -59,6 +60,7 @@ export {
   IconHome,
   IconLayout,
   IconLock,
+  IconMenu,
   IconMapPin,
   IconChevronDown,
   IconChevronLeft,
@@ -70,11 +72,19 @@ export {
   IconMoreHorizontal,
   IconPackage,
   IconPlus,
+  IconReceipt,
   IconTruck,
   IconUser,
+  IconX,
 } from './icons.js';
 export { PasswordInput, type PasswordInputProps } from './password-input.js';
-export { LoadingSpinner, type LoadingSpinnerProps } from './loading-spinner.js';
+export {
+  LoadingSpinner,
+  Spinner,
+  type LoadingSpinnerProps,
+  type LoadingSpinnerSize,
+  type SpinnerProps,
+} from './loading-spinner.js';
 export {
   CardListSkeleton,
   DashboardOverviewSkeleton,

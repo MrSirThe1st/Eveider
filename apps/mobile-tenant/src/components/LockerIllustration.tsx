@@ -1,4 +1,4 @@
-import { colors, radius } from '@eveider/config-ui';
+import { nativeColors as colors, radius } from '@eveider/config-ui';
 import { StyleSheet, Image, View } from 'react-native';
 import type { LockerVisual } from '../lib/parcel-journey';
 

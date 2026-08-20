@@ -19,12 +19,13 @@ export default async function AdminProfilePage() {
     <PageFrame
       title="Mon profil"
       description="Vos informations personnelles d'administrateur."
+      layout="standard"
       breadcrumbs={[
-        { label: 'Tableau de bord', href: '/tableau-de-bord' },
+        { label: 'Dashboard', href: '/tableau-de-bord' },
         { label: 'Mon profil' },
       ]}
     >
-      <div style={{ maxWidth: 800 }}>
+      <div style={{ width: '100%' }}>
         <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 1.5rem' }}>
           {profile.fullName?.toUpperCase() ?? 'ADMINISTRATEUR'}
         </h2>

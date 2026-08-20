@@ -1,6 +1,7 @@
 'use client';
 
 import { colors, radius, webCardStyle, webInputStyle, webPrimaryButtonStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
+import { Spinner } from '@eveider/ui';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -253,10 +254,15 @@ export function BusinessRegistrationFlow() {
                 height: 46,
                 fontSize: '0.875rem',
                 fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
                 cursor: loading ? 'wait' : 'pointer',
                 opacity: loading ? 0.7 : 1,
               }}
             >
+              {loading ? <Spinner size="sm" color="currentColor" /> : null}
               {loading ? 'Création en cours…' : 'Créer le compte Business'}
             </button>
           </form>
@@ -293,10 +299,15 @@ export function BusinessRegistrationFlow() {
                 height: 46,
                 fontSize: '0.875rem',
                 fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
                 cursor: loading ? 'wait' : 'pointer',
                 opacity: loading ? 0.7 : 1,
               }}
             >
+              {loading ? <Spinner size="sm" color="currentColor" /> : null}
               {loading ? 'Vérification…' : 'Vérifier le numéro'}
             </button>
 

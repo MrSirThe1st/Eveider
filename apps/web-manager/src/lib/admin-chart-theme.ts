@@ -1,6 +1,6 @@
 'use client';
 
-import { colors } from '@eveider/config-ui';
+import { readCssColor } from '@eveider/config-ui';
 import {
   ArcElement,
   BarElement,
@@ -28,32 +28,54 @@ ChartJS.register(
 );
 
 export const chartPalette = {
-  primary: colors.primary,
-  secondary: colors.secondary,
-  muted: colors.textMuted,
-  border: colors.border,
-  surface: colors.surface,
-  info: colors.info,
-  warning: colors.warning,
-  danger: colors.danger,
-  successMuted: colors.successMuted,
-  surfaceMuted: colors.surfaceMuted,
+  get primary() {
+    return readCssColor('primary');
+  },
+  primarySoft: 'rgba(9, 212, 11, 0.16)',
+  get muted() {
+    return readCssColor('textMuted');
+  },
+  get border() {
+    return readCssColor('border');
+  },
+  get surface() {
+    return readCssColor('surface');
+  },
+  get info() {
+    return readCssColor('info');
+  },
+  get warning() {
+    return readCssColor('warning');
+  },
+  get danger() {
+    return readCssColor('danger');
+  },
+  get successMuted() {
+    return readCssColor('successMuted');
+  },
+  get surfaceMuted() {
+    return readCssColor('surfaceMuted');
+  },
 };
 
-export const parcelStatusColors: Record<string, string> = {
-  created: colors.textMuted,
-  in_transit: colors.info,
-  delivered_to_locker: colors.warning,
-  ready_for_pickup: colors.primary,
-  collected: '#64748B',
-};
+export function parcelStatusColors(): Record<string, string> {
+  return {
+    created: '#86EFAC',
+    in_transit: readCssColor('info'),
+    delivered_to_locker: readCssColor('warning'),
+    ready_for_pickup: readCssColor('primary'),
+    collected: readCssColor('successFg'),
+  };
+}
 
-export const issueTypeColors: Record<string, string> = {
-  failed_delivery: colors.danger,
-  locker_unavailable: colors.warning,
-  parcel_problem: colors.info,
-  locker_system: colors.secondary,
-};
+export function issueTypeColors(): Record<string, string> {
+  return {
+    failed_delivery: readCssColor('danger'),
+    locker_unavailable: readCssColor('warning'),
+    parcel_problem: readCssColor('info'),
+    locker_system: '#0D9488',
+  };
+}
 
 const baseFont = {
   family: 'inherit',
@@ -68,7 +90,7 @@ export function baseBarOptions(): ChartOptions<'bar'> {
     plugins: {
       legend: { display: false },
       tooltip: {
-        backgroundColor: colors.secondary,
+        backgroundColor: readCssColor('secondary'),
         titleFont: baseFont,
         bodyFont: baseFont,
         padding: 10,
@@ -80,7 +102,7 @@ export function baseBarOptions(): ChartOptions<'bar'> {
         grid: { display: false },
         border: { display: false },
         ticks: {
-          color: colors.textMuted,
+          color: readCssColor('textMuted'),
           font: baseFont,
           maxRotation: 0,
           autoSkip: true,
@@ -89,10 +111,10 @@ export function baseBarOptions(): ChartOptions<'bar'> {
       },
       y: {
         beginAtZero: true,
-        grid: { color: colors.borderSubtle },
+        grid: { color: readCssColor('borderSubtle') },
         border: { display: false },
         ticks: {
-          color: colors.textMuted,
+          color: readCssColor('textMuted'),
           font: baseFont,
           precision: 0,
         },
@@ -119,7 +141,7 @@ export function baseDoughnutOptions(): ChartOptions<'doughnut'> {
       legend: {
         position: 'bottom',
         labels: {
-          color: colors.secondary,
+          color: readCssColor('secondary'),
           font: baseFont,
           boxWidth: 10,
           boxHeight: 10,
@@ -127,7 +149,7 @@ export function baseDoughnutOptions(): ChartOptions<'doughnut'> {
         },
       },
       tooltip: {
-        backgroundColor: colors.secondary,
+        backgroundColor: readCssColor('secondary'),
         titleFont: baseFont,
         bodyFont: baseFont,
         padding: 10,

@@ -1,7 +1,7 @@
 'use client';
 
 import { colors, borderSubtle, webInputStyle } from '@eveider/config-ui';
-import { Button, PageFrame, useToast } from '@eveider/ui';
+import { Button, CardListSkeleton, PageFrame, useToast } from '@eveider/ui';
 import { useEffect, useState, type FormEvent } from 'react';
 import { fetchJson } from '@/lib/api/fetch-json';
 
@@ -53,8 +53,8 @@ export default function AdminPricingPage() {
 
   if (loading || !rules) {
     return (
-      <PageFrame title="Tarifs livraison" description="Chargement…">
-        <p>Chargement…</p>
+      <PageFrame title="Tarifs livraison" layout="standard">
+        <CardListSkeleton cards={2} />
       </PageFrame>
     );
   }
@@ -65,10 +65,16 @@ export default function AdminPricingPage() {
     <PageFrame
       title="Tarifs livraison"
       description="Barème distance + taille (FC). Les frais de retrait client restent configurés séparément."
+      layout="standard"
     >
       <form
         onSubmit={(event) => void handleSave(event)}
-        style={{ display: 'grid', gap: '1rem', maxWidth: 520 }}
+        style={{
+          display: 'grid',
+          gap: '1rem',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          width: '100%',
+        }}
       >
         <label>
           Seuil distance (km)
@@ -104,7 +110,7 @@ export default function AdminPricingPage() {
             style={inputStyle}
           />
         </label>
-        <fieldset style={{ border: borderSubtle(), borderRadius: 8, padding: '1rem' }}>
+        <fieldset style={{ border: borderSubtle(), borderRadius: 8, padding: '1rem', gridColumn: '1 / -1' }}>
           <legend style={{ fontWeight: 700 }}>Coefficients taille</legend>
           {(['small', 'medium', 'large'] as const).map((size) => (
             <label key={size} style={{ display: 'block', marginBottom: '0.75rem' }}>
@@ -127,12 +133,14 @@ export default function AdminPricingPage() {
             </label>
           ))}
         </fieldset>
-        <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>
+        <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted, gridColumn: '1 / -1' }}>
           Formule : base FC × coefficient (compartiment réel prioritaire à la création du colis).
         </p>
-        <Button type="submit" disabled={saving}>
-          {saving ? 'Enregistrement…' : 'Enregistrer'}
-        </Button>
+        <div style={{ gridColumn: '1 / -1' }}>
+          <Button type="submit" loading={saving}>
+            Enregistrer
+          </Button>
+        </div>
       </form>
     </PageFrame>
   );

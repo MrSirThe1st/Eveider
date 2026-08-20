@@ -1,10 +1,13 @@
 'use client';
 
 import { colors, webCardStyle } from '@eveider/config-ui';
+import { CardListSkeleton } from '@eveider/ui';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { FlashBanner } from '@/components/flash-banner';
+import { BusinessReportIssue } from '@/components/business-report-issue';
+import { collectionStatusCopy, ParcelLifecycle } from '@/components/parcel-lifecycle';
 import { ParcelInvitePanel } from '@/components/parcel-invite-panel';
 import { ShippingLabel } from '@/components/shipping-label';
 import { WEB_ROUTES } from '@/lib/auth-routing';
@@ -46,7 +49,7 @@ export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
   }, [parcelId]);
 
   if (loading) {
-    return <p style={{ fontWeight: 500 }}>Chargement…</p>;
+    return <CardListSkeleton cards={2} />;
   }
 
   if (error || !parcel) {
@@ -60,8 +63,10 @@ export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
     );
   }
 
+  const collection = collectionStatusCopy(parcel.status);
+
   return (
-    <div style={{ maxWidth: 720 }}>
+    <div style={{ width: '100%' }}>
       {justCreated ? (
         <FlashBanner message={`Colis ${parcel.trackingNumber} créé avec succès.`} />
       ) : null}
@@ -187,6 +192,28 @@ export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
         </dl>
       </section>
 
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gap: '1.25rem',
+          marginBottom: '1.25rem',
+        }}
+      >
+        <section style={{ ...webCardStyle, padding: '1.5rem' }}>
+          <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700 }}>Suivi</h3>
+          <ParcelLifecycle status={parcel.status} />
+        </section>
+        <section style={{ ...webCardStyle, padding: '1.5rem' }}>
+          <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem', fontWeight: 700 }}>
+            {collection.title}
+          </h3>
+          <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 500, color: colors.textMuted }}>
+            {collection.body}
+          </p>
+        </section>
+      </div>
+
       <section style={{ ...webCardStyle, padding: '1.5rem', marginBottom: '1.25rem' }}>
         <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700 }}>
           QR & étiquette
@@ -212,6 +239,16 @@ export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
       </section>
 
       <ParcelInvitePanel parcelId={parcelId} />
+
+      <section style={{ ...webCardStyle, padding: '1.5rem', marginTop: '1.25rem' }}>
+        <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700 }}>
+          Signalement
+        </h3>
+        <p style={{ margin: '0 0 1rem', fontSize: '0.875rem', color: colors.textMuted }}>
+          Un incident est visible par les opérations Eveider. Le code PIN client n’est jamais affiché ici.
+        </p>
+        <BusinessReportIssue parcelId={parcelId} />
+      </section>
     </div>
   );
 }

@@ -8,7 +8,7 @@ import {
   webPrimaryButtonStyle,
 } from '@eveider/config-ui';
 import type { UserRole } from '@eveider/domain';
-import { PasswordInput } from '@eveider/ui';
+import { PasswordInput, Spinner } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import {
@@ -198,10 +198,15 @@ export function AuthForm({ mode, businessName, redirectParam, onAuthenticated }:
           width: '100%',
           height: spacing.buttonHeight,
           fontSize: '0.9375rem',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
           cursor: loading ? 'wait' : 'pointer',
           opacity: loading ? 0.7 : 1,
         }}
       >
+        {loading ? <Spinner size="sm" color="currentColor" /> : null}
         {loading ? 'Chargement…' : mode === 'register' ? 'Créer le compte' : 'Se connecter'}
       </button>
     </form>

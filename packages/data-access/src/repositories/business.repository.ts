@@ -123,6 +123,24 @@ export class BusinessRepository {
     return [];
   }
 
+  async updateContacts(
+    ctx: DataAccessContext,
+    id: string,
+    input: { contactEmail: string; contactPhone: string },
+  ): Promise<Business> {
+    assertBusinessScope(ctx, id);
+    const result = await this.db.query(
+      `UPDATE businesses
+       SET contact_email = $1, contact_phone = $2, updated_at = NOW()
+       WHERE id = $3
+       RETURNING *`,
+      [input.contactEmail, input.contactPhone, id],
+    );
+    const row = result.rows[0];
+    if (!row) throw new Error(`Business ${id} not found`);
+    return mapBusiness(row);
+  }
+
   async updateStatus(
     ctx: DataAccessContext,
     id: string,

@@ -32,6 +32,19 @@ function requiredRow(rows: Row[], message: string): Row {
   return row;
 }
 
+function asJsonRows(value: unknown): Row[] {
+  if (value == null) return [];
+  if (typeof value === 'string') {
+    try {
+      const parsed: unknown = JSON.parse(value);
+      return Array.isArray(parsed) ? (parsed as Row[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  return Array.isArray(value) ? (value as Row[]) : [];
+}
+
 async function loadVerification(db: Queryable, verificationId: string) {
   const verificationResult = await db.query(
     `SELECT * FROM business_verifications WHERE id = $1 LIMIT 1`,
@@ -163,6 +176,122 @@ export class BusinessOnboardingRepository {
           [businessId, input.country, input.city, input.address, input.lat, input.lng],
         );
       }
+      return mapBusiness(requiredRow(businessResult.rows, `Business ${businessId} not found`));
+    });
+  }
+
+  async updateAccountSettings(
+    businessId: string,
+    input: {
+      name: string;
+      businessType?: BusinessInfoStepInput['businessType'];
+      industry?: string;
+      description?: string;
+      contactEmail: string;
+      contactPhone: string;
+      country: string;
+      city: string;
+      address: string;
+      legalCompanyName?: string;
+      rccmNumber?: string;
+      nifNumber?: string;
+      legalRepName?: string;
+      pickupMethod: OperationsSetupStepInput['pickupMethod'];
+      pickupAddress?: string;
+      contactPerson?: string;
+      pickupContactPhone?: string;
+      availableDays?: string;
+      availableHours?: string;
+      dropoffLockerId?: string;
+    },
+  ) {
+    return withTransaction(async (tx) => {
+      const businessResult = await tx.query(
+        `UPDATE businesses
+         SET name = $1,
+             business_type = COALESCE($2, business_type),
+             industry = COALESCE($3, industry),
+             description = $4,
+             contact_email = $5,
+             contact_phone = $6,
+             legal_company_name = $7,
+             rccm_number = $8,
+             nif_number = $9,
+             legal_rep_name = $10,
+             updated_at = NOW()
+         WHERE id = $11
+         RETURNING *`,
+        [
+          input.name,
+          input.businessType ?? null,
+          input.industry ?? null,
+          input.description ?? null,
+          input.contactEmail,
+          input.contactPhone,
+          input.legalCompanyName || null,
+          input.rccmNumber || null,
+          input.nifNumber || null,
+          input.legalRepName || null,
+          businessId,
+        ],
+      );
+
+      const addressExisting = await tx.query(
+        `SELECT id FROM business_locations
+         WHERE business_id = $1 AND type = 'business_address'
+         LIMIT 1
+         FOR UPDATE`,
+        [businessId],
+      );
+      if (addressExisting.rows[0]) {
+        await tx.query(
+          `UPDATE business_locations
+           SET country = $1, city = $2, street = $3, updated_at = NOW()
+           WHERE id = $4`,
+          [input.country, input.city, input.address, addressExisting.rows[0].id],
+        );
+      } else {
+        await tx.query(
+          `INSERT INTO business_locations (business_id, type, country, city, street)
+           VALUES ($1, 'business_address', $2, $3, $4)`,
+          [businessId, input.country, input.city, input.address],
+        );
+      }
+
+      const pickupExisting = await tx.query(
+        `SELECT id FROM business_locations
+         WHERE business_id = $1 AND type = 'pickup_point'
+         LIMIT 1
+         FOR UPDATE`,
+        [businessId],
+      );
+      const pickupValues = [
+        input.pickupMethod,
+        input.pickupAddress ?? input.address,
+        input.contactPerson ?? null,
+        input.pickupContactPhone ?? null,
+        input.availableDays ?? null,
+        input.availableHours ?? null,
+        input.dropoffLockerId ?? null,
+      ];
+      if (pickupExisting.rows[0]) {
+        await tx.query(
+          `UPDATE business_locations
+           SET pickup_method = $1, street = $2, contact_person = $3, contact_phone = $4,
+               available_days = $5, available_hours = $6, dropoff_locker_id = $7, updated_at = NOW()
+           WHERE id = $8`,
+          [...pickupValues, pickupExisting.rows[0].id],
+        );
+      } else {
+        await tx.query(
+          `INSERT INTO business_locations
+             (business_id, type, pickup_method, street, contact_person, contact_phone,
+              available_days, available_hours, dropoff_locker_id)
+           VALUES ($1, 'pickup_point', $2, $3, $4, $5, $6, $7, $8)`,
+          [businessId, ...pickupValues],
+        );
+      }
+
       return mapBusiness(requiredRow(businessResult.rows, `Business ${businessId} not found`));
     });
   }
@@ -346,6 +475,52 @@ export class BusinessOnboardingRepository {
   async listApplications(ctx: DataAccessContext, options?: { search?: string }) {
     assertAdmin(ctx);
     const params: unknown[] = [];
+    const conditions = [`b.status != 'active'`];
+    if (options?.search?.trim()) {
+      params.push(`%${options.search.trim()}%`);
+      conditions.push(
+        `(b.name ILIKE $${params.length} OR COALESCE(b.contact_email, '') ILIKE $${params.length} OR COALESCE(b.access_code, '') ILIKE $${params.length})`,
+      );
+    }
+    const businessesResult = await this.db.query(
+      `SELECT b.*,
+              COALESCE((
+                SELECT json_agg(u.* ORDER BY u.created_at ASC)
+                FROM users u
+                WHERE u.business_id = b.id
+              ), '[]'::json) AS users_json,
+              COALESCE((
+                SELECT json_agg(loc.* ORDER BY loc.created_at ASC)
+                FROM business_locations loc
+                WHERE loc.business_id = b.id
+              ), '[]'::json) AS locations_json
+       FROM businesses b
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY b.updated_at DESC`,
+      params,
+    );
+    if (businessesResult.rows.length === 0) return [];
+
+    return businessesResult.rows.map((row: Row) => {
+      const business = mapBusiness(row);
+      const users = asJsonRows(row.users_json).map(mapUser);
+      const locations = asJsonRows(row.locations_json).map(mapBusinessLocation);
+      return {
+        ...business,
+        users,
+        locations,
+        documents: [],
+        billingAccount: null,
+        settlementAccount: null,
+        verifications: [],
+        statusHistory: [],
+      };
+    });
+  }
+
+  async listApplicationIds(ctx: DataAccessContext, options?: { search?: string }): Promise<string[]> {
+    assertAdmin(ctx);
+    const params: unknown[] = [];
     const conditions = [`status != 'active'`];
     if (options?.search?.trim()) {
       params.push(`%${options.search.trim()}%`);
@@ -357,20 +532,7 @@ export class BusinessOnboardingRepository {
       `SELECT id FROM businesses WHERE ${conditions.join(' AND ')} ORDER BY updated_at DESC`,
       params,
     );
-    return Promise.all(
-      result.rows.map(async (row: Row) => {
-        const summary = await loadSummary(this.db, String(row.id));
-        if (!summary) throw new Error(`Business ${row.id} not found`);
-        const { permissions: _permissions, limit: _limit, ...application } = summary;
-        return {
-          ...application,
-          locations: application.locations.map(
-            ({ dropoffLocker: _dropoffLocker, ...location }) => location,
-          ),
-          verifications: application.verifications.map(({ reviewer: _reviewer, ...verification }) => verification),
-        };
-      }),
-    );
+    return result.rows.map((row) => String(row.id));
   }
 
   async processAdminDecision(ctx: DataAccessContext, businessId: string, input: AdminReviewDecisionInput) {

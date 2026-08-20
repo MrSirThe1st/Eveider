@@ -17,7 +17,7 @@ import {
   type PaymentResponsibility,
   type ShipmentPickupType,
 } from '@eveider/domain';
-import { InlineAlert, TextField, Wizard, type WizardStep, useToast } from '@eveider/ui';
+import { InlineAlert, LoadingSpinner, TextField, Wizard, type WizardStep, useToast } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -534,7 +534,7 @@ export function CreateParcelForm() {
                 Compartiment
               </p>
               {loadingCompartments ? (
-                <p style={{ color: colors.textMuted }}>Chargement…</p>
+                <LoadingSpinner compact size="sm" label="Chargement des compartiments…" />
               ) : compartmentError ? (
                 <InlineAlert message={compartmentError} variant="error" />
               ) : compartmentData ? (

@@ -1,4 +1,4 @@
-import { colors, radius, spacing, borders } from '@eveider/config-ui';
+import { nativeColors as colors, radius, spacing, borders } from '@eveider/config-ui';
 import type { UserRole } from '@eveider/domain';
 import { useEffect, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';

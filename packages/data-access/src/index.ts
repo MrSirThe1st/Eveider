@@ -13,7 +13,13 @@ export { ParcelRepository } from './repositories/parcel.repository.js';
 export { UserRepository } from './repositories/user.repository.js';
 export { IssueRepository, type IssueWithRelations } from './repositories/issue.repository.js';
 export { NotificationRepository, type CustomerNotification } from './repositories/notification.repository.js';
-export { StatsRepository, type DashboardStats, type AnalyticsReport } from './repositories/stats.repository.js';
+export {
+  StatsRepository,
+  type DashboardStats,
+  type AnalyticsReport,
+  type BusinessAnalytics,
+  type PublicNetworkStats,
+} from './repositories/stats.repository.js';
 export { PricingRepository, toDeliveryPricingRules } from './repositories/pricing.repository.js';
 export {
   resolveBusinessPickupCoordinates,

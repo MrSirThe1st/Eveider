@@ -19,22 +19,19 @@ import {
 type AdminAnalyticsPanelProps = {
   analytics: AnalyticsReport;
   days: DashboardDayRange;
-  loading?: boolean;
 };
 
 function ChartCard({
   title,
   subtitle,
   children,
-  loading,
 }: {
   title: string;
   subtitle?: string;
   children: ReactNode;
-  loading?: boolean;
 }) {
   return (
-    <div style={{ ...webCardStyle, padding: '1.25rem', opacity: loading ? 0.65 : 1 }}>
+    <div style={{ ...webCardStyle, padding: '1.25rem' }}>
       <p
         style={{
           margin: 0,
@@ -65,15 +62,21 @@ function ChartCard({
   );
 }
 
-export function AdminAnalyticsPanel({ analytics, days, loading }: AdminAnalyticsPanelProps) {
-  const dayLabels = analytics.dailyDeliveries.map((entry) => formatDayLabel(entry.date));
+export function AdminAnalyticsPanel({ analytics, days }: AdminAnalyticsPanelProps) {
+  const dailyDeliveries = analytics.dailyDeliveries ?? [];
+  const dailyParcelsCreated = analytics.dailyParcelsCreated ?? [];
+  const parcelsByStatus = analytics.parcelsByStatus ?? [];
+  const openIssuesByType = analytics.openIssuesByType ?? [];
+  const rankedLockers = analytics.topLockers ?? [];
+
+  const dayLabels = dailyDeliveries.map((entry) => formatDayLabel(entry.date));
 
   const completedDeliveriesData = {
     labels: dayLabels,
     datasets: [
       {
         label: 'Livraisons terminées',
-        data: analytics.dailyDeliveries.map((entry) => entry.count),
+        data: dailyDeliveries.map((entry) => entry.count),
         backgroundColor: chartPalette.primary,
         borderRadius: 6,
         maxBarThickness: 36,
@@ -82,55 +85,58 @@ export function AdminAnalyticsPanel({ analytics, days, loading }: AdminAnalytics
   };
 
   const parcelsCreatedData = {
-    labels: analytics.dailyParcelsCreated.map((entry) => formatDayLabel(entry.date)),
+    labels: dailyParcelsCreated.map((entry) => formatDayLabel(entry.date)),
     datasets: [
       {
         label: 'Colis créés',
-        data: analytics.dailyParcelsCreated.map((entry) => entry.count),
-        borderColor: chartPalette.secondary,
-        backgroundColor: 'rgba(18, 18, 18, 0.08)',
+        data: dailyParcelsCreated.map((entry) => entry.count),
+        borderColor: chartPalette.primary,
+        backgroundColor: chartPalette.primarySoft,
         fill: true,
         tension: 0.35,
         pointRadius: 3,
-        pointBackgroundColor: chartPalette.secondary,
+        pointBackgroundColor: chartPalette.primary,
       },
     ],
   };
 
-  const statusEntries = analytics.parcelsByStatus.filter((entry) => entry.count > 0);
+  const statusEntries = parcelsByStatus.filter((entry) => entry.count > 0);
   const parcelsByStatusData = {
     labels: statusEntries.map((entry) => PARCEL_STATUS_LABELS[entry.status]),
     datasets: [
       {
         data: statusEntries.map((entry) => entry.count),
-        backgroundColor: statusEntries.map((entry) => parcelStatusColors[entry.status] ?? chartPalette.muted),
+        backgroundColor: statusEntries.map((entry) => parcelStatusColors()[entry.status] ?? chartPalette.muted),
         borderWidth: 0,
       },
     ],
   };
 
-  const topLockers = analytics.topLockers.slice(0, 5);
+  const topLockers = rankedLockers.slice(0, 5);
   const topLockersData = {
     labels: topLockers.map((locker) => locker.lockerName),
     datasets: [
       {
         label: 'Colis',
         data: topLockers.map((locker) => locker.parcelCount),
-        backgroundColor: chartPalette.secondary,
+        backgroundColor: topLockers.map((_, index) => {
+          const alpha = Math.max(1 - index * 0.16, 0.4);
+          return `rgba(9, 212, 11, ${alpha})`;
+        }),
         borderRadius: 6,
         maxBarThickness: 22,
       },
     ],
   };
 
-  const issueEntries = analytics.openIssuesByType.filter((entry) => entry.count > 0);
+  const issueEntries = openIssuesByType.filter((entry) => entry.count > 0);
   const openIssuesData = {
     labels: issueEntries.map((entry) => ISSUE_TYPE_LABELS[entry.type]),
     datasets: [
       {
         label: 'Incidents ouverts',
         data: issueEntries.map((entry) => entry.count),
-        backgroundColor: issueEntries.map((entry) => issueTypeColors[entry.type] ?? chartPalette.muted),
+        backgroundColor: issueEntries.map((entry) => issueTypeColors()[entry.type] ?? chartPalette.muted),
         borderRadius: 6,
         maxBarThickness: 40,
       },
@@ -168,7 +174,6 @@ export function AdminAnalyticsPanel({ analytics, days, loading }: AdminAnalytics
         <ChartCard
           title="LIVRAISONS TERMINÉES / JOUR"
           subtitle={`${days} derniers jours`}
-          loading={loading}
         >
           <Bar data={completedDeliveriesData} options={barOptions} />
         </ChartCard>
@@ -176,7 +181,6 @@ export function AdminAnalyticsPanel({ analytics, days, loading }: AdminAnalytics
         <ChartCard
           title="COLIS PAR STATUT"
           subtitle={`Colis créés sur ${days} jours · statut actuel`}
-          loading={loading}
         >
           {statusEntries.length > 0 ? (
             <Doughnut data={parcelsByStatusData} options={baseDoughnutOptions()} />
@@ -194,11 +198,11 @@ export function AdminAnalyticsPanel({ analytics, days, loading }: AdminAnalytics
           marginBottom: '1rem',
         }}
       >
-        <ChartCard title="COLIS CRÉÉS / JOUR" subtitle={`${days} derniers jours`} loading={loading}>
+        <ChartCard title="COLIS CRÉÉS / JOUR" subtitle={`${days} derniers jours`}>
           <Line data={parcelsCreatedData} options={lineOptions} />
         </ChartCard>
 
-        <ChartCard title="TOP POINTS" subtitle="Activité casier sur la période" loading={loading}>
+        <ChartCard title="TOP POINTS" subtitle="Activité casier sur la période">
           {topLockers.length > 0 ? (
             <Bar data={topLockersData} options={horizontalBarOptions} />
           ) : (
@@ -210,7 +214,6 @@ export function AdminAnalyticsPanel({ analytics, days, loading }: AdminAnalytics
       <ChartCard
         title="INCIDENTS OUVERTS PAR TYPE"
         subtitle="Ouverts et en cours de traitement"
-        loading={loading}
       >
         {issueEntries.length > 0 ? (
           <Bar data={openIssuesData} options={barOptions} />

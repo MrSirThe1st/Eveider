@@ -1,10 +1,9 @@
 import {
   AccessDeniedError,
   createDataAccessContext,
-  createRepositories,
   type DataAccessContext,
 } from '@eveider/data-access';
-import { resolveCurrentUser } from '@/lib/auth/resolve-current-user';
+import { getCurrentUser } from '@/lib/auth/get-current-user';
 import type { PerfTimer } from '@/lib/perf/request-timer';
 
 const ADMIN_ROLES = ['admin'] as const;
@@ -29,17 +28,17 @@ export type AdminSession = {
 export async function requireAdminSession(
   perf?: PerfTimer,
 ): Promise<{ session: AdminSession } | { error: string; status: number }> {
-  const current = await measure(perf, 'auth.resolveCurrentUser', () => resolveCurrentUser());
+  const current = await measure(perf, 'auth.resolveCurrentUser', () => getCurrentUser());
 
   if (!current) {
     return { error: 'Non authentifié', status: 401 };
   }
 
   try {
-    const { onboarding } = createRepositories();
-    const profile = await measure(perf, 'db.requireRole', () =>
-      onboarding.requireRole(current.authUser.id, ADMIN_ROLES),
-    );
+    const profile = current.profile;
+    if (!ADMIN_ROLES.includes(profile.role as (typeof ADMIN_ROLES)[number])) {
+      throw new AccessDeniedError('Rôle non autorisé pour cette application');
+    }
     const ctx = createDataAccessContext('admin', { userId: profile.id });
 
     return {
@@ -69,17 +68,17 @@ export type BusinessSession = {
 export async function requireBusinessSession(
   perf?: PerfTimer,
 ): Promise<{ session: BusinessSession } | { error: string; status: number }> {
-  const current = await measure(perf, 'auth.resolveCurrentUser', () => resolveCurrentUser());
+  const current = await measure(perf, 'auth.resolveCurrentUser', () => getCurrentUser());
 
   if (!current) {
     return { error: 'Non authentifié', status: 401 };
   }
 
   try {
-    const { onboarding } = createRepositories();
-    const profile = await measure(perf, 'db.requireRole', () =>
-      onboarding.requireRole(current.authUser.id, BUSINESS_ROLES),
-    );
+    const profile = current.profile;
+    if (!BUSINESS_ROLES.includes(profile.role as (typeof BUSINESS_ROLES)[number])) {
+      throw new AccessDeniedError('Rôle non autorisé pour cette application');
+    }
 
     if (!profile.businessId) {
       return { error: 'Compte entreprise requis', status: 403 };

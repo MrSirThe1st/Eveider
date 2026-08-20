@@ -95,15 +95,6 @@ export type UpdateLockerInput = {
 
 const EMPTY_AVAILABLE_BY_SIZE: AvailableBySize = { small: 0, medium: 0, large: 0 };
 
-function countCompartmentsByStatus(compartments: { status: CompartmentStatus }[]) {
-  return {
-    available: compartments.filter((c) => c.status === 'available').length,
-    occupied: compartments.filter((c) => c.status === 'occupied').length,
-    reserved: compartments.filter((c) => c.status === 'reserved').length,
-    total: compartments.length,
-  };
-}
-
 function countAvailableBySize(
   compartments: { status: CompartmentStatus; size: 'small' | 'medium' | 'large' }[],
 ): AvailableBySize {
@@ -161,39 +152,61 @@ export class LockerRepository {
   }
 
   async listActiveWithAvailability(): Promise<LockerWithAvailability[]> {
+    const occupyingStatuses = [...OCCUPYING_PARCEL_STATUSES];
     const lockersResult = await this.db.query(
-      `SELECT * FROM lockers
-       WHERE status = 'active' AND latitude IS NOT NULL AND longitude IS NOT NULL
-       ORDER BY name ASC`,
+      `SELECT l.*,
+              COALESCE(c.available, 0)::int AS available_count,
+              COALESCE(c.available_small, 0)::int AS available_small,
+              COALESCE(c.available_medium, 0)::int AS available_medium,
+              COALESCE(c.available_large, 0)::int AS available_large,
+              COALESCE(o.occupying, 0)::int AS occupying_count
+       FROM lockers l
+       LEFT JOIN (
+         SELECT locker_id,
+                COUNT(*) FILTER (WHERE status = 'available')::int AS available,
+                COUNT(*) FILTER (WHERE status = 'available' AND size = 'small')::int AS available_small,
+                COUNT(*) FILTER (WHERE status = 'available' AND size = 'medium')::int AS available_medium,
+                COUNT(*) FILTER (WHERE status = 'available' AND size = 'large')::int AS available_large
+         FROM compartments
+         GROUP BY locker_id
+       ) c ON c.locker_id = l.id
+       LEFT JOIN (
+         SELECT locker_id, COUNT(*)::int AS occupying
+         FROM parcels
+         WHERE status = ANY($1::"ParcelStatus"[])
+         GROUP BY locker_id
+       ) o ON o.locker_id = l.id
+       WHERE l.status = 'active' AND l.latitude IS NOT NULL AND l.longitude IS NOT NULL
+       ORDER BY l.name ASC`,
+      [occupyingStatuses],
     );
-    const lockers = lockersResult.rows.map(mapLocker);
-    if (lockers.length === 0) return [];
 
-    const ids = lockers.map((l) => l.id);
-    const [compartmentsResult, occupyingCounts] = await Promise.all([
-      this.db.query(`SELECT locker_id, status, size FROM compartments WHERE locker_id = ANY($1)`, [
-        ids,
-      ]),
-      this.countOccupyingByLockerIds(ids),
-    ]);
-
-    const byLocker = new Map<
-      string,
-      { status: CompartmentStatus; size: 'small' | 'medium' | 'large' }[]
-    >();
-    for (const row of compartmentsResult.rows) {
-      const lockerId = String(row.locker_id);
-      const list = byLocker.get(lockerId) ?? [];
-      list.push({
-        status: row.status as CompartmentStatus,
-        size: row.size as 'small' | 'medium' | 'large',
-      });
-      byLocker.set(lockerId, list);
-    }
-
-    return lockers.map((locker) =>
-      withAvailability(locker, byLocker.get(locker.id) ?? [], occupyingCounts.get(locker.id) ?? 0),
-    );
+    return lockersResult.rows.map((row) => {
+      const locker = mapLocker(row);
+      const occupyingCount = Number(row.occupying_count ?? 0);
+      const availableBySize = usesCompartmentGrid(locker.type)
+        ? {
+            small: Number(row.available_small ?? 0),
+            medium: Number(row.available_medium ?? 0),
+            large: Number(row.available_large ?? 0),
+          }
+        : EMPTY_AVAILABLE_BY_SIZE;
+      const availableCompartments = usesCompartmentGrid(locker.type)
+        ? Number(row.available_count ?? 0)
+        : 0;
+      return {
+        ...locker,
+        availableCompartments,
+        availableBySize,
+        occupyingCount,
+        availableSlots: availableSlots({
+          type: locker.type,
+          availableCompartments,
+          maxCapacity: locker.maxCapacity,
+          occupyingCount,
+        }),
+      };
+    });
   }
 
   async listSelectableCompartments(lockerId: string): Promise<{
@@ -268,10 +281,10 @@ export class LockerRepository {
   async listAll(ctx: DataAccessContext, options?: { search?: string }): Promise<LockerSummary[]> {
     assertAdmin(ctx);
     const params: unknown[] = [];
-    let where = `status <> 'archived'`;
+    let where = `l.status <> 'archived'`;
     if (options?.search?.trim()) {
       params.push(`%${options.search.trim()}%`);
-      where += ` AND (name ILIKE $${params.length} OR code ILIKE $${params.length})`;
+      where += ` AND (l.name ILIKE $${params.length} OR l.code ILIKE $${params.length})`;
     }
     return this.listSummaries(where, params);
   }
@@ -282,30 +295,44 @@ export class LockerRepository {
   }
 
   private async listSummaries(where: string, params: unknown[] = []): Promise<LockerSummary[]> {
+    const occupyingParamIndex = params.length + 1;
     const lockersResult = await this.db.query(
-      `SELECT * FROM lockers WHERE ${where} ORDER BY name ASC`,
-      params,
+      `SELECT l.*,
+              COALESCE(c.available, 0)::int AS available_count,
+              COALESCE(c.occupied, 0)::int AS occupied_count,
+              COALESCE(c.reserved, 0)::int AS reserved_count,
+              COALESCE(c.total, 0)::int AS compartment_total,
+              COALESCE(o.occupying, 0)::int AS occupying_count
+       FROM lockers l
+       LEFT JOIN (
+         SELECT locker_id,
+                COUNT(*) FILTER (WHERE status = 'available')::int AS available,
+                COUNT(*) FILTER (WHERE status = 'occupied')::int AS occupied,
+                COUNT(*) FILTER (WHERE status = 'reserved')::int AS reserved,
+                COUNT(*)::int AS total
+         FROM compartments
+         GROUP BY locker_id
+       ) c ON c.locker_id = l.id
+       LEFT JOIN (
+         SELECT locker_id, COUNT(*)::int AS occupying
+         FROM parcels
+         WHERE status = ANY($${occupyingParamIndex}::"ParcelStatus"[])
+         GROUP BY locker_id
+       ) o ON o.locker_id = l.id
+       WHERE ${where}
+       ORDER BY l.name ASC`,
+      [...params, [...OCCUPYING_PARCEL_STATUSES]],
     );
-    const lockers = lockersResult.rows.map(mapLocker);
-    if (lockers.length === 0) return [];
 
-    const ids = lockers.map((l) => l.id);
-    const [compartmentsResult, occupyingCounts] = await Promise.all([
-      this.db.query(`SELECT locker_id, status FROM compartments WHERE locker_id = ANY($1)`, [ids]),
-      this.countOccupyingByLockerIds(ids),
-    ]);
-
-    const byLocker = new Map<string, { status: CompartmentStatus }[]>();
-    for (const row of compartmentsResult.rows) {
-      const lockerId = String(row.locker_id);
-      const list = byLocker.get(lockerId) ?? [];
-      list.push({ status: row.status as CompartmentStatus });
-      byLocker.set(lockerId, list);
-    }
-
-    return lockers.map((locker) => {
-      const compartmentCounts = countCompartmentsByStatus(byLocker.get(locker.id) ?? []);
-      const occupyingCount = occupyingCounts.get(locker.id) ?? 0;
+    return lockersResult.rows.map((row) => {
+      const locker = mapLocker(row);
+      const occupyingCount = Number(row.occupying_count ?? 0);
+      const compartmentCounts = {
+        available: Number(row.available_count ?? 0),
+        occupied: Number(row.occupied_count ?? 0),
+        reserved: Number(row.reserved_count ?? 0),
+        total: Number(row.compartment_total ?? 0),
+      };
       return {
         ...locker,
         compartmentCounts,

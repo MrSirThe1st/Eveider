@@ -1,6 +1,7 @@
 'use client';
 
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react';
+import { Spinner } from './loading-spinner.js';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 export type ButtonSize = 'md' | 'sm';
@@ -58,7 +59,7 @@ export function Button({
       aria-busy={loading || undefined}
       {...rest}
     >
-      {loading ? <span className="nb-btn__spinner" aria-hidden="true" /> : leadingIcon}
+      {loading ? <Spinner size="sm" color="currentColor" /> : leadingIcon}
       {children}
     </button>
   );

@@ -1,4 +1,4 @@
-import { colors, radius, spacing, borders } from '@eveider/config-ui';
+import { nativeColors as colors, radius, spacing, borders } from '@eveider/config-ui';
 import type { DeliveryStatus } from '@eveider/domain';
 import { useCallback, useEffect, useState } from 'react';
 import {

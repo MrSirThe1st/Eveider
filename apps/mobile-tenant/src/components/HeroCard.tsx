@@ -1,4 +1,4 @@
-import { colors, radius } from '@eveider/config-ui';
+import { nativeColors as colors, radius } from '@eveider/config-ui';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 type HeroCardProps = {

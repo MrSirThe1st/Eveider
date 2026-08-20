@@ -7,6 +7,7 @@ import type {
   PaymentSetupStepInput,
 } from '@eveider/api-contracts';
 import { colors, radius, webCardStyle, webInputStyle, webPrimaryButtonStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
+import { Spinner } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { OnboardingSummary } from '@/hooks/queries/use-onboarding-summary-query';
@@ -243,7 +244,7 @@ export function OnboardingWizard({ initialSummary, availableLockers = [] }: Onbo
 
   if (businessStatus === 'pending_review' || businessStatus === 'pending') {
     return (
-      <div style={{ maxWidth: 640, margin: '3rem auto', padding: '0 1rem' }}>
+      <div style={{ width: '100%', maxWidth: 'none', margin: 0, padding: '3rem 2rem 1rem' }}>
         <div style={{ ...webCardStyle, padding: '2.5rem', textAlign: 'center', borderRadius: radius.card }}>
           <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#FEF3C7', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.75rem', margin: '0 auto 1.5rem', fontWeight: 800 }}>
             ⏳
@@ -274,7 +275,7 @@ export function OnboardingWizard({ initialSummary, availableLockers = [] }: Onbo
   }
 
   return (
-    <div style={{ maxWidth: 840, margin: '2rem auto', padding: '0 1rem 4rem' }}>
+    <div style={{ width: '100%', maxWidth: 'none', margin: 0, padding: '2rem 2rem 4rem' }}>
       
       {/* Header & Steps Nav */}
       <div style={{ marginBottom: '2rem' }}>
@@ -457,8 +458,18 @@ export function OnboardingWizard({ initialSummary, availableLockers = [] }: Onbo
             type="button"
             onClick={() => void handleNext(1)}
             disabled={loading}
-            style={{ ...webPrimaryButtonStyle, marginTop: '2rem', width: '100%', height: 46 }}
+            style={{
+              ...webPrimaryButtonStyle,
+              marginTop: '2rem',
+              width: '100%',
+              height: 46,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+            }}
           >
+            {loading ? <Spinner size="sm" color="currentColor" /> : null}
             {loading ? 'Sauvegarde…' : 'Enregistrer & Continuer →'}
           </button>
         </section>
@@ -589,7 +600,8 @@ export function OnboardingWizard({ initialSummary, availableLockers = [] }: Onbo
 
           <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
             <button type="button" onClick={() => setCurrentStep(1)} style={{ ...webSecondaryButtonStyle, flex: 1, height: 46 }}>← Retour</button>
-            <button type="button" onClick={() => void handleNext(2)} disabled={loading} style={{ ...webPrimaryButtonStyle, flex: 2, height: 46 }}>
+            <button type="button" onClick={() => void handleNext(2)} disabled={loading} style={{ ...webPrimaryButtonStyle, flex: 2, height: 46, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              {loading ? <Spinner size="sm" color="currentColor" /> : null}
               {loading ? 'Sauvegarde…' : 'Enregistrer & Continuer →'}
             </button>
           </div>
@@ -708,7 +720,8 @@ export function OnboardingWizard({ initialSummary, availableLockers = [] }: Onbo
 
           <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
             <button type="button" onClick={() => setCurrentStep(2)} style={{ ...webSecondaryButtonStyle, flex: 1, height: 46 }}>← Retour</button>
-            <button type="button" onClick={() => void handleNext(3)} disabled={loading} style={{ ...webPrimaryButtonStyle, flex: 2, height: 46 }}>
+            <button type="button" onClick={() => void handleNext(3)} disabled={loading} style={{ ...webPrimaryButtonStyle, flex: 2, height: 46, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              {loading ? <Spinner size="sm" color="currentColor" /> : null}
               {loading ? 'Sauvegarde…' : 'Enregistrer & Continuer →'}
             </button>
           </div>
@@ -800,7 +813,8 @@ export function OnboardingWizard({ initialSummary, availableLockers = [] }: Onbo
 
           <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
             <button type="button" onClick={() => setCurrentStep(3)} style={{ ...webSecondaryButtonStyle, flex: 1, height: 46 }}>← Retour</button>
-            <button type="button" onClick={() => void handleNext(4)} disabled={loading} style={{ ...webPrimaryButtonStyle, flex: 2, height: 46 }}>
+            <button type="button" onClick={() => void handleNext(4)} disabled={loading} style={{ ...webPrimaryButtonStyle, flex: 2, height: 46, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              {loading ? <Spinner size="sm" color="currentColor" /> : null}
               {loading ? 'Sauvegarde…' : 'Enregistrer & Continuer →'}
             </button>
           </div>
@@ -845,11 +859,16 @@ export function OnboardingWizard({ initialSummary, availableLockers = [] }: Onbo
                 height: 46,
                 fontSize: '0.875rem',
                 fontWeight: 800,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
                 opacity: loading || !confirmedAccuracy ? 0.6 : 1,
                 cursor: loading || !confirmedAccuracy ? 'not-allowed' : 'pointer',
               }}
             >
-              {loading ? 'Soumission en cours…' : 'Soumettre le dossier (Submit Application)'}
+              {loading ? <Spinner size="sm" color="currentColor" /> : null}
+              {loading ? 'Soumission en cours…' : 'Soumettre le dossier'}
             </button>
           </div>
         </section>

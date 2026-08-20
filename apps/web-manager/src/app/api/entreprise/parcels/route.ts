@@ -14,6 +14,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = listParcelsQuerySchema.safeParse({
     status: searchParams.get('status') ?? undefined,
+    search: searchParams.get('search') ?? undefined,
   });
 
   if (!query.success) {
@@ -22,11 +23,10 @@ export async function GET(request: Request) {
 
   try {
     const { parcels } = createRepositories();
-    const items = await parcels.listForBusiness(
-      auth.session.ctx,
-      auth.session.profile.businessId!,
-      query.data.status ? { status: query.data.status } : undefined,
-    );
+    const items = await parcels.listForBusiness(auth.session.ctx, auth.session.profile.businessId!, {
+      status: query.data.status,
+      search: query.data.search,
+    });
 
     return NextResponse.json(ok({ parcels: items.map(toParcelDto) }));
   } catch (err) {
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
     if (message.includes('cannot submit parcels')) {
       return NextResponse.json(
         fail(
-          'Votre compte entreprise n\'est pas encore actif. Contactez Eveider ou exécutez : UPDATE businesses SET status = \'active\';',
+          "Votre compte entreprise n'est pas encore actif. La création d'expéditions sera disponible après vérification.",
         ),
         { status: 403 },
       );

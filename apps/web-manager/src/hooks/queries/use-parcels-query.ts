@@ -26,8 +26,13 @@ function parcelsUrl(scope: ParcelsScope, status: ParcelStatusFilter, search?: st
   return query ? `${base}?${query}` : base;
 }
 
-export async function fetchBusinessParcels(status: ParcelStatusFilter): Promise<BusinessParcelItem[]> {
-  const data = await fetchJson<{ parcels: BusinessParcelItem[] }>(parcelsUrl('business', status));
+export async function fetchBusinessParcels(
+  status: ParcelStatusFilter,
+  search?: string,
+): Promise<BusinessParcelItem[]> {
+  const data = await fetchJson<{ parcels: BusinessParcelItem[] }>(
+    parcelsUrl('business', status, search),
+  );
   return data.parcels;
 }
 
@@ -41,16 +46,17 @@ export async function fetchAdminParcels(
   return data.parcels;
 }
 
-export function useBusinessParcelsQuery(status: ParcelStatusFilter) {
+export function useBusinessParcelsQuery(status: ParcelStatusFilter, search = '') {
   const [parcels, setParcels] = useState<BusinessParcelItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFetching, setIsFetching] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const hasDataRef = useRef(false);
+  const requestIdRef = useRef(0);
 
   const load = useCallback(async () => {
-    const isInitial = !hasDataRef.current;
-    if (isInitial) {
+    const requestId = ++requestIdRef.current;
+    if (!hasDataRef.current) {
       setIsLoading(true);
     } else {
       setIsFetching(true);
@@ -58,19 +64,21 @@ export function useBusinessParcelsQuery(status: ParcelStatusFilter) {
     setError(null);
 
     try {
-      const next = await fetchBusinessParcels(status);
+      const next = await fetchBusinessParcels(status, search);
+      if (requestId !== requestIdRef.current) return;
       setParcels(next);
       hasDataRef.current = true;
     } catch (e) {
+      if (requestId !== requestIdRef.current) return;
       setError(e instanceof Error ? e : new Error('Impossible de charger les colis.'));
     } finally {
+      if (requestId !== requestIdRef.current) return;
       setIsLoading(false);
       setIsFetching(false);
     }
-  }, [status]);
+  }, [search, status]);
 
   useEffect(() => {
-    hasDataRef.current = false;
     void load();
   }, [load]);
 
@@ -101,12 +109,13 @@ export function useAdminParcelsQuery(
   const [isFetching, setIsFetching] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const hasDataRef = useRef(options?.initialData !== undefined);
+  const requestIdRef = useRef(0);
 
   const load = useCallback(async () => {
     if (!enabled) return;
 
-    const isInitial = !hasDataRef.current;
-    if (isInitial) {
+    const requestId = ++requestIdRef.current;
+    if (!hasDataRef.current) {
       setIsLoading(true);
     } else {
       setIsFetching(true);
@@ -115,11 +124,14 @@ export function useAdminParcelsQuery(
 
     try {
       const next = await fetchAdminParcels(status, search);
+      if (requestId !== requestIdRef.current) return;
       setParcels(next);
       hasDataRef.current = true;
     } catch (e) {
+      if (requestId !== requestIdRef.current) return;
       setError(e instanceof Error ? e : new Error('Impossible de charger les colis.'));
     } finally {
+      if (requestId !== requestIdRef.current) return;
       setIsLoading(false);
       setIsFetching(false);
     }
@@ -127,18 +139,22 @@ export function useAdminParcelsQuery(
 
   useEffect(() => {
     if (!enabled) {
+      requestIdRef.current += 1;
       if (options?.initialData !== undefined) {
         setParcels(options.initialData);
         hasDataRef.current = true;
         setIsLoading(false);
+        setIsFetching(false);
       }
       return;
     }
 
-    hasDataRef.current = options?.initialData !== undefined && !search;
     if (options?.initialData !== undefined && !search) {
+      requestIdRef.current += 1;
       setParcels(options.initialData);
+      hasDataRef.current = true;
       setIsLoading(false);
+      setIsFetching(false);
       return;
     }
 

@@ -42,22 +42,18 @@ export async function requireBusinessPageContext(): Promise<BusinessPageContext>
 }
 
 export async function loadBusinessDashboard(businessId: string, ctx: DataAccessContext) {
-  const { businessOnboarding, parcels } = createRepositories();
+  const { businessOnboarding, stats } = createRepositories();
   const summary = await businessOnboarding.getOnboardingSummary(businessId);
 
   if (!summary) {
     return null;
   }
 
-  const parcelList = await parcels.listForBusiness(ctx, businessId);
-  const deliveredCount = parcelList.filter((p) => p.status === 'collected').length;
-  const pendingCount = parcelList.filter((p) => p.status !== 'collected').length;
+  const analytics = await stats.getBusinessAnalytics(ctx, businessId);
 
   return {
     summary,
-    parcelList,
-    deliveredCount,
-    pendingCount,
+    analytics,
   };
 }
 

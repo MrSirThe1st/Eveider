@@ -1,6 +1,7 @@
 'use client';
 
 import { colors, radius, shadows, spacing, webCardStyle } from '@eveider/config-ui';
+import { LoadingSpinner } from '@eveider/ui';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -42,9 +43,7 @@ export function InviteLanding({ token }: InviteLandingProps) {
   if (loading) {
     return (
       <main style={pageStyle}>
-        <p style={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-          Chargement de votre colis…
-        </p>
+        <LoadingSpinner label="Chargement de votre colis…" />
       </main>
     );
   }

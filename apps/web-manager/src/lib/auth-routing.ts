@@ -8,6 +8,9 @@ export const WEB_ROUTES = {
   businessDashboard: '/entreprise/tableau-de-bord',
   businessParcels: '/entreprise/tableau-de-bord/colis',
   businessNewParcel: '/entreprise/tableau-de-bord/colis/nouveau',
+  businessIssues: '/entreprise/tableau-de-bord/incidents',
+  businessSettings: '/entreprise/tableau-de-bord/parametres',
+  businessBilling: '/entreprise/tableau-de-bord/facturation',
 } as const;
 
 export function businessParcelPath(parcelId: string) {

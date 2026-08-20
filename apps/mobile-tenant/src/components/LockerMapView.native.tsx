@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE } from 'react-native-maps';
-import { colors } from '@eveider/config-ui';
+import { nativeColors as colors } from '@eveider/config-ui';
 import { KINSHASA_CENTER } from '@eveider/domain';
 import { useMemo } from 'react';
 import {

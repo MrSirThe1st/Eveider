@@ -8,8 +8,16 @@ function isPublicPath(pathname: string) {
   return pathname === '/' || PUBLIC_PREFIXES.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }
 
+const STATIC_FILE = /\.(?:avif|gif|ico|jpe?g|png|svg|webp|woff2?)$/i;
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Public files must not go through the login redirect. next/image fetches
+  // /landing/* as the source; a 307 to HTML makes the optimizer return 500.
+  if (STATIC_FILE.test(pathname) || pathname.startsWith('/landing/')) {
+    return NextResponse.next();
+  }
 
   // APIs handle their own auth (cookies or Bearer). Never HTML-redirect them.
   if (
@@ -39,5 +47,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+  ],
 };

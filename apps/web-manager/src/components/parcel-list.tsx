@@ -1,16 +1,24 @@
 'use client';
 
-import { colors, spacing, webCardStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
-import { LoadingSpinner } from '@eveider/ui';
+import { colors, spacing, typography } from '@eveider/config-ui';
+import {
+  Button,
+  DataTable,
+  type DataTableColumn,
+  ErrorState,
+  LoadingSpinner,
+  TableSkeleton,
+} from '@eveider/ui';
 import Link from 'next/link';
-import { useState } from 'react';
-import { FlashBanner } from '@/components/flash-banner';
+import { useEffect, useMemo, useState } from 'react';
+import { ListSearchField } from '@/components/list-search-field';
 import {
   ParcelStatusFilters,
   type ParcelStatusFilter,
 } from '@/components/parcel-status-filters';
 import { ParcelStatusBadge } from '@/components/parcel-status-badge';
-import { useBusinessParcelsQuery } from '@/hooks/queries/use-parcels-query';
+import { useBusinessParcelsQuery, type BusinessParcelItem } from '@/hooks/queries/use-parcels-query';
+import { WEB_ROUTES, businessParcelPath } from '@/lib/auth-routing';
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat('fr-CD', {
@@ -22,142 +30,174 @@ function formatDate(iso: string) {
 
 export function ParcelList() {
   const [statusFilter, setStatusFilter] = useState<ParcelStatusFilter>('all');
-  const { data: parcels = [], isLoading, isFetching, isError, error, refetch } =
-    useBusinessParcelsQuery(statusFilter);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  const showInitialLoader = isLoading && parcels.length === 0;
-  const showFatalError = isError && parcels.length === 0;
-  const showRefreshError = isError && parcels.length > 0;
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const { data: parcels = [], isLoading, isFetching, isError, error, refetch } =
+    useBusinessParcelsQuery(statusFilter, debouncedSearch);
+
+  const showInitialLoader = isLoading && parcels.length === 0 && !isFetching;
+  const showFilterLoader = isFetching || (isLoading && parcels.length > 0);
+  const showFatalError = isError && parcels.length === 0 && !showFilterLoader;
   const errorMessage =
     error instanceof Error ? error.message : 'Impossible de charger les colis. Vérifiez la connexion au serveur.';
 
+  const columns = useMemo<DataTableColumn<BusinessParcelItem>[]>(
+    () => [
+      {
+        id: 'tracking',
+        header: 'Suivi',
+        sortable: true,
+        sortValue: (row) => row.trackingNumber,
+        cell: (row) => (
+          <div>
+            <Link href={businessParcelPath(row.id)} className="nb-data-table__link">
+              {row.trackingNumber}
+            </Link>
+            {row.reference ? (
+              <p
+                style={{
+                  margin: `${spacing[1]}px 0 0`,
+                  fontSize: typography.caption.fontSize,
+                  color: colors.textMuted,
+                }}
+              >
+                Réf. {row.reference}
+              </p>
+            ) : null}
+          </div>
+        ),
+      },
+      {
+        id: 'recipient',
+        header: 'Destinataire',
+        sortable: true,
+        sortValue: (row) => row.recipientName ?? row.recipientPhone,
+        hideOnMobile: true,
+        cell: (row) => (
+          <div>
+            <div>{row.recipientName ?? 'Destinataire'}</div>
+            <div style={{ color: colors.textMuted, fontSize: typography.caption.fontSize }}>
+              {row.recipientPhone}
+            </div>
+          </div>
+        ),
+      },
+      {
+        id: 'locker',
+        header: 'Point',
+        sortable: true,
+        sortValue: (row) => row.locker?.name ?? '',
+        hideOnMobile: true,
+        cell: (row) =>
+          row.locker ? (
+            row.locker.name
+          ) : (
+            <span style={{ color: colors.textMuted }}>Non assigné</span>
+          ),
+      },
+      {
+        id: 'status',
+        header: 'Statut',
+        sortable: true,
+        sortValue: (row) => row.status,
+        cell: (row) => <ParcelStatusBadge status={row.status} />,
+      },
+      {
+        id: 'createdAt',
+        header: 'Créé le',
+        sortable: true,
+        sortValue: (row) => new Date(row.createdAt).getTime(),
+        align: 'right',
+        cell: (row) => (
+          <span style={{ color: colors.textMuted, whiteSpace: 'nowrap' }}>
+            {formatDate(row.createdAt)}
+          </span>
+        ),
+      },
+    ],
+    [],
+  );
+
   return (
-    <div>
+    <section>
       <ParcelStatusFilters value={statusFilter} onChange={setStatusFilter} />
 
-      {isFetching && parcels.length > 0 ? (
-        <p style={{ margin: '0 0 0.75rem', fontSize: '0.75rem', fontWeight: 500, opacity: 0.7 }}>
-          Mise à jour…
-        </p>
-      ) : null}
+      <div style={{ marginBottom: spacing[4] }}>
+        <ListSearchField
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Rechercher par suivi, référence ou destinataire…"
+          ariaLabel="Rechercher un colis"
+        />
+      </div>
 
-      {showInitialLoader ? <LoadingSpinner label="Chargement des colis…" /> : null}
-
-      {showFatalError ? (
-        <div>
-          <FlashBanner message={errorMessage} variant="error" />
-          <button
-            type="button"
-            onClick={() => void refetch()}
-            style={{
-              ...webSecondaryButtonStyle,
-              height: spacing.buttonHeight,
-              padding: '0 1.5rem',
-              fontSize: '0.9375rem',
-            }}
-          >
-            Réessayer
-          </button>
+      {showFilterLoader ? (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: `${spacing[10]}px 0`,
+          }}
+        >
+          <LoadingSpinner compact size="md" label="Chargement des colis…" />
         </div>
       ) : null}
 
-      {showRefreshError ? (
-        <FlashBanner message={`${errorMessage} Les données affichées peuvent être obsolètes.`} variant="error" />
+      {showInitialLoader ? <TableSkeleton /> : null}
+
+      {showFatalError ? (
+        <ErrorState
+          title="Impossible de charger les colis"
+          message={errorMessage}
+          action={
+            <Button variant="secondary" onClick={() => void refetch()}>
+              Réessayer
+            </Button>
+          }
+        />
       ) : null}
 
-      {!showInitialLoader && !showFatalError && parcels.length === 0 ? (
-        <section
-          style={{
-            ...webCardStyle,
-            padding: '2.5rem',
-            textAlign: 'center',
-          }}
-        >
-          <p style={{ margin: 0, fontWeight: 600 }}>
-            {statusFilter === 'all' ? 'Aucun colis' : 'Aucun colis pour ce filtre'}
-          </p>
-          <p style={{ margin: '0.75rem 0 0', fontWeight: 500 }}>
-            {statusFilter === 'all'
-              ? 'Créez votre premier colis pour le réseau de casiers Eveider.'
-              : 'Essayez un autre filtre ou créez un nouveau colis.'}
-          </p>
-          <Link
-            href="/entreprise/tableau-de-bord/colis/nouveau"
-            style={{
-              display: 'inline-block',
-              marginTop: '1.5rem',
-              fontWeight: 600,
-              letterSpacing: '0.04em',
-              color: colors.secondary,
-            }}
-          >
-            Créer un colis →
-          </Link>
-        </section>
+      {!showInitialLoader && !showFatalError && !showFilterLoader ? (
+        <DataTable
+          columns={columns}
+          rows={parcels}
+          getRowId={(row) => row.id}
+          caption={parcels.length > 0 ? `${parcels.length} colis` : undefined}
+          emptyTitle={
+            searchQuery.trim()
+              ? 'Aucun colis pour cette recherche'
+              : statusFilter === 'all'
+                ? 'Aucun colis'
+                : 'Aucun colis pour ce filtre'
+          }
+          emptyDescription={
+            searchQuery.trim()
+              ? 'Essayez un autre numéro de suivi, une référence ou un destinataire.'
+              : 'Créez votre premier colis pour le réseau Eveider.'
+          }
+          emptyAction={
+            <Link href={WEB_ROUTES.businessNewParcel} className="nb-btn nb-btn-primary nb-btn--sm">
+              Nouveau colis
+            </Link>
+          }
+          initialSortId="createdAt"
+          initialSortDirection="desc"
+          rowActions={(row) => [
+            {
+              id: 'view',
+              label: 'Voir le détail',
+              href: businessParcelPath(row.id),
+            },
+          ]}
+        />
       ) : null}
-
-      {!showInitialLoader && !showFatalError && parcels.length > 0 ? (
-        <>
-          <p
-            style={{
-              margin: '0 0 1rem',
-              fontWeight: 600,
-              fontSize: '0.8125rem',
-              letterSpacing: '0.06em',
-            }}
-          >
-            {parcels.length} colis
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {parcels.map((parcel) => (
-              <Link
-                key={parcel.id}
-                href={`/entreprise/tableau-de-bord/colis/${parcel.id}`}
-                style={{
-                  ...webCardStyle,
-                  display: 'block',
-                  padding: '1.25rem 1.5rem',
-                  textDecoration: 'none',
-                  color: colors.secondary,
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    gap: '1rem',
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <div>
-                    <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9375rem' }}>
-                      {parcel.trackingNumber}
-                      {parcel.reference ? (
-                        <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, opacity: 0.7 }}>
-                          {parcel.reference}
-                        </span>
-                      ) : null}
-                    </p>
-                    <p style={{ margin: '0.35rem 0 0', fontWeight: 500, fontSize: '0.875rem' }}>
-                      {parcel.recipientName ?? 'Destinataire'} · {parcel.recipientPhone}
-                    </p>
-                    <p style={{ margin: '0.35rem 0 0', fontWeight: 500, fontSize: '0.8125rem' }}>
-                      {parcel.locker ? `${parcel.locker.name}` : 'Casier non assigné'}
-                    </p>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <ParcelStatusBadge status={parcel.status} />
-                    <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', fontWeight: 500 }}>
-                      {formatDate(parcel.createdAt)}
-                    </p>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </>
-      ) : null}
-    </div>
+    </section>
   );
 }

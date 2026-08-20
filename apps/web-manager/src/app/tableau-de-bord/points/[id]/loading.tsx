@@ -1,5 +1,9 @@
-import { TableSkeleton } from '@eveider/ui';
+import { CardListSkeleton, PageFrame } from '@eveider/ui';
 
-export default function LockerDetailLoading() {
-  return <TableSkeleton rows={4} />;
+export default function AdminPointDetailLoading() {
+  return (
+    <PageFrame title="Point" layout="standard">
+      <CardListSkeleton cards={3} />
+    </PageFrame>
+  );
 }
