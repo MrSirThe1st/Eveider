@@ -5,7 +5,8 @@ import {
   LANDING_STATS_REVALIDATE_SECONDS,
 } from '@/lib/landing-network-stats';
 
-export const revalidate = LANDING_STATS_REVALIDATE_SECONDS;
+/** Numeric literal required by Next.js static analysis. Keep in sync with LANDING_STATS_REVALIDATE_SECONDS. */
+export const revalidate = 60;
 
 /** Public — landing page counters (aggregates only). */
 export async function GET() {

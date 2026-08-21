@@ -1,6 +1,7 @@
 import { createRepositories, type PublicNetworkStats } from '@eveider/data-access';
 import { unstable_cache } from 'next/cache';
 
+/** Also hardcoded as `export const revalidate = 60` on `/api/landing/stats` (Next.js requires a literal). */
 export const LANDING_STATS_REVALIDATE_SECONDS = 60;
 
 export const EMPTY_LANDING_NETWORK_STATS: PublicNetworkStats = {
