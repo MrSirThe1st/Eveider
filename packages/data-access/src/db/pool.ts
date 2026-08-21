@@ -132,6 +132,21 @@ export function resolveDatabaseUrl(url = process.env.DATABASE_URL): string | und
 }
 
 /**
+ * Next.js `next dev` is a long-running process. `allowExitOnIdle` plus a
+ * 20s idle timeout was dropping TLS-warmed clients between navigations.
+ * Production keeps the short idle timeout (serverless / Fluid Compute).
+ */
+export function resolvePoolIdleOptions(nodeEnv = process.env.NODE_ENV): {
+  idleTimeoutMillis: number;
+  allowExitOnIdle: boolean;
+} {
+  if (nodeEnv === 'development') {
+    return { idleTimeoutMillis: 10 * 60_000, allowExitOnIdle: false };
+  }
+  return { idleTimeoutMillis: 20_000, allowExitOnIdle: false };
+}
+
+/**
  * Shared Client/Pool options. pg 8.22 treats sslmode=require as verify-full;
  * Supabase's pooler cert chain fails that check and stalls until
  * connectionTimeoutMillis. `rejectUnauthorized: false` keeps TLS without
@@ -183,8 +198,7 @@ function createPool(): pg.Pool {
   const pool = new Pool({
     ...getPgClientConfig(connectionString),
     max,
-    idleTimeoutMillis: 20_000,
-    allowExitOnIdle: process.env.NODE_ENV === 'development',
+    ...resolvePoolIdleOptions(),
   });
 
   const globalStore = globalThis as GlobalPool;

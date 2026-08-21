@@ -8,5 +8,6 @@ export {
   withTransaction,
   withDbQueryTrace,
   resolveDatabaseUrl,
+  resolvePoolIdleOptions,
   type Queryable,
 } from './pool.js';

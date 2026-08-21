@@ -32,7 +32,7 @@ Defer or reject work that does not advance business onboarding, parcel delivery,
 1. Read `docs/blueprint/templates/project-updates.md` first.
 2. Read relevant product context in `docs/blueprint/product/` (start with `overview.md`; see `docs/blueprint/README.md` for the full index).
 3. For UI work, read `docs/blueprint/product/design-dna.md` and `brand.md` — French copy, RDC locale, no improvised visual styles.
-4. For data loading or new API routes in `web-manager`, read `docs/blueprint/ai/data-fetching.md` and follow it strictly: Server Components + `src/server/` use-cases for reads; client fetch hooks only for documented exceptions; `@eveider/ui` skeletons / `LoadingSpinner` for all loading states; every data route gets `loading.tsx`.
+4. For data loading, new pages, new API routes, or new repository loaders, read `docs/blueprint/ai/data-fetching.md` and follow it strictly. That doc is the architecture: page-specific SQL, RSC lists, one auth profile lookup per request. Do not reuse `getOnboardingSummary` / `loadSummary` / `listActiveWithAvailability` just because they already exist.
 5. If the task is ambiguous or touches schema, auth, packages, or large refactors → ask before proceeding.
 
 ## Standards (always enforced)
@@ -43,6 +43,10 @@ Defer or reject work that does not advance business onboarding, parcel delivery,
 - Return `ApiResult<T>` — never raw DB or provider errors
 - No DB or privileged service calls from client/UI code
 - Reuse existing types, components, and logic before creating new
+- **Reads:** async Server Component → `src/server/` use-case → repository method that returns only the fields that screen binds
+- **Do not** load the full business onboarding graph, locker occupancy, or a second `findByAuthId` unless that screen/API actually uses the data
+- Keep `supabase.auth.getUser()` for session validation; do not switch to `getSession()` without an auth review
+- Do not set `allowExitOnIdle: true` on the Next.js `pg` pool; do not change production `idleTimeoutMillis` when tuning local performance
 
 ```ts
 type ApiResult<T> = { success: true; data: T } | { success: false; error: string };
@@ -61,6 +65,10 @@ type ApiResult<T> = { success: true; data: T } | { success: false; error: string
 - Unvalidated external input exists
 - A protected route lacks an auth check or role check
 - `any` is introduced in non-trivial code
+- A new list/detail page loads first paint with `useEffect` + `fetch` or a client query hook
+- A page or API loader fetches unused domains (full `loadSummary`, locker availability on a name-only picker, documents/verifications on billing, etc.)
+- The same request calls `findByAuthId` after `getCurrentUser()` / `resolveCurrentUser()` already returned `profile`
+- Dev pool “fixes” change production idle timeout or re-enable `allowExitOnIdle` on the Next.js pool
 
 ## Minimum Test Coverage
 

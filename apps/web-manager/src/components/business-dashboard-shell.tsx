@@ -5,6 +5,7 @@ import {
   IconAlert,
   IconHome,
   IconLayout,
+  IconMapPin,
   IconPackage,
   IconReceipt,
   type NavModule,
@@ -34,6 +35,13 @@ const BUSINESS_MODULES: NavModule[] = [
     href: WEB_ROUTES.businessParcels,
     icon: <IconPackage {...NAV_ICON_PROPS} />,
     match: (p) => p.startsWith(WEB_ROUTES.businessParcels),
+  },
+  {
+    id: 'points',
+    label: 'Points',
+    href: WEB_ROUTES.businessLockers,
+    icon: <IconMapPin {...NAV_ICON_PROPS} />,
+    match: (p) => p.startsWith(WEB_ROUTES.businessLockers),
   },
   {
     id: 'incidents',

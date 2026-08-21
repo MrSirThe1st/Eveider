@@ -1,24 +1,18 @@
 'use client';
 
 import { colors, spacing, typography } from '@eveider/config-ui';
-import {
-  Button,
-  DataTable,
-  type DataTableColumn,
-  ErrorState,
-  LoadingSpinner,
-  TableSkeleton,
-} from '@eveider/ui';
+import { DataTable, type DataTableColumn } from '@eveider/ui';
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
-import { ListSearchField } from '@/components/list-search-field';
+import { useMemo, useState } from 'react';
+import { BusinessParcelLocationBadge } from '@/components/business-parcel-location-badge';
 import {
-  ParcelStatusFilters,
-  type ParcelStatusFilter,
-} from '@/components/parcel-status-filters';
-import { ParcelStatusBadge } from '@/components/parcel-status-badge';
-import { useBusinessParcelsQuery, type BusinessParcelItem } from '@/hooks/queries/use-parcels-query';
+  BusinessParcelLocationFilters,
+  type BusinessParcelLocationFilter,
+} from '@/components/business-parcel-location-filters';
+import { ListSearchField } from '@/components/list-search-field';
 import { WEB_ROUTES, businessParcelPath } from '@/lib/auth-routing';
+import { matchesListSearch } from '@/lib/list-search';
+import type { BusinessParcelListItem } from '@/server/parcels';
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat('fr-CD', {
@@ -28,26 +22,28 @@ function formatDate(iso: string) {
   }).format(new Date(iso));
 }
 
-export function ParcelList() {
-  const [statusFilter, setStatusFilter] = useState<ParcelStatusFilter>('all');
+type ParcelListProps = {
+  parcels: BusinessParcelListItem[];
+};
+
+export function ParcelList({ parcels }: ParcelListProps) {
+  const [locationFilter, setLocationFilter] = useState<BusinessParcelLocationFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  const filteredParcels = useMemo(() => {
+    return parcels.filter((parcel) => {
+      if (locationFilter !== 'all' && parcel.location !== locationFilter) return false;
+      return matchesListSearch(
+        searchQuery,
+        parcel.trackingNumber,
+        parcel.reference,
+        parcel.recipientName,
+        parcel.recipientPhone,
+      );
+    });
+  }, [parcels, searchQuery, locationFilter]);
 
-  const { data: parcels = [], isLoading, isFetching, isError, error, refetch } =
-    useBusinessParcelsQuery(statusFilter, debouncedSearch);
-
-  const showInitialLoader = isLoading && parcels.length === 0 && !isFetching;
-  const showFilterLoader = isFetching || (isLoading && parcels.length > 0);
-  const showFatalError = isError && parcels.length === 0 && !showFilterLoader;
-  const errorMessage =
-    error instanceof Error ? error.message : 'Impossible de charger les colis. Vérifiez la connexion au serveur.';
-
-  const columns = useMemo<DataTableColumn<BusinessParcelItem>[]>(
+  const columns = useMemo<DataTableColumn<BusinessParcelListItem>[]>(
     () => [
       {
         id: 'tracking',
@@ -102,11 +98,11 @@ export function ParcelList() {
           ),
       },
       {
-        id: 'status',
-        header: 'Statut',
+        id: 'location',
+        header: 'Situation',
         sortable: true,
-        sortValue: (row) => row.status,
-        cell: (row) => <ParcelStatusBadge status={row.status} />,
+        sortValue: (row) => row.location,
+        cell: (row) => <BusinessParcelLocationBadge location={row.location} />,
       },
       {
         id: 'createdAt',
@@ -126,7 +122,7 @@ export function ParcelList() {
 
   return (
     <section>
-      <ParcelStatusFilters value={statusFilter} onChange={setStatusFilter} />
+      <BusinessParcelLocationFilters value={locationFilter} onChange={setLocationFilter} />
 
       <div style={{ marginBottom: spacing[4] }}>
         <ListSearchField
@@ -137,67 +133,38 @@ export function ParcelList() {
         />
       </div>
 
-      {showFilterLoader ? (
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: `${spacing[10]}px 0`,
-          }}
-        >
-          <LoadingSpinner compact size="md" label="Chargement des colis…" />
-        </div>
-      ) : null}
-
-      {showInitialLoader ? <TableSkeleton /> : null}
-
-      {showFatalError ? (
-        <ErrorState
-          title="Impossible de charger les colis"
-          message={errorMessage}
-          action={
-            <Button variant="secondary" onClick={() => void refetch()}>
-              Réessayer
-            </Button>
-          }
-        />
-      ) : null}
-
-      {!showInitialLoader && !showFatalError && !showFilterLoader ? (
-        <DataTable
-          columns={columns}
-          rows={parcels}
-          getRowId={(row) => row.id}
-          caption={parcels.length > 0 ? `${parcels.length} colis` : undefined}
-          emptyTitle={
-            searchQuery.trim()
-              ? 'Aucun colis pour cette recherche'
-              : statusFilter === 'all'
-                ? 'Aucun colis'
-                : 'Aucun colis pour ce filtre'
-          }
-          emptyDescription={
-            searchQuery.trim()
-              ? 'Essayez un autre numéro de suivi, une référence ou un destinataire.'
-              : 'Créez votre premier colis pour le réseau Eveider.'
-          }
-          emptyAction={
-            <Link href={WEB_ROUTES.businessNewParcel} className="nb-btn nb-btn-primary nb-btn--sm">
-              Nouveau colis
-            </Link>
-          }
-          initialSortId="createdAt"
-          initialSortDirection="desc"
-          rowActions={(row) => [
-            {
-              id: 'view',
-              label: 'Voir le détail',
-              href: businessParcelPath(row.id),
-            },
-          ]}
-        />
-      ) : null}
+      <DataTable
+        columns={columns}
+        rows={filteredParcels}
+        getRowId={(row) => row.id}
+        caption={filteredParcels.length > 0 ? `${filteredParcels.length} colis` : undefined}
+        emptyTitle={
+          searchQuery.trim()
+            ? 'Aucun colis pour cette recherche'
+            : locationFilter === 'all'
+              ? 'Aucun colis'
+              : 'Aucun colis pour ce filtre'
+        }
+        emptyDescription={
+          searchQuery.trim()
+            ? 'Essayez un autre numéro de suivi, une référence ou un destinataire.'
+            : 'Créez votre premier colis pour le réseau Eveider.'
+        }
+        emptyAction={
+          <Link href={WEB_ROUTES.businessNewParcel} className="nb-btn nb-btn-primary nb-btn--sm">
+            Nouveau colis
+          </Link>
+        }
+        initialSortId="createdAt"
+        initialSortDirection="desc"
+        rowActions={(row) => [
+          {
+            id: 'view',
+            label: 'Voir le détail',
+            href: businessParcelPath(row.id),
+          },
+        ]}
+      />
     </section>
   );
 }

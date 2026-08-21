@@ -1,6 +1,7 @@
 import { fail, ok } from '@eveider/api-contracts';
 import { createRepositories } from '@eveider/data-access';
 import { NextResponse } from 'next/server';
+import { toBusinessLockerDto } from '@/lib/locker-presenter';
 import { requireBusinessSession } from '@/lib/session';
 
 export async function GET() {
@@ -15,19 +16,30 @@ export async function GET() {
 
     return NextResponse.json(
       ok({
-        lockers: items.map((locker) => ({
-          id: locker.id,
-          name: locker.name,
-          address: locker.address,
-          type: locker.type,
-          availableCompartments: locker.availableCompartments,
-          availableSlots: locker.availableSlots,
-          availableBySize: locker.availableBySize,
-          rows: locker.rows,
-          columns: locker.columns,
-          latitude: locker.latitude,
-          longitude: locker.longitude,
-        })),
+        lockers: items.map((locker) => {
+          const dto = toBusinessLockerDto(locker);
+          return {
+            id: dto.id,
+            name: dto.name,
+            networkLabel: dto.networkLabel,
+            address: dto.address,
+            type: dto.type,
+            typeLabel: dto.typeLabel,
+            status: dto.status,
+            operatingStatus: dto.operatingStatus,
+            operatingStatusLabel: dto.operatingStatusLabel,
+            capacity: dto.capacity,
+            availableCompartments: dto.availableCompartments,
+            availableSlots: dto.availableSlots,
+            availableLabel: dto.availableLabel,
+            availableBySize: dto.availableBySize,
+            rows: dto.rows,
+            columns: dto.columns,
+            latitude: dto.latitude,
+            longitude: dto.longitude,
+            selectable: dto.selectable,
+          };
+        }),
       }),
     );
   } catch (err) {

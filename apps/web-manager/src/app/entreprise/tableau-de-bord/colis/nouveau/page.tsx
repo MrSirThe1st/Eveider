@@ -3,7 +3,13 @@ import Link from 'next/link';
 import { CreateParcelForm } from '@/components/create-parcel-form';
 import { WEB_ROUTES } from '@/lib/auth-routing';
 
-export default function NewParcelPage() {
+type NewParcelPageProps = {
+  searchParams: Promise<{ lockerId?: string }>;
+};
+
+export default async function NewParcelPage({ searchParams }: NewParcelPageProps) {
+  const { lockerId } = await searchParams;
+
   return (
     <PageFrame
       title="Créer un colis"
@@ -19,7 +25,7 @@ export default function NewParcelPage() {
         </Link>
       }
     >
-      <CreateParcelForm />
+      <CreateParcelForm initialLockerId={lockerId} />
     </PageFrame>
   );
 }

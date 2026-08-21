@@ -1,18 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
-  availableSlots,
   canAcceptDropOff,
   canAssignCompartment,
   canTransitionCompartment,
   canTransitionLocker,
-  hasPointAvailability,
   isLockerSelectable,
-  isSoftCapacityFull,
-  softCapacityRemaining,
+  lockerAvailableLabel,
+  lockerNetworkCapacity,
+  lockerNetworkLabel,
+  lockerOperatingStatus,
   transitionCompartment,
   transitionLocker,
-  usesCompartmentGrid,
-  usesSoftCapacity,
 } from './locker.js';
 
 describe('locker status', () => {
@@ -42,6 +40,51 @@ describe('locker status', () => {
   it('supports archiving and restoring lockers', () => {
     expect(canTransitionLocker('active', 'archived')).toBe(true);
     expect(transitionLocker('archived', 'active')).toBe('active');
+  });
+});
+
+describe('network directory labels', () => {
+  it('formats pickup location as type — name', () => {
+    expect(lockerNetworkLabel('SMART_LOCKER', 'Gombe')).toBe('Casier — Gombe');
+    expect(lockerNetworkLabel('PARTNER_POINT', 'Pharmacie XYZ')).toBe(
+      'Point partenaire — Pharmacie XYZ',
+    );
+  });
+
+  it('uses compartment total for smart lockers and max capacity for points', () => {
+    expect(
+      lockerNetworkCapacity({
+        type: 'SMART_LOCKER',
+        compartmentTotal: 12,
+        rows: 3,
+        columns: 4,
+      }),
+    ).toBe(12);
+    expect(
+      lockerNetworkCapacity({
+        type: 'PARTNER_POINT',
+        maxCapacity: 20,
+        compartmentTotal: 0,
+      }),
+    ).toBe(20);
+  });
+
+  it('describes remaining compartments in French', () => {
+    expect(lockerAvailableLabel({ type: 'SMART_LOCKER', availableSlots: 12 })).toBe(
+      '12 compartiments disponibles',
+    );
+    expect(lockerAvailableLabel({ type: 'SMART_LOCKER', availableSlots: 1 })).toBe(
+      '1 compartiment disponible',
+    );
+    expect(lockerAvailableLabel({ type: 'PARTNER_POINT', availableSlots: 0 })).toBe(
+      'Aucune place disponible',
+    );
+  });
+
+  it('surfaces full when an active locker has no remaining slots', () => {
+    expect(lockerOperatingStatus({ status: 'active', availableSlots: 0 })).toBe('full');
+    expect(lockerOperatingStatus({ status: 'active', availableSlots: 3 })).toBe('active');
+    expect(lockerOperatingStatus({ status: 'offline', availableSlots: 8 })).toBe('offline');
   });
 });
 

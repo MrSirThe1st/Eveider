@@ -1,22 +1,11 @@
 'use client';
 
 import { colors, typography } from '@eveider/config-ui';
-import { DataTable, type DataTableColumn, EmptyState, ErrorState, TableSkeleton } from '@eveider/ui';
+import { DataTable, type DataTableColumn, EmptyState } from '@eveider/ui';
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { businessParcelPath } from '@/lib/auth-routing';
-
-type IssueRow = {
-  id: string;
-  typeLabel: string;
-  status: string;
-  statusLabel: string;
-  description: string;
-  parcelId: string | null;
-  parcelReference: string | null;
-  lockerName: string | null;
-  createdAt: string;
-};
+import type { IssueItem } from '@/server/issues';
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat('fr-CD', {
@@ -26,33 +15,12 @@ function formatDate(iso: string) {
   }).format(new Date(iso));
 }
 
-export function BusinessIssueList() {
-  const [issues, setIssues] = useState<IssueRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+type BusinessIssueListProps = {
+  issues: IssueItem[];
+};
 
-  const load = useCallback(async () => {
-    setError(null);
-    try {
-      const response = await fetch('/api/entreprise/issues', { cache: 'no-store' });
-      const result = await response.json();
-      if (!result.success) {
-        setError(result.error ?? 'Impossible de charger les incidents.');
-        return;
-      }
-      setIssues(result.data.issues as IssueRow[]);
-    } catch {
-      setError('Impossible de charger les incidents.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  const columns = useMemo<DataTableColumn<IssueRow>[]>(
+export function BusinessIssueList({ issues }: BusinessIssueListProps) {
+  const columns = useMemo<DataTableColumn<IssueItem>[]>(
     () => [
       {
         id: 'type',
@@ -101,24 +69,6 @@ export function BusinessIssueList() {
     ],
     [],
   );
-
-  if (loading) {
-    return <TableSkeleton />;
-  }
-
-  if (error) {
-    return (
-      <ErrorState
-        title="Incidents indisponibles"
-        message={error}
-        action={
-          <button type="button" className="nb-btn nb-btn-secondary nb-btn--sm" onClick={() => void load()}>
-            Réessayer
-          </button>
-        }
-      />
-    );
-  }
 
   if (issues.length === 0) {
     return (

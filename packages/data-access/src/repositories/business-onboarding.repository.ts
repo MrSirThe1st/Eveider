@@ -22,7 +22,33 @@ import {
   mapUser,
   mapVerificationCheck,
 } from '../db/mappers.js';
+import type { BillingAccount, Business, BusinessLocation, SettlementAccount } from '../db/types.js';
 import { withTransaction } from '../db/pool.js';
+
+export type BusinessSettingsSnapshot = {
+  name: string;
+  businessType: Business['businessType'];
+  industry: string | null;
+  description: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  legalCompanyName: string | null;
+  rccmNumber: string | null;
+  nifNumber: string | null;
+  legalRepName: string | null;
+  accessCode: string | null;
+  locations: BusinessLocation[];
+};
+
+export type BusinessBillingSnapshot = {
+  paymentRule: BillingAccount['paymentRule'] | null;
+  billingType: BillingAccount['billingType'] | null;
+  payoutMethod: SettlementAccount['payoutMethod'] | null;
+  accountHolder: string | null;
+  accountNumber: string | null;
+  dailyShipments: number | null;
+  codDailyLimitUsd: number | null;
+};
 
 type Row = Record<string, unknown>;
 
@@ -470,6 +496,81 @@ export class BusinessOnboardingRepository {
 
   async getOnboardingSummary(businessId: string) {
     return loadSummary(this.db, businessId);
+  }
+
+  /** Account + locations only — used by Paramètres, not the full onboarding graph. */
+  async getSettingsSnapshot(businessId: string): Promise<BusinessSettingsSnapshot | null> {
+    const result = await this.db.query(
+      `SELECT b.name,
+              b.business_type,
+              b.industry,
+              b.description,
+              b.contact_email,
+              b.contact_phone,
+              b.legal_company_name,
+              b.rccm_number,
+              b.nif_number,
+              b.legal_rep_name,
+              b.access_code,
+              COALESCE((
+                SELECT json_agg(loc.* ORDER BY loc.created_at ASC)
+                FROM business_locations loc
+                WHERE loc.business_id = b.id
+              ), '[]'::json) AS locations_json
+       FROM businesses b
+       WHERE b.id = $1
+       LIMIT 1`,
+      [businessId],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+
+    return {
+      name: String(row.name),
+      businessType: (row.business_type as Business['businessType']) ?? null,
+      industry: row.industry == null ? null : String(row.industry),
+      description: row.description == null ? null : String(row.description),
+      contactEmail: row.contact_email == null ? null : String(row.contact_email),
+      contactPhone: row.contact_phone == null ? null : String(row.contact_phone),
+      legalCompanyName: row.legal_company_name == null ? null : String(row.legal_company_name),
+      rccmNumber: row.rccm_number == null ? null : String(row.rccm_number),
+      nifNumber: row.nif_number == null ? null : String(row.nif_number),
+      legalRepName: row.legal_rep_name == null ? null : String(row.legal_rep_name),
+      accessCode: row.access_code == null || row.access_code === '' ? null : String(row.access_code),
+      locations: asJsonRows(row.locations_json).map(mapBusinessLocation),
+    };
+  }
+
+  /** Billing, settlement, and limits in one round trip — used by Facturation. */
+  async getBillingSnapshot(businessId: string): Promise<BusinessBillingSnapshot | null> {
+    const result = await this.db.query(
+      `SELECT ba.payment_rule,
+              ba.billing_type,
+              sa.payout_method,
+              sa.account_holder,
+              sa.account_number,
+              lim.daily_shipments,
+              lim.cod_daily_limit_usd
+       FROM businesses b
+       LEFT JOIN billing_accounts ba ON ba.business_id = b.id
+       LEFT JOIN settlement_accounts sa ON sa.business_id = b.id
+       LEFT JOIN business_limits lim ON lim.business_id = b.id
+       WHERE b.id = $1
+       LIMIT 1`,
+      [businessId],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+
+    return {
+      paymentRule: (row.payment_rule as BillingAccount['paymentRule'] | null) ?? null,
+      billingType: (row.billing_type as BillingAccount['billingType'] | null) ?? null,
+      payoutMethod: (row.payout_method as SettlementAccount['payoutMethod'] | null) ?? null,
+      accountHolder: row.account_holder == null ? null : String(row.account_holder),
+      accountNumber: row.account_number == null ? null : String(row.account_number),
+      dailyShipments: row.daily_shipments == null ? null : Number(row.daily_shipments),
+      codDailyLimitUsd: row.cod_daily_limit_usd == null ? null : Number(row.cod_daily_limit_usd),
+    };
   }
 
   async listApplications(ctx: DataAccessContext, options?: { search?: string }) {

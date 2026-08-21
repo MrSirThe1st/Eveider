@@ -181,4 +181,65 @@ describe('ParcelRepository', () => {
     const ctx = createDataAccessContext('admin');
     await expect(repo.updateStatus(ctx, 'parcel-1', 'collected')).rejects.toThrow();
   });
+
+  it('lists business colis with latest delivery in one query', async () => {
+    setup((sql) => {
+      if (sqlIncludes(sql, 'FROM parcels p') && sqlIncludes(sql, 'latest_delivery_status')) {
+        return {
+          id: 'parcel-1',
+          tracking_number: 'EVD26TEST0001A',
+          reference: 'PK-001',
+          status: 'created',
+          pickup_type: 'courier_pickup',
+          recipient_name: 'Client',
+          recipient_phone: '+243000000000',
+          created_at: new Date('2026-01-15T12:00:00.000Z'),
+          locker_name: 'Gombe',
+          locker_address: 'Boulevard du 30 Juin',
+          latest_delivery_status: 'assigned',
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const ctx = createDataAccessContext('business', { businessId: 'biz-1' });
+    const rows = await repo.listBusinessColis(ctx, 'biz-1');
+
+    expect(rows).toEqual([
+      {
+        id: 'parcel-1',
+        trackingNumber: 'EVD26TEST0001A',
+        reference: 'PK-001',
+        status: 'created',
+        pickupType: 'courier_pickup',
+        recipientName: 'Client',
+        recipientPhone: '+243000000000',
+        locker: { name: 'Gombe', address: 'Boulevard du 30 Juin' },
+        latestDeliveryStatus: 'assigned',
+        createdAt: new Date('2026-01-15T12:00:00.000Z'),
+      },
+    ]);
+  });
+
+  it('loads a business parcel with latest delivery status', async () => {
+    setup((sql) => {
+      if (sqlIncludes(sql, 'latest_delivery_status') && sqlIncludes(sql, 'business_id = $2')) {
+        return {
+          ...parcelRow({ pickup_type: 'courier_pickup' }),
+          locker_row: lockerRow(),
+          business_row: businessRow(),
+          compartment_json: null,
+          latest_delivery_status: 'assigned',
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const ctx = createDataAccessContext('business', { businessId: 'biz-1' });
+    const parcel = await repo.findForBusiness(ctx, 'biz-1', 'parcel-1');
+
+    expect(parcel?.latestDeliveryStatus).toBe('assigned');
+    expect(parcel?.pickupType).toBe('courier_pickup');
+    expect(parcel?.id).toBe('parcel-1');
+  });
 });

@@ -3,6 +3,7 @@ import { createRepositories } from '@eveider/data-access';
 import { NextResponse } from 'next/server';
 import { toIssueDto } from '@/lib/issue-presenter';
 import { requireBusinessSession } from '@/lib/session';
+import { listBusinessIssues } from '@/server/issues';
 
 export async function GET(request: Request) {
   const auth = await requireBusinessSession();
@@ -24,12 +25,11 @@ export async function GET(request: Request) {
   }
 
   try {
-    const { issues } = createRepositories();
-    const items = await issues.listForBusiness(auth.session.ctx, {
+    const items = await listBusinessIssues(auth.session.ctx, {
       status: query.data.status,
       parcelId: parcelId || undefined,
     });
-    return NextResponse.json(ok({ issues: items.map(toIssueDto) }));
+    return NextResponse.json(ok({ issues: items }));
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur serveur';
     return NextResponse.json(fail(message), { status: 500 });

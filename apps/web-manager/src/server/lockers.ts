@@ -1,8 +1,13 @@
 import type { DataAccessContext } from '@eveider/data-access';
 import { createRepositories } from '@eveider/data-access';
-import { toLockerSummaryDto, type LockerSummaryDto } from '@/lib/locker-presenter';
+import {
+  toBusinessLockerDto,
+  toLockerSummaryDto,
+  type BusinessLockerDto,
+  type LockerSummaryDto,
+} from '@/lib/locker-presenter';
 
-export type { LockerSummaryDto };
+export type { LockerSummaryDto, BusinessLockerDto };
 
 export async function listLockers(
   ctx: DataAccessContext,
@@ -11,4 +16,10 @@ export async function listLockers(
   const { lockers } = createRepositories();
   const items = await lockers.listAll(ctx, options);
   return items.map(toLockerSummaryDto);
+}
+
+export async function listBusinessNetworkLockers(): Promise<BusinessLockerDto[]> {
+  const { lockers } = createRepositories();
+  const items = await lockers.listNetworkDirectory();
+  return items.map(toBusinessLockerDto);
 }

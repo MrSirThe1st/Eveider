@@ -1,7 +1,9 @@
 import { fail, ok } from '@eveider/api-contracts';
 import { createRepositories } from '@eveider/data-access';
+import type { User } from '@eveider/data-access';
 import type { UserRole } from '@eveider/domain';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { resolveCurrentUser } from '@/lib/auth/resolve-current-user';
 import { getSupabaseEnv } from '@/lib/supabase/env';
@@ -16,7 +18,12 @@ function getBearerToken(request: Request): string | null {
   return token.length > 0 ? token : null;
 }
 
-async function resolveAuthUser(request: Request) {
+type ResolvedAuth = {
+  authUser: SupabaseUser;
+  profile: User | null;
+};
+
+async function resolveAuth(request: Request): Promise<ResolvedAuth | null> {
   const bearer = getBearerToken(request);
   if (bearer) {
     const { url, key } = getSupabaseEnv();
@@ -25,11 +32,10 @@ async function resolveAuthUser(request: Request) {
     });
     const { data, error } = await supabase.auth.getUser(bearer);
     if (error || !data.user) return null;
-    return data.user;
+    return { authUser: data.user, profile: null };
   }
 
-  const current = await resolveCurrentUser();
-  return current?.authUser ?? null;
+  return resolveCurrentUser();
 }
 
 function withCors(response: NextResponse) {
@@ -45,13 +51,17 @@ export async function OPTIONS() {
 
 export async function GET(request: Request) {
   try {
-    const user = await resolveAuthUser(request);
-    if (!user) {
+    const current = await resolveAuth(request);
+    if (!current) {
       return withCors(NextResponse.json(fail('Non authentifié'), { status: 401 }));
     }
 
-    const { onboarding } = createRepositories();
-    const profile = await onboarding.findProfileByAuthId(user.id);
+    const { authUser } = current;
+    let profile = current.profile;
+    if (!profile) {
+      const { onboarding } = createRepositories();
+      profile = await onboarding.findProfileByAuthId(authUser.id);
+    }
 
     if (!profile) {
       return withCors(NextResponse.json(fail('Profil utilisateur introuvable'), { status: 404 }));
@@ -74,9 +84,9 @@ export async function GET(request: Request) {
     return withCors(
       NextResponse.json(
         ok({
-          authId: user.id,
-          phone: profile.phone ?? user.phone,
-          email: user.email ?? profile.email,
+          authId: authUser.id,
+          phone: profile.phone ?? authUser.phone,
+          email: authUser.email ?? profile.email,
           profile: {
             id: profile.id,
             role: profile.role,

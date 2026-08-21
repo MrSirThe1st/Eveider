@@ -1,6 +1,7 @@
 export * from './roles.js';
 export * from './auth-routes.js';
 export * from './parcel.js';
+export * from './parcel-location.js';
 export * from './business.js';
 export * from './locker.js';
 export * from './delivery.js';

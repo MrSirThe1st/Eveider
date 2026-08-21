@@ -21,7 +21,7 @@ export async function GET() {
     const { getPool } = await import('@eveider/data-access');
     const pool = getPool();
     const location = await pool.query(
-      `SELECT pickup_method, street, contact_person, contact_phone
+      `SELECT pickup_method, street, contact_person, contact_phone, dropoff_locker_id
        FROM business_locations
        WHERE business_id = $1
        ORDER BY created_at ASC
@@ -37,6 +37,7 @@ export async function GET() {
         senderAddress: row?.street ? String(row.street) : business.residentialAddress,
         pickupType:
           row?.pickup_method === 'merchant_dropoff' ? 'merchant_dropoff' : 'courier_pickup',
+        dropoffLockerId: row?.dropoff_locker_id ? String(row.dropoff_locker_id) : null,
       }),
     );
   } catch (err) {

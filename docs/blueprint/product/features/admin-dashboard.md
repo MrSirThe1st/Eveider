@@ -8,6 +8,8 @@ Give operations teams a single place to monitor deliveries, manage businesses/pa
 
 **Design:** Courier Guy–inspired ops console — large KPI row, data tables, filters, minimal charts. See [design-dna.md](../design-dna.md). All UI copy in **French**.
 
+Data loading follows [`docs/blueprint/ai/data-fetching.md`](../../ai/data-fetching.md). Live boards (`/livraisons`) are the documented client-refetch exception; new list/detail screens still load on the server.
+
 ## Screens
 
 ### Overview Dashboard
@@ -63,7 +65,7 @@ At-a-glance metrics for today:
 
 ### Delivery Monitoring (Live View)
 
-- Real-time delivery tracking board
+- Real-time delivery tracking board (**admin Livraisons** — not shown in the business portal)
 - Parcel movement timeline across statuses
 - Exceptions and delays surfaced prominently
 

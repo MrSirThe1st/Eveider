@@ -24,7 +24,14 @@ Email and password only:
 - **Sign up** (business): `signUp({ email, password })` → `POST /api/auth/onboard`
 - **Sign in**: `signInWithPassword({ email, password })` → `GET /api/auth/me` → redirect by role
 
-Session resolution uses `getCurrentUser()` (via `React.cache()`) on the server. Middleware uses `getSession()` only — no DB calls in middleware.
+Session resolution:
+
+- **Middleware** — `supabase.auth.getUser()` when a session cookie exists. No Postgres.
+- **RSC** — `getCurrentUser()` (`React.cache()` → `getUser()` + one `findByAuthId`). Layout and page share that cache **within the same request only**.
+- **Cookie API routes** — `resolveCurrentUser()` already includes `profile`. Do not call `findByAuthId` / `findProfileByAuthId` again.
+- **Bearer API routes** — `getUser(token)` then **one** profile lookup.
+
+Keep `getUser()` for session validation. Do not switch to `getSession()` without a dedicated auth review. See `docs/blueprint/ai/data-fetching.md`.
 
 ## Mobile (customer + courier)
 

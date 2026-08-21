@@ -3,7 +3,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { ThemeToggle } from '@/components/theme-toggle';
 import { ManageCookiesButton } from '@/components/cookies/manage-cookies-button';
 import { AUTH_VISUAL_IMAGES, type AuthVisual } from './auth-copy';
 import styles from './auth-shell.module.css';
@@ -32,7 +31,6 @@ export function AuthSplitShell({ visual, visualKey, toolbar, dots, children }: A
               />
               Eveider
             </Link>
-            <ThemeToggle />
           </div>
           <div className={styles.panelMain}>
             {toolbar ? <div className={styles.formToolbar}>{toolbar}</div> : null}

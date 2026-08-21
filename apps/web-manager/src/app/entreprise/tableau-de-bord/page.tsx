@@ -10,13 +10,13 @@ export default async function BusinessDashboardPage() {
     redirect('/onboarding');
   }
 
-  const { summary, analytics } = dashboard;
+  const { business, analytics } = dashboard;
 
-  if (summary.status === 'onboarding' || summary.status === 'draft') {
+  if (business.status === 'onboarding' || business.status === 'draft') {
     redirect('/onboarding');
   }
 
   return (
-    <MerchantDashboard businessName={summary.name} status={summary.status} analytics={analytics} />
+    <MerchantDashboard businessName={business.name} status={business.status} analytics={analytics} />
   );
 }

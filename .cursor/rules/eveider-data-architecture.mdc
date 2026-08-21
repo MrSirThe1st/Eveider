@@ -1,0 +1,26 @@
+---
+description: Eveider server-first data loading — page-specific queries, RSC lists, no duplicate auth lookups
+alwaysApply: true
+---
+
+# Data architecture
+
+Before adding a `web-manager` page, API route, or repository loader, follow `docs/blueprint/ai/data-fetching.md`.
+
+## Do
+
+- Load reads in an async Server Component via `apps/web-manager/src/server/`
+- Query only the fields that screen binds (copy `getSettingsSnapshot` / `getBillingSnapshot`, do not extend `loadSummary`)
+- Filter status chips and search of an already-loaded list in memory
+- Reuse `getCurrentUser()` / `resolveCurrentUser()` `profile` — never `findByAuthId` again in the same request
+- Keep `supabase.auth.getUser()` for session validation
+
+## Do not
+
+- `useEffect` + `fetch` (or a client query hook) for first paint of a list/detail page
+- Call `getOnboardingSummary` / `loadSummary` except the onboarding wizard and admin application review
+- Call `listActiveWithAvailability` unless the UI shows capacity or occupancy (`listActivePickerOptions` for name/address selects)
+- Switch `getUser()` to `getSession()` without an auth review
+- Set `allowExitOnIdle: true` on the Next.js `pg` pool, or change production `idleTimeoutMillis` (20s) when tuning local performance
+
+References: `loadBusinessDashboard`, `loadBusinessSettingsPageData`, `loadBusinessBillingPageData`, `listBusinessParcels`, `listBusinessIssues`, `resolvePoolIdleOptions`.

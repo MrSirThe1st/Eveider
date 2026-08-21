@@ -138,3 +138,55 @@ export function canAssignCompartment(status: CompartmentStatus): boolean {
 export function isLockerSelectable(status: LockerStatus): boolean {
   return status === 'active';
 }
+
+const LOCKER_NETWORK_PREFIX: Record<LockerType, string> = {
+  SMART_LOCKER: 'Casier',
+  PARTNER_POINT: 'Point partenaire',
+  RESIDENTIAL_LOCKER: 'Point résidentiel',
+};
+
+/** Business-facing name, e.g. "Casier — Gombe". */
+export function lockerNetworkLabel(type: LockerType, name: string): string {
+  return `${LOCKER_NETWORK_PREFIX[type]} — ${name}`;
+}
+
+export function lockerNetworkCapacity(input: {
+  type: LockerType;
+  compartmentTotal?: number | null;
+  maxCapacity?: number | null;
+  rows?: number | null;
+  columns?: number | null;
+}): number {
+  if (usesCompartmentGrid(input.type)) {
+    if (input.compartmentTotal != null && input.compartmentTotal > 0) {
+      return input.compartmentTotal;
+    }
+    return (input.rows ?? 0) * (input.columns ?? 0);
+  }
+  return input.maxCapacity ?? 0;
+}
+
+export function lockerAvailableLabel(input: {
+  type: LockerType;
+  availableSlots: number;
+}): string {
+  const n = Math.max(0, input.availableSlots);
+  if (usesCompartmentGrid(input.type)) {
+    if (n === 0) return 'Aucun compartiment disponible';
+    if (n === 1) return '1 compartiment disponible';
+    return `${n} compartiments disponibles`;
+  }
+  if (n === 0) return 'Aucune place disponible';
+  if (n === 1) return '1 place disponible';
+  return `${n} places disponibles`;
+}
+
+/** Display status: treat an active locker with no remaining slots as full. */
+export function lockerOperatingStatus(input: {
+  status: LockerStatus;
+  availableSlots: number;
+}): LockerStatus {
+  if (input.status !== 'active') return input.status;
+  if (input.availableSlots <= 0) return 'full';
+  return 'active';
+}

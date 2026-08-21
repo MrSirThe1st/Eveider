@@ -17,6 +17,8 @@ Businesses onboard to Eveider, submit parcels for locker delivery, and track out
 
 One business can have multiple users (MVP: single owner user; team invites later).
 
+Data loading for these screens follows [`docs/blueprint/ai/data-fetching.md`](../../ai/data-fetching.md): page-specific snapshots, Server Components for lists, no full KYC graph on dashboard routes.
+
 ## Screens
 
 ### Registration & Onboarding
@@ -33,13 +35,25 @@ One business can have multiple users (MVP: single owner user; team invites later
 - Failed or exception parcels requiring attention
 - Quick action: create new parcel
 
+### Locations / lockers
+
+Businesses need to know where they can send parcels. The **Points Eveider** screen lists the live network (read-only — no locker admin):
+
+- Location (e.g. Casier — Gombe)
+- Address
+- Capacity
+- Available compartments
+- Operating status (active / full / offline)
+
+From a row, the business can start a parcel pre-filled with that point. When creating a parcel, pickup/destination selection shows the same availability copy (`12 compartiments disponibles`).
+
 ### Parcel Submission
 
 Create parcels for locker delivery:
 
 - Recipient name and phone (for PIN SMS and customer app linking)
 - Parcel reference / order ID (business-internal)
-- Destination locker (select from map/list with availability) or locker area preference
+- Destination locker (select from map/list with availability and operating status)
 - Optional notes (size, fragile, etc.)
 
 Submission sets parcel status to `created` and attaches `businessId`.
@@ -51,7 +65,15 @@ Bulk import (CSV) is **out of MVP** unless added in a later phase.
 - List of all parcels belonging to the business
 - Filter by status, date, locker, reference
 - Detail view: lifecycle timeline, locker assignment, collection status
+- **Current location** is derived (`resolveBusinessParcelLocation`) from parcel status + pickup type + latest delivery — not a second stored status. See [ADR-002](../../decisions/ADR-002.md) and [glossary](../glossary.md).
+- Pickup wording differs: courier pickup includes awaiting courier / courier assigned; merchant drop-off uses awaiting drop-off and skips courier assigned.
+- **Keep arrived at point vs ready for pickup distinct** on the timeline.
 - **No pickup PIN display** — PIN is customer-only; business sees collection status only
+- **No courier name or phone** — “courier assigned” is a location, not an ops contact
+- **No business Livraisons nav** — movement stays an admin concept; relevant delivery facts appear on parcel detail only
+- **Destinataires** (later, if needed): read-only grouping of this company’s parcels by phone; no independent recipient create
+
+### Parcel Submission
 
 ### Business Profile & Settings
 
@@ -81,7 +103,8 @@ Customer checkout → Locker selection → Parcel created by business system →
 ## Data Access Rules
 
 - Business users see **only parcels** belonging to their `businessId`
-- Business users **cannot** access courier assignments, locker admin controls, other businesses' data, or customer PINs
+- Business users **cannot** access courier identity, locker admin controls, other businesses' data, or customer PINs
+- Derived location may show that a courier is assigned without exposing who
 - Parcel creation is allowed for `active` businesses only
 - Admin can block a business — blocks new submissions; existing in-flight parcels follow normal ops rules
 

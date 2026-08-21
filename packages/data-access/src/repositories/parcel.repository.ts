@@ -1,4 +1,5 @@
 import {
+  DELIVERY_STATUSES,
   generatePickupPinCode,
   generateTrackingNumber,
   isCodAllowedForLockerType,
@@ -58,6 +59,37 @@ export type GuestTrackCandidate = {
   businessName: string;
   updatedAt: Date;
 };
+
+export type BusinessColisListRow = {
+  id: string;
+  trackingNumber: string;
+  reference: string | null;
+  status: ParcelStatus;
+  pickupType: ShipmentPickupType;
+  recipientName: string | null;
+  recipientPhone: string;
+  locker: { name: string; address: string } | null;
+  latestDeliveryStatus: DeliveryStatus | null;
+  createdAt: Date;
+};
+
+export type BusinessParcelDetailRecord = ParcelWithLocker & {
+  latestDeliveryStatus: DeliveryStatus | null;
+};
+
+const LATEST_DELIVERY_STATUS_SQL = `(
+  SELECT d.status FROM deliveries d
+  WHERE d.parcel_id = p.id
+  ORDER BY d.created_at DESC
+  LIMIT 1
+)`;
+
+function parseDeliveryStatus(value: unknown): DeliveryStatus | null {
+  if (typeof value !== 'string') return null;
+  return (DELIVERY_STATUSES as readonly string[]).includes(value)
+    ? (value as DeliveryStatus)
+    : null;
+}
 
 const ACTIVE_PIN_PARCEL_STATUSES: ParcelStatus[] = [
   'created',
@@ -448,6 +480,77 @@ export class ParcelRepository {
     }
     const ids = await this.db.query(sql, params);
     return this.loadParcelsWithRelations(ids.rows.map((r) => String(r.id)));
+  }
+
+  /** Colis list fields + latest delivery status — one round trip, no full parcel graph. */
+  async listBusinessColis(ctx: DataAccessContext, businessId: string): Promise<BusinessColisListRow[]> {
+    assertBusinessScope(ctx, businessId);
+    const result = await this.db.query(
+      `SELECT p.id,
+              p.tracking_number,
+              p.reference,
+              p.status,
+              p.pickup_type,
+              p.recipient_name,
+              p.recipient_phone,
+              p.created_at,
+              l.name AS locker_name,
+              l.address AS locker_address,
+              ${LATEST_DELIVERY_STATUS_SQL} AS latest_delivery_status
+       FROM parcels p
+       LEFT JOIN lockers l ON l.id = p.locker_id
+       WHERE p.business_id = $1
+       ORDER BY p.created_at DESC`,
+      [businessId],
+    );
+
+    return result.rows.map((row) => ({
+      id: String(row.id),
+      trackingNumber: String(row.tracking_number),
+      reference: row.reference == null || row.reference === '' ? null : String(row.reference),
+      status: row.status as ParcelStatus,
+      pickupType: row.pickup_type as ShipmentPickupType,
+      recipientName:
+        row.recipient_name == null || row.recipient_name === '' ? null : String(row.recipient_name),
+      recipientPhone: String(row.recipient_phone),
+      locker:
+        row.locker_name == null
+          ? null
+          : { name: String(row.locker_name), address: String(row.locker_address ?? '') },
+      latestDeliveryStatus: parseDeliveryStatus(row.latest_delivery_status),
+      createdAt:
+        row.created_at instanceof Date ? row.created_at : new Date(String(row.created_at)),
+    }));
+  }
+
+  async findForBusiness(
+    ctx: DataAccessContext,
+    businessId: string,
+    id: string,
+  ): Promise<BusinessParcelDetailRecord | null> {
+    assertBusinessScope(ctx, businessId);
+    const result = await this.db.query(
+      `SELECT p.*,
+              CASE WHEN l.id IS NULL THEN NULL ELSE row_to_json(l.*) END AS locker_row,
+              row_to_json(b.*) AS business_row,
+              CASE WHEN c.id IS NULL THEN NULL
+                   ELSE json_build_object('id', c.id, 'label', c.label, 'size', c.size)
+              END AS compartment_json,
+              ${LATEST_DELIVERY_STATUS_SQL} AS latest_delivery_status
+       FROM parcels p
+       LEFT JOIN lockers l ON l.id = p.locker_id
+       JOIN businesses b ON b.id = p.business_id
+       LEFT JOIN compartments c ON c.id = p.compartment_id
+       WHERE p.id = $1 AND p.business_id = $2
+       LIMIT 1`,
+      [id, businessId],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+      ...this.mapParcelWithRelations(row),
+      latestDeliveryStatus: parseDeliveryStatus(row.latest_delivery_status),
+    };
   }
 
   async countForBusiness(

@@ -3,6 +3,7 @@ import type { CompartmentStatus, LockerStatus, LockerType } from './locker.js';
 import type { DeliveryStatus } from './delivery.js';
 import type { IssueStatus, IssueType } from './issue.js';
 import type { ParcelStatus } from './parcel.js';
+import type { BusinessParcelLocation, BusinessParcelProgressionStep } from './parcel-location.js';
 
 /** French UI labels — ALL CAPS per design DNA. */
 export const PARCEL_STATUS_LABELS: Record<ParcelStatus, string> = {
@@ -11,6 +12,22 @@ export const PARCEL_STATUS_LABELS: Record<ParcelStatus, string> = {
   delivered_to_locker: 'LIVRÉ AU POINT',
   ready_for_pickup: 'PRÊT POUR RETRAIT',
   collected: 'RETIRÉ',
+};
+
+/** Business Colis location — derived, not a stored parcel status. */
+export const BUSINESS_PARCEL_LOCATION_LABELS: Record<BusinessParcelLocation, string> = {
+  awaiting_courier: 'EN ATTENTE DU COURSIER',
+  awaiting_dropoff: 'EN ATTENTE DE DÉPÔT',
+  courier_assigned: 'COURSIER ASSIGNÉ',
+  in_transit: 'EN TRANSIT',
+  at_locker: 'ARRIVÉ AU POINT',
+  ready_for_pickup: 'PRÊT POUR RETRAIT',
+  collected: 'RETIRÉ',
+};
+
+export const BUSINESS_PARCEL_PROGRESSION_LABELS: Record<BusinessParcelProgressionStep, string> = {
+  submitted: 'SOUMIS',
+  ...BUSINESS_PARCEL_LOCATION_LABELS,
 };
 
 export const LOCKER_TYPE_LABELS: Record<LockerType, string> = {

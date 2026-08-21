@@ -1,17 +1,32 @@
 'use client';
 
 import { colors, borderStrong, borderSubtle, webCardStyle } from '@eveider/config-ui';
-import { usesCompartmentGrid, type LockerType } from '@eveider/domain';
+import {
+  lockerAvailableLabel,
+  lockerNetworkLabel,
+  lockerOperatingStatus,
+  usesCompartmentGrid,
+  type LockerStatus,
+  type LockerType,
+} from '@eveider/domain';
 import { LockerSizeSummary } from '@/components/compartment-select-grid';
+import { LockerStatusBadge } from '@/components/locker-status-badge';
 
 export type LockerOption = {
   id: string;
   name: string;
   address: string;
   type?: LockerType;
+  networkLabel?: string;
   availableCompartments: number;
   availableSlots?: number;
+  availableLabel?: string;
   availableBySize?: { small: number; medium: number; large: number };
+  capacity?: number;
+  status?: LockerStatus;
+  operatingStatus?: LockerStatus;
+  operatingStatusLabel?: string;
+  selectable?: boolean;
   rows?: number;
   columns?: number;
   latitude?: number | null;
@@ -25,23 +40,38 @@ type LockerCardProps = {
   onSelect: (lockerId: string) => void;
 };
 
-export function LockerCard({ locker, selected, onSelect }: LockerCardProps) {
-  const slots = locker.availableSlots ?? locker.availableCompartments;
-  const isFull = slots === 0;
-  const smart = usesCompartmentGrid(locker.type ?? 'SMART_LOCKER');
+export function lockerOptionSlots(locker: LockerOption): number {
+  return locker.availableSlots ?? locker.availableCompartments;
+}
 
-  let statusText = smart ? `${slots} libres` : `${slots} places libres`;
+export function lockerOptionSelectable(locker: LockerOption): boolean {
+  if (locker.selectable != null) return locker.selectable;
+  return lockerOptionSlots(locker) > 0 && (locker.status == null || locker.status === 'active');
+}
+
+export function LockerCard({ locker, selected, onSelect }: LockerCardProps) {
+  const slots = lockerOptionSlots(locker);
+  const selectable = lockerOptionSelectable(locker);
+  const type = locker.type ?? 'SMART_LOCKER';
+  const smart = usesCompartmentGrid(type);
+  const operatingStatus =
+    locker.operatingStatus ??
+    lockerOperatingStatus({ status: locker.status ?? 'active', availableSlots: slots });
+  const title = locker.networkLabel ?? lockerNetworkLabel(type, locker.name);
+  const statusText =
+    locker.availableLabel ?? lockerAvailableLabel({ type, availableSlots: slots });
+
   let statusColor: string = colors.success;
   let statusBg = 'rgba(9, 212, 11, 0.1)';
-
-  if (slots === 1) {
-    statusText = smart ? '1 compartiment libre' : '1 place libre';
-    statusColor = colors.warning;
-    statusBg = 'rgba(255, 184, 0, 0.1)';
-  } else if (isFull) {
-    statusText = 'Complet';
+  if (operatingStatus === 'full' || slots === 0) {
     statusColor = colors.danger;
     statusBg = 'rgba(229, 57, 53, 0.1)';
+  } else if (operatingStatus === 'offline') {
+    statusColor = colors.textMuted;
+    statusBg = 'rgba(100, 116, 139, 0.12)';
+  } else if (slots === 1) {
+    statusColor = colors.warning;
+    statusBg = 'rgba(255, 184, 0, 0.1)';
   }
 
   const sizeSummary = locker.availableBySize ?? {
@@ -53,21 +83,20 @@ export function LockerCard({ locker, selected, onSelect }: LockerCardProps) {
   return (
     <div
       onClick={() => {
-        if (!isFull) onSelect(locker.id);
+        if (selectable) onSelect(locker.id);
       }}
       style={{
         ...webCardStyle,
-        background: isFull ? colors.background : colors.surface,
+        background: selectable ? colors.surface : colors.background,
         border: selected ? borderStrong() : 'none',
         padding: '1.25rem',
-        cursor: isFull ? 'not-allowed' : 'pointer',
-        opacity: isFull ? 0.6 : 1,
+        cursor: selectable ? 'pointer' : 'not-allowed',
+        opacity: selectable ? 1 : 0.6,
         transition: 'all 0.15s ease-in-out',
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
         gap: '0.75rem',
-        boxShadow: selected ? '0 4px 12px rgba(18, 18, 18, 0.08)' : 'none',
       }}
     >
       {selected ? (
@@ -101,17 +130,27 @@ export function LockerCard({ locker, selected, onSelect }: LockerCardProps) {
       ) : null}
 
       <div>
-        <h4
+        <div
           style={{
-            margin: 0,
-            fontSize: '0.875rem',
-            fontWeight: 700,
-            color: colors.secondary,
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: '0.75rem',
             paddingRight: selected ? '1.5rem' : 0,
           }}
         >
-          {locker.name}
-        </h4>
+          <h4
+            style={{
+              margin: 0,
+              fontSize: '0.875rem',
+              fontWeight: 700,
+              color: colors.secondary,
+            }}
+          >
+            {title}
+          </h4>
+          <LockerStatusBadge status={operatingStatus} />
+        </div>
         <p
           style={{
             margin: '0.25rem 0 0',
@@ -124,7 +163,12 @@ export function LockerCard({ locker, selected, onSelect }: LockerCardProps) {
         >
           {locker.address}
         </p>
-        {smart && locker.rows && locker.columns ? (
+        {locker.capacity != null ? (
+          <p style={{ margin: '0.35rem 0 0', fontSize: '0.75rem', fontWeight: 600, opacity: 0.55 }}>
+            Capacité {locker.capacity}
+            {smart && locker.rows && locker.columns ? ` · grille ${locker.rows}×${locker.columns}` : ''}
+          </p>
+        ) : smart && locker.rows && locker.columns ? (
           <p style={{ margin: '0.35rem 0 0', fontSize: '0.75rem', fontWeight: 600, opacity: 0.55 }}>
             Grille {locker.rows}×{locker.columns}
           </p>

@@ -1,18 +1,16 @@
-'use client';
-
 import { colors, webCardStyle } from '@eveider/config-ui';
-import { CardListSkeleton } from '@eveider/ui';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
 import { FlashBanner } from '@/components/flash-banner';
 import { BusinessReportIssue } from '@/components/business-report-issue';
-import { collectionStatusCopy, ParcelLifecycle } from '@/components/parcel-lifecycle';
+import { BusinessParcelLocationBadge } from '@/components/business-parcel-location-badge';
+import {
+  BusinessParcelProgression,
+  locationStatusCopy,
+} from '@/components/business-parcel-progression';
 import { ParcelInvitePanel } from '@/components/parcel-invite-panel';
 import { ShippingLabel } from '@/components/shipping-label';
 import { WEB_ROUTES } from '@/lib/auth-routing';
-import type { ParcelDto } from '@/lib/business-parcel-presenter';
-import { ParcelStatusBadge } from '@/components/parcel-status-badge';
+import type { BusinessParcelDetailView } from '@/server/parcels';
 
 function formatDateTime(iso: string) {
   return new Intl.DateTimeFormat('fr-CD', {
@@ -25,45 +23,12 @@ function formatDateTime(iso: string) {
 }
 
 type ParcelDetailProps = {
-  parcelId: string;
+  parcel: BusinessParcelDetailView;
+  justCreated?: boolean;
 };
 
-export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
-  const searchParams = useSearchParams();
-  const justCreated = searchParams.get('created') === '1';
-  const [parcel, setParcel] = useState<ParcelDto | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    void fetch(`/api/entreprise/parcels/${parcelId}`)
-      .then((res) => res.json())
-      .then((result) => {
-        if (!result.success) {
-          setError(result.error ?? 'Envoi introuvable');
-          return;
-        }
-        setParcel(result.data.parcel);
-      })
-      .finally(() => setLoading(false));
-  }, [parcelId]);
-
-  if (loading) {
-    return <CardListSkeleton cards={2} />;
-  }
-
-  if (error || !parcel) {
-    return (
-      <div>
-        <p style={{ fontWeight: 500, color: colors.danger }}>{error ?? 'Envoi introuvable'}</p>
-        <Link href={WEB_ROUTES.businessParcels} style={{ fontWeight: 600 }}>
-          ← Retour aux colis
-        </Link>
-      </div>
-    );
-  }
-
-  const collection = collectionStatusCopy(parcel.status);
+export function BusinessParcelDetail({ parcel, justCreated = false }: ParcelDetailProps) {
+  const collection = locationStatusCopy(parcel.location);
 
   return (
     <div style={{ width: '100%' }}>
@@ -96,7 +61,7 @@ export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
           <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>
             {parcel.trackingNumber}
           </h2>
-          <ParcelStatusBadge status={parcel.status} />
+          <BusinessParcelLocationBadge location={parcel.location} />
         </div>
 
         <dl style={{ margin: '2rem 0 0', display: 'grid', gap: '1.25rem' }}>
@@ -108,6 +73,10 @@ export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
               <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>{parcel.reference}</dd>
             </div>
           ) : null}
+          <div>
+            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>Enlèvement</dt>
+            <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>{parcel.pickupTypeLabel}</dd>
+          </div>
           <div>
             <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>Expéditeur</dt>
             <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
@@ -201,8 +170,8 @@ export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
         }}
       >
         <section style={{ ...webCardStyle, padding: '1.5rem' }}>
-          <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700 }}>Suivi</h3>
-          <ParcelLifecycle status={parcel.status} />
+          <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700 }}>Progression</h3>
+          <BusinessParcelProgression steps={parcel.progression} />
         </section>
         <section style={{ ...webCardStyle, padding: '1.5rem' }}>
           <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem', fontWeight: 700 }}>
@@ -238,7 +207,7 @@ export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
         />
       </section>
 
-      <ParcelInvitePanel parcelId={parcelId} />
+      <ParcelInvitePanel parcelId={parcel.id} />
 
       <section style={{ ...webCardStyle, padding: '1.5rem', marginTop: '1.25rem' }}>
         <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700 }}>
@@ -247,7 +216,7 @@ export function BusinessParcelDetail({ parcelId }: ParcelDetailProps) {
         <p style={{ margin: '0 0 1rem', fontSize: '0.875rem', color: colors.textMuted }}>
           Un incident est visible par les opérations Eveider. Le code PIN client n’est jamais affiché ici.
         </p>
-        <BusinessReportIssue parcelId={parcelId} />
+        <BusinessReportIssue parcelId={parcel.id} />
       </section>
     </div>
   );

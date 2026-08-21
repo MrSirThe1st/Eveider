@@ -2,6 +2,11 @@ import {
   COMPARTMENT_STATUS_LABELS,
   LOCKER_STATUS_LABELS,
   LOCKER_TYPE_LABELS,
+  hasPointAvailability,
+  lockerAvailableLabel,
+  lockerNetworkCapacity,
+  lockerNetworkLabel,
+  lockerOperatingStatus,
   usesCompartmentGrid,
   usesSoftCapacity,
   type CompartmentStatus,
@@ -59,6 +64,29 @@ export type LockerMapMarkerDto = {
   columns: number;
   distanceKm?: number;
   contactPhone?: string | null;
+};
+
+export type BusinessLockerDto = {
+  id: string;
+  name: string;
+  networkLabel: string;
+  address: string;
+  type: LockerType;
+  typeLabel: string;
+  status: LockerStatus;
+  statusLabel: string;
+  operatingStatus: LockerStatus;
+  operatingStatusLabel: string;
+  capacity: number;
+  availableCompartments: number;
+  availableSlots: number;
+  availableLabel: string;
+  availableBySize: { small: number; medium: number; large: number };
+  rows: number;
+  columns: number;
+  latitude: number | null;
+  longitude: number | null;
+  selectable: boolean;
 };
 
 export type CompartmentDto = {
@@ -272,6 +300,71 @@ export function toLockerDetailDto(locker: {
       statusLabel: COMPARTMENT_STATUS_LABELS[compartment.status],
     })),
     ...fields,
+  };
+}
+
+export function toBusinessLockerDto(locker: {
+  id: string;
+  name: string;
+  address: string;
+  type?: LockerType;
+  status: LockerStatus;
+  availableCompartments: number;
+  availableSlots?: number;
+  occupyingCount?: number;
+  maxCapacity?: number | null;
+  compartmentTotal?: number;
+  availableBySize?: { small: number; medium: number; large: number };
+  rows: number;
+  columns: number;
+  latitude: number | null;
+  longitude: number | null;
+}): BusinessLockerDto {
+  const type = locker.type ?? 'SMART_LOCKER';
+  const availableSlots =
+    locker.availableSlots ??
+    (usesCompartmentGrid(type)
+      ? locker.availableCompartments
+      : Math.max(0, (locker.maxCapacity ?? 0) - (locker.occupyingCount ?? 0)));
+  const operatingStatus = lockerOperatingStatus({
+    status: locker.status,
+    availableSlots,
+  });
+  const capacity = lockerNetworkCapacity({
+    type,
+    compartmentTotal: locker.compartmentTotal,
+    maxCapacity: locker.maxCapacity,
+    rows: locker.rows,
+    columns: locker.columns,
+  });
+
+  return {
+    id: locker.id,
+    name: locker.name,
+    networkLabel: lockerNetworkLabel(type, locker.name),
+    address: locker.address,
+    type,
+    typeLabel: LOCKER_TYPE_LABELS[type],
+    status: locker.status,
+    statusLabel: LOCKER_STATUS_LABELS[locker.status],
+    operatingStatus,
+    operatingStatusLabel: LOCKER_STATUS_LABELS[operatingStatus],
+    capacity,
+    availableCompartments: locker.availableCompartments,
+    availableSlots,
+    availableLabel: lockerAvailableLabel({ type, availableSlots }),
+    availableBySize: locker.availableBySize ?? { small: 0, medium: 0, large: 0 },
+    rows: locker.rows,
+    columns: locker.columns,
+    latitude: locker.latitude,
+    longitude: locker.longitude,
+    selectable: hasPointAvailability({
+      type,
+      status: locker.status,
+      availableCompartments: locker.availableCompartments,
+      maxCapacity: locker.maxCapacity ?? null,
+      occupyingCount: locker.occupyingCount ?? 0,
+    }),
   };
 }
 

@@ -42,19 +42,35 @@ export async function requireBusinessPageContext(): Promise<BusinessPageContext>
 }
 
 export async function loadBusinessDashboard(businessId: string, ctx: DataAccessContext) {
-  const { businessOnboarding, stats } = createRepositories();
-  const summary = await businessOnboarding.getOnboardingSummary(businessId);
+  const { businesses, stats } = createRepositories();
+  const [business, analytics] = await Promise.all([
+    businesses.findById(ctx, businessId),
+    stats.getBusinessAnalytics(ctx, businessId),
+  ]);
 
-  if (!summary) {
+  if (!business) {
     return null;
   }
 
-  const analytics = await stats.getBusinessAnalytics(ctx, businessId);
-
   return {
-    summary,
+    business,
     analytics,
   };
+}
+
+export async function loadBusinessSettingsPageData(businessId: string) {
+  const { businessOnboarding, lockers } = createRepositories();
+  const [settings, lockerList] = await Promise.all([
+    businessOnboarding.getSettingsSnapshot(businessId),
+    lockers.listActivePickerOptions(),
+  ]);
+
+  return { settings, lockerList };
+}
+
+export async function loadBusinessBillingPageData(businessId: string) {
+  const { businessOnboarding } = createRepositories();
+  return businessOnboarding.getBillingSnapshot(businessId);
 }
 
 export async function loadOnboardingPageData(businessId: string) {

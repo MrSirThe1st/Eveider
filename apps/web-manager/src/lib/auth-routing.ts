@@ -8,6 +8,7 @@ export const WEB_ROUTES = {
   businessDashboard: '/entreprise/tableau-de-bord',
   businessParcels: '/entreprise/tableau-de-bord/colis',
   businessNewParcel: '/entreprise/tableau-de-bord/colis/nouveau',
+  businessLockers: '/entreprise/tableau-de-bord/points',
   businessIssues: '/entreprise/tableau-de-bord/incidents',
   businessSettings: '/entreprise/tableau-de-bord/parametres',
   businessBilling: '/entreprise/tableau-de-bord/facturation',
@@ -15,6 +16,11 @@ export const WEB_ROUTES = {
 
 export function businessParcelPath(parcelId: string) {
   return `/entreprise/tableau-de-bord/colis/${parcelId}`;
+}
+
+export function businessNewParcelPath(lockerId?: string) {
+  if (!lockerId) return WEB_ROUTES.businessNewParcel;
+  return `${WEB_ROUTES.businessNewParcel}?lockerId=${encodeURIComponent(lockerId)}`;
 }
 
 export function isMobileRole(role: UserRole) {

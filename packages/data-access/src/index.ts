@@ -7,7 +7,11 @@ export { createSupabaseAdminClient } from './supabase/server.js';
 export * from './auth/index.js';
 
 export { BusinessRepository } from './repositories/business.repository.js';
-export { BusinessOnboardingRepository } from './repositories/business-onboarding.repository.js';
+export {
+  BusinessOnboardingRepository,
+  type BusinessSettingsSnapshot,
+  type BusinessBillingSnapshot,
+} from './repositories/business-onboarding.repository.js';
 export { DeliveryRepository, type CourierAdminDetail } from './repositories/delivery.repository.js';
 export { ParcelRepository } from './repositories/parcel.repository.js';
 export { UserRepository } from './repositories/user.repository.js';

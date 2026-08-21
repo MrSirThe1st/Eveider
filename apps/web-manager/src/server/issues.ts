@@ -18,3 +18,12 @@ export async function listIssues(
   );
   return items.map(toIssueDto);
 }
+
+export async function listBusinessIssues(
+  ctx: DataAccessContext,
+  options?: { status?: IssueStatus; parcelId?: string },
+): Promise<IssueItem[]> {
+  const { issues } = createRepositories();
+  const items = await issues.listForBusiness(ctx, options);
+  return items.map(toIssueDto);
+}

@@ -42,10 +42,10 @@ Register → (Approval) → Dashboard → Create parcel → Track until collecte
 1. **Register** — Company details, verification, pending approval if gated
 2. **Dashboard** — Active parcels, submissions today, exceptions
 3. **Create parcel** — Recipient, reference, destination locker; status → `created`
-4. **Track** — Business-scoped list and timeline until `collected`
+4. **Track** — Business-scoped Colis list and derived location until `collected` (see [ADR-002](../decisions/ADR-002.md))
 5. **Support** — Raise issues on specific parcels
 
-Business users do not see pickup PINs or other businesses' data.
+Business users do not see pickup PINs, courier identity, or a Livraisons board. Deliveries remain an Eveider ops concept.
 
 ### Courier
 
@@ -92,7 +92,7 @@ Both customers and couriers use:
 |--------|----------|---------|----------|-------|
 | View own parcels | ✓ | — | ✓ (own business) | ✓ (all) |
 | Create / submit parcels | — | — | ✓ | ✓ |
-| View assigned deliveries | — | ✓ | — | ✓ (all) |
+| View assigned deliveries | — | ✓ | — (location only, no courier identity) | ✓ (all) |
 | Update parcel to locker / collected | — | ✓ (assigned) | — | ✓ |
 | View pickup PIN | ✓ (own) | — | — | ✓ |
 | Assign deliveries to couriers | — | — | — | ✓ |
@@ -110,9 +110,10 @@ Created → In transit → Delivered to locker → Ready for pickup → Collecte
 
 | Status | Typical actor | Customer sees | Business sees | Courier sees | Admin sees |
 |--------|---------------|---------------|---------------|--------------|------------|
-| Created | Business / system | Tracking | Submitted | — | Parcel list |
+| Created | Business / system | Tracking | Awaiting courier or awaiting drop-off (derived) | — | Parcel list |
+| Delivery assigned | Admin | Tracking | Courier assigned (location only) | Active delivery | Live board |
 | In transit | Courier / system | Tracking update | In transit | Active delivery | Live board |
-| Delivered to locker | Courier | Notification | Delivered to locker | Confirm complete | Occupancy update |
+| Delivered to locker | Courier | Notification | Arrived at point | Confirm complete | Occupancy update |
 | Ready for pickup | System (PIN issued) | PIN screen | Ready for pickup | — | Awaiting collection |
 | Collected | Customer / locker | Complete | Collected | — | Analytics |
 

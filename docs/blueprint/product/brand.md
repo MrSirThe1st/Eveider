@@ -81,6 +81,21 @@ Canonical French labels for statuses and primary actions. Use ALL CAPS for card 
 | `ready_for_pickup` | PRÊT POUR RETRAIT |
 | `collected` | RETIRÉ |
 
+### Business parcel location (Colis)
+
+Derived labels — do not persist these keys. See [ADR-002](../decisions/ADR-002.md).
+
+| Location key | French UI label |
+|--------------|-----------------|
+| `submitted` | SOUMIS |
+| `awaiting_courier` | EN ATTENTE DU COURSIER |
+| `awaiting_dropoff` | EN ATTENTE DE DÉPÔT |
+| `courier_assigned` | COURSIER ASSIGNÉ |
+| `in_transit` | EN TRANSIT |
+| `at_locker` | ARRIVÉ AU POINT |
+| `ready_for_pickup` | PRÊT POUR RETRAIT |
+| `collected` | RETIRÉ |
+
 ### Common actions
 
 | Action | French UI label |

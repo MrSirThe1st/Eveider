@@ -1,7 +1,7 @@
 'use client';
 
 import { colors, radius, webInputStyle } from '@eveider/config-ui';
-import { LOCKER_TYPE_LABELS } from '@eveider/domain';
+import { LOCKER_STATUS_LABELS, LOCKER_TYPE_LABELS } from '@eveider/domain';
 import { useEffect, useState } from 'react';
 import { LockerCard, type LockerOption } from './locker-card';
 import { LockerGoogleMap } from './locker-google-map';
@@ -54,8 +54,10 @@ export function LockerPicker({ lockers, selectedLockerId, onSelectLocker }: Lock
         longitude: locker.longitude,
         type: locker.type ?? 'SMART_LOCKER',
         typeLabel: LOCKER_TYPE_LABELS[locker.type ?? 'SMART_LOCKER'],
-        status: 'active',
-        statusLabel: 'ACTIF',
+        status: locker.operatingStatus ?? locker.status ?? 'active',
+        statusLabel:
+          locker.operatingStatusLabel ??
+          LOCKER_STATUS_LABELS[locker.operatingStatus ?? locker.status ?? 'active'],
         availableCompartments: locker.availableCompartments,
         availableSlots: locker.availableSlots ?? locker.availableCompartments,
         availableBySize: locker.availableBySize,

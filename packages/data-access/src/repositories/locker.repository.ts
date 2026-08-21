@@ -33,6 +33,7 @@ export type LockerWithAvailability = Locker & {
   availableBySize: AvailableBySize;
   occupyingCount: number;
   availableSlots: number;
+  compartmentTotal: number;
 };
 
 export type SelectableCompartment = Pick<Compartment, 'id' | 'label' | 'size' | 'status'>;
@@ -115,11 +116,15 @@ function withAvailability(
     ? countAvailableBySize(compartments)
     : EMPTY_AVAILABLE_BY_SIZE;
   const availableCompartments = availableBySize.small + availableBySize.medium + availableBySize.large;
+  const compartmentTotal = usesCompartmentGrid(locker.type)
+    ? compartments.length
+    : (locker.maxCapacity ?? 0);
   return {
     ...locker,
     availableCompartments,
     availableBySize,
     occupyingCount,
+    compartmentTotal,
     availableSlots: availableSlots({
       type: locker.type,
       availableCompartments,
@@ -152,13 +157,43 @@ export class LockerRepository {
   }
 
   async listActiveWithAvailability(): Promise<LockerWithAvailability[]> {
-    const occupyingStatuses = [...OCCUPYING_PARCEL_STATUSES];
+    return this.listWithAvailability(
+      `l.status = 'active' AND l.latitude IS NOT NULL AND l.longitude IS NOT NULL`,
+    );
+  }
+
+  /** Name/address picker — no compartment or occupancy aggregates. */
+  async listActivePickerOptions(): Promise<Array<{ id: string; name: string; address: string }>> {
+    const result = await this.db.query(
+      `SELECT id, name, address
+       FROM lockers
+       WHERE archived_at IS NULL AND status = 'active'
+       ORDER BY name ASC`,
+    );
+    return result.rows.map((row) => ({
+      id: String(row.id),
+      name: String(row.name),
+      address: String(row.address),
+    }));
+  }
+
+  /** Active, full, and offline points — the network businesses can send parcels to. */
+  async listNetworkDirectory(): Promise<LockerWithAvailability[]> {
+    return this.listWithAvailability(`l.status IN ('active', 'offline', 'full')`);
+  }
+
+  private async listWithAvailability(
+    where: string,
+    params: unknown[] = [],
+  ): Promise<LockerWithAvailability[]> {
+    const occupyingParamIndex = params.length + 1;
     const lockersResult = await this.db.query(
       `SELECT l.*,
               COALESCE(c.available, 0)::int AS available_count,
               COALESCE(c.available_small, 0)::int AS available_small,
               COALESCE(c.available_medium, 0)::int AS available_medium,
               COALESCE(c.available_large, 0)::int AS available_large,
+              COALESCE(c.total, 0)::int AS compartment_total,
               COALESCE(o.occupying, 0)::int AS occupying_count
        FROM lockers l
        LEFT JOIN (
@@ -166,19 +201,20 @@ export class LockerRepository {
                 COUNT(*) FILTER (WHERE status = 'available')::int AS available,
                 COUNT(*) FILTER (WHERE status = 'available' AND size = 'small')::int AS available_small,
                 COUNT(*) FILTER (WHERE status = 'available' AND size = 'medium')::int AS available_medium,
-                COUNT(*) FILTER (WHERE status = 'available' AND size = 'large')::int AS available_large
+                COUNT(*) FILTER (WHERE status = 'available' AND size = 'large')::int AS available_large,
+                COUNT(*)::int AS total
          FROM compartments
          GROUP BY locker_id
        ) c ON c.locker_id = l.id
        LEFT JOIN (
          SELECT locker_id, COUNT(*)::int AS occupying
          FROM parcels
-         WHERE status = ANY($1::"ParcelStatus"[])
+         WHERE status = ANY($${occupyingParamIndex}::"ParcelStatus"[])
          GROUP BY locker_id
        ) o ON o.locker_id = l.id
-       WHERE l.status = 'active' AND l.latitude IS NOT NULL AND l.longitude IS NOT NULL
+       WHERE ${where}
        ORDER BY l.name ASC`,
-      [occupyingStatuses],
+      [...params, [...OCCUPYING_PARCEL_STATUSES]],
     );
 
     return lockersResult.rows.map((row) => {
@@ -194,11 +230,15 @@ export class LockerRepository {
       const availableCompartments = usesCompartmentGrid(locker.type)
         ? Number(row.available_count ?? 0)
         : 0;
+      const compartmentTotal = usesCompartmentGrid(locker.type)
+        ? Number(row.compartment_total ?? 0)
+        : (locker.maxCapacity ?? 0);
       return {
         ...locker,
         availableCompartments,
         availableBySize,
         occupyingCount,
+        compartmentTotal,
         availableSlots: availableSlots({
           type: locker.type,
           availableCompartments,

@@ -1,3 +1,4 @@
+/** Persisted parcel lifecycle. Business Colis location is derived — see parcel-location.ts. */
 export type ParcelStatus =
   | 'created'
   | 'in_transit'

@@ -1,13 +1,13 @@
 import { redirect } from 'next/navigation';
 import { PageFrame } from '@eveider/ui';
 import { BusinessBillingForm } from '@/components/business-billing-form';
-import { loadOnboardingPageData, requireBusinessPageContext } from '@/server/business';
+import { loadBusinessBillingPageData, requireBusinessPageContext } from '@/server/business';
 
 export default async function BusinessBillingPage() {
   const { profile } = await requireBusinessPageContext();
-  const { summary } = await loadOnboardingPageData(profile.businessId);
+  const billing = await loadBusinessBillingPageData(profile.businessId);
 
-  if (!summary) {
+  if (!billing) {
     redirect('/onboarding');
   }
 
@@ -18,13 +18,13 @@ export default async function BusinessBillingPage() {
       layout="standard"
     >
       <BusinessBillingForm
-        paymentRule={summary.billingAccount?.paymentRule ?? 'merchant_pays'}
-        billingType={summary.billingAccount?.billingType ?? 'pay_per_shipment'}
-        payoutMethod={summary.settlementAccount?.payoutMethod ?? 'mobile_money_orange'}
-        accountHolder={summary.settlementAccount?.accountHolder ?? ''}
-        accountNumber={summary.settlementAccount?.accountNumber ?? ''}
-        dailyShipments={summary.limit?.dailyShipments ?? null}
-        codDailyLimitUsd={summary.limit?.codDailyLimitUsd ?? null}
+        paymentRule={billing.paymentRule ?? 'merchant_pays'}
+        billingType={billing.billingType ?? 'pay_per_shipment'}
+        payoutMethod={billing.payoutMethod ?? 'mobile_money_orange'}
+        accountHolder={billing.accountHolder ?? ''}
+        accountNumber={billing.accountNumber ?? ''}
+        dailyShipments={billing.dailyShipments ?? null}
+        codDailyLimitUsd={billing.codDailyLimitUsd ?? null}
       />
     </PageFrame>
   );

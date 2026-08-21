@@ -62,7 +62,14 @@ function optionalNumber(value: string): number | undefined {
   return Number.isFinite(n) && n > 0 ? n : undefined;
 }
 
-export function CreateParcelForm() {
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+type CreateParcelFormProps = {
+  initialLockerId?: string;
+};
+
+export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
   const router = useRouter();
   const toast = useToast();
   const [stepIndex, setStepIndex] = useState(0);
@@ -77,7 +84,9 @@ export function CreateParcelForm() {
   const [recipientPhone, setRecipientPhone] = useState('');
   const [recipientEmail, setRecipientEmail] = useState('');
 
-  const [lockerId, setLockerId] = useState('');
+  const [lockerId, setLockerId] = useState(
+    initialLockerId && UUID_RE.test(initialLockerId) ? initialLockerId : '',
+  );
   const [compartmentId, setCompartmentId] = useState('');
   const [lockers, setLockers] = useState<LockerOption[]>([]);
   const [compartmentData, setCompartmentData] = useState<LockerCompartmentsResponse | null>(null);
@@ -113,11 +122,15 @@ export function CreateParcelForm() {
           senderPhone?: string;
           senderAddress?: string | null;
           pickupType?: ShipmentPickupType;
+          dropoffLockerId?: string | null;
         };
         if (data.senderName) setSenderName(data.senderName);
         if (data.senderPhone) setSenderPhone(data.senderPhone);
         if (data.senderAddress) setSenderAddress(data.senderAddress);
         if (data.pickupType) setPickupType(data.pickupType);
+        if (data.dropoffLockerId && UUID_RE.test(data.dropoffLockerId)) {
+          setLockerId((current) => current || data.dropoffLockerId!);
+        }
       })
       .catch(() => {
         /* prefill optional */
@@ -125,37 +138,16 @@ export function CreateParcelForm() {
   }, []);
 
   useEffect(() => {
-    async function loadLockers(lat?: number, lng?: number) {
-      const path =
-        lat != null && lng != null
-          ? `/api/lockers/nearest?latitude=${lat}&longitude=${lng}&limit=20`
-          : '/api/entreprise/lockers';
-
-      try {
-        const response = await fetch(path);
-        const result = await response.json();
+    void fetch('/api/entreprise/lockers')
+      .then((response) => response.json())
+      .then((result) => {
         if (result.success) {
           setLockers(result.data.lockers as LockerOption[]);
         }
-      } catch {
+      })
+      .catch(() => {
         /* lockers optional */
-      }
-    }
-
-    if (typeof navigator !== 'undefined' && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          void loadLockers(position.coords.latitude, position.coords.longitude);
-        },
-        () => {
-          void loadLockers();
-        },
-        { enableHighAccuracy: false, timeout: 8000 },
-      );
-      return;
-    }
-
-    void loadLockers();
+      });
   }, []);
 
   useEffect(() => {
@@ -273,6 +265,10 @@ export function CreateParcelForm() {
     }
     if (pickupType === 'courier_pickup' && senderAddress.trim().length < 5) {
       setError('Adresse expéditeur requise pour un enlèvement coursier.');
+      return false;
+    }
+    if (pickupType === 'merchant_dropoff' && !lockerId) {
+      setError('Sélectionnez un point de dépôt.');
       return false;
     }
     setError(null);
@@ -472,9 +468,42 @@ export function CreateParcelForm() {
               placeholder="Rue, quartier, ville…"
             />
           ) : (
-            <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>
-              Dépôt au point : l’adresse expéditeur n’est pas requise.
-            </p>
+            <div>
+              <p style={{ margin: '0 0 0.5rem', fontWeight: 700, fontSize: '0.8125rem' }}>
+                Point de dépôt
+              </p>
+              <p style={{ margin: '0 0 0.75rem', fontSize: '0.8125rem', color: colors.textMuted }}>
+                Choisissez le casier où vous déposerez le colis. Le destinataire pourra le retirer
+                au même point, ou à un autre au prochain écran.
+              </p>
+              {selectedLocker ? (
+                <p
+                  style={{
+                    margin: '0 0 0.75rem',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  {selectedLocker.networkLabel ?? selectedLocker.name}
+                  <span
+                    style={{
+                      display: 'block',
+                      fontWeight: 500,
+                      color: colors.textMuted,
+                      marginTop: 2,
+                    }}
+                  >
+                    {selectedLocker.availableLabel ??
+                      `${selectedLocker.availableSlots ?? selectedLocker.availableCompartments} compartiments disponibles`}
+                  </span>
+                </p>
+              ) : null}
+              <LockerPicker
+                lockers={lockers}
+                selectedLockerId={lockerId}
+                onSelectLocker={setLockerId}
+              />
+            </div>
           )}
         </section>
       ) : null}
@@ -521,6 +550,22 @@ export function CreateParcelForm() {
             <p style={{ margin: '0 0 0.5rem', fontWeight: 700, fontSize: '0.8125rem' }}>
               Point de retrait (obligatoire)
             </p>
+            {selectedLocker ? (
+              <p style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', fontWeight: 600 }}>
+                {selectedLocker.networkLabel ?? selectedLocker.name}
+                <span
+                  style={{
+                    display: 'block',
+                    fontWeight: 500,
+                    color: colors.textMuted,
+                    marginTop: 2,
+                  }}
+                >
+                  {selectedLocker.availableLabel ??
+                    `${selectedLocker.availableSlots ?? selectedLocker.availableCompartments} compartiments disponibles`}
+                </span>
+              </p>
+            ) : null}
             <LockerPicker
               lockers={lockers}
               selectedLockerId={lockerId}
@@ -730,7 +775,10 @@ export function CreateParcelForm() {
             <span>
               Destinataire : {recipientName} · {recipientPhone}
             </span>
-            <span>Point : {selectedLocker?.name ?? '—'}</span>
+            <span>Point : {selectedLocker?.networkLabel ?? selectedLocker?.name ?? '—'}</span>
+            {selectedLocker?.availableLabel ? (
+              <span>{selectedLocker.availableLabel}</span>
+            ) : null}
             <span>
               Colis : {PACKAGE_SIZE_LABELS[packageSize]} ·{' '}
               {PACKAGE_CATEGORY_LABELS[packageCategory]}

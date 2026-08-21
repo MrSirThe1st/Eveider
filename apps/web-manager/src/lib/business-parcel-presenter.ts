@@ -1,11 +1,18 @@
 import {
+  BUSINESS_PARCEL_LOCATION_LABELS,
+  BUSINESS_PARCEL_PROGRESSION_LABELS,
   COMPARTMENT_SIZE_FULL_LABELS,
   formatDeliveryFeeFc,
+  markBusinessParcelProgression,
   PACKAGE_CATEGORY_LABELS,
   PACKAGE_SIZE_LABELS,
   PARCEL_STATUS_LABELS,
   PAYMENT_RESPONSIBILITY_LABELS,
+  resolveBusinessParcelLocation,
   SHIPMENT_PICKUP_TYPE_LABELS,
+  type BusinessParcelLocation,
+  type BusinessParcelProgressionStep,
+  type DeliveryStatus,
   type PackageCategory,
   type PackageSize,
   type ParcelStatus,
@@ -151,5 +158,41 @@ export function toParcelDto(parcel: {
       : null,
     createdAt: parcel.createdAt.toISOString(),
     updatedAt: parcel.updatedAt.toISOString(),
+  };
+}
+
+export type BusinessParcelProgressionItem = {
+  step: BusinessParcelProgressionStep;
+  label: string;
+  reached: boolean;
+  current: boolean;
+};
+
+export type BusinessParcelLocationView = {
+  location: BusinessParcelLocation;
+  locationLabel: string;
+  progression: BusinessParcelProgressionItem[];
+};
+
+export function toBusinessParcelLocationView(input: {
+  status: ParcelStatus;
+  pickupType: ShipmentPickupType;
+  latestDeliveryStatus: DeliveryStatus | null;
+}): BusinessParcelLocationView {
+  const resolved = {
+    parcelStatus: input.status,
+    pickupType: input.pickupType,
+    latestDeliveryStatus: input.latestDeliveryStatus,
+  };
+  const location = resolveBusinessParcelLocation(resolved);
+  return {
+    location,
+    locationLabel: BUSINESS_PARCEL_LOCATION_LABELS[location],
+    progression: markBusinessParcelProgression(resolved).map((mark) => ({
+      step: mark.step,
+      label: BUSINESS_PARCEL_PROGRESSION_LABELS[mark.step],
+      reached: mark.reached,
+      current: mark.current,
+    })),
   };
 }

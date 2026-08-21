@@ -349,11 +349,17 @@ export function MerchantDashboard({ businessName, status, analytics }: MerchantD
             Usage des points
           </p>
           <p style={{ margin: '0.35rem 0 0.85rem', fontSize: '0.75rem', color: colors.textMuted }}>
-            Top casiers pour vos envois
+            Top casiers pour vos envois ·{' '}
+            <Link href={WEB_ROUTES.businessLockers} style={{ fontWeight: 600, color: colors.secondary }}>
+              réseau
+            </Link>
           </p>
           {analytics.topLockers.length === 0 ? (
             <p style={{ margin: 0, color: colors.textMuted, fontSize: typography.bodySm.fontSize }}>
-              Aucun point utilisé pour le moment.
+              Aucun point utilisé pour le moment.{' '}
+              <Link href={WEB_ROUTES.businessLockers} style={{ fontWeight: 600, color: colors.secondary }}>
+                Voir le réseau
+              </Link>
             </p>
           ) : (
             <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>

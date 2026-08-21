@@ -22,6 +22,36 @@ Use this file as the first project memory source before searching the codebase.
 
 > **Note:** Entries before 2026-07-22 reference pre-refactor paths (`web-admin`, `web-platform`, `web-business`, `apps/mobile`, Prisma). Current apps are `web-manager` and `mobile-tenant`; data access uses `pg` + `db/migrations/`.
 
+## 2026-08-21
+- Change type: Frontend | API
+- Description: Business Colis shows derived location and pickup-type progression (ADR-002). List/detail load pickup type + latest delivery on the server; filters are in memory; courier identity is not shown. Colis detail is an RSC (no client fetch for first paint).
+- Impact: `ParcelRepository.listBusinessColis` / `findForBusiness`; `listBusinessParcels` / `loadBusinessParcelDetail`; Colis list Situation column; parcel detail Progression; `GET /api/entreprise/parcels/[id]` shares the detail loader.
+- Tests: `parcel-location.test.ts`, `parcel.repository.test.ts`, `business-parcel-presenter.test.ts`.
+
+## 2026-08-21
+- Change type: Other
+- Description: Stabilized the parcel vs delivery model — business Colis shows a derived location from parcel status + pickup type + latest delivery; Livraisons stays admin-only; courier identity, returns, Destinataires, and a business Livraisons nav are deferred ([ADR-002](../decisions/ADR-002.md)).
+- Impact: `packages/domain/src/parcel-location.ts`; `BUSINESS_PARCEL_LOCATION_LABELS`; glossary, business-portal, roles-and-flows, brand. No UI or schema change.
+- Tests: `parcel-location.test.ts`, `labels.test.ts`.
+
+## 2026-08-21
+- Change type: Other
+- Description: Codified the dashboard data architecture so new screens cannot reintroduce query fan-out — `data-fetching.md` now mandates page-specific loaders, RSC lists, one profile lookup per request, and pool idle policy; agent rules treat those as PR blockers; Cursor rule `eveider-data-architecture.mdc` always applies.
+- Impact: `docs/blueprint/ai/data-fetching.md`, `AGENT_RULES.md`, `README.md`, `docs/setup/auth.md`, `ADR-001.md`, `business-portal.md`, `admin-dashboard.md`, `.cursor/rules/eveider-data-architecture.mdc`.
+- Tests: n/a (docs).
+
+## 2026-08-21
+- Change type: Frontend | API | Infra
+- Description: Cut business-dashboard query fan-out — page-specific snapshots instead of full `loadSummary()` on home/settings/billing; Facturation no longer loads locker availability; cookie `/api/auth/me` reuses the profile from `resolveCurrentUser`; Colis and Incidents load as RSC (in-memory filters); dev pg pool keeps idle clients for 10 minutes and no longer sets `allowExitOnIdle`.
+- Impact: `BusinessOnboardingRepository.getSettingsSnapshot` / `getBillingSnapshot`; `LockerRepository.listActivePickerOptions`; `loadBusinessDashboard` / `loadBusinessSettingsPageData` / `loadBusinessBillingPageData`; `/entreprise/tableau-de-bord/{colis,incidents,parametres,facturation}`; `GET /api/auth/me`; `resolvePoolIdleOptions` (dev only).
+- Tests: `business-onboarding.repository.test.ts`, `locker.repository.test.ts`, `pool.test.ts`; web-manager typecheck.
+
+## 2026-08-20
+- Change type: API | Frontend
+- Description: Business locker network directory — companies can see where to send parcels (location, address, capacity, available compartments, operating status) and select a pickup/destination point when creating a parcel.
+- Impact: `LockerRepository.listNetworkDirectory`; domain labels `lockerNetworkLabel` / `lockerAvailableLabel` / `lockerOperatingStatus`; RSC page `/entreprise/tableau-de-bord/points`; nav module Points; `GET /api/entreprise/lockers` returns capacity + availability copy; create-parcel merchant drop-off picker + `?lockerId=` prefill; shipment-prefill includes `dropoffLockerId`.
+- Tests: `packages/domain/src/locker.test.ts` (network labels, capacity, operating status); `apps/web-manager/src/lib/locker-presenter.test.ts`.
+
 ## 2026-07-22
 - Change type: Infra | DB | Frontend | Mobile | Other
 - Description: Technical refactor — consolidated web apps into `apps/web-manager` (admin + business + mobile APIs), renamed `apps/mobile` → `apps/mobile-tenant`, replaced Prisma with hand-written SQL repositories (`pg`), migrated schema to `db/migrations/*.sql`, removed TanStack Query from web (RSC + `src/server/` use-cases), removed Prisma client and seed scripts.
