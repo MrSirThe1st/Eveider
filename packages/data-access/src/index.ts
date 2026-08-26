@@ -26,6 +26,10 @@ export {
 } from './repositories/stats.repository.js';
 export { PricingRepository, toDeliveryPricingRules } from './repositories/pricing.repository.js';
 export {
+  LockerSettingsRepository,
+  toLockerNetworkSettings,
+} from './repositories/locker-settings.repository.js';
+export {
   resolveBusinessPickupCoordinates,
   distanceKmToLocker,
   type PickupCoordinates,
@@ -64,6 +68,7 @@ import { StatsRepository } from './repositories/stats.repository.js';
 import { ParcelInviteRepository } from './repositories/parcel-invite.repository.js';
 import { PaymentRepository } from './payments/payment.repository.js';
 import { PricingRepository } from './repositories/pricing.repository.js';
+import { LockerSettingsRepository } from './repositories/locker-settings.repository.js';
 import { OnboardingService } from './auth/onboarding.service.js';
 import { UserRepository } from './repositories/user.repository.js';
 
@@ -75,6 +80,7 @@ export function createRepositories() {
   const invites = new ParcelInviteRepository(db);
   const payments = new PaymentRepository(db);
   const pricing = new PricingRepository(db);
+  const lockerSettings = new LockerSettingsRepository(db);
 
   return {
     users,
@@ -83,6 +89,7 @@ export function createRepositories() {
     parcels: new ParcelRepository(db, notifications, invites, users),
     deliveries: new DeliveryRepository(db, notifications),
     lockers: new LockerRepository(db),
+    lockerSettings,
     issues: new IssueRepository(db),
     notifications,
     invites,

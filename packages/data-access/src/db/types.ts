@@ -185,6 +185,30 @@ export type DeliveryPricingRuleRow = {
   updatedBy: string | null;
 };
 
+export type LockerNetworkSettingsRow = {
+  id: string;
+  sizeMatchingMode: 'exact' | 'exact_or_larger';
+  assignmentStrategy: 'smallest_fit' | 'first_available' | 'preferred_size';
+  pickupHoldHours: number;
+  pickupReminderHours: number;
+  updatedAt: Date;
+  updatedBy: string | null;
+};
+
+export type LockerLayoutTemplateRow = {
+  id: string;
+  name: string;
+  description: string | null;
+  rows: number;
+  columns: number;
+  cells: { label: string; size: CompartmentSize }[];
+  isStarter: boolean;
+  archivedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: string | null;
+};
+
 export type Delivery = {
   id: string;
   parcelId: string;
