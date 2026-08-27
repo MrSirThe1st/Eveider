@@ -1,6 +1,8 @@
-import { nativeColors as colors, radius, borders } from '@eveider/config-ui';
+import { type ColorTokens } from '@eveider/config-ui';
 import { Feather } from '@expo/vector-icons';
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useColors } from '../theme';
 
 type ProfileMenuItemProps = {
   icon: keyof typeof Feather.glyphMap;
@@ -11,7 +13,19 @@ type ProfileMenuItemProps = {
   disabled?: boolean;
   destructive?: boolean;
   showChevron?: boolean;
+  last?: boolean;
 };
+
+export function ProfileSection({ title, children }: { title: string; children: React.ReactNode }) {
+  const colors = useColors();
+  const styles = useMemo(() => createSectionStyles(colors), [colors]);
+  return (
+    <View style={styles.wrap}>
+      <Text style={styles.title}>{title}</Text>
+      <View>{children}</View>
+    </View>
+  );
+}
 
 export function ProfileMenuItem({
   icon,
@@ -22,100 +36,101 @@ export function ProfileMenuItem({
   disabled,
   destructive,
   showChevron = true,
+  last = false,
 }: ProfileMenuItemProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createItemStyles(colors), [colors]);
   const content = (
-    <View style={[styles.row, disabled && styles.disabled]}>
-      <View style={[styles.iconWrap, destructive && styles.iconDestructive]}>
-        <Feather
-          name={icon}
-          size={18}
-          color={destructive ? colors.danger : colors.secondary}
-          strokeWidth={2}
-        />
-      </View>
+    <View style={[styles.row, disabled && styles.disabled, !last && styles.rowBorder]}>
+      <Feather
+        name={icon}
+        size={18}
+        color={destructive ? colors.danger : colors.secondary}
+        strokeWidth={2}
+      />
       <View style={styles.textWrap}>
-        <Text style={[styles.label, destructive && styles.labelDestructive]}>{label}</Text>
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        <Text
+          style={[styles.label, destructive && styles.labelDestructive]}
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
+        {subtitle ? <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text> : null}
       </View>
-      {value ? <Text style={styles.value}>{value}</Text> : null}
-      {showChevron && !disabled && onPress ? (
-        <Feather name="chevron-right" size={18} color={colors.border} />
+      {value ? (
+        <Text style={styles.value} numberOfLines={1} ellipsizeMode="tail">
+          {value}
+        </Text>
       ) : null}
-      {disabled ? <Text style={styles.badge}>BIENTÔT</Text> : null}
+      {showChevron && !disabled && onPress ? (
+        <Feather name="chevron-right" size={18} color={colors.textMuted} />
+      ) : null}
     </View>
   );
 
   if (disabled || !onPress) {
-    return <View style={styles.container}>{content}</View>;
+    return content;
   }
 
-  return (
-    <Pressable style={styles.container} onPress={onPress}>
-      {content}
-    </Pressable>
-  );
+  return <Pressable onPress={onPress}>{content}</Pressable>;
 }
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.surface,
-    borderWidth: borders.width,
-    borderColor: colors.border,
-    borderRadius: radius.card,
-    marginBottom: 8,
-    overflow: 'hidden',
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    gap: 14,
-  },
-  disabled: {
-    opacity: 0.65,
-  },
-  iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.button,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconDestructive: {
-    backgroundColor: '#FDECEA',
-  },
-  textWrap: {
-    flex: 1,
-  },
-  label: {
-    fontWeight: '600',
-    fontSize: 13,
-    letterSpacing: 0.3,
-    color: colors.secondary,
-  },
-  labelDestructive: {
-    color: colors.danger,
-  },
-  subtitle: {
-    marginTop: 2,
-    fontSize: 11,
-    fontWeight: '500',
-    color: colors.secondary,
-    opacity: 0.7,
-  },
-  value: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.secondary,
-    opacity: 0.75,
-    marginRight: 2,
-  },
-  badge: {
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    color: colors.secondary,
-    opacity: 0.5,
-  },
-});
+function createSectionStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    wrap: {
+      marginBottom: 8,
+    },
+    title: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textMuted,
+      marginBottom: 4,
+      marginTop: 16,
+    },
+  });
+}
+
+function createItemStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 14,
+      gap: 12,
+      backgroundColor: 'transparent',
+    },
+    rowBorder: {
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    disabled: {
+      opacity: 0.55,
+    },
+    textWrap: {
+      flexShrink: 0,
+    },
+    label: {
+      fontWeight: '500',
+      fontSize: 16,
+      color: colors.secondary,
+    },
+    labelDestructive: {
+      color: colors.danger,
+    },
+    subtitle: {
+      marginTop: 2,
+      fontSize: 12,
+      fontWeight: '400',
+      color: colors.textMuted,
+    },
+    value: {
+      flex: 1,
+      flexShrink: 1,
+      minWidth: 48,
+      fontSize: 14,
+      fontWeight: '400',
+      color: colors.textMuted,
+      textAlign: 'right',
+    },
+  });
+}

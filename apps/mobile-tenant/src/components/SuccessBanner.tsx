@@ -1,6 +1,7 @@
-import { nativeColors as colors, radius } from '@eveider/config-ui';
-import { useEffect } from 'react';
+import { radius, type ColorTokens } from '@eveider/config-ui';
+import { useEffect, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useColors } from '../theme';
 
 type SuccessBannerProps = {
   message: string;
@@ -9,6 +10,9 @@ type SuccessBannerProps = {
 };
 
 export function SuccessBanner({ message, onDismiss, durationMs = 3000 }: SuccessBannerProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   useEffect(() => {
     const timer = setTimeout(onDismiss, durationMs);
     return () => clearTimeout(timer);
@@ -21,18 +25,20 @@ export function SuccessBanner({ message, onDismiss, durationMs = 3000 }: Success
   );
 }
 
-const styles = StyleSheet.create({
-  banner: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.card,
-    padding: 14,
-    marginBottom: 16,
-  },
-  text: {
-    fontWeight: '700',
-    fontSize: 12,
-    letterSpacing: 0.5,
-    textAlign: 'center',
-    color: colors.secondary,
-  },
-});
+function createStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    banner: {
+      backgroundColor: colors.primary,
+      borderRadius: radius.card,
+      padding: 14,
+      marginBottom: 16,
+    },
+    text: {
+      fontWeight: '700',
+      fontSize: 12,
+      letterSpacing: 0.5,
+      textAlign: 'center',
+      color: colors.onPrimary,
+    },
+  });
+}

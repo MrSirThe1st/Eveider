@@ -3,7 +3,7 @@
   z-index: 900;
   left: 1rem;
   right: 1rem;
-  bottom: 1rem;
+  bottom: max(1rem, env(safe-area-inset-bottom));
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
@@ -164,7 +164,9 @@
 }
 
 .footerItem {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
   padding: 0.28rem 0;
   border: none;
   background: none;
@@ -199,16 +201,22 @@
   .banner {
     left: 0.75rem;
     right: 0.75rem;
-    bottom: 0.75rem;
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
     flex-direction: column;
     align-items: stretch;
   }
 
   .bannerActions {
+    flex-direction: column;
+    align-items: stretch;
     justify-content: stretch;
   }
 
   .bannerActions :global(.nb-btn) {
-    flex: 1;
+    flex: none;
+    width: 100%;
+    height: auto;
+    min-height: 44px;
+    white-space: normal;
   }
 }

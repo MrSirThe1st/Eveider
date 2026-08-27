@@ -65,7 +65,7 @@ export function AdminBusinessApplications({ applications }: AdminBusinessApplica
         cell: (row) => (
           <div>
             <Link
-              href={`/tableau-de-bord/entreprises/applications/${row.id}`}
+              href={`/tableau-de-bord/organisations/applications/${row.id}`}
               className="nb-data-table__link"
             >
               {row.name}
@@ -169,7 +169,7 @@ export function AdminBusinessApplications({ applications }: AdminBusinessApplica
           {
             id: 'review',
             label: 'Examiner le dossier',
-            href: `/tableau-de-bord/entreprises/applications/${row.id}`,
+            href: `/tableau-de-bord/organisations/applications/${row.id}`,
           },
         ]}
       />

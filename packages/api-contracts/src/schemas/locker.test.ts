@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createLockerSchema,
   nearestLockersQuerySchema,
+  lockersByCityQuerySchema,
   updateCompartmentStatusSchema,
   updateLockerStatusSchema,
 } from './locker.js';
@@ -93,11 +94,13 @@ describe('createLockerSchema', () => {
   });
 });
 
-describe('nearestLockersQuerySchema', () => {
-  it('accepts coordinates', () => {
-    expect(
-      nearestLockersQuerySchema.safeParse({ latitude: -4.32, longitude: 15.31 }).success,
-    ).toBe(true);
+describe('lockersByCityQuerySchema', () => {
+  it('accepts a known DRC city', () => {
+    expect(lockersByCityQuerySchema.safeParse({ city: 'Lubumbashi' }).success).toBe(true);
+  });
+
+  it('rejects an unknown city', () => {
+    expect(lockersByCityQuerySchema.safeParse({ city: 'Paris' }).success).toBe(false);
   });
 });
 

@@ -21,7 +21,6 @@ export function BusinessRegistrationFlow() {
   const [phone, setPhone] = useState('+243');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [userRole, setUserRole] = useState<'owner' | 'manager' | 'logistics_employee'>('owner');
 
   // OTP Fields
   const [otpCode, setOtpCode] = useState('');
@@ -47,7 +46,6 @@ export function BusinessRegistrationFlow() {
           email,
           phone,
           password,
-          userRole,
         }),
       });
 
@@ -200,48 +198,6 @@ export function BusinessRegistrationFlow() {
                   style={{ ...webInputStyle, marginTop: '0.35rem' }}
                 />
               </label>
-            </div>
-
-            {/* Role Selection */}
-            <div style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid #E2E8F0' }}>
-              <span style={{ fontWeight: 700, fontSize: '0.8125rem', color: '#1E293B', display: 'block', marginBottom: '0.75rem' }}>
-                Je suis :
-              </span>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {(
-                  [
-                    { value: 'owner', label: '○ Propriétaire (Owner)' },
-                    { value: 'manager', label: '○ Gérant / Manager' },
-                    { value: 'logistics_employee', label: '○ Employé Logistique' },
-                  ] as const
-                ).map((option) => (
-                  <label
-                    key={option.value}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.75rem',
-                      padding: '0.65rem 0.85rem',
-                      border: userRole === option.value ? '2px solid #09D40B' : '1px solid #E2E8F0',
-                      borderRadius: 8,
-                      cursor: 'pointer',
-                      background: userRole === option.value ? '#F0FDF4' : '#FFFFFF',
-                      fontWeight: userRole === option.value ? 700 : 500,
-                      fontSize: '0.8125rem',
-                    }}
-                  >
-                    <input
-                      type="radio"
-                      name="userRole"
-                      value={option.value}
-                      checked={userRole === option.value}
-                      onChange={() => setUserRole(option.value)}
-                      style={{ accentColor: '#09D40B' }}
-                    />
-                    {option.label}
-                  </label>
-                ))}
-              </div>
             </div>
 
             <button

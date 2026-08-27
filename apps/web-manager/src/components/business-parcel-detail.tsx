@@ -8,8 +8,10 @@ import {
   locationStatusCopy,
 } from '@/components/business-parcel-progression';
 import { ParcelInvitePanel } from '@/components/parcel-invite-panel';
+import { BusinessAssignCourier } from '@/components/business-assign-driver';
 import { ShippingLabel } from '@/components/shipping-label';
 import { WEB_ROUTES } from '@/lib/auth-routing';
+import type { AssignableCourierView } from '@/server/couriers';
 import type { BusinessParcelDetailView } from '@/server/parcels';
 
 function formatDateTime(iso: string) {
@@ -25,9 +27,18 @@ function formatDateTime(iso: string) {
 type ParcelDetailProps = {
   parcel: BusinessParcelDetailView;
   justCreated?: boolean;
+  canManageOperations?: boolean;
+  canAssignCouriers?: boolean;
+  assignableCouriers?: AssignableCourierView[];
 };
 
-export function BusinessParcelDetail({ parcel, justCreated = false }: ParcelDetailProps) {
+export function BusinessParcelDetail({
+  parcel,
+  justCreated = false,
+  canManageOperations = false,
+  canAssignCouriers = false,
+  assignableCouriers = [],
+}: ParcelDetailProps) {
   const collection = locationStatusCopy(parcel.location);
 
   return (
@@ -207,8 +218,13 @@ export function BusinessParcelDetail({ parcel, justCreated = false }: ParcelDeta
         />
       </section>
 
-      <ParcelInvitePanel parcelId={parcel.id} />
+      {canAssignCouriers ? (
+        <BusinessAssignCourier parcelId={parcel.id} couriers={assignableCouriers} />
+      ) : null}
 
+      {canManageOperations ? <ParcelInvitePanel parcelId={parcel.id} /> : null}
+
+      {canManageOperations ? (
       <section style={{ ...webCardStyle, padding: '1.5rem', marginTop: '1.25rem' }}>
         <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700 }}>
           Signalement
@@ -218,6 +234,7 @@ export function BusinessParcelDetail({ parcel, justCreated = false }: ParcelDeta
         </p>
         <BusinessReportIssue parcelId={parcel.id} />
       </section>
+      ) : null}
     </div>
   );
 }

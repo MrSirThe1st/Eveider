@@ -22,6 +22,16 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? '',
     NEXT_PUBLIC_PORTAL_URL: process.env.NEXT_PUBLIC_PORTAL_URL ?? '',
   },
+  async redirects() {
+    return [
+      { source: '/entreprise/:path*', destination: '/organisation/:path*', permanent: true },
+      { source: '/api/entreprise/:path*', destination: '/api/organisation/:path*', permanent: false },
+      { source: '/api/courier/:path*', destination: '/api/driver/:path*', permanent: false },
+      { source: '/tableau-de-bord/entreprises/:path*', destination: '/tableau-de-bord/organisations/:path*', permanent: true },
+      { source: '/tableau-de-bord/entreprises', destination: '/tableau-de-bord/organisations', permanent: true },
+      { source: '/tableau-de-bord/coursiers', destination: '/tableau-de-bord/chauffeurs', permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;

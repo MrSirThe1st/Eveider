@@ -1,5 +1,7 @@
-import { nativeColors as colors, radius, borders } from '@eveider/config-ui';
+import { type ColorTokens } from '@eveider/config-ui';
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useColors } from '../theme';
 
 type EmptyStateProps = {
   title: string;
@@ -7,6 +9,9 @@ type EmptyStateProps = {
 };
 
 export function EmptyState({ title, message }: EmptyStateProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{title}</Text>
@@ -15,25 +20,22 @@ export function EmptyState({ title, message }: EmptyStateProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.surface,
-    borderWidth: borders.width,
-    borderColor: colors.border,
-    borderRadius: radius.card,
-    padding: 32,
-    alignItems: 'center',
-  },
-  title: {
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    color: colors.secondary,
-  },
-  message: {
-    marginTop: 12,
-    fontWeight: '500',
-    textAlign: 'center',
-    color: colors.secondary,
-    fontSize: 13,
-  },
-});
+function createStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    container: {
+      paddingVertical: 20,
+    },
+    title: {
+      fontWeight: '700',
+      fontSize: 16,
+      color: colors.secondary,
+    },
+    message: {
+      marginTop: 8,
+      fontWeight: '400',
+      fontSize: 14,
+      lineHeight: 20,
+      color: colors.textMuted,
+    },
+  });
+}

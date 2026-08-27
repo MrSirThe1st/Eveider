@@ -1,7 +1,10 @@
-import { nativeColors as colors, radius, borders } from '@eveider/config-ui';
+import { borders, type ColorTokens } from '@eveider/config-ui';
+import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
-import { ScreenHeader } from '../../components/ScreenHeader';
+import { useTranslation } from 'react-i18next';
+import { ScreenScaffold } from '../../components/ScreenHeader';
 import { useSettings } from '../../context/settings-context';
+import { useColors } from '../../theme';
 
 type NotificationPreferencesScreenProps = {
   mode: 'CLIENT' | 'COURSIER';
@@ -13,9 +16,11 @@ type ToggleRowProps = {
   description: string;
   value: boolean;
   onValueChange: (next: boolean) => void;
+  colors: ColorTokens;
+  styles: ReturnType<typeof createStyles>;
 };
 
-function ToggleRow({ label, description, value, onValueChange }: ToggleRowProps) {
+function ToggleRow({ label, description, value, onValueChange, colors, styles }: ToggleRowProps) {
   return (
     <View style={styles.row}>
       <View style={styles.rowText}>
@@ -32,7 +37,10 @@ function ToggleRow({ label, description, value, onValueChange }: ToggleRowProps)
   );
 }
 
-export function NotificationPreferencesScreen({ mode, onBack }: NotificationPreferencesScreenProps) {
+export function NotificationPreferencesScreen({ onBack }: NotificationPreferencesScreenProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useTranslation();
   const {
     pushNotifications,
     emailNotifications,
@@ -43,92 +51,97 @@ export function NotificationPreferencesScreen({ mode, onBack }: NotificationPref
   } = useSettings();
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <ScreenHeader mode={mode} title="PRÉFÉRENCES" onBack={onBack} />
-      <Text style={styles.subtitle}>
-        Placeholders pour les canaux de notification. Les alertes colis restent disponibles dans
-        l’écran Notifications.
-      </Text>
+    <ScreenScaffold title={t('notificationPrefs.title')} onBack={onBack}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <Text style={styles.subtitle}>{t('notificationPrefs.subtitle')}</Text>
 
-      <View style={styles.group}>
-        <ToggleRow
-          label="Notifications push"
-          description="Alertes instantanées sur l’appareil"
-          value={pushNotifications}
-          onValueChange={setPushNotifications}
-        />
-        <ToggleRow
-          label="Notifications e-mail"
-          description="Résumés et confirmations par e-mail"
-          value={emailNotifications}
-          onValueChange={setEmailNotifications}
-        />
-        <ToggleRow
-          label="Notifications SMS"
-          description="Messages texte pour les étapes clés"
-          value={smsNotifications}
-          onValueChange={setSmsNotifications}
-        />
-      </View>
+        <View style={styles.group}>
+          <ToggleRow
+            label={t('notificationPrefs.push')}
+            description={t('notificationPrefs.pushDescription')}
+            value={pushNotifications}
+            onValueChange={setPushNotifications}
+            colors={colors}
+            styles={styles}
+          />
+          <ToggleRow
+            label={t('notificationPrefs.email')}
+            description={t('notificationPrefs.emailDescription')}
+            value={emailNotifications}
+            onValueChange={setEmailNotifications}
+            colors={colors}
+            styles={styles}
+          />
+          <ToggleRow
+            label={t('notificationPrefs.sms')}
+            description={t('notificationPrefs.smsDescription')}
+            value={smsNotifications}
+            onValueChange={setSmsNotifications}
+            colors={colors}
+            styles={styles}
+          />
+        </View>
 
-      <Text style={styles.note}>Ces préférences sont enregistrées localement (MVP).</Text>
-    </ScrollView>
+        <Text style={styles.note}>{t('notificationPrefs.note')}</Text>
+      </ScrollView>
+    </ScreenScaffold>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: 24,
-    paddingTop: 56,
-    paddingBottom: 40,
-  },
-  subtitle: {
-    marginBottom: 16,
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.secondary,
-    opacity: 0.75,
-    lineHeight: 20,
-  },
-  group: {
-    gap: 8,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: colors.surface,
-    borderWidth: borders.width,
-    borderColor: colors.border,
-    borderRadius: radius.card,
-    padding: 16,
-  },
-  rowText: {
-    flex: 1,
-  },
-  rowLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.secondary,
-  },
-  rowDescription: {
-    marginTop: 4,
-    fontSize: 11,
-    fontWeight: '500',
-    color: colors.secondary,
-    opacity: 0.7,
-    lineHeight: 16,
-  },
-  note: {
-    marginTop: 16,
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.4,
-    color: colors.secondary,
-    opacity: 0.5,
-  },
-});
+function createStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      padding: 20,
+      paddingBottom: 40,
+    },
+    subtitle: {
+      marginBottom: 16,
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.secondary,
+      opacity: 0.75,
+      lineHeight: 20,
+    },
+    group: {
+      borderWidth: borders.width,
+      borderColor: colors.border,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: colors.surface,
+      padding: 14,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    rowText: {
+      flex: 1,
+    },
+    rowLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.secondary,
+    },
+    rowDescription: {
+      marginTop: 4,
+      fontSize: 11,
+      fontWeight: '500',
+      color: colors.secondary,
+      opacity: 0.7,
+      lineHeight: 16,
+    },
+    note: {
+      marginTop: 16,
+      fontSize: 10,
+      fontWeight: '600',
+      letterSpacing: 0.4,
+      color: colors.secondary,
+      opacity: 0.5,
+    },
+  });
+}

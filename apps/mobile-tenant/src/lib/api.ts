@@ -1,4 +1,4 @@
-import type { DeliveryStatus, IssueStatus, IssueType, ParcelStatus, UserRole } from '@eveider/domain';
+import { matchDrcCity, type DeliveryStatus, type IssueStatus, type IssueType, type ParcelStatus, type UserRole } from '@eveider/domain';
 import { apiFetch } from './api-fetch';
 import { supabase } from './supabase';
 
@@ -42,6 +42,8 @@ export type CustomerParcel = {
   updatedAt: string;
 };
 
+export type CourierLockerStatus = 'active' | 'offline' | 'full' | 'archived';
+
 export type CourierDelivery = {
   id: string;
   status: DeliveryStatus;
@@ -50,6 +52,7 @@ export type CourierDelivery = {
   completedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  hasDropOffPhoto: boolean;
   parcel: {
     id: string;
     trackingNumber: string;
@@ -63,7 +66,11 @@ export type CourierDelivery = {
       address: string;
       latitude: number | null;
       longitude: number | null;
+      status: CourierLockerStatus;
+      statusLabel: string;
+      canAcceptDropOff: boolean;
     } | null;
+    compartmentId: string | null;
     compartmentLabel: string | null;
   };
 };
@@ -141,12 +148,85 @@ export async function fetchCustomerLockers(latitude: number, longitude: number) 
   );
 }
 
+function mapPublicLocker(raw: CustomerLocker): CustomerLocker {
+  return {
+    id: raw.id,
+    name: raw.name,
+    address: raw.address,
+    latitude: raw.latitude,
+    longitude: raw.longitude,
+    type: raw.type,
+    typeLabel: raw.typeLabel,
+    availableCompartments: raw.availableCompartments,
+    availableSlots: raw.availableSlots ?? raw.availableCompartments,
+    contactPhone: raw.contactPhone ?? null,
+    distanceKm: raw.distanceKm,
+  };
+}
+
+const DRC_MAP_CENTER = { latitude: -4.3276, longitude: 15.3136 };
+
+export async function fetchLockersByCity(city: string) {
+  const result = await apiFetch<{ lockers: CustomerLocker[] }>(
+    `/api/lockers/by-city?city=${encodeURIComponent(city)}`,
+  );
+  if (result.success) {
+    return {
+      success: true as const,
+      data: { lockers: result.data.lockers.map(mapPublicLocker) },
+    };
+  }
+
+  const fallback = await apiFetch<{ lockers: CustomerLocker[] }>(
+    `/api/lockers/nearest?latitude=${DRC_MAP_CENTER.latitude}&longitude=${DRC_MAP_CENTER.longitude}&limit=50`,
+  );
+  if (!fallback.success) return result;
+
+  return {
+    success: true as const,
+    data: {
+      lockers: fallback.data.lockers
+        .map(mapPublicLocker)
+        .filter((locker) => matchDrcCity(`${locker.name} ${locker.address}`) === city),
+    },
+  };
+}
+
+export async function fetchPublicLockers(latitude: number, longitude: number) {
+  const result = await apiFetch<{ lockers: CustomerLocker[] }>(
+    `/api/lockers/nearest?latitude=${latitude}&longitude=${longitude}&limit=20`,
+  );
+  if (!result.success) return result;
+  return {
+    success: true as const,
+    data: { lockers: result.data.lockers.map(mapPublicLocker) },
+  };
+}
+
+export async function trackParcelByNumber(trackingNumber: string) {
+  return apiFetch<{ trackToken?: string; parcel?: CustomerParcel }>(
+    '/api/track',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'tracking', trackingNumber }),
+    },
+  );
+}
+
 export async function assignCustomerParcelLocker(parcelId: string, lockerId: string) {
   return customerFetch<{ parcel: CustomerParcel }>(`/api/customer/parcels/${parcelId}/locker`, {
     method: 'PATCH',
     body: JSON.stringify({ lockerId }),
   });
 }
+
+export async function markCustomerParcelCollected(parcelId: string) {
+  return customerFetch<{ parcel: CustomerParcel }>(`/api/customer/parcels/${parcelId}/collect`, {
+    method: 'POST',
+  });
+}
+
 
 export async function fetchCustomerParcels() {
   return customerFetch<{ parcels: CustomerParcel[] }>('/api/customer/parcels');
@@ -202,31 +282,49 @@ export async function fetchProfile() {
   return customerFetch<UserProfile>('/api/auth/me');
 }
 
+export type CourierHistorySummary = {
+  days: number;
+  completed: number;
+  failed: number;
+  successRate: number;
+};
+
 export async function fetchCourierDeliveries() {
-  return courierFetch<{ deliveries: CourierDelivery[] }>('/api/courier/deliveries');
+  return courierFetch<{ deliveries: CourierDelivery[]; summary: CourierHistorySummary }>(
+    '/api/driver/deliveries',
+  );
 }
 
 export async function fetchCourierDelivery(id: string) {
-  return courierFetch<{ delivery: CourierDelivery }>(`/api/courier/deliveries/${id}`);
+  return courierFetch<{ delivery: CourierDelivery }>(`/api/driver/deliveries/${id}`);
 }
 
 export async function scanCourierDelivery(id: string, reference: string) {
-  return courierFetch<{ delivery: CourierDelivery }>(`/api/courier/deliveries/${id}/scan`, {
+  return courierFetch<{ delivery: CourierDelivery }>(`/api/driver/deliveries/${id}/scan`, {
     method: 'POST',
     body: JSON.stringify({ reference }),
   });
 }
 
 export async function startCourierDropOff(id: string) {
-  return courierFetch<{ delivery: CourierDelivery }>(`/api/courier/deliveries/${id}/drop-off`, {
+  return courierFetch<{ delivery: CourierDelivery }>(`/api/driver/deliveries/${id}/drop-off`, {
     method: 'POST',
   });
 }
 
-export async function completeCourierDropOff(id: string) {
-  return courierFetch<{ delivery: CourierDelivery }>(`/api/courier/deliveries/${id}/complete`, {
+export async function completeCourierDropOff(
+  id: string,
+  input: { compartmentId?: string; photoBase64: string },
+) {
+  return courierFetch<{ delivery: CourierDelivery }>(`/api/driver/deliveries/${id}/complete`, {
     method: 'POST',
+    timeoutMs: 60_000,
+    body: JSON.stringify(input),
   });
+}
+
+export async function fetchCourierDropOffProof(id: string) {
+  return courierFetch<{ photo: string }>(`/api/driver/deliveries/${id}/proof`);
 }
 
 export type ReportedIssue = {
@@ -259,7 +357,7 @@ export async function reportCustomerIssue(input: CreateIssueInput) {
 }
 
 export async function reportCourierIssue(input: CreateIssueInput) {
-  return courierFetch<{ issue: ReportedIssue }>('/api/courier/issues', {
+  return courierFetch<{ issue: ReportedIssue }>('/api/driver/issues', {
     method: 'POST',
     body: JSON.stringify(input),
   });
@@ -270,7 +368,7 @@ export async function fetchCustomerIssues() {
 }
 
 export async function fetchCourierIssues() {
-  return courierFetch<{ issues: ReportedIssue[] }>('/api/courier/issues');
+  return courierFetch<{ issues: ReportedIssue[] }>('/api/driver/issues');
 }
 
 export type CustomerNotification = {
@@ -293,4 +391,25 @@ export async function markCustomerNotificationRead(id: string) {
     `/api/customer/notifications/${id}/read`,
     { method: 'PATCH' },
   );
+}
+
+export async function fetchCourierNotifications() {
+  return courierFetch<{ notifications: CustomerNotification[]; unreadCount: number }>(
+    '/api/driver/notifications',
+  );
+}
+
+export async function markCourierNotificationRead(id: string) {
+  return courierFetch<{ notification: CustomerNotification }>(
+    `/api/driver/notifications/${id}/read`,
+    { method: 'PATCH' },
+  );
+}
+
+export async function deleteCustomerAccount() {
+  return customerFetch<{ deleted: boolean }>('/api/account/delete', { method: 'POST' });
+}
+
+export async function deactivateCourierAccount() {
+  return courierFetch<{ deactivated: boolean }>('/api/account/deactivate', { method: 'POST' });
 }

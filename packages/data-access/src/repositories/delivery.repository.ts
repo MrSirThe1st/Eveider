@@ -1,5 +1,6 @@
 import {
   canAcceptDropOff,
+  COURIER_HISTORY_DAYS,
   generatePickupPinCode,
   normalizeTrackingNumber,
   transitionDelivery,
@@ -7,9 +8,12 @@ import {
   type DeliveryStatus,
   type ParcelStatus,
 } from '@eveider/domain';
+import { normalizeDropOffPhoto } from '../deliveries/drop-off-photo.js';
 import {
   AccessDeniedError,
   assertAdmin,
+  assertBusinessRole,
+  assertCompanyPermission,
   assertCourierRole,
   type DataAccessContext,
 } from '../context.js';
@@ -27,11 +31,19 @@ import { NotificationRepository } from './notification.repository.js';
 import { ParcelRepository } from './parcel.repository.js';
 
 export type CourierDelivery = Delivery & {
+  hasDropOffPhoto: boolean;
   parcel: Parcel & {
     locker: Locker | null;
     business: Pick<Business, 'id' | 'name'>;
     compartment: Pick<Compartment, 'id' | 'label'> | null;
   };
+};
+
+export type CourierHistorySummary = {
+  days: number;
+  completed: number;
+  failed: number;
+  successRate: number;
 };
 
 export type ParcelDeliverySummary = Delivery & {
@@ -145,8 +157,23 @@ export class DeliveryRepository {
     this.parcels = new ParcelRepository(db, notificationRepo);
   }
 
+  async hasActiveForCourier(courierId: string): Promise<boolean> {
+    const result = await this.db.query(
+      `SELECT id FROM deliveries
+       WHERE driver_id = $1 AND status = ANY($2)
+       LIMIT 1`,
+      [courierId, ACTIVE_DELIVERY_STATUSES],
+    );
+    return Boolean(result.rows[0]);
+  }
+
   async assign(ctx: DataAccessContext, parcelId: string, courierId: string): Promise<Delivery> {
-    assertAdmin(ctx);
+    if (ctx.role === 'business') {
+      assertBusinessRole(ctx);
+      assertCompanyPermission(ctx, 'manage_couriers');
+    } else {
+      assertAdmin(ctx);
+    }
 
     const parcelResult = await this.db.query(`SELECT * FROM parcels WHERE id = $1 LIMIT 1`, [
       parcelId,
@@ -162,13 +189,36 @@ export class DeliveryRepository {
       throw new Error('Le colis ne peut pas recevoir de livraison à ce stade');
     }
 
+    if (ctx.role === 'business' && parcel.businessId !== ctx.businessId) {
+      throw new AccessDeniedError('Colis hors périmètre');
+    }
+
     const courierResult = await this.db.query(`SELECT * FROM users WHERE id = $1 LIMIT 1`, [
       courierId,
     ]);
     const courier = courierResult.rows[0];
     if (!courier) throw new Error(`User ${courierId} not found`);
-    if (courier.role !== 'courier') {
-      throw new Error('Utilisateur non coursier');
+    if (courier.role && courier.role !== 'courier' && courier.role !== 'driver') {
+      throw new Error('Utilisateur non chauffeur');
+    }
+    if (courier.is_blocked || courier.deactivated_at || courier.deleted_at) {
+      throw new Error('Ce chauffeur n’est pas assignable');
+    }
+    if (ctx.role === 'business') {
+      const courierBusinessId = courier.business_id == null ? null : String(courier.business_id);
+      if (courierBusinessId && courierBusinessId !== ctx.businessId) {
+        throw new AccessDeniedError('Chauffeur hors périmètre');
+      }
+      if (!courierBusinessId) {
+        const membership = await this.db.query(
+          `SELECT 1 FROM organization_memberships
+           WHERE user_id = $1 AND business_id = $2 AND role = 'driver' LIMIT 1`,
+          [courierId, ctx.businessId],
+        );
+        if (!membership.rows[0]) {
+          throw new AccessDeniedError('Chauffeur hors périmètre');
+        }
+      }
     }
 
     const existing = await this.db.query(
@@ -182,12 +232,32 @@ export class DeliveryRepository {
     }
 
     const created = await this.db.query(
-      `INSERT INTO deliveries (parcel_id, courier_id, status)
+      `INSERT INTO deliveries (parcel_id, driver_id, status)
        VALUES ($1, $2, 'assigned')
        RETURNING *`,
       [parcelId, courierId],
     );
-    return mapDelivery(created.rows[0]!);
+    const delivery = mapDelivery(created.rows[0]!);
+
+    try {
+      let lockerName: string | null = null;
+      if (parcel.lockerId) {
+        const locker = await this.db.query(`SELECT name FROM lockers WHERE id = $1 LIMIT 1`, [
+          parcel.lockerId,
+        ]);
+        lockerName = locker.rows[0] ? String(locker.rows[0].name) : null;
+      }
+      await this.notifications.notifyCourierAssigned(
+        courierId,
+        parcel.id,
+        parcel.trackingNumber,
+        lockerName,
+      );
+    } catch (error) {
+      console.error('[eveider:notify] courier assignment failed', { parcelId, courierId, error });
+    }
+
+    return delivery;
   }
 
   async findActiveForParcel(
@@ -201,7 +271,7 @@ export class DeliveryRepository {
               u.full_name AS courier_full_name,
               u.email AS courier_email
        FROM deliveries d
-       JOIN users u ON u.id = d.courier_id
+       JOIN users u ON u.id = d.driver_id
        WHERE d.parcel_id = $1 AND d.status = ANY($2)
        ORDER BY d.created_at DESC
        LIMIT 1`,
@@ -245,7 +315,7 @@ export class DeliveryRepository {
 
     if (filters?.courierId) {
       params.push(filters.courierId);
-      conditions.push(`d.courier_id = $${params.length}`);
+      conditions.push(`d.driver_id = $${params.length}`);
     }
     if (filters?.lockerId) {
       params.push(filters.lockerId);
@@ -263,7 +333,8 @@ export class DeliveryRepository {
     }
 
     const result = await this.db.query(
-      `SELECT d.*,
+      `SELECT d.id, d.parcel_id, d.driver_id, d.status, d.scanned_at, d.completed_at,
+              d.created_at, d.updated_at,
               u.id AS courier_relation_id, u.full_name AS courier_full_name,
               u.email AS courier_email, u.phone AS courier_phone,
               p.id AS parcel_relation_id, p.tracking_number AS parcel_tracking_number,
@@ -275,7 +346,7 @@ export class DeliveryRepository {
               c.label AS compartment_label, c.size AS compartment_size,
               b.id AS business_relation_id, b.name AS business_name
        FROM deliveries d
-       JOIN users u ON u.id = d.courier_id
+       JOIN users u ON u.id = d.driver_id
        JOIN parcels p ON p.id = d.parcel_id
        JOIN businesses b ON b.id = p.business_id
        LEFT JOIN lockers l ON l.id = p.locker_id
@@ -355,21 +426,19 @@ export class DeliveryRepository {
     };
   }
 
-  async listForCourier(
-    ctx: DataAccessContext,
-    options?: { includeCompleted?: boolean },
-  ): Promise<CourierDelivery[]> {
+  async listForCourier(ctx: DataAccessContext): Promise<CourierDelivery[]> {
     assertCourierRole(ctx);
 
-    const params: unknown[] = [ctx.userId!];
-    let sql = `SELECT d.id FROM deliveries d WHERE d.courier_id = $1`;
-    if (!options?.includeCompleted) {
-      params.push(ACTIVE_DELIVERY_STATUSES);
-      sql += ` AND d.status = ANY($2)`;
-    }
-    sql += ` ORDER BY d.created_at DESC`;
-
-    const ids = await this.db.query(sql, params);
+    const ids = await this.db.query(
+      `SELECT d.id FROM deliveries d
+       WHERE d.driver_id = $1
+         AND (
+           d.status = ANY($2)
+           OR d.updated_at >= NOW() - ($3::int * INTERVAL '1 day')
+         )
+       ORDER BY d.created_at DESC`,
+      [ctx.userId!, ACTIVE_DELIVERY_STATUSES, COURIER_HISTORY_DAYS],
+    );
     const deliveries: CourierDelivery[] = [];
     for (const row of ids.rows) {
       const delivery = await this.loadCourierDelivery(String(row.id));
@@ -438,11 +507,20 @@ export class DeliveryRepository {
     return this.findByIdForCourier(ctx, id) as Promise<CourierDelivery>;
   }
 
-  async completeDropOff(ctx: DataAccessContext, id: string): Promise<CourierDelivery> {
+  async completeDropOff(
+    ctx: DataAccessContext,
+    id: string,
+    compartmentId?: string,
+    photoBase64?: string,
+  ): Promise<CourierDelivery> {
     const delivery = await this.requireCourierDelivery(ctx, id);
     if (delivery.status !== 'drop_off_pending') {
       throw new Error('Confirmation de dépôt non autorisée à ce stade');
     }
+    if (!photoBase64?.trim()) {
+      throw new Error('Photo de dépôt requise');
+    }
+    const dropOffPhoto = normalizeDropOffPhoto(photoBase64);
 
     const parcel = delivery.parcel;
     const locker = parcel.locker;
@@ -453,7 +531,10 @@ export class DeliveryRepository {
       throw new Error('Casier indisponible — dépôt impossible');
     }
 
-    const compartment = await this.reserveCompartment(parcel.lockerId, parcel.compartmentId);
+    const compartment = await this.reserveCompartment(
+      parcel.lockerId,
+      compartmentId ?? parcel.compartmentId,
+    );
 
     const deliveryStatus = transitionDelivery(delivery.status, 'completed');
 
@@ -474,9 +555,9 @@ export class DeliveryRepository {
 
     await withTransaction(async (tx) => {
       await tx.query(
-        `UPDATE deliveries SET status = $1, completed_at = NOW(), updated_at = NOW()
-         WHERE id = $2`,
-        [deliveryStatus, id],
+        `UPDATE deliveries SET status = $1, completed_at = NOW(), drop_off_photo = $2, updated_at = NOW()
+         WHERE id = $3`,
+        [deliveryStatus, dropOffPhoto, id],
       );
       await tx.query(
         `UPDATE compartments SET status = 'occupied', updated_at = NOW() WHERE id = $1`,
@@ -497,6 +578,53 @@ export class DeliveryRepository {
 
     await this.notifications.notifyParcelStatusChange(parcel.id, 'ready_for_pickup');
 
+    return this.findByIdForCourier(ctx, id) as Promise<CourierDelivery>;
+  }
+
+  async getDropOffPhoto(ctx: DataAccessContext, id: string): Promise<string | null> {
+    await this.requireCourierDelivery(ctx, id);
+    const result = await this.db.query(
+      `SELECT drop_off_photo FROM deliveries WHERE id = $1 LIMIT 1`,
+      [id],
+    );
+    const photo = result.rows[0]?.drop_off_photo;
+    return photo == null || photo === '' ? null : String(photo);
+  }
+
+  async getCourierHistorySummary(ctx: DataAccessContext): Promise<CourierHistorySummary> {
+    assertCourierRole(ctx);
+    const result = await this.db.query(
+      `SELECT
+         COUNT(*) FILTER (
+           WHERE status = 'completed'
+             AND COALESCE(completed_at, updated_at) >= NOW() - ($2::int * INTERVAL '1 day')
+         )::int AS completed,
+         COUNT(*) FILTER (
+           WHERE status = 'failed'
+             AND updated_at >= NOW() - ($2::int * INTERVAL '1 day')
+         )::int AS failed
+       FROM deliveries
+       WHERE driver_id = $1`,
+      [ctx.userId!, COURIER_HISTORY_DAYS],
+    );
+    const completed = Number(result.rows[0]?.completed ?? 0);
+    const failed = Number(result.rows[0]?.failed ?? 0);
+    const total = completed + failed;
+    return {
+      days: COURIER_HISTORY_DAYS,
+      completed,
+      failed,
+      successRate: total === 0 ? 0 : Math.round((completed / total) * 100),
+    };
+  }
+
+  async fail(ctx: DataAccessContext, id: string): Promise<CourierDelivery> {
+    const delivery = await this.requireCourierDelivery(ctx, id);
+    const status = transitionDelivery(delivery.status, 'failed');
+    await this.db.query(`UPDATE deliveries SET status = $1, updated_at = NOW() WHERE id = $2`, [
+      status,
+      id,
+    ]);
     return this.findByIdForCourier(ctx, id) as Promise<CourierDelivery>;
   }
 
@@ -531,7 +659,9 @@ export class DeliveryRepository {
 
   private async loadCourierDelivery(id: string): Promise<CourierDelivery | null> {
     const result = await this.db.query(
-      `SELECT d.*,
+      `SELECT d.id, d.parcel_id, d.driver_id, d.status, d.scanned_at, d.completed_at,
+              d.created_at, d.updated_at,
+              (d.drop_off_photo IS NOT NULL AND d.drop_off_photo <> '') AS has_drop_off_photo,
               CASE WHEN l.id IS NULL THEN NULL ELSE row_to_json(l.*) END AS locker_row,
               b.id AS business_relation_id, b.name AS business_name,
               CASE WHEN c.id IS NULL THEN NULL
@@ -553,9 +683,29 @@ export class DeliveryRepository {
     const parcelRow = row.parcel_row as Record<string, unknown>;
     const lockerRow = row.locker_row as Record<string, unknown> | null;
     const compartmentJson = row.compartment_json as { id: string; label: string } | null;
+    const delivery = mapDelivery(row);
+
+    let compartment = compartmentJson
+      ? { id: String(compartmentJson.id), label: String(compartmentJson.label) }
+      : null;
+
+    if (!compartment && delivery.status === 'drop_off_pending' && lockerRow) {
+      const suggested = await this.db.query(
+        `SELECT id, label FROM compartments
+         WHERE locker_id = $1 AND status = 'available'
+         ORDER BY label ASC
+         LIMIT 1`,
+        [String(lockerRow.id)],
+      );
+      const suggestedRow = suggested.rows[0];
+      if (suggestedRow) {
+        compartment = { id: String(suggestedRow.id), label: String(suggestedRow.label) };
+      }
+    }
 
     return {
-      ...mapDelivery(row),
+      ...delivery,
+      hasDropOffPhoto: Boolean(row.has_drop_off_photo),
       parcel: {
         ...mapParcel(parcelRow),
         locker: lockerRow ? mapLocker(lockerRow) : null,
@@ -563,9 +713,7 @@ export class DeliveryRepository {
           id: String(row.business_relation_id),
           name: String(row.business_name),
         },
-        compartment: compartmentJson
-          ? { id: String(compartmentJson.id), label: String(compartmentJson.label) }
-          : null,
+        compartment,
       },
     };
   }
@@ -585,7 +733,7 @@ export class DeliveryRepository {
 
     const courier = mapUser(courierRow);
     const deliveriesResult = await this.db.query(
-      `SELECT d.*,
+      `SELECT d.id, d.status, d.created_at, d.completed_at,
               p.id AS parcel_relation_id,
               p.tracking_number AS parcel_tracking_number,
               p.reference AS parcel_reference,
@@ -596,7 +744,7 @@ export class DeliveryRepository {
        JOIN parcels p ON p.id = d.parcel_id
        JOIN businesses b ON b.id = p.business_id
        LEFT JOIN lockers l ON l.id = p.locker_id
-       WHERE d.courier_id = $1
+       WHERE d.driver_id = $1
        ORDER BY d.created_at DESC`,
       [courierId],
     );

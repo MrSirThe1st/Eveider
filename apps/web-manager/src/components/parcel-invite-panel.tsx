@@ -43,7 +43,7 @@ export function ParcelInvitePanel({ parcelId, initialInvite }: ParcelInvitePanel
   useEffect(() => {
     if (initialInvite) return;
 
-    void fetch(`/api/entreprise/parcels/${parcelId}/invite`)
+    void fetch(`/api/organisation/parcels/${parcelId}/invite`)
       .then((res) => res.json())
       .then((result) => {
         if (result.success) {
@@ -58,7 +58,7 @@ export function ParcelInvitePanel({ parcelId, initialInvite }: ParcelInvitePanel
     setError(null);
 
     try {
-      const response = await fetch(`/api/entreprise/parcels/${parcelId}/invite/resend`, {
+      const response = await fetch(`/api/organisation/parcels/${parcelId}/invite/resend`, {
         method: 'POST',
       });
       const result = await response.json();

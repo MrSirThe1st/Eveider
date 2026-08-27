@@ -11,6 +11,7 @@ export type RegisterBusinessAccountResult = {
     Business,
     'id' | 'name' | 'status' | 'contactPhone' | 'isPhoneVerified'
   >;
+  joinedExistingCompany: boolean;
 };
 
 export async function registerBusinessAccount(
@@ -18,7 +19,50 @@ export async function registerBusinessAccount(
   input: RegisterBusinessAccountInput,
 ): Promise<RegisterBusinessAccountResult> {
   const fullName = `${input.firstName} ${input.lastName}`.trim();
-  const { businesses, users } = createRepositories();
+  const { businesses, users, teamInvites, memberships } = createRepositories();
+
+  if (input.inviteToken) {
+    const preview = await teamInvites.getPreview(input.inviteToken);
+    if (!preview) {
+      throw new Error('Invitation introuvable');
+    }
+    if (input.email.trim().toLowerCase() !== preview.email.trim().toLowerCase()) {
+      throw new Error('Cette invitation est destinée à une autre adresse email');
+    }
+
+    let user = await users.findByAuthId(authId);
+    if (!user) {
+      user = await users.createProfile({
+        authId,
+        fullName,
+        email: input.email,
+        phone: input.phone,
+      });
+    }
+
+    await teamInvites.acceptForUser({
+      token: input.inviteToken,
+      email: input.email,
+      userId: user.id,
+    });
+
+    const business = await businesses.findByIdUnscoped(preview.businessId);
+    if (!business) {
+      throw new Error('Organisation introuvable');
+    }
+
+    return {
+      user,
+      business: {
+        id: business.id,
+        name: business.name,
+        status: business.status,
+        contactPhone: business.contactPhone,
+        isPhoneVerified: business.isPhoneVerified,
+      },
+      joinedExistingCompany: true,
+    };
+  }
 
   const business = await businesses.createForRegistration({
     name: `${fullName} Business`,
@@ -28,14 +72,16 @@ export async function registerBusinessAccount(
     otpExpiresAt: new Date(Date.now() + OTP_TTL_MS),
   });
 
-  const user = await users.createBusinessProfile({
+  const user = await users.createProfile({
     authId,
-    role: 'business',
-    userRole: input.userRole,
     fullName,
     email: input.email,
     phone: input.phone,
+  });
+  await memberships.upsert({
+    userId: user.id,
     businessId: business.id,
+    role: 'account_owner',
   });
 
   return {
@@ -47,6 +93,7 @@ export async function registerBusinessAccount(
       contactPhone: business.contactPhone,
       isPhoneVerified: business.isPhoneVerified,
     },
+    joinedExistingCompany: false,
   };
 }
 
@@ -57,8 +104,8 @@ export async function verifyBusinessPhoneOtp(
   const { users, businesses } = createRepositories();
   const linked = await users.findByAuthIdWithBusiness(authId);
 
-  if (!linked?.user.businessId || !linked.business) {
-    throw new Error('Profil entreprise introuvable');
+  if (!linked?.business) {
+    throw new Error('Profil organisation introuvable');
   }
 
   const { business } = linked;
@@ -66,7 +113,7 @@ export async function verifyBusinessPhoneOtp(
     throw new Error('Code de vérification incorrect');
   }
 
-  await businesses.markPhoneVerified(linked.user.businessId);
+  await businesses.markPhoneVerified(business.id);
 
-  return { verified: true, businessId: linked.user.businessId };
+  return { verified: true, businessId: business.id };
 }

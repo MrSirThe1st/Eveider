@@ -17,6 +17,7 @@ import {
 import {
   assertAdmin,
   assertBusinessScope,
+  assertCompanyPermission,
   assertCustomerRole,
   AccessDeniedError,
   type DataAccessContext,
@@ -198,6 +199,7 @@ export class ParcelRepository {
     assertBusinessScope(ctx, input.businessId);
     if (ctx.role === 'business') {
       await this.businesses.assertCanSubmitParcels(input.businessId);
+      assertCompanyPermission(ctx, 'create_parcels');
     }
 
     if (requiresSenderAddress(input.pickupType) && !input.senderAddress?.trim()) {
@@ -705,6 +707,40 @@ export class ParcelRepository {
     return updated;
   }
 
+  async markCollectedByCustomer(ctx: DataAccessContext, parcelId: string): Promise<CustomerParcel> {
+    assertCustomerRole(ctx);
+
+    const parcel = await this.loadCustomerParcel(parcelId);
+    if (!parcel) {
+      throw new Error('Colis introuvable');
+    }
+
+    this.assertReadAccess(ctx, parcel);
+
+    if (parcel.status !== 'ready_for_pickup') {
+      throw new Error('Ce colis n’est pas prêt au retrait');
+    }
+
+    const status = transitionParcel(parcel.status, 'collected');
+    await this.db.query(`UPDATE parcels SET status = $1, updated_at = NOW() WHERE id = $2`, [
+      status,
+      parcelId,
+    ]);
+
+    if (parcel.compartment?.id) {
+      await this.db.query(
+        `UPDATE compartments SET status = 'available', updated_at = NOW() WHERE id = $1`,
+        [parcel.compartment.id],
+      );
+    }
+
+    await this.notifications.notifyParcelStatusChange(parcelId, status);
+
+    const updated = await this.loadCustomerParcel(parcelId);
+    if (!updated) throw new Error(`Parcel ${parcelId} not found`);
+    return updated;
+  }
+
   private async loadParcelWithRelations(id: string): Promise<ParcelWithLocker | null> {
     const result = await this.db.query(
       `SELECT p.*,
@@ -966,7 +1002,7 @@ export class ParcelRepository {
               c.size AS compartment_size,
               d.id AS delivery_id,
               d.status AS delivery_status,
-              u.id AS courier_id,
+              u.id AS driver_id,
               u.full_name AS courier_full_name,
               u.email AS courier_email,
               u.phone AS courier_phone
@@ -981,7 +1017,7 @@ export class ParcelRepository {
          ORDER BY d2.updated_at DESC
          LIMIT 1
        ) d ON TRUE
-       LEFT JOIN users u ON u.id = d.courier_id
+       LEFT JOIN users u ON u.id = d.driver_id
        WHERE ${conditions.join(' AND ')}
        ORDER BY p.updated_at DESC`,
       params,
@@ -1019,7 +1055,7 @@ export class ParcelRepository {
             id: String(row.delivery_id),
             status: row.delivery_status as DeliveryStatus,
             courier: {
-              id: String(row.courier_id),
+              id: String(row.driver_id),
               fullName: row.courier_full_name == null ? null : String(row.courier_full_name),
               email: row.courier_email == null ? null : String(row.courier_email),
               phone: row.courier_phone == null ? null : String(row.courier_phone),

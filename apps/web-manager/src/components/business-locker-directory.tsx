@@ -11,6 +11,15 @@ import { businessNewParcelPath } from '@/lib/auth-routing';
 import { matchesListSearch } from '@/lib/list-search';
 import type { BusinessLockerDto, LockerMapMarkerDto } from '@/lib/locker-presenter';
 
+const TABLE_PAGE_SIZE = 8;
+
+type MapFocus = {
+  latitude: number;
+  longitude: number;
+  zoom?: number;
+  key: number;
+};
+
 type BusinessLockerDirectoryProps = {
   lockers: BusinessLockerDto[];
 };
@@ -18,6 +27,8 @@ type BusinessLockerDirectoryProps = {
 export function BusinessLockerDirectory({ lockers }: BusinessLockerDirectoryProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLockerId, setSelectedLockerId] = useState<string>(lockers[0]?.id ?? '');
+  const [hoveredLockerId, setHoveredLockerId] = useState<string | null>(null);
+  const [mapFocus, setMapFocus] = useState<MapFocus | null>(null);
 
   const filteredLockers = useMemo(
     () =>
@@ -58,6 +69,22 @@ export function BusinessLockerDirectory({ lockers }: BusinessLockerDirectoryProp
       }),
     [filteredLockers],
   );
+
+  function focusLockerOnMap(lockerId: string) {
+    const locker = lockers.find((item) => item.id === lockerId);
+    if (locker?.latitude == null || locker.longitude == null) return;
+    setMapFocus({
+      latitude: locker.latitude,
+      longitude: locker.longitude,
+      zoom: 14,
+      key: Date.now(),
+    });
+  }
+
+  function selectLocker(lockerId: string, source: 'map' | 'table') {
+    setSelectedLockerId(lockerId);
+    if (source === 'table') focusLockerOnMap(lockerId);
+  }
 
   const columns = useMemo<DataTableColumn<BusinessLockerDto>[]>(
     () => [
@@ -137,52 +164,55 @@ export function BusinessLockerDirectory({ lockers }: BusinessLockerDirectoryProp
 
   return (
     <div style={{ display: 'grid', gap: spacing[6] }}>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1fr)',
-          gap: spacing[5],
-        }}
-      >
-        <LockerGoogleMap
-          lockers={mapMarkers}
-          selectedLockerId={selectedLockerId}
-          onSelectLocker={setSelectedLockerId}
-          height={360}
-        />
-      </div>
+      <LockerGoogleMap
+        lockers={mapMarkers}
+        selectedLockerId={selectedLockerId}
+        hoveredLockerId={hoveredLockerId ?? undefined}
+        onSelectLocker={(lockerId) => selectLocker(lockerId, 'map')}
+        onHoverLocker={setHoveredLockerId}
+        mapFocus={mapFocus}
+        height={360}
+      />
 
-      <div>
-        <div style={{ marginBottom: spacing[4] }}>
+      <DataTable
+        columns={columns}
+        rows={filteredLockers}
+        getRowId={(row) => row.id}
+        toolbar={
           <ListSearchField
             value={searchQuery}
             onChange={setSearchQuery}
             placeholder="Rechercher un point (ex. Gombe, Kenya)…"
             ariaLabel="Rechercher un point Eveider"
           />
-        </div>
-        <DataTable
-          columns={columns}
-          rows={filteredLockers}
-          getRowId={(row) => row.id}
-          caption={
-            searchQuery.trim()
-              ? `${filteredLockers.length} point${filteredLockers.length > 1 ? 's' : ''} sur ${lockers.length}`
-              : `${lockers.length} points`
-          }
-          emptyTitle="Aucun point pour cette recherche"
-          emptyDescription="Essayez un autre quartier, nom ou adresse."
-          initialSortId="location"
-          rowActions={(row) => [
-            {
-              id: 'send',
-              label: row.selectable ? 'Envoyer un colis ici' : 'Point indisponible',
-              href: row.selectable ? businessNewParcelPath(row.id) : undefined,
-              disabled: !row.selectable,
-            },
-          ]}
-        />
-      </div>
+        }
+        caption={
+          searchQuery.trim()
+            ? `${filteredLockers.length} point${filteredLockers.length > 1 ? 's' : ''} sur ${lockers.length}`
+            : `${lockers.length} points`
+        }
+        emptyTitle="Aucun point pour cette recherche"
+        emptyDescription="Essayez un autre quartier, nom ou adresse."
+        initialSortId="location"
+        pageSize={TABLE_PAGE_SIZE}
+        selectedRowId={selectedLockerId}
+        hoveredRowId={hoveredLockerId}
+        onRowSelect={(lockerId) => selectLocker(lockerId, 'table')}
+        onRowHover={setHoveredLockerId}
+        rowPrimaryAction={(row) =>
+          row.selectable
+            ? {
+                label: 'Envoyer un colis',
+                href: businessNewParcelPath(row.id),
+                title: `Créer un colis vers ${row.networkLabel}`,
+              }
+            : {
+                label: 'Indisponible',
+                disabled: true,
+                title: 'Ce point n’accepte pas de colis pour le moment',
+              }
+        }
+      />
     </div>
   );
 }

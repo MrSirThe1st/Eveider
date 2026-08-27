@@ -121,7 +121,7 @@ export function CourierProfileDetail({ courierId }: CourierDetailProps) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/couriers/${courierId}`, { cache: 'no-store' });
+      const response = await fetch(`/api/drivers/${courierId}`, { cache: 'no-store' });
       const result = await response.json();
 
       if (!result.success) {

@@ -2,9 +2,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { AppearanceSettingsScreen } from '../screens/settings/AppearanceSettingsScreen';
+import { CountrySettingsScreen } from '../screens/settings/CountrySettingsScreen';
 import { LanguageSettingsScreen } from '../screens/settings/LanguageSettingsScreen';
 import { NotificationPreferencesScreen } from '../screens/settings/NotificationPreferencesScreen';
 import { PlaceholderSettingsScreen } from '../screens/settings/PlaceholderSettingsScreen';
+import { openDispatcherWhatsApp } from '../lib/support';
 
 export type ProfileStackParamList = {
   ProfileMain: undefined;
@@ -12,6 +14,7 @@ export type ProfileStackParamList = {
   NotificationPreferences: undefined;
   PersonalInfo: undefined;
   Language: undefined;
+  Country: undefined;
   Appearance: undefined;
   Help: undefined;
   Terms: undefined;
@@ -23,9 +26,12 @@ const Stack = createNativeStackNavigator<ProfileStackParamList>();
 
 type ProfileStackProps = {
   mode: 'CLIENT' | 'COURSIER';
+  isGuest?: boolean;
+  onRequestAuth?: () => void;
+  onOpenParcel?: (parcelId: string) => void;
 };
 
-export function ProfileStack({ mode }: ProfileStackProps) {
+export function ProfileStack({ mode, isGuest = false, onRequestAuth, onOpenParcel }: ProfileStackProps) {
   const isCustomer = mode === 'CLIENT';
 
   return (
@@ -34,12 +40,13 @@ export function ProfileStack({ mode }: ProfileStackProps) {
         {({ navigation }) => (
           <ProfileScreen
             mode={mode}
-            onOpenNotifications={
-              isCustomer ? () => navigation.navigate('Notifications') : undefined
-            }
+            isGuest={isGuest}
+            onRequestAuth={onRequestAuth}
+            onOpenNotifications={() => navigation.navigate('Notifications')}
             onOpenPersonalInfo={() => navigation.navigate('PersonalInfo')}
             onOpenNotificationPreferences={() => navigation.navigate('NotificationPreferences')}
             onOpenLanguage={() => navigation.navigate('Language')}
+            onOpenCountry={() => navigation.navigate('Country')}
             onOpenAppearance={() => navigation.navigate('Appearance')}
             onOpenHelp={() => navigation.navigate('Help')}
             onOpenTerms={() => navigation.navigate('Terms')}
@@ -49,13 +56,17 @@ export function ProfileStack({ mode }: ProfileStackProps) {
         )}
       </Stack.Screen>
 
-      {isCustomer ? (
-        <Stack.Screen name="Notifications">
-          {({ navigation }) => (
-            <NotificationsScreen mode={mode} onBack={() => navigation.goBack()} />
-          )}
-        </Stack.Screen>
-      ) : null}
+      <Stack.Screen name="Notifications">
+        {({ navigation }) => (
+          <NotificationsScreen
+            mode={mode}
+            onBack={() => navigation.goBack()}
+            onOpenParcel={(parcelId) => {
+              onOpenParcel?.(parcelId);
+            }}
+          />
+        )}
+      </Stack.Screen>
 
       <Stack.Screen name="NotificationPreferences">
         {({ navigation }) => (
@@ -81,6 +92,12 @@ export function ProfileStack({ mode }: ProfileStackProps) {
         )}
       </Stack.Screen>
 
+      <Stack.Screen name="Country">
+        {({ navigation }) => (
+          <CountrySettingsScreen mode={mode} onBack={() => navigation.goBack()} />
+        )}
+      </Stack.Screen>
+
       <Stack.Screen name="Appearance">
         {({ navigation }) => (
           <AppearanceSettingsScreen mode={mode} onBack={() => navigation.goBack()} />
@@ -93,8 +110,25 @@ export function ProfileStack({ mode }: ProfileStackProps) {
             mode={mode}
             title="AIDE & SUPPORT"
             onBack={() => navigation.goBack()}
-            intro="Centre d’aide Eveider pour clients et coursiers."
-            bullets={['FAQ retrait colis', 'Contacter le support', 'Signaler un problème']}
+            intro={
+              isCustomer
+                ? 'Centre d’aide Eveider pour clients et coursiers.'
+                : 'Incidents dans l’app pour changer le statut d’une livraison. WhatsApp pour parler au dispatch.'
+            }
+            bullets={
+              isCustomer
+                ? ['FAQ retrait colis', 'Contacter le support', 'Signaler un problème']
+                : [
+                    'Signaler un incident depuis la livraison',
+                    'Contacter le dispatch sur WhatsApp',
+                    'Le chat ne change pas le statut d’une livraison',
+                  ]
+            }
+            action={
+              isCustomer
+                ? undefined
+                : { label: 'WHATSAPP DISPATCH', onPress: () => openDispatcherWhatsApp() }
+            }
           />
         )}
       </Stack.Screen>

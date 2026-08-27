@@ -20,6 +20,18 @@ Use this file as the first project memory source before searching the codebase.
 
 ## Entries
 
+## 2026-08-23
+- Change type: DB | API | Mobile
+- Description: Courier locker-first ops slice — required drop-off photo proof, nearest-locker itinerary for active stops, in-app courier notifications (new assignment / locker blocked), WhatsApp dispatch contact (no in-app chat), 90-day history metrics. No pay, no recipient ETA, no door delivery/signature.
+- Impact: `deliveries.drop_off_photo`; `POST /api/courier/deliveries/[id]/complete` requires `photoBase64`; proof GET; courier notifications routes; `NotificationRepository.notifyCourierAssigned` / `notifyCouriersLockerBlocked`; `orderLockerStops`; courier list returns 90-day `summary`.
+- Tests: drop-off photo normalize, complete requires photo, history summary, assignment notify, route order, completeDropOff schema.
+
+## 2026-08-23
+- Change type: Mobile | API
+- Description: First-version mobile loops — customer can confirm pickup (`collected`), courier self-signup is locked, password reset, pickup PIN screen (copy / maps / steps), WhatsApp arrived template sends the PIN, courier drop-off can fail and list incidents, camera scan + suggested compartment, notification tap opens the parcel.
+- Impact: `POST /api/customer/parcels/[id]/collect`; `POST /api/courier/deliveries/[id]/fail`; complete drop-off accepts `compartmentId`; mobile onboard is customer-only; `ParcelRepository.markCollectedByCustomer`; `DeliveryRepository.fail`; issue create fails the delivery for `failed_delivery` / `locker_unavailable`; WhatsApp arrived body param 4 is the PIN.
+- Tests: parcel collect, delivery fail, courier issue fail, WhatsApp PIN, register-mobile schema.
+
 > **Note:** Entries before 2026-07-22 reference pre-refactor paths (`web-admin`, `web-platform`, `web-business`, `apps/mobile`, Prisma). Current apps are `web-manager` and `mobile-tenant`; data access uses `pg` + `db/migrations/`.
 
 ## 2026-08-21

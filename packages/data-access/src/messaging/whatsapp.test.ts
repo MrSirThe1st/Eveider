@@ -161,7 +161,7 @@ describe('sendParcelStatusWhatsApp', () => {
     expect(String(inserts[0]?.[2])).toContain('[whatsapp:eveider_parcel_in_transit]');
   });
 
-  it('sends arrived template with app pickup link', async () => {
+  it('sends arrived template with pickup PIN', async () => {
     process.env.INVITE_WEB_BASE_URL = 'https://www.eveider.com';
     const db = createSqlMatchMock((sql) => {
       if (sqlIncludes(sql, 'FROM parcels p') && sqlIncludes(sql, 'JOIN businesses')) {
@@ -176,6 +176,7 @@ describe('sendParcelStatusWhatsApp', () => {
           locker_name: 'GOMBE',
           locker_address: 'Ave 1',
           invite_token: 'abc-123',
+          pickup_pin_code: '482913',
         };
       }
       if (sqlIncludes(sql, 'FROM notifications') && sqlIncludes(sql, "channel = 'sms'")) {
@@ -202,7 +203,7 @@ describe('sendParcelStatusWhatsApp', () => {
       'Marc',
       'EVD26TEST0001A',
       'GOMBE',
-      'https://www.eveider.com/suivi?mode=tracking&tracking=EVD26TEST0001A',
+      '482913',
     ]);
   });
 });

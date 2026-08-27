@@ -1,8 +1,10 @@
 import type { UserRole } from '@eveider/domain';
+import { deriveUserRole, normalizeUserRole } from '@eveider/domain';
 import { AccessDeniedError } from '../context.js';
 import type { Queryable } from '../db/index.js';
 import type { User } from '../db/types.js';
 import { BusinessRepository } from '../repositories/business.repository.js';
+import { OrganizationMembershipRepository } from '../repositories/organization-membership.repository.js';
 import { UserRepository } from '../repositories/user.repository.js';
 
 export type OnboardBusinessInput = {
@@ -12,7 +14,7 @@ export type OnboardBusinessInput = {
 };
 
 export type OnboardInput = {
-  role: UserRole;
+  role: UserRole | 'business' | 'courier';
   fullName?: string;
   phone?: string;
   email?: string;
@@ -24,6 +26,7 @@ export class OnboardingService {
   constructor(
     private readonly users: UserRepository,
     private readonly businesses: BusinessRepository,
+    private readonly memberships: OrganizationMembershipRepository,
     private readonly db: Queryable,
   ) {}
 
@@ -37,37 +40,44 @@ export class OnboardingService {
       return existing;
     }
 
-    if (input.role === 'business') {
+    const persona = normalizeUserRole(input.role) ?? input.role;
+
+    if (persona === 'organization' || persona === 'business') {
       if (!input.business) {
-        throw new Error('Business details required for business role');
+        throw new Error('Business details required for organization role');
       }
       const business = await this.businesses.create(input.business);
-      return this.users.createProfile({
+      const profile = await this.users.createProfile({
         authId,
-        role: 'business',
         fullName: input.fullName,
         phone: input.phone,
         email: input.email,
-        businessId: business.id,
       });
-    }
-
-    const profile = await this.users.createProfile({
-      authId,
-      role: input.role,
-      fullName: input.fullName,
-      phone: input.phone,
-      email: input.email,
-    });
-
-    return this.afterCustomerProfileCreated(profile, input);
-  }
-
-  private async afterCustomerProfileCreated(profile: User, input: OnboardInput): Promise<User> {
-    if (profile.role !== 'customer') {
+      await this.memberships.upsert({
+        userId: profile.id,
+        businessId: business.id,
+        role: 'account_owner',
+      });
       return profile;
     }
 
+    const isCustomer = persona === 'customer';
+    const profile = await this.users.createProfile({
+      authId,
+      fullName: input.fullName,
+      phone: input.phone,
+      email: input.email,
+      isCustomer,
+    });
+
+    if (isCustomer) {
+      return this.afterCustomerProfileCreated(profile);
+    }
+
+    return profile;
+  }
+
+  private async afterCustomerProfileCreated(profile: User): Promise<User> {
     if (profile.phone) {
       await this.db.query(
         `UPDATE parcels
@@ -76,7 +86,6 @@ export class OnboardingService {
         [profile.id, profile.phone],
       );
     }
-
     return profile;
   }
 
@@ -88,14 +97,42 @@ export class OnboardingService {
     if (profile.isBlocked) {
       throw new AccessDeniedError('Accès interdit : Compte suspendu ou bloqué');
     }
+    if (profile.deletedAt) {
+      throw new AccessDeniedError('Accès interdit : Compte supprimé');
+    }
+    if (profile.deactivatedAt) {
+      throw new AccessDeniedError('Accès interdit : Compte désactivé');
+    }
     return profile;
   }
 
   async requireRole(authId: string, allowedRoles: readonly UserRole[]): Promise<User> {
     const profile = await this.requireProfile(authId);
-    if (!allowedRoles.includes(profile.role)) {
-      throw new AccessDeniedError('Rôle non autorisé pour cette application');
+    const memberships = await this.memberships.listByUserIdWithOrgFlags(profile.id);
+    const mobile = deriveUserRole({
+      isCustomer: profile.isCustomer,
+      platformRole: profile.platformRole,
+      memberships: memberships.map((membership) => ({
+        organizationId: membership.businessId,
+        role: membership.role,
+        isPlatformOrg: membership.isPlatformOrg,
+      })),
+      surface: 'mobile',
+    });
+    const web = deriveUserRole({
+      isCustomer: profile.isCustomer,
+      platformRole: profile.platformRole,
+      memberships: memberships.map((membership) => ({
+        organizationId: membership.businessId,
+        role: membership.role,
+        isPlatformOrg: membership.isPlatformOrg,
+      })),
+      surface: 'web',
+    });
+    const allowed = new Set(allowedRoles);
+    if ((mobile && allowed.has(mobile)) || (web && allowed.has(web))) {
+      return profile;
     }
-    return profile;
+    throw new AccessDeniedError('Rôle non autorisé pour cette application');
   }
 }

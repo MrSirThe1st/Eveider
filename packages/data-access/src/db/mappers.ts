@@ -8,12 +8,15 @@ import type {
   BusinessVerification,
   BillingAccount,
   Compartment,
+  CourierDossier,
+  DriverDossier,
   Delivery,
   Issue,
   Locker,
   Notification,
   Parcel,
   ParcelInvite,
+  BusinessTeamInvite,
   ParcelPayment,
   PickupPin,
   SettlementAccount,
@@ -41,13 +44,14 @@ export function mapUser(row: Record<string, unknown>): User {
   return {
     id: String(row.id),
     authId: String(row.auth_id),
-    role: row.role as User['role'],
-    userRole: (row.user_role as User['userRole']) ?? null,
+    platformRole: (row.platform_role as User['platformRole']) ?? null,
+    isCustomer: Boolean(row.is_customer),
     email: row.email == null ? null : String(row.email),
     phone: row.phone == null ? null : String(row.phone),
     fullName: row.full_name == null ? null : String(row.full_name),
-    businessId: row.business_id == null ? null : String(row.business_id),
     isBlocked: Boolean(row.is_blocked),
+    deactivatedAt: asDateOrNull(row.deactivated_at),
+    deletedAt: asDateOrNull(row.deleted_at),
     createdAt: asDate(row.created_at),
     updatedAt: asDate(row.updated_at),
   };
@@ -77,6 +81,7 @@ export function mapBusiness(row: Record<string, unknown>): Business {
     idPassportNumber: row.id_passport_number == null ? null : String(row.id_passport_number),
     residentialAddress: row.residential_address == null ? null : String(row.residential_address),
     accessCode: row.access_code == null || row.access_code === '' ? null : String(row.access_code),
+    isPlatformOrg: Boolean(row.is_platform_org),
     createdAt: asDate(row.created_at),
     updatedAt: asDate(row.updated_at),
   };
@@ -88,6 +93,7 @@ export function mapLocker(row: Record<string, unknown>): Locker {
     code: String(row.code),
     name: String(row.name),
     address: String(row.address),
+    city: row.city == null || row.city === '' ? null : String(row.city),
     latitude: row.latitude == null ? null : Number(row.latitude),
     longitude: row.longitude == null ? null : Number(row.longitude),
     rows: Number(row.rows),
@@ -168,7 +174,8 @@ export function mapDelivery(row: Record<string, unknown>): Delivery {
   return {
     id: String(row.id),
     parcelId: String(row.parcel_id),
-    courierId: String(row.courier_id),
+    driverId: String(row.driver_id),
+    courierId: String(row.driver_id),
     status: row.status as Delivery['status'],
     scannedAt: asDateOrNull(row.scanned_at),
     completedAt: asDateOrNull(row.completed_at),
@@ -224,6 +231,23 @@ export function mapParcelInvite(row: Record<string, unknown>): ParcelInvite {
     expiresAt: asDate(row.expires_at),
     acceptedAt: asDateOrNull(row.accepted_at),
     createdAt: asDate(row.created_at),
+  };
+}
+
+export function mapBusinessTeamInvite(row: Record<string, unknown>): BusinessTeamInvite {
+  return {
+    id: String(row.id),
+    token: String(row.token),
+    businessId: String(row.business_id),
+    email: String(row.email),
+    invitedRole: row.invited_role as BusinessTeamInvite['invitedRole'],
+    invitedByUserId: row.invited_by_user_id == null ? null : String(row.invited_by_user_id),
+    status: row.status as BusinessTeamInvite['status'],
+    expiresAt: asDate(row.expires_at),
+    acceptedAt: asDateOrNull(row.accepted_at),
+    acceptedUserId: row.accepted_user_id == null ? null : String(row.accepted_user_id),
+    createdAt: asDate(row.created_at),
+    updatedAt: asDate(row.updated_at),
   };
 }
 
@@ -361,6 +385,29 @@ export function mapVerificationCheck(row: Record<string, unknown>): Verification
     type: row.type as VerificationCheck['type'],
     status: row.status as VerificationCheck['status'],
     notes: row.notes == null ? null : String(row.notes),
+    createdAt: asDate(row.created_at),
+    updatedAt: asDate(row.updated_at),
+  };
+}
+
+export function mapCourierDossier(row: Record<string, unknown>): CourierDossier {
+  return {
+    id: String(row.id),
+    contractorType: row.contractor_type as CourierDossier['contractorType'],
+    businessId: row.business_id == null ? null : String(row.business_id),
+    userId: row.user_id == null ? null : String(row.user_id),
+    fullName: String(row.full_name),
+    email: String(row.email),
+    phone: row.phone == null ? null : String(row.phone),
+    idDocumentUrl: String(row.id_document_url),
+    notes: row.notes == null ? null : String(row.notes),
+    reviewNotes: row.review_notes == null ? null : String(row.review_notes),
+    status: row.status as CourierDossier['status'],
+    createdByUserId: row.created_by_user_id == null ? null : String(row.created_by_user_id),
+    reviewedByUserId: row.reviewed_by_user_id == null ? null : String(row.reviewed_by_user_id),
+    reviewedAt: asDateOrNull(row.reviewed_at),
+    invitedAt: asDateOrNull(row.invited_at),
+    deactivatedAt: asDateOrNull(row.deactivated_at),
     createdAt: asDate(row.created_at),
     updatedAt: asDate(row.updated_at),
   };

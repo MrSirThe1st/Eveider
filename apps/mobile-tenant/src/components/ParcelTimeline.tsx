@@ -1,12 +1,18 @@
-import { nativeColors as colors, radius } from '@eveider/config-ui';
-import { PARCEL_STATUSES, PARCEL_STATUS_LABELS, type ParcelStatus } from '@eveider/domain';
+import { type ColorTokens } from '@eveider/config-ui';
+import { PARCEL_STATUSES, type ParcelStatus } from '@eveider/domain';
+import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
+import { useColors } from '../theme';
 
 type ParcelTimelineProps = {
   currentStatus: ParcelStatus;
 };
 
 export function ParcelTimeline({ currentStatus }: ParcelTimelineProps) {
+  const { t } = useTranslation();
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const currentIndex = PARCEL_STATUSES.indexOf(currentStatus);
 
   return (
@@ -25,7 +31,7 @@ export function ParcelTimeline({ currentStatus }: ParcelTimelineProps) {
               ]}
             />
             <Text style={[styles.label, reached && styles.labelReached]}>
-              {PARCEL_STATUS_LABELS[status]}
+              {t(`status.${status}`)}
             </Text>
           </View>
         );
@@ -34,35 +40,37 @@ export function ParcelTimeline({ currentStatus }: ParcelTimelineProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    gap: 12,
-  },
-  step: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.border,
-  },
-  dotReached: {
-    backgroundColor: colors.primary,
-  },
-  dotCurrent: {
-    borderWidth: 2,
-    borderColor: colors.secondary,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: colors.border,
-  },
-  labelReached: {
-    color: colors.secondary,
-    fontWeight: '600',
-  },
-});
+function createStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    container: {
+      gap: 12,
+    },
+    step: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    dot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: colors.border,
+    },
+    dotReached: {
+      backgroundColor: colors.primary,
+    },
+    dotCurrent: {
+      borderWidth: 2,
+      borderColor: colors.secondary,
+    },
+    label: {
+      fontSize: 12,
+      fontWeight: '500',
+      color: colors.textMuted,
+    },
+    labelReached: {
+      color: colors.secondary,
+      fontWeight: '600',
+    },
+  });
+}

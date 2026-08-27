@@ -1,6 +1,8 @@
-import { nativeColors as colors, radius, borders } from '@eveider/config-ui';
+import { radius, borders, type ColorTokens } from '@eveider/config-ui';
 import type { DeliveryStatus } from '@eveider/domain';
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useColors } from '../theme';
 
 const STEPS = [
   { key: 'assigned', label: 'SCAN' },
@@ -21,6 +23,8 @@ type DeliveryStepIndicatorProps = {
 };
 
 export function DeliveryStepIndicator({ status }: DeliveryStepIndicatorProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   if (status === 'failed') return null;
 
   const currentIndex = STATUS_ORDER.indexOf(status);
@@ -48,42 +52,44 @@ export function DeliveryStepIndicator({ status }: DeliveryStepIndicatorProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    borderWidth: borders.width,
-    borderColor: colors.border,
-    borderRadius: radius.card,
-    padding: 16,
-    marginBottom: 20,
-  },
-  step: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  dot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: colors.border,
-    marginBottom: 6,
-  },
-  dotReached: {
-    backgroundColor: colors.primary,
-  },
-  dotCurrent: {
-    borderWidth: 2,
-    borderColor: colors.secondary,
-  },
-  label: {
-    fontSize: 9,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-    color: colors.border,
-  },
-  labelReached: {
-    color: colors.secondary,
-  },
-});
+function createStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      backgroundColor: colors.surface,
+      borderWidth: borders.width,
+      borderColor: colors.border,
+      borderRadius: radius.card,
+      padding: 16,
+      marginBottom: 20,
+    },
+    step: {
+      flex: 1,
+      alignItems: 'center',
+    },
+    dot: {
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+      backgroundColor: colors.border,
+      marginBottom: 6,
+    },
+    dotReached: {
+      backgroundColor: colors.primary,
+    },
+    dotCurrent: {
+      borderWidth: 2,
+      borderColor: colors.secondary,
+    },
+    label: {
+      fontSize: 9,
+      fontWeight: '600',
+      letterSpacing: 0.5,
+      color: colors.textMuted,
+    },
+    labelReached: {
+      color: colors.secondary,
+    },
+  });
+}

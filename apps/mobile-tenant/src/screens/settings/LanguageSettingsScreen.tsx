@@ -1,27 +1,28 @@
-import { LANGUAGE_LABELS, useSettings, type AppLanguage } from '../../context/settings-context';
+import { useTranslation } from 'react-i18next';
 import { SettingsOptionGroup } from '../../components/SettingsOptionGroup';
+import { LANGUAGE_LABELS, useSettings, type AppLanguage } from '../../context/settings-context';
 
 type LanguageSettingsScreenProps = {
   mode: 'CLIENT' | 'COURSIER';
   onBack: () => void;
 };
 
-const OPTIONS: { value: AppLanguage; label: string; description: string }[] = [
-  { value: 'fr', label: LANGUAGE_LABELS.fr, description: 'Interface en français (par défaut)' },
-  { value: 'en', label: LANGUAGE_LABELS.en, description: 'English interface (coming soon)' },
-];
-
 export function LanguageSettingsScreen({ mode, onBack }: LanguageSettingsScreenProps) {
+  const { t } = useTranslation();
   const { language, setLanguage } = useSettings();
 
   return (
     <SettingsOptionGroup
       mode={mode}
-      title="LANGUE"
-      subtitle="Choisissez la langue de l’application. La traduction complète sera activée ultérieurement."
-      options={OPTIONS}
+      title={t('languageSettings.title')}
+      subtitle={t('languageSettings.subtitle')}
+      placeholderNote={t('languageSettings.note')}
+      options={[
+        { value: 'fr', label: LANGUAGE_LABELS.fr, description: t('languageSettings.frDescription') },
+        { value: 'en', label: LANGUAGE_LABELS.en, description: t('languageSettings.enDescription') },
+      ]}
       selected={language}
-      onSelect={setLanguage}
+      onSelect={(value: AppLanguage) => setLanguage(value)}
       onBack={onBack}
     />
   );

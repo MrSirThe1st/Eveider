@@ -44,13 +44,13 @@ The first release focuses on operational reliability, not feature breadth.
 - Authentication with OTP / SMS verification
 - Full parcel lifecycle tracking (created → collected)
 - Customer home, tracking, PIN pickup, and notifications
-- Courier assignment, scan, locker drop-off, and issue reporting
+- Courier assignment, scan, locker drop-off with photo proof, issue reporting, 90-day history
 - Admin overview, business/parcel/user/courier/locker management, live monitoring, basic analytics
 - Support and issue resolution workflows
 
 **Out of scope (for now)**
 
-- Advanced routing optimization
+- Advanced routing / traffic-aware optimization (basic nearest-stop ordering for assigned lockers is in courier mobile)
 - Per-business white-label branding
 - Complex billing or subscription management
 - Deep integrations beyond locker selection at checkout (when added later)

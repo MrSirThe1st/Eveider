@@ -58,6 +58,10 @@ export async function requireCourierSession(request: Request) {
   return requireMobileRole(request, COURIER_ROLES);
 }
 
+export async function requireAccountSession(request: Request) {
+  return requireMobileRole(request, [...CUSTOMER_ROLES, ...COURIER_ROLES]);
+}
+
 export function withMobileCors(response: Response): Response {
   const headers = new Headers(response.headers);
   headers.set('Access-Control-Allow-Origin', '*');

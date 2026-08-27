@@ -118,7 +118,7 @@ export function AuthForm({ mode, businessName, redirectParam, onAuthenticated }:
       return;
     }
 
-    const role = meResult.data.profile.role as UserRole;
+    const role = (meResult.data.profile.persona ?? meResult.data.profile.role) as UserRole;
 
     if (isMobileRole(role)) {
       setLoading(false);
@@ -127,7 +127,7 @@ export function AuthForm({ mode, businessName, redirectParam, onAuthenticated }:
       return;
     }
 
-    if (role === 'business' && !meResult.data.profile.businessId) {
+    if ((role === 'organization' || role === 'business') && !meResult.data.profile.businessId) {
       setLoading(false);
       setError('Compte entreprise requis');
       await supabase.auth.signOut();

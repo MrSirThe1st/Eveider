@@ -51,15 +51,15 @@ export function AdminEntreprisesTabs() {
       aria-label="Vues entreprises"
       tabs={[
         {
-          href: '/tableau-de-bord/entreprises',
+          href: '/tableau-de-bord/organisations',
           label: 'Actives',
-          isActive: (pathname: string) => pathname === '/tableau-de-bord/entreprises',
+          isActive: (pathname: string) => pathname === '/tableau-de-bord/organisations',
         },
         {
-          href: '/tableau-de-bord/entreprises/applications',
+          href: '/tableau-de-bord/organisations/applications',
           label: 'Dossiers',
           isActive: (pathname: string) =>
-            pathname.startsWith('/tableau-de-bord/entreprises/applications'),
+            pathname.startsWith('/tableau-de-bord/organisations/applications'),
         },
       ]}
     />

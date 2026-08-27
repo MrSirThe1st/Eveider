@@ -1,5 +1,7 @@
-import { nativeColors as colors, radius } from '@eveider/config-ui';
+import { radius, type ColorTokens } from '@eveider/config-ui';
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useColors } from '../theme';
 
 type HeroCardProps = {
   title: string;
@@ -9,6 +11,9 @@ type HeroCardProps = {
 };
 
 export function HeroCard({ title, subtitle, actionLabel, onAction }: HeroCardProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.card}>
       <Text style={styles.title}>{title}</Text>
@@ -22,39 +27,41 @@ export function HeroCard({ title, subtitle, actionLabel, onAction }: HeroCardPro
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    borderRadius: radius.card,
-    padding: 20,
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    color: colors.secondary,
-  },
-  subtitle: {
-    marginTop: 8,
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.secondary,
-  },
-  action: {
-    marginTop: 16,
-    alignSelf: 'flex-start',
-    backgroundColor: colors.primary,
-    borderRadius: radius.button,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  actionText: {
-    fontWeight: '600',
-    fontSize: 12,
-    letterSpacing: 0.5,
-    color: colors.secondary,
-  },
-});
+function createStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    card: {
+      backgroundColor: colors.surface,
+      borderWidth: 2,
+      borderColor: colors.primary,
+      borderRadius: radius.card,
+      padding: 20,
+      marginBottom: 16,
+    },
+    title: {
+      fontSize: 16,
+      fontWeight: '700',
+      letterSpacing: 0.5,
+      color: colors.secondary,
+    },
+    subtitle: {
+      marginTop: 8,
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.secondary,
+    },
+    action: {
+      marginTop: 16,
+      alignSelf: 'flex-start',
+      backgroundColor: colors.primary,
+      borderRadius: radius.button,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+    },
+    actionText: {
+      fontWeight: '600',
+      fontSize: 12,
+      letterSpacing: 0.5,
+      color: colors.onPrimary,
+    },
+  });
+}

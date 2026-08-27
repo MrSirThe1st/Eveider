@@ -1,13 +1,13 @@
 import { StyleSheet, View } from 'react-native';
 import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE } from 'react-native-maps';
-import { nativeColors as colors } from '@eveider/config-ui';
 import { KINSHASA_CENTER } from '@eveider/domain';
 import { useMemo } from 'react';
+import { useColors } from '../theme';
 import {
   getCurrentCoordinates,
-  lockerMapStyles as styles,
   LockerSelectPanel,
   openDirections,
+  useLockerMapStyles,
   type LockerMapViewProps,
 } from './locker-map-shared';
 
@@ -20,6 +20,8 @@ export function LockerMapView({
   highlightLockerId,
   height = 280,
 }: LockerMapViewProps) {
+  const colors = useColors();
+  const styles = useLockerMapStyles();
   const center = useMemo(() => {
     if (lockers.length > 0) {
       const target = lockers.find((locker) => locker.id === selectedLockerId) ?? lockers[0]!;

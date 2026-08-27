@@ -1,11 +1,11 @@
 import { notFound, redirect } from 'next/navigation';
 import { OnboardingWizard } from '@/components/onboarding-wizard';
 import type { OnboardingSummary } from '@/hooks/queries/use-onboarding-summary-query';
-import { requireBusinessPageContext, loadOnboardingPageData } from '@/server/business';
+import { loadOnboardingPageData, requireBusinessPermission } from '@/server/business';
 import { WEB_ROUTES } from '@/lib/auth-routing';
 
 export default async function OnboardingPage() {
-  const { profile } = await requireBusinessPageContext();
+  const { profile } = await requireBusinessPermission('settings');
   const { summary, lockerList } = await loadOnboardingPageData(profile.businessId);
 
   if (!summary) {

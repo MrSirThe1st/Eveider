@@ -1,23 +1,19 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Spinner } from '@eveider/ui';
+import { WEB_ROUTES } from '@/lib/auth-routing';
 import { AuthPasswordField } from './auth-password-field';
 import { AuthPhoneField } from './auth-phone-field';
 import styles from './auth-shell.module.css';
 
-const ROLE_OPTIONS = [
-  { value: 'owner', label: 'Propriétaire' },
-  { value: 'manager', label: 'Gérant' },
-  { value: 'logistics_employee', label: 'Logistique' },
-] as const;
-
 type SignupBusinessFormProps = {
   onOtpStepChange: (otp: boolean) => void;
+  inviteToken?: string;
 };
 
-export function SignupBusinessForm({ onOtpStepChange }: SignupBusinessFormProps) {
+export function SignupBusinessForm({ onOtpStepChange, inviteToken }: SignupBusinessFormProps) {
   const router = useRouter();
   const [step, setStep] = useState<'account' | 'otp'>('account');
   const [loading, setLoading] = useState(false);
@@ -25,11 +21,33 @@ export function SignupBusinessForm({ onOtpStepChange }: SignupBusinessFormProps)
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+  const [inviteLocked, setInviteLocked] = useState(Boolean(inviteToken));
+  const [inviteHint, setInviteHint] = useState<string | null>(null);
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [userRole, setUserRole] = useState<(typeof ROLE_OPTIONS)[number]['value']>('owner');
   const [otpCode, setOtpCode] = useState('');
+
+  useEffect(() => {
+    if (!inviteToken) return;
+    void fetch(`/api/team-invite/${inviteToken}`)
+      .then((response) => response.json())
+      .then((result) => {
+        if (!result.success) {
+          setInviteLocked(false);
+          setError(result.error ?? 'Invitation invalide');
+          return;
+        }
+        const invite = result.data.invite as { email: string; businessName: string };
+        setEmail(invite.email);
+        setInviteLocked(true);
+        setInviteHint(`Invitation pour ${invite.businessName}`);
+      })
+      .catch(() => {
+        setInviteLocked(false);
+        setError('Impossible de charger l’invitation');
+      });
+  }, [inviteToken]);
 
   function goToOtp() {
     setStep('otp');
@@ -61,12 +79,16 @@ export function SignupBusinessForm({ onOtpStepChange }: SignupBusinessFormProps)
           email,
           phone,
           password,
-          userRole,
+          ...(inviteToken ? { inviteToken } : {}),
         }),
       });
       const result = await response.json();
       if (!result.success) {
         setError(result.error ?? 'Erreur lors de la création du compte');
+        return;
+      }
+      if (result.data.joinedExistingCompany) {
+        router.replace(WEB_ROUTES.businessDashboard);
         return;
       }
       goToOtp();
@@ -175,8 +197,10 @@ export function SignupBusinessForm({ onOtpStepChange }: SignupBusinessFormProps)
           onChange={(event) => setEmail(event.target.value)}
           placeholder="contact@commerce.cd"
           autoComplete="email"
+          readOnly={inviteLocked}
         />
       </label>
+      {inviteHint ? <p className={styles.panelSub}>{inviteHint}</p> : null}
       <AuthPhoneField
         label="Téléphone"
         value={phone}
@@ -198,28 +222,6 @@ export function SignupBusinessForm({ onOtpStepChange }: SignupBusinessFormProps)
           placeholder="••••••••"
           autoComplete="new-password"
         />
-      </div>
-      <div className={styles.roles}>
-        <span>Je suis</span>
-        {ROLE_OPTIONS.map((option) => (
-          <label
-            key={option.value}
-            className={
-              userRole === option.value
-                ? `${styles.roleOption} ${styles.roleOptionActive}`
-                : styles.roleOption
-            }
-          >
-            <input
-              type="radio"
-              name="userRole"
-              value={option.value}
-              checked={userRole === option.value}
-              onChange={() => setUserRole(option.value)}
-            />
-            {option.label}
-          </label>
-        ))}
       </div>
       {error ? <p className={styles.error}>{error}</p> : null}
       <button type="submit" className={styles.submit} disabled={loading}>

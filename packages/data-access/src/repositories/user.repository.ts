@@ -1,28 +1,26 @@
-import type { UserRole } from '@eveider/domain';
+import type { OrganizationRole, PlatformRole } from '@eveider/domain';
 import type { Queryable } from '../db/index.js';
 import { mapBusiness, mapUser } from '../db/mappers.js';
-import type { Business, BusinessUserRole, User } from '../db/types.js';
+import type { Business, OrganizationMembership, User } from '../db/types.js';
 
 export type CreateUserProfileInput = {
   authId: string;
-  role: UserRole;
   email?: string;
   phone?: string;
   fullName?: string;
-  businessId?: string;
-};
-
-export type CreateBusinessUserProfileInput = CreateUserProfileInput & {
-  userRole: BusinessUserRole;
+  isCustomer?: boolean;
+  platformRole?: PlatformRole | null;
 };
 
 export type UpdateUserProfileInput = {
   email?: string | null;
   phone?: string | null;
   fullName?: string | null;
-  businessId?: string | null;
+  isCustomer?: boolean;
+  platformRole?: PlatformRole | null;
   isBlocked?: boolean;
-  role?: UserRole;
+  deactivatedAt?: Date | null;
+  deletedAt?: Date | null;
 };
 
 export class UserRepository {
@@ -45,7 +43,7 @@ export class UserRepository {
 
   async findCustomerByPhone(phone: string): Promise<User | null> {
     const result = await this.db.query(
-      `SELECT * FROM users WHERE phone = $1 AND role = 'customer' LIMIT 1`,
+      `SELECT * FROM users WHERE phone = $1 AND is_customer = true LIMIT 1`,
       [phone],
     );
     const row = result.rows[0];
@@ -54,34 +52,16 @@ export class UserRepository {
 
   async createProfile(input: CreateUserProfileInput): Promise<User> {
     const result = await this.db.query(
-      `INSERT INTO users (auth_id, role, email, phone, full_name, business_id)
+      `INSERT INTO users (auth_id, email, phone, full_name, is_customer, platform_role)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
       [
         input.authId,
-        input.role,
         input.email ?? null,
         input.phone ?? null,
         input.fullName ?? null,
-        input.businessId ?? null,
-      ],
-    );
-    return mapUser(result.rows[0]!);
-  }
-
-  async createBusinessProfile(input: CreateBusinessUserProfileInput): Promise<User> {
-    const result = await this.db.query(
-      `INSERT INTO users (auth_id, role, user_role, email, phone, full_name, business_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING *`,
-      [
-        input.authId,
-        input.role,
-        input.userRole,
-        input.email ?? null,
-        input.phone ?? null,
-        input.fullName ?? null,
-        input.businessId ?? null,
+        input.isCustomer ?? false,
+        input.platformRole ?? null,
       ],
     );
     return mapUser(result.rows[0]!);
@@ -89,107 +69,120 @@ export class UserRepository {
 
   async findByAuthIdWithBusiness(
     authId: string,
+    organizationId?: string,
   ): Promise<{ user: User; business: Business | null } | null> {
-    const result = await this.db.query(
-      `SELECT u.*,
-              b.id AS business_relation_id,
-              b.name AS business_name,
-              b.status AS business_status,
-              b.business_type AS business_business_type,
-              b.industry AS business_industry,
-              b.sales_channels AS business_sales_channels,
-              b.description AS business_description,
-              b.risk_classification AS business_risk_classification,
-              b.contact_email AS business_contact_email,
-              b.contact_phone AS business_contact_phone,
-              b.is_phone_verified AS business_is_phone_verified,
-              b.otp_code AS business_otp_code,
-              b.otp_expires_at AS business_otp_expires_at,
-              b.legal_company_name AS business_legal_company_name,
-              b.rccm_number AS business_rccm_number,
-              b.nif_number AS business_nif_number,
-              b.date_created AS business_date_created,
-              b.legal_rep_name AS business_legal_rep_name,
-              b.individual_full_name AS business_individual_full_name,
-              b.id_passport_number AS business_id_passport_number,
-              b.residential_address AS business_residential_address,
-              b.created_at AS business_created_at,
-              b.updated_at AS business_updated_at
-       FROM users u
-       LEFT JOIN businesses b ON b.id = u.business_id
-       WHERE u.auth_id = $1
-       LIMIT 1`,
-      [authId],
-    );
+    const user = await this.findByAuthId(authId);
+    if (!user) return null;
+
+    const params: unknown[] = [user.id];
+    let sql = `SELECT b.*
+       FROM organization_memberships m
+       JOIN businesses b ON b.id = m.business_id
+       WHERE m.user_id = $1`;
+    if (organizationId) {
+      params.push(organizationId);
+      sql += ` AND m.business_id = $2`;
+    }
+    sql += ` ORDER BY CASE WHEN m.role IN ('account_owner', 'admin', 'dispatcher') THEN 0 ELSE 1 END, m.created_at ASC LIMIT 1`;
+
+    const result = await this.db.query(sql, params);
     const row = result.rows[0];
-    if (!row) return null;
-
-    const user = mapUser(row);
-    const business = row.business_relation_id
-      ? mapBusiness({
-          id: row.business_relation_id,
-          name: row.business_name,
-          status: row.business_status,
-          business_type: row.business_business_type,
-          industry: row.business_industry,
-          sales_channels: row.business_sales_channels,
-          description: row.business_description,
-          risk_classification: row.business_risk_classification,
-          contact_email: row.business_contact_email,
-          contact_phone: row.business_contact_phone,
-          is_phone_verified: row.business_is_phone_verified,
-          otp_code: row.business_otp_code,
-          otp_expires_at: row.business_otp_expires_at,
-          legal_company_name: row.business_legal_company_name,
-          rccm_number: row.business_rccm_number,
-          nif_number: row.business_nif_number,
-          date_created: row.business_date_created,
-          legal_rep_name: row.business_legal_rep_name,
-          individual_full_name: row.business_individual_full_name,
-          id_passport_number: row.business_id_passport_number,
-          residential_address: row.business_residential_address,
-          created_at: row.business_created_at,
-          updated_at: row.business_updated_at,
-        })
-      : null;
-
-    return { user, business };
+    return { user, business: row ? mapBusiness(row) : null };
   }
 
   async listByBusiness(businessId: string): Promise<User[]> {
     const result = await this.db.query(
-      `SELECT * FROM users WHERE business_id = $1 ORDER BY full_name ASC NULLS LAST`,
+      `SELECT u.* FROM users u
+       JOIN organization_memberships m ON m.user_id = u.id
+       WHERE m.business_id = $1 AND m.role <> 'driver'
+       ORDER BY u.full_name ASC NULLS LAST`,
       [businessId],
     );
     return result.rows.map(mapUser);
   }
 
-  async listByRole(role: UserRole): Promise<User[]> {
+  async listActiveCouriersByBusiness(businessId: string): Promise<User[]> {
+    return this.listActiveDriversByBusiness(businessId);
+  }
+
+  async listActiveDriversByBusiness(businessId: string): Promise<User[]> {
     const result = await this.db.query(
-      `SELECT * FROM users WHERE role = $1 ORDER BY full_name ASC NULLS LAST`,
-      [role],
+      `SELECT u.* FROM users u
+       JOIN organization_memberships m ON m.user_id = u.id
+       WHERE m.business_id = $1
+         AND m.role = 'driver'
+         AND u.is_blocked = false
+         AND u.deactivated_at IS NULL
+         AND u.deleted_at IS NULL
+       ORDER BY u.full_name ASC NULLS LAST`,
+      [businessId],
     );
     return result.rows.map(mapUser);
   }
 
-  async listByRoleWithSearch(role: UserRole, search?: string): Promise<User[]> {
-    if (!search) {
-      return this.listByRole(role);
-    }
+  async listAssignableCouriers(): Promise<User[]> {
+    return this.listAssignableDrivers();
+  }
 
+  async listAssignableDrivers(): Promise<User[]> {
+    const result = await this.db.query(
+      `SELECT DISTINCT u.* FROM users u
+       JOIN organization_memberships m ON m.user_id = u.id
+       WHERE m.role = 'driver'
+         AND u.is_blocked = false
+         AND u.deactivated_at IS NULL
+         AND u.deleted_at IS NULL
+       ORDER BY u.full_name ASC NULLS LAST`,
+    );
+    return result.rows.map(mapUser);
+  }
+
+  async listPlatformStaff(): Promise<User[]> {
+    const result = await this.db.query(
+      `SELECT * FROM users
+       WHERE platform_role IS NOT NULL
+       ORDER BY full_name ASC NULLS LAST`,
+    );
+    return result.rows.map(mapUser);
+  }
+
+  async listCustomers(search?: string): Promise<User[]> {
+    if (!search) {
+      const result = await this.db.query(
+        `SELECT * FROM users WHERE is_customer = true ORDER BY full_name ASC NULLS LAST`,
+      );
+      return result.rows.map(mapUser);
+    }
     const pattern = `%${search}%`;
     const result = await this.db.query(
       `SELECT * FROM users
-       WHERE role = $1
+       WHERE is_customer = true
          AND (
-           full_name ILIKE $2
-           OR email ILIKE $2
-           OR phone ILIKE $2
+           full_name ILIKE $1
+           OR email ILIKE $1
+           OR phone ILIKE $1
          )
        ORDER BY full_name ASC NULLS LAST`,
-      [role, pattern],
+      [pattern],
     );
     return result.rows.map(mapUser);
+  }
+
+  async listByRoleWithSearch(role: string, search?: string): Promise<User[]> {
+    if (role === 'admin') return this.listPlatformStaff();
+    if (role === 'customer') return this.listCustomers(search);
+    if (role === 'courier' || role === 'driver') {
+      const drivers = await this.listAssignableDrivers();
+      if (!search) return drivers;
+      const q = search.toLowerCase();
+      return drivers.filter(
+        (user) =>
+          user.fullName?.toLowerCase().includes(q) ||
+          user.email?.toLowerCase().includes(q) ||
+          user.phone?.toLowerCase().includes(q),
+      );
+    }
+    return [];
   }
 
   async updateProfile(id: string, data: UpdateUserProfileInput): Promise<User> {
@@ -205,9 +198,11 @@ export class UserRepository {
     if (data.email !== undefined) push('email', data.email);
     if (data.phone !== undefined) push('phone', data.phone);
     if (data.fullName !== undefined) push('full_name', data.fullName);
-    if (data.businessId !== undefined) push('business_id', data.businessId);
+    if (data.isCustomer !== undefined) push('is_customer', data.isCustomer);
+    if (data.platformRole !== undefined) push('platform_role', data.platformRole);
     if (data.isBlocked !== undefined) push('is_blocked', data.isBlocked);
-    if (data.role !== undefined) push('role', data.role);
+    if (data.deactivatedAt !== undefined) push('deactivated_at', data.deactivatedAt);
+    if (data.deletedAt !== undefined) push('deleted_at', data.deletedAt);
 
     if (sets.length === 0) {
       const existing = await this.findById(id);
@@ -226,4 +221,29 @@ export class UserRepository {
     if (!row) throw new Error(`User ${id} not found`);
     return mapUser(row);
   }
+
+  async findByEmail(email: string): Promise<User | null> {
+    const result = await this.db.query(
+      `SELECT * FROM users WHERE lower(email) = lower($1) LIMIT 1`,
+      [email.trim()],
+    );
+    const row = result.rows[0];
+    return row ? mapUser(row) : null;
+  }
+
+  async countCompanyAdmins(businessId: string, excludeUserId?: string): Promise<number> {
+    const params: unknown[] = [businessId];
+    let sql = `SELECT COUNT(*)::int AS count
+       FROM organization_memberships
+       WHERE business_id = $1
+         AND role IN ('account_owner', 'admin')`;
+    if (excludeUserId) {
+      params.push(excludeUserId);
+      sql += ` AND user_id <> $${params.length}`;
+    }
+    const result = await this.db.query(sql, params);
+    return Number(result.rows[0]?.count ?? 0);
+  }
 }
+
+export type { OrganizationMembership };

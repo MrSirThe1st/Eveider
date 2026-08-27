@@ -38,17 +38,27 @@ Keep `getUser()` for session validation. Do not switch to `getSession()` without
 Email and password (same as web — no SMS provider required for dev):
 
 1. `signUp({ email, password })` or `signInWithPassword({ email, password })`
-2. `POST /api/auth/onboard` on register (role: `customer` or `courier`)
+2. `POST /api/auth/onboard` on register (role: `customer` only)
 3. `GET /api/auth/me` on login
 
 Customers should register with the **same phone** used as `recipientPhone` on business parcels so colis appear in the app. Phone OTP can be re-enabled later when an SMS provider is configured.
+
+Courier accounts are **not self-service**. Eveider or a company submits a dossier; admin reviews it; then an invite is sent. The courier only signs in on mobile. Web `/inscription` has no Coursier tab. Mobile `POST /api/auth/onboard` accepts `customer` only.
+
+Password reset: `Mot de passe oublié` on the auth screen sends a Supabase recovery email. Add these redirect URLs in Supabase Auth:
+
+- `eveider://reset-password`
+
+The native app exchanges the recovery (or invite) URL for a session, then opens the set-password screen. Courier invites use the same mobile password-set deep link — not the web team-invite page.
+
+Deleted customers keep parcel history; email/phone stay reserved (Auth user is banned, not hard-deleted). Deactivated couriers cannot log in until the contractor reactivates them. Blocked (`is_blocked`) remains a separate disciplinary status.
 
 ## Surfaces
 
 | App | Login | Register | Allowed roles | Auth |
 |-----|-------|----------|---------------|------|
 | `web-manager` | `/connexion` | `/inscription` | `admin`, `business` | Email + password |
-| `mobile-tenant` | Auth screen | Auth screen + role | `customer`, `courier` | Email + password |
+| `mobile-tenant` | Auth screen | Auth screen (customer) | `customer`, `courier` (login) | Email + password |
 
 ## Supabase configuration
 

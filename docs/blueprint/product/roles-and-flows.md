@@ -50,15 +50,15 @@ Business users do not see pickup PINs, courier identity, or a Livraisons board. 
 ### Courier
 
 ```
-Login → Assigned deliveries → Scan → Drop-off → Confirm
+Login → Assigned deliveries → Scan → Arrive at locker → Photo proof → Confirm
 ```
 
 1. **Login** — Same auth stack as customer; role routes to courier dashboard
 2. **Delivery dashboard** — Assigned deliveries, priority / scheduled items
 3. **Delivery detail** — Parcel info, destination locker, customer reference
 4. **Scan & confirm** — Manual tracking entry today; barcode scan planned
-5. **Locker drop-off** — Select compartment, confirm drop-off completion
-6. **Complete** — Delivery recorded; appears in delivery history
+5. **Locker drop-off** — photograph the parcel in the compartment, then confirm drop-off completion
+6. **Complete** — delivery recorded with photo proof; appears in 90-day history
 
 Exception path:
 

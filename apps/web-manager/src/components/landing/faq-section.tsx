@@ -21,18 +21,22 @@ export function FAQSection() {
             {FAQ_ITEMS.map((item) => {
               const selected = item.id === active.id;
               return (
-                <button
-                  key={item.id}
-                  type="button"
-                  role="tab"
-                  id={`faq-tab-${item.id}`}
-                  aria-selected={selected}
-                  aria-controls="faq-panel"
-                  className={selected ? `${styles.faqTab} ${styles.faqTabActive}` : styles.faqTab}
-                  onClick={() => setActiveId(item.id)}
-                >
-                  {item.question}
-                </button>
+                <div key={item.id} className={styles.faqItem}>
+                  <button
+                    type="button"
+                    role="tab"
+                    id={`faq-tab-${item.id}`}
+                    aria-selected={selected}
+                    aria-controls={selected ? 'faq-panel' : undefined}
+                    className={selected ? `${styles.faqTab} ${styles.faqTabActive}` : styles.faqTab}
+                    onClick={() => setActiveId(item.id)}
+                  >
+                    {item.question}
+                  </button>
+                  <div className={styles.faqInline} hidden={!selected}>
+                    <p className={styles.faqPanelBody}>{item.answer}</p>
+                  </div>
+                </div>
               );
             })}
           </div>

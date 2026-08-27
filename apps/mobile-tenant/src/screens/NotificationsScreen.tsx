@@ -1,7 +1,6 @@
-import { nativeColors as colors, radius, borders } from '@eveider/config-ui';
-import { useCallback, useEffect, useState } from 'react';
+import { radius, borders, type ColorTokens } from '@eveider/config-ui';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -9,17 +8,22 @@ import {
   Text,
   View,
 } from 'react-native';
+import { AppSpinner } from '../components/AppSpinner';
 import { EmptyState } from '../components/EmptyState';
-import { ScreenHeader } from '../components/ScreenHeader';
+import { ScreenScaffold } from '../components/ScreenHeader';
+import { useColors } from '../theme';
 import {
   fetchCustomerNotifications,
+  fetchCourierNotifications,
   markCustomerNotificationRead,
+  markCourierNotificationRead,
   type CustomerNotification,
 } from '../lib/api';
 
 type NotificationsScreenProps = {
   mode: 'CLIENT' | 'COURSIER';
   onBack: () => void;
+  onOpenParcel?: (parcelId: string) => void;
 };
 
 function formatDate(iso: string) {
@@ -31,7 +35,10 @@ function formatDate(iso: string) {
   }).format(new Date(iso));
 }
 
-export function NotificationsScreen({ mode, onBack }: NotificationsScreenProps) {
+export function NotificationsScreen({ mode, onBack, onOpenParcel }: NotificationsScreenProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const isCourier = mode === 'COURSIER';
   const [notifications, setNotifications] = useState<CustomerNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -40,7 +47,9 @@ export function NotificationsScreen({ mode, onBack }: NotificationsScreenProps) 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     setError(null);
-    const result = await fetchCustomerNotifications();
+    const result = isCourier
+      ? await fetchCourierNotifications()
+      : await fetchCustomerNotifications();
     if (!silent) setLoading(false);
     setRefreshing(false);
 
@@ -51,7 +60,7 @@ export function NotificationsScreen({ mode, onBack }: NotificationsScreenProps) 
     }
 
     setNotifications(result.data.notifications);
-  }, []);
+  }, [isCourier]);
 
   useEffect(() => {
     void load();
@@ -59,7 +68,9 @@ export function NotificationsScreen({ mode, onBack }: NotificationsScreenProps) 
 
   async function handlePress(notification: CustomerNotification) {
     if (!notification.read) {
-      const result = await markCustomerNotificationRead(notification.id);
+      const result = isCourier
+        ? await markCourierNotificationRead(notification.id)
+        : await markCustomerNotificationRead(notification.id);
       if (result.success) {
         setNotifications((items) =>
           items.map((item) =>
@@ -68,14 +79,18 @@ export function NotificationsScreen({ mode, onBack }: NotificationsScreenProps) 
         );
       }
     }
+
+    if (notification.parcelId) {
+      onOpenParcel?.(notification.parcelId);
+    }
   }
 
   return (
+    <ScreenScaffold title="NOTIFICATIONS" onBack={onBack}>
     <View style={styles.container}>
-      <ScreenHeader mode={mode} title="NOTIFICATIONS" onBack={onBack} />
 
       {loading && !refreshing ? (
-        <ActivityIndicator color={colors.secondary} style={styles.loader} />
+        <AppSpinner />
       ) : null}
 
       {!loading && error ? (
@@ -104,7 +119,11 @@ export function NotificationsScreen({ mode, onBack }: NotificationsScreenProps) 
           {notifications.length === 0 ? (
             <EmptyState
               title="AUCUNE NOTIFICATION"
-              message="Les mises à jour de vos colis apparaîtront ici."
+              message={
+                isCourier
+                  ? 'Les nouvelles assignations et alertes casiers apparaîtront ici.'
+                  : 'Les mises à jour de vos colis apparaîtront ici.'
+              }
             />
           ) : (
             notifications.map((item) => (
@@ -122,14 +141,16 @@ export function NotificationsScreen({ mode, onBack }: NotificationsScreenProps) 
         </ScrollView>
       ) : null}
     </View>
+    </ScreenScaffold>
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorTokens) {
+  return StyleSheet.create({
   container: {
     flex: 1,
-    padding: 24,
-    paddingTop: 56,
+    padding: 20,
+    paddingTop: 0,
     backgroundColor: colors.background,
   },
   loader: {
@@ -160,10 +181,8 @@ const styles = StyleSheet.create({
     color: colors.secondary,
   },
   card: {
-    backgroundColor: colors.surface,
     borderWidth: borders.width,
     borderColor: colors.border,
-    borderRadius: radius.card,
     padding: 16,
     position: 'relative',
   },
@@ -194,4 +213,5 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: colors.primary,
   },
-});
+  });
+}

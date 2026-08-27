@@ -36,6 +36,7 @@ export {
 export {
   DataTable,
   type DataTableColumn,
+  type DataTablePrimaryAction,
   type DataTableProps,
   type SortDirection,
 } from './data-table.js';

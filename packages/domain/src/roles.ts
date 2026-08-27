@@ -1,92 +1,46 @@
 /**
- * DB / runtime role values — stored in PostgreSQL `users.role`.
- * Do NOT rename these without a dedicated data migration.
+ * Platform-level staff — stored in PostgreSQL `users.platform_role`.
+ * Independent from organization membership and from the customer flag.
  */
-export type UserRole = 'customer' | 'courier' | 'business' | 'admin' | 'operator';
+export type PlatformRole = 'super_admin' | 'admin';
 
-export const USER_ROLES: readonly UserRole[] = [
-  'customer',
-  'courier',
-  'business',
-  'admin',
-  'operator',
-] as const;
+export const PLATFORM_ROLES: readonly PlatformRole[] = ['super_admin', 'admin'] as const;
+
+export const PLATFORM_ROLE_LABELS: Record<PlatformRole, string> = {
+  super_admin: 'Super administrateur',
+  admin: 'Administrateur',
+};
+
+export function isPlatformRole(value: string | null | undefined): value is PlatformRole {
+  return value === 'super_admin' || value === 'admin';
+}
+
+export function isPlatformStaff(role: PlatformRole | null | undefined): boolean {
+  return isPlatformRole(role);
+}
+
+export function isSuperAdmin(role: PlatformRole | null | undefined): boolean {
+  return role === 'super_admin';
+}
+
+/** Platform admin tools (KYC, lockers, all organizations). Super Admin included. */
+export function canAdministerPlatform(role: PlatformRole | null | undefined): boolean {
+  return isPlatformStaff(role);
+}
+
+export function canManageLockers(role: PlatformRole | null | undefined): boolean {
+  return isPlatformStaff(role);
+}
+
+export function canReviewOrganizationApplications(role: PlatformRole | null | undefined): boolean {
+  return isPlatformStaff(role);
+}
 
 /**
- * API / product-facing role aliases.
- * Map to DB values via `toDbRole` / `toApiRole`.
- *
- * OPERATOR is stored in DB but has no dedicated web/mobile UI yet.
- * Prefer admin tooling / SQL to assign it until product flows ship.
+ * App persona derived at the API boundary — not stored on `users`.
+ * `courier` / `business` remain accepted aliases in older clients.
  */
-export type ApiUserRole =
-  | 'PLATFORM_ADMIN'
-  | 'BUSINESS_ADMIN'
-  | 'OPERATOR'
-  | 'CUSTOMER'
-  | 'COURIER';
+export const USER_ROLES = ['customer', 'driver', 'organization', 'admin'] as const;
+export type UserRole = (typeof USER_ROLES)[number];
 
-export const OPERATOR_ROLE_SCAFFOLD = 'OPERATOR' as const satisfies ApiUserRole;
-
-const DB_TO_API: Record<UserRole, ApiUserRole> = {
-  admin: 'PLATFORM_ADMIN',
-  business: 'BUSINESS_ADMIN',
-  operator: 'OPERATOR',
-  customer: 'CUSTOMER',
-  courier: 'COURIER',
-};
-
-const API_TO_DB: Record<ApiUserRole, UserRole> = {
-  PLATFORM_ADMIN: 'admin',
-  BUSINESS_ADMIN: 'business',
-  OPERATOR: 'operator',
-  CUSTOMER: 'customer',
-  COURIER: 'courier',
-};
-
-export function toApiRole(role: UserRole): ApiUserRole {
-  return DB_TO_API[role];
-}
-
-export function toDbRole(role: ApiUserRole): UserRole {
-  return API_TO_DB[role];
-}
-
-export function isAdminRole(role: UserRole): boolean {
-  return role === 'admin';
-}
-
-export function isBusinessRole(role: UserRole): boolean {
-  return role === 'business';
-}
-
-export function isOperatorRole(role: UserRole): boolean {
-  return role === 'operator';
-}
-
-/** Platform ops staff (admin or operator) — not business tenants. */
-export function isPlatformStaff(role: UserRole): boolean {
-  return role === 'admin' || role === 'operator';
-}
-
-export function canSubmitParcels(role: UserRole): boolean {
-  return role === 'business' || role === 'admin';
-}
-
-export function canManageDeliveries(role: UserRole): boolean {
-  return role === 'courier' || role === 'admin' || role === 'operator';
-}
-
-export function canViewPickupPin(role: UserRole): boolean {
-  return role === 'customer' || role === 'admin' || role === 'operator';
-}
-
-/** Review KYC / business applications — admin only until operator UI exists. */
-export function canReviewBusinessApplications(role: UserRole): boolean {
-  return role === 'admin';
-}
-
-/** Manage lockers / compartments — admin only until operator UI exists. */
-export function canManageLockers(role: UserRole): boolean {
-  return role === 'admin';
-}
+export const LEGACY_USER_ROLES = ['customer', 'courier', 'business', 'admin', 'operator'] as const;

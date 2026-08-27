@@ -136,4 +136,43 @@ describe('NotificationRepository', () => {
     const result = await repo.markRead(ctx, 'notif-1');
     expect(result.sentAt).toBeTruthy();
   });
+
+  it('creates an assignment notification for the courier', async () => {
+    const inserts: unknown[][] = [];
+
+    setup((sql, values) => {
+      if (sqlIncludes(sql, 'FROM notifications') && sqlIncludes(sql, "channel = 'in_app'")) {
+        return null;
+      }
+      if (sqlIncludes(sql, 'INSERT INTO notifications')) {
+        inserts.push(values ?? []);
+        return null;
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    await repo.notifyCourierAssigned('courier-1', 'parcel-1', 'EVD26TEST0001A', 'GOMBE');
+
+    expect(inserts).toEqual([
+      ['courier-1', 'parcel-1', 'Nouvelle assignation — EVD26TEST0001A · GOMBE'],
+    ]);
+  });
+
+  it('lists notifications for a courier', async () => {
+    const ctx = createDataAccessContext('courier', { userId: 'courier-1' });
+
+    setup((sql, values) => {
+      if (sqlIncludes(sql, 'FROM notifications n')) {
+        expect(values).toEqual(['courier-1']);
+        return notificationRow({
+          user_id: 'courier-1',
+          message: 'Nouvelle assignation — EVD26TEST0001A · GOMBE',
+        });
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const items = await repo.listForCustomer(ctx);
+    expect(items[0]?.message).toContain('Nouvelle assignation');
+  });
 });

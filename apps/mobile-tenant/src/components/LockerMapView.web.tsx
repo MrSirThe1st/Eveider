@@ -1,9 +1,9 @@
 import { Text, View } from 'react-native';
 import {
   getCurrentCoordinates,
-  lockerMapStyles as styles,
   LockerSelectPanel,
   openDirections,
+  useLockerMapStyles,
   type LockerMapViewProps,
 } from './locker-map-shared';
 
@@ -13,6 +13,7 @@ export function LockerMapView({
   selectedLockerId,
   height = 280,
 }: LockerMapViewProps) {
+  const styles = useLockerMapStyles();
   const selected = lockers.find((locker) => locker.id === selectedLockerId);
 
   return (

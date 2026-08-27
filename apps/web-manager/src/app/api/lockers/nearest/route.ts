@@ -2,6 +2,15 @@ import { fail, nearestLockersQuerySchema, ok } from '@eveider/api-contracts';
 import { createRepositories } from '@eveider/data-access';
 import { NextResponse } from 'next/server';
 import { toLockerMapMarkerDto } from '@/lib/locker-presenter';
+import { withMobileCors } from '@/lib/mobile-session';
+
+function json(body: unknown, init?: { status?: number }) {
+  return withMobileCors(NextResponse.json(body, init));
+}
+
+export async function OPTIONS() {
+  return withMobileCors(new NextResponse(null, { status: 204 }));
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -13,7 +22,7 @@ export async function GET(request: Request) {
   });
 
   if (!query.success) {
-    return NextResponse.json(fail('Coordonnées invalides'), { status: 400 });
+    return json(fail('Coordonnées invalides'), { status: 400 });
   }
 
   try {
@@ -30,9 +39,9 @@ export async function GET(request: Request) {
       .map(toLockerMapMarkerDto)
       .filter((marker): marker is NonNullable<typeof marker> => marker != null);
 
-    return NextResponse.json(ok({ lockers: markers }));
+    return json(ok({ lockers: markers }));
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur serveur';
-    return NextResponse.json(fail(message), { status: 500 });
+    return json(fail(message), { status: 500 });
   }
 }

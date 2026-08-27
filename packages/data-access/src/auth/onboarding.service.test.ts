@@ -6,11 +6,14 @@ describe('OnboardingService', () => {
   const findByAuthId = vi.fn();
   const createProfile = vi.fn();
   const businessCreate = vi.fn();
+  const membershipUpsert = vi.fn();
+  const listByUserIdWithOrgFlags = vi.fn();
   const db = createSqlMatchMock(() => null);
 
   const service = new OnboardingService(
     { findByAuthId, createProfile } as never,
     { create: businessCreate } as never,
+    { upsert: membershipUpsert, listByUserIdWithOrgFlags } as never,
     db,
   );
 
@@ -19,7 +22,7 @@ describe('OnboardingService', () => {
   });
 
   it('returns existing profile without creating duplicate', async () => {
-    const existing = { id: 'u-1', authId: 'auth-1', role: 'customer' };
+    const existing = { id: 'u-1', authId: 'auth-1', isCustomer: true };
     findByAuthId.mockResolvedValue(existing);
 
     const result = await service.ensureProfile('auth-1', { role: 'customer' });
@@ -28,26 +31,55 @@ describe('OnboardingService', () => {
     expect(createProfile).not.toHaveBeenCalled();
   });
 
-  it('creates business and user for business onboarding', async () => {
+  it('creates organization and account owner membership', async () => {
     findByAuthId.mockResolvedValue(null);
     businessCreate.mockResolvedValue({ id: 'biz-1', name: 'Shop' });
-    createProfile.mockResolvedValue({ id: 'u-1', role: 'business', businessId: 'biz-1' });
+    createProfile.mockResolvedValue({ id: 'u-1', isCustomer: false });
 
     await service.ensureProfile('auth-1', {
-      role: 'business',
+      role: 'organization',
       phone: '+243800000000',
       business: { name: 'Shop Kinshasa' },
     });
 
     expect(businessCreate).toHaveBeenCalled();
     expect(createProfile).toHaveBeenCalledWith(
-      expect.objectContaining({ role: 'business', businessId: 'biz-1' }),
+      expect.objectContaining({ authId: 'auth-1', phone: '+243800000000' }),
     );
+    expect(membershipUpsert).toHaveBeenCalledWith({
+      userId: 'u-1',
+      businessId: 'biz-1',
+      role: 'account_owner',
+    });
   });
 
   it('rejects wrong role for app', async () => {
-    findByAuthId.mockResolvedValue({ id: 'u-1', role: 'customer', isBlocked: false });
+    findByAuthId.mockResolvedValue({
+      id: 'u-1',
+      isCustomer: true,
+      platformRole: null,
+      isBlocked: false,
+    });
+    listByUserIdWithOrgFlags.mockResolvedValue([]);
 
     await expect(service.requireRole('auth-1', ['admin'])).rejects.toThrow('Rôle non autorisé');
+  });
+
+  it('rejects deleted and deactivated accounts', async () => {
+    findByAuthId.mockResolvedValue({
+      id: 'u-1',
+      isCustomer: true,
+      isBlocked: false,
+      deletedAt: new Date(),
+    });
+    await expect(service.requireProfile('auth-1')).rejects.toThrow('Compte supprimé');
+
+    findByAuthId.mockResolvedValue({
+      id: 'u-2',
+      isCustomer: false,
+      isBlocked: false,
+      deactivatedAt: new Date(),
+    });
+    await expect(service.requireProfile('auth-2')).rejects.toThrow('Compte désactivé');
   });
 });

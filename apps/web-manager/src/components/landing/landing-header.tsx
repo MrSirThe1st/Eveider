@@ -11,6 +11,8 @@ const NAV = [
   { href: '#a-propos', label: 'À propos' },
 ] as const;
 
+const NAV_COLLAPSE_PX = 960;
+
 export function LandingHeader() {
   const [open, setOpen] = useState(false);
 
@@ -19,12 +21,29 @@ export function LandingHeader() {
     function onKey(event: KeyboardEvent) {
       if (event.key === 'Escape') setOpen(false);
     }
+    function onResize() {
+      if (window.innerWidth > NAV_COLLAPSE_PX) setOpen(false);
+    }
+    document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('resize', onResize);
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onResize);
+    };
   }, [open]);
 
   return (
     <header className={styles.header}>
+      {open ? (
+        <button
+          type="button"
+          className={styles.navBackdrop}
+          aria-label="Fermer le menu"
+          onClick={() => setOpen(false)}
+        />
+      ) : null}
       <div className={`${styles.wrap} ${styles.headerWrap}`}>
         <div className={styles.headerInner}>
           <Link href="/" className={styles.brand} aria-label="Eveider, accueil">
@@ -58,6 +77,13 @@ export function LandingHeader() {
             </Link>
             <Link href="/connexion" className={`${styles.navLink} ${styles.navLinkMobile}`} onClick={() => setOpen(false)}>
               Se connecter
+            </Link>
+            <Link
+              href="/inscription"
+              className={`${styles.navCta} ${styles.navLinkMobile}`}
+              onClick={() => setOpen(false)}
+            >
+              Créer un compte
             </Link>
           </nav>
 

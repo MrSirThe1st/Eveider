@@ -79,7 +79,7 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   async function loadCouriers() {
-    const response = await fetch('/api/couriers', { cache: 'no-store' });
+    const response = await fetch('/api/drivers', { cache: 'no-store' });
     const result = await response.json();
     if (result.success) {
       setCouriers(result.data.couriers);
@@ -123,7 +123,7 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
     setSuccessMessage(null);
 
     try {
-      const response = await fetch(`/api/parcels/${parcelId}/assign-courier`, {
+      const response = await fetch(`/api/parcels/${parcelId}/assign-driver`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ courierId: selectedCourierId }),

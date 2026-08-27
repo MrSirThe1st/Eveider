@@ -182,6 +182,83 @@ describe('ParcelRepository', () => {
     await expect(repo.updateStatus(ctx, 'parcel-1', 'collected')).rejects.toThrow();
   });
 
+  it('lets the customer mark a ready parcel as collected and frees the compartment', async () => {
+    let loadCount = 0;
+    const customerParcel = {
+      ...parcelRow({
+        status: 'ready_for_pickup',
+        customer_id: 'user-1',
+        compartment_id: 'comp-1',
+      }),
+      locker_row: lockerRow(),
+      business_relation_id: 'biz-1',
+      business_name: 'Pharmacy',
+      compartment_json: { id: 'comp-1', label: 'A1' },
+      pickup_pin_row: {
+        id: 'pin-1',
+        parcel_id: 'parcel-1',
+        code: '482913',
+        expires_at: null,
+        created_at: new Date(),
+      },
+      latest_delivery_status: 'completed',
+    };
+
+    setup((sql) => {
+      if (sqlIncludes(sql, 'FROM parcels p') && sqlIncludes(sql, 'LEFT JOIN pickup_pins')) {
+        loadCount += 1;
+        if (loadCount === 1) return customerParcel;
+        return { ...customerParcel, status: 'collected' };
+      }
+      if (sqlIncludes(sql, 'UPDATE parcels SET status')) {
+        return null;
+      }
+      if (sqlIncludes(sql, 'UPDATE compartments SET status')) {
+        return null;
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const ctx = createDataAccessContext('customer', {
+      userId: 'user-1',
+      phone: '+243000000000',
+    });
+    const result = await repo.markCollectedByCustomer(ctx, 'parcel-1');
+
+    expect(result.status).toBe('collected');
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE parcels SET status'),
+      ['collected', 'parcel-1'],
+    );
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE compartments SET status'),
+      ['comp-1'],
+    );
+    expect(notifyParcelStatusChange).toHaveBeenCalledWith('parcel-1', 'collected');
+  });
+
+  it('rejects collect when the parcel is not ready for pickup', async () => {
+    setup((sql) => {
+      if (sqlIncludes(sql, 'FROM parcels p') && sqlIncludes(sql, 'LEFT JOIN pickup_pins')) {
+        return {
+          ...parcelRow({ status: 'in_transit', customer_id: 'user-1' }),
+          locker_row: lockerRow(),
+          business_relation_id: 'biz-1',
+          business_name: 'Pharmacy',
+          compartment_json: null,
+          pickup_pin_row: null,
+          latest_delivery_status: 'scanned',
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const ctx = createDataAccessContext('customer', { userId: 'user-1' });
+    await expect(repo.markCollectedByCustomer(ctx, 'parcel-1')).rejects.toThrow(
+      'pas prêt au retrait',
+    );
+  });
+
   it('lists business colis with latest delivery in one query', async () => {
     setup((sql) => {
       if (sqlIncludes(sql, 'FROM parcels p') && sqlIncludes(sql, 'latest_delivery_status')) {

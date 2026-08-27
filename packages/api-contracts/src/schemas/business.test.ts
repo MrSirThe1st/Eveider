@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { updateBusinessProfileSchema, updateBusinessStatusSchema } from './business.js';
+import { registerBusinessAccountSchema, updateBusinessProfileSchema, updateBusinessStatusSchema } from './business.js';
 
 describe('updateBusinessStatusSchema', () => {
   it('accepts valid business status', () => {
@@ -29,6 +29,33 @@ describe('updateBusinessProfileSchema', () => {
         contactPhone: '+243800000001',
       }).success,
     ).toBe(false);
+  });
+});
+
+describe('registerBusinessAccountSchema', () => {
+  it('creates a company admin without a self-selected role', () => {
+    expect(
+      registerBusinessAccountSchema.safeParse({
+        firstName: 'Chantal',
+        lastName: 'Kasongo',
+        email: 'chantal@boutique.cd',
+        phone: '+243800000001',
+        password: 'secret123',
+      }).success,
+    ).toBe(true);
+  });
+
+  it('accepts an invite token to join an existing company', () => {
+    expect(
+      registerBusinessAccountSchema.safeParse({
+        firstName: 'Eric',
+        lastName: 'Kabongo',
+        email: 'eric@boutique.cd',
+        phone: '+243800000002',
+        password: 'secret123',
+        inviteToken: '11111111-1111-4111-8111-111111111111',
+      }).success,
+    ).toBe(true);
   });
 });
 

@@ -1,19 +1,28 @@
-import { nativeColors as colors, borders } from '@eveider/config-ui';
+import { borders, type ColorTokens } from '@eveider/config-ui';
 import { getFocusedRouteNameFromRoute, useNavigation, useRoute } from '@react-navigation/native';
 import { useEffect } from 'react';
 
-export const DEFAULT_TAB_BAR_STYLE = {
-  backgroundColor: colors.surface,
-  borderTopWidth: borders.width,
-  borderTopColor: colors.border,
-  elevation: 8,
-  shadowColor: '#0F172A',
-  shadowOffset: { width: 0, height: -2 },
-  shadowOpacity: 0.06,
-  shadowRadius: 8,
-  paddingTop: 8,
-  display: 'flex' as const,
-};
+export function getTabBarStyle(colors: ColorTokens) {
+  return {
+    backgroundColor: colors.surface,
+    borderTopWidth: borders.width,
+    borderTopColor: colors.border,
+    elevation: 0,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    paddingTop: 6,
+    display: 'flex' as const,
+  };
+}
+
+/** @deprecated Use getTabBarStyle(colors) so the bar follows light/dark. */
+export const DEFAULT_TAB_BAR_STYLE = getTabBarStyle(
+  // Light fallback for any leftover static callers.
+  {
+    surface: '#FFFFFF',
+    border: '#E5E7EB',
+  } as ColorTokens,
+);
 
 const PROFILE_MAIN_ROUTE = 'ProfileMain';
 

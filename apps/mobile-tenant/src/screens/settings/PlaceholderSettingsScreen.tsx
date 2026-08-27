@@ -1,6 +1,8 @@
-import { nativeColors as colors, radius, borders } from '@eveider/config-ui';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ScreenHeader } from '../../components/ScreenHeader';
+import { radius, borders, type ColorTokens } from '@eveider/config-ui';
+import { useMemo } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScreenScaffold } from '../../components/ScreenHeader';
+import { useColors } from '../../theme';
 
 type PlaceholderSettingsScreenProps = {
   mode: 'CLIENT' | 'COURSIER';
@@ -8,18 +10,23 @@ type PlaceholderSettingsScreenProps = {
   onBack: () => void;
   intro: string;
   bullets?: string[];
+  hideFooter?: boolean;
+  action?: { label: string; onPress: () => void };
 };
 
 export function PlaceholderSettingsScreen({
-  mode,
   title,
   onBack,
   intro,
   bullets = [],
+  hideFooter = false,
+  action,
 }: PlaceholderSettingsScreenProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
+    <ScreenScaffold title={title} onBack={onBack}>
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <ScreenHeader mode={mode} title={title} onBack={onBack} />
 
       <View style={styles.card}>
         <Text style={styles.intro}>{intro}</Text>
@@ -32,28 +39,32 @@ export function PlaceholderSettingsScreen({
             ))}
           </View>
         ) : null}
-        <Text style={styles.footer}>Fonctionnalité à venir — placeholder MVP.</Text>
+        {action ? (
+          <Pressable onPress={action.onPress} style={styles.action}>
+            <Text style={styles.actionText}>{action.label}</Text>
+          </Pressable>
+        ) : null}
+        {hideFooter || action ? null : (
+          <Text style={styles.footer}>Fonctionnalité à venir — placeholder MVP.</Text>
+        )}
       </View>
     </ScrollView>
+    </ScreenScaffold>
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorTokens) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
   },
   content: {
-    padding: 24,
-    paddingTop: 56,
+    padding: 20,
+    paddingTop: 0,
     paddingBottom: 40,
   },
   card: {
-    backgroundColor: colors.surface,
-    borderWidth: borders.width,
-    borderColor: colors.border,
-    borderRadius: radius.card,
-    padding: 20,
     gap: 12,
   },
   intro: {
@@ -80,4 +91,20 @@ const styles = StyleSheet.create({
     color: colors.secondary,
     opacity: 0.5,
   },
-});
+  action: {
+    marginTop: 8,
+    borderWidth: borders.width,
+    borderColor: colors.border,
+    borderRadius: radius.button,
+    paddingVertical: 12,
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+  },
+  actionText: {
+    fontWeight: '700',
+    fontSize: 12,
+    letterSpacing: 0.5,
+    color: colors.secondary,
+  },
+  });
+}

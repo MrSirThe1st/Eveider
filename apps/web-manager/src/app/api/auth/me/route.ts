@@ -1,15 +1,12 @@
 import { fail, ok } from '@eveider/api-contracts';
 import { createRepositories } from '@eveider/data-access';
 import type { User } from '@eveider/data-access';
-import type { UserRole } from '@eveider/domain';
+import { deriveUserRole } from '@eveider/domain';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { resolveCurrentUser } from '@/lib/auth/resolve-current-user';
 import { getSupabaseEnv } from '@/lib/supabase/env';
-
-const MOBILE_ROLES = ['customer', 'courier'] as const;
-const WEB_ROLES = ['admin', 'business'] as const;
 
 function getBearerToken(request: Request): string | null {
   const header = request.headers.get('Authorization');
@@ -72,14 +69,46 @@ export async function GET(request: Request) {
         NextResponse.json(fail('Accès interdit : Compte suspendu ou bloqué'), { status: 403 }),
       );
     }
+    if (profile.deletedAt) {
+      return withCors(
+        NextResponse.json(fail('Accès interdit : Compte supprimé'), { status: 403 }),
+      );
+    }
+    if (profile.deactivatedAt) {
+      return withCors(
+        NextResponse.json(fail('Accès interdit : Compte désactivé'), { status: 403 }),
+      );
+    }
+
+    const { memberships, accounts } = createRepositories();
+    const rows = await memberships.listByUserIdWithOrgFlags(profile.id);
+    const membershipRefs = rows.map((membership) => ({
+      organizationId: membership.businessId,
+      role: membership.role,
+      isPlatformOrg: membership.isPlatformOrg,
+    }));
 
     const bearer = getBearerToken(request);
-    const allowedRoles: readonly UserRole[] = bearer ? MOBILE_ROLES : WEB_ROLES;
-    if (!allowedRoles.includes(profile.role)) {
+    const surface = bearer ? 'mobile' : 'web';
+    const persona = deriveUserRole({
+      isCustomer: profile.isCustomer,
+      platformRole: profile.platformRole,
+      memberships: membershipRefs,
+      surface,
+    });
+
+    if (!persona) {
       return withCors(
         NextResponse.json(fail('Rôle non autorisé pour cette application'), { status: 403 }),
       );
     }
+
+    if (persona === 'driver') {
+      await accounts.activateOnLogin(profile);
+    }
+
+    const activeOrg = rows.find((row) => row.role === persona || row.businessId) ?? rows[0];
+    const webOrg = rows.find((row) => !row.isPlatformOrg && row.role !== 'driver');
 
     return withCors(
       NextResponse.json(
@@ -89,10 +118,20 @@ export async function GET(request: Request) {
           email: authUser.email ?? profile.email,
           profile: {
             id: profile.id,
-            role: profile.role,
+            role: persona === 'driver' ? 'courier' : persona === 'organization' ? 'business' : persona,
+            persona,
+            isCustomer: profile.isCustomer,
+            platformRole: profile.platformRole,
             fullName: profile.fullName,
             email: profile.email,
-            businessId: profile.businessId,
+            businessId: webOrg?.businessId ?? activeOrg?.businessId ?? null,
+            userRole: webOrg?.role ?? null,
+            memberships: rows.map((row) => ({
+              organizationId: row.businessId,
+              organizationName: row.organizationName,
+              role: row.role,
+              isPlatformOrg: row.isPlatformOrg,
+            })),
           },
         }),
       ),

@@ -1,21 +1,28 @@
-import type { UserRole } from '@eveider/domain';
+import {
+  deriveUserRole,
+  normalizeUserRole,
+  type UserRole,
+} from '@eveider/domain';
+import type { CurrentUser } from '@/lib/auth/resolve-current-user';
 
 export const WEB_ROUTES = {
   landing: '/',
   login: '/connexion',
   register: '/inscription',
   adminDashboard: '/tableau-de-bord',
-  businessDashboard: '/entreprise/tableau-de-bord',
-  businessParcels: '/entreprise/tableau-de-bord/colis',
-  businessNewParcel: '/entreprise/tableau-de-bord/colis/nouveau',
-  businessLockers: '/entreprise/tableau-de-bord/points',
-  businessIssues: '/entreprise/tableau-de-bord/incidents',
-  businessSettings: '/entreprise/tableau-de-bord/parametres',
-  businessBilling: '/entreprise/tableau-de-bord/facturation',
+  businessDashboard: '/organisation/tableau-de-bord',
+  businessParcels: '/organisation/tableau-de-bord/colis',
+  businessNewParcel: '/organisation/tableau-de-bord/colis/nouveau',
+  businessLockers: '/organisation/tableau-de-bord/points',
+  businessIssues: '/organisation/tableau-de-bord/incidents',
+  businessSettings: '/organisation/tableau-de-bord/parametres',
+  businessBilling: '/organisation/tableau-de-bord/facturation',
+  businessTeam: '/organisation/tableau-de-bord/equipe',
+  businessCouriers: '/organisation/tableau-de-bord/chauffeurs',
 } as const;
 
 export function businessParcelPath(parcelId: string) {
-  return `/entreprise/tableau-de-bord/colis/${parcelId}`;
+  return `/organisation/tableau-de-bord/colis/${parcelId}`;
 }
 
 export function businessNewParcelPath(lockerId?: string) {
@@ -23,8 +30,9 @@ export function businessNewParcelPath(lockerId?: string) {
   return `${WEB_ROUTES.businessNewParcel}?lockerId=${encodeURIComponent(lockerId)}`;
 }
 
-export function isMobileRole(role: UserRole) {
-  return role === 'customer' || role === 'courier';
+export function isMobileRole(role: UserRole | string) {
+  const normalized = normalizeUserRole(role);
+  return normalized === 'customer' || normalized === 'driver';
 }
 
 export function isSafeRedirect(path: string | undefined): path is string {
@@ -55,39 +63,49 @@ function isRedirectAllowedForRole(path: string, role: UserRole): boolean {
   if (role === 'admin') {
     return path.startsWith(WEB_ROUTES.adminDashboard);
   }
-  if (role === 'business') {
-    return path.startsWith('/entreprise/');
+  if (role === 'organization') {
+    return path.startsWith('/organisation/') || path.startsWith('/organisation/');
   }
   return false;
 }
 
-export function getPostLoginPath(role: UserRole, redirectParam?: string): string {
-  const normalized = normalizeRedirectParam(redirectParam);
-  if (normalized && isRedirectAllowedForRole(normalized, role)) {
-    return normalized;
+export function getPostLoginPath(role: UserRole | string, redirectParam?: string): string {
+  const normalized = normalizeUserRole(role) ?? 'customer';
+  const safeRole = normalized;
+  const mapped = redirectParam;
+  const normalizedRedirect = normalizeRedirectParam(mapped);
+  if (normalizedRedirect && isRedirectAllowedForRole(normalizedRedirect, safeRole)) {
+    return normalizedRedirect;
   }
 
-  switch (role) {
+  switch (safeRole) {
     case 'admin':
       return WEB_ROUTES.adminDashboard;
-    case 'business':
+    case 'organization':
       return WEB_ROUTES.businessDashboard;
-    case 'operator':
-      // No operator UI yet — land on marketing until product flows exist.
-      return WEB_ROUTES.landing;
     default:
-      // Customer / courier use the mobile app — never redirect `/` → `/` (infinite loop).
       return WEB_ROUTES.landing;
   }
 }
 
-/**
- * Web dashboard destination after login, or `null` when the role has no web shell
- * (customer / courier). Callers must not `redirect()` to `/` when already on `/`.
- */
-export function getAuthenticatedLandingPath(role: UserRole): string | null {
+export function getAuthenticatedLandingPath(role: UserRole | string): string | null {
   if (isMobileRole(role)) {
     return null;
   }
   return getPostLoginPath(role);
+}
+
+export function getLandingPathForUser(current: CurrentUser): string | null {
+  const persona = deriveUserRole({
+    isCustomer: current.profile.isCustomer,
+    platformRole: current.profile.platformRole,
+    memberships: current.memberships.map((membership) => ({
+      organizationId: membership.businessId,
+      role: membership.role,
+      isPlatformOrg: membership.isPlatformOrg,
+    })),
+    surface: 'web',
+  });
+  if (!persona) return null;
+  return getAuthenticatedLandingPath(persona);
 }

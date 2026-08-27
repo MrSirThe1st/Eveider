@@ -7,10 +7,34 @@
     "scheme": "eveider",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "plugins": [],
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Eveider utilise la caméra pour scanner les colis et photographier le dépôt au casier."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Eveider utilise votre position pour afficher les points de retrait proches."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#FFFFFF",
+          "image": "./src/assets/eveider_logo.png",
+          "imageWidth": 200,
+          "resizeMode": "contain"
+        }
+      ],
+      "expo-localization"
+    ],
     "splash": {
+      "image": "./src/assets/eveider_logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F5F6F7"
+      "backgroundColor": "#FFFFFF"
     },
     "ios": {
       "supportsTablet": true,
@@ -31,6 +55,10 @@
               "scheme": "eveider",
               "host": "invite",
               "pathPrefix": "/"
+            },
+            {
+              "scheme": "eveider",
+              "host": "reset-password"
             }
           ],
           "category": ["BROWSABLE", "DEFAULT"]

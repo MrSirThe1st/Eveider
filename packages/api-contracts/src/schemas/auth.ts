@@ -30,37 +30,12 @@ export const verifyPhoneOtpSchema = z.object({
   token: z.string().length(6, 'Le code doit contenir 6 chiffres'),
 });
 
-export const registerMobileAccountSchema = z
-  .object({
-    role: z.enum(['customer', 'courier']),
+export const registerMobileAccountSchema = z.object({
+    role: z.literal('customer'),
     email: emailSchema,
     password: passwordSchema,
-    phone: z.string().optional(),
+    phone: phoneSchema,
     fullName: z.string().min(2, 'Nom requis').optional(),
-  })
-  .superRefine((data, ctx) => {
-    if (data.role === 'customer') {
-      const parsed = phoneSchema.safeParse(data.phone);
-      if (!parsed.success) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['phone'],
-          message: parsed.error.errors[0]?.message ?? 'Téléphone requis',
-        });
-      }
-      return;
-    }
-
-    if (data.phone?.trim()) {
-      const parsed = phoneSchema.safeParse(data.phone);
-      if (!parsed.success) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['phone'],
-          message: parsed.error.errors[0]?.message ?? 'Téléphone invalide',
-        });
-      }
-    }
   });
 
 export const onboardUserSchema = z.object({

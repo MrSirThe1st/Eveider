@@ -94,6 +94,52 @@ describe('IssueRepository', () => {
     ).rejects.toThrow('Livraison non assignée');
   });
 
+  it('fails the assigned delivery when the courier reports a failed drop-off', async () => {
+    const ctx = createDataAccessContext('courier', { userId: 'courier-1' });
+
+    setup((sql) => {
+      if (sqlIncludes(sql, 'FROM deliveries')) {
+        return { id: 'delivery-1', status: 'drop_off_pending' };
+      }
+      if (sqlIncludes(sql, 'FROM parcels')) {
+        return { locker_id: 'locker-1' };
+      }
+      if (sqlIncludes(sql, 'FROM lockers')) {
+        return { id: 'locker-1' };
+      }
+      if (sqlIncludes(sql, 'INSERT INTO issues')) {
+        return { id: 'issue-fail' };
+      }
+      if (sqlIncludes(sql, 'UPDATE deliveries SET status')) {
+        return null;
+      }
+      if (sqlIncludes(sql, 'FROM issues i')) {
+        return {
+          ...issueWithRelations({
+            id: 'issue-fail',
+            type: 'failed_delivery',
+            reporter_id: 'courier-1',
+          }),
+          reporter_relation_id: 'courier-1',
+          reporter_role: 'courier',
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const issue = await repo.create(ctx, {
+      type: 'failed_delivery',
+      parcelId: 'parcel-1',
+      description: 'Casier hors service',
+    });
+
+    expect(issue.id).toBe('issue-fail');
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE deliveries SET status'),
+      ['failed', 'delivery-1'],
+    );
+  });
+
   it('updates status for admin', async () => {
     const ctx = createDataAccessContext('admin', { userId: 'admin-1' });
 

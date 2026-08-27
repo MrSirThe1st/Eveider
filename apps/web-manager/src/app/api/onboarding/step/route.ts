@@ -11,7 +11,7 @@ import { NextResponse } from 'next/server';
 import { requireBusinessSession } from '@/lib/session';
 
 export async function POST(request: Request) {
-  const auth = await requireBusinessSession();
+  const auth = await requireBusinessSession(undefined, 'settings');
   if ('error' in auth) {
     return NextResponse.json(fail(auth.error), { status: auth.status });
   }

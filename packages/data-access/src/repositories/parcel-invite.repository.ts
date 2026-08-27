@@ -1,4 +1,4 @@
-import { assertBusinessScope, type DataAccessContext } from '../context.js';
+import { assertBusinessScope, assertCompanyPermission, type DataAccessContext } from '../context.js';
 import type { Queryable } from '../db/index.js';
 import { withTransaction } from '../db/pool.js';
 import { mapParcel, mapParcelInvite } from '../db/mappers.js';
@@ -155,6 +155,7 @@ export class ParcelInviteRepository {
       throw new Error('Colis introuvable');
     }
     assertBusinessScope(ctx, String(parcel.business_id));
+    assertCompanyPermission(ctx, 'manage_operations');
 
     if (parcel.customer_id) {
       throw new Error('Le destinataire a déjà un compte Eveider');

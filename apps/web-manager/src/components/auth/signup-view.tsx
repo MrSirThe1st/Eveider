@@ -9,20 +9,26 @@ import { AuthSplitShell } from './auth-split-shell';
 import { SignupBusinessForm } from './signup-business-form';
 import { SignupMobileForm } from './signup-mobile-form';
 
-export function SignupView() {
+type SignupViewProps = {
+  inviteToken?: string;
+};
+
+export function SignupView({ inviteToken }: SignupViewProps) {
+  const joiningTeam = Boolean(inviteToken);
   const [role, setRole] = useState<SignupRole>('business');
   const [otpStep, setOtpStep] = useState(false);
 
   const visual = otpStep && role === 'business' ? OTP_VISUAL : SIGNUP_VISUALS[role];
   const visualKey = otpStep && role === 'business' ? 'otp' : role;
-  const heading = SIGNUP_HEADINGS[role];
+  const heading = joiningTeam
+    ? { title: 'Rejoindre l’équipe', sub: 'Créez votre compte pour accepter l’invitation.' }
+    : SIGNUP_HEADINGS[role];
 
   const dots = useMemo(
     () =>
       [
         { key: 'business' as const, label: 'Entreprise' },
         { key: 'customer' as const, label: 'Client' },
-        { key: 'courier' as const, label: 'Coursier' },
       ].map((item) => ({
         ...item,
         active: item.key === role,
@@ -43,8 +49,8 @@ export function SignupView() {
     <AuthSplitShell
       visual={visual}
       visualKey={visualKey}
-      dots={dots}
-      toolbar={<AuthRoleTabs value={role} onChange={handleRoleChange} />}
+      dots={joiningTeam ? [] : dots}
+      toolbar={joiningTeam ? null : <AuthRoleTabs value={role} onChange={handleRoleChange} />}
     >
       <div className={styles.formCardHead}>
         <div className={styles.panelHead}>
@@ -52,6 +58,11 @@ export function SignupView() {
           <p className={styles.panelSub}>
             {otpStep ? 'Entrez le code reçu pour activer le compte.' : heading.sub}
           </p>
+          {joiningTeam || otpStep || role === 'business' ? null : (
+            <p className={styles.panelSub}>
+              Les coursiers sont invités par Eveider ou par leur entreprise — pas d’inscription libre.
+            </p>
+          )}
         </div>
       </div>
       <div className={styles.formCardBody}>
@@ -61,8 +72,8 @@ export function SignupView() {
           role="tabpanel"
           aria-labelledby={`signup-tab-${role}`}
         >
-          {role === 'business' ? (
-            <SignupBusinessForm onOtpStepChange={setOtpStep} />
+          {role === 'business' || joiningTeam ? (
+            <SignupBusinessForm onOtpStepChange={setOtpStep} inviteToken={inviteToken} />
           ) : (
             <SignupMobileForm key={role} role={role} />
           )}

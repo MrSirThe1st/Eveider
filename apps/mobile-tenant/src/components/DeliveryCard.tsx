@@ -1,7 +1,9 @@
-import { nativeColors as colors, radius, borders } from '@eveider/config-ui';
+import { radius, borders, type ColorTokens } from '@eveider/config-ui';
 import type { DeliveryStatus } from '@eveider/domain';
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { CourierDelivery } from '../lib/api';
+import { useColors } from '../theme';
 import { DeliveryStatusBadge } from './DeliveryStatusBadge';
 
 type DeliveryCardProps = {
@@ -12,6 +14,8 @@ type DeliveryCardProps = {
 const ACTION_STATUSES: DeliveryStatus[] = ['assigned', 'scanned', 'drop_off_pending'];
 
 export function DeliveryCard({ delivery, highlight }: DeliveryCardProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const needsAction = ACTION_STATUSES.includes(delivery.status);
   const showHighlight = highlight ?? needsAction;
 
@@ -44,49 +48,51 @@ export function DeliveryCard({ delivery, highlight }: DeliveryCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: borders.width,
-    borderColor: colors.border,
-    borderRadius: radius.card,
-    padding: 16,
-  },
-  highlightAction: {
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  highlightWarning: {
-    borderWidth: 2,
-    borderColor: colors.warning,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-  },
-  reference: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.secondary,
-  },
-  meta: {
-    marginTop: 8,
-    fontWeight: '500',
-    color: colors.secondary,
-  },
-  locker: {
-    marginTop: 4,
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.secondary,
-  },
-  actionHint: {
-    marginTop: 10,
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    color: colors.warning,
-  },
-});
+function createStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    card: {
+      backgroundColor: colors.surface,
+      borderWidth: borders.width,
+      borderColor: colors.border,
+      borderRadius: radius.card,
+      padding: 16,
+    },
+    highlightAction: {
+      borderWidth: 2,
+      borderColor: colors.primary,
+    },
+    highlightWarning: {
+      borderWidth: 2,
+      borderColor: colors.warning,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: 12,
+    },
+    reference: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.secondary,
+    },
+    meta: {
+      marginTop: 8,
+      fontWeight: '500',
+      color: colors.secondary,
+    },
+    locker: {
+      marginTop: 4,
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.secondary,
+    },
+    actionHint: {
+      marginTop: 10,
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 0.5,
+      color: colors.warning,
+    },
+  });
+}

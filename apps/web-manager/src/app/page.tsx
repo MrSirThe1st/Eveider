@@ -1,9 +1,8 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { LandingPage } from '@/components/landing/landing-page';
-import { getAuthenticatedLandingPath } from '@/lib/auth-routing';
+import { getLandingPathForUser } from '@/lib/auth-routing';
 import { getCurrentUser } from '@/lib/auth/get-current-user';
-import type { UserRole } from '@eveider/domain';
 
 export const metadata: Metadata = {
   title: {
@@ -30,7 +29,7 @@ export default async function HomePage() {
   }
 
   if (current) {
-    const destination = getAuthenticatedLandingPath(current.profile.role as UserRole);
+    const destination = getLandingPathForUser(current);
     if (destination && destination !== '/') {
       redirect(destination);
     }

@@ -6,17 +6,21 @@ import {
   DRC_MAP_RESTRICTION,
   getDefaultMapCenter,
   getGoogleMapsApiKey,
+  lockerPinColor,
+  LOCKER_PIN_COLORS,
   type MapSearchViewport,
 } from '@/lib/google-maps';
-import { APIProvider, Map, Marker, useMap } from '@vis.gl/react-google-maps';
+import { APIProvider, Map, Marker, useApiIsLoaded, useMap } from '@vis.gl/react-google-maps';
 import { useEffect, useMemo } from 'react';
 
 export type LockerGoogleMapProps = {
   lockers: LockerMapMarkerDto[];
   selectedLockerId?: string;
   onSelectLocker?: (lockerId: string) => void;
+  onHoverLocker?: (lockerId: string | null) => void;
   onMapClick?: (coords: { latitude: number; longitude: number }) => void;
   highlightLockerId?: string;
+  hoveredLockerId?: string;
   draftMarker?: { latitude: number; longitude: number } | null;
   draftMarkerDraggable?: boolean;
   onDraftMarkerDrag?: (coords: { latitude: number; longitude: number }) => void;
@@ -73,11 +77,61 @@ function MapCameraController({
   return null;
 }
 
+function LockerMapPin({
+  locker,
+  selected,
+  hovered,
+  interactive,
+  onSelect,
+  onHover,
+}: {
+  locker: LockerMapMarkerDto;
+  selected: boolean;
+  hovered: boolean;
+  interactive: boolean;
+  onSelect?: (lockerId: string) => void;
+  onHover?: (lockerId: string | null) => void;
+}) {
+  const ready = useApiIsLoaded();
+  const fillColor = lockerPinColor(locker.availableCompartments, locker.status);
+
+  if (!ready) return null;
+
+  return (
+    <Marker
+      position={{ lat: locker.latitude, lng: locker.longitude }}
+      title={`${locker.name} · ${locker.availableSlots} dispo.`}
+      clickable={interactive}
+      zIndex={selected ? 4 : hovered ? 3 : 1}
+      icon={{
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: selected ? 11 : hovered ? 9 : 7,
+        fillColor,
+        fillOpacity: 1,
+        strokeColor: selected || hovered ? LOCKER_PIN_COLORS.selected : '#ffffff',
+        strokeWeight: selected ? 3 : hovered ? 2.5 : 2,
+      }}
+      onClick={() => {
+        if (interactive) onSelect?.(locker.id);
+      }}
+      onMouseOver={() => {
+        if (interactive) onHover?.(locker.id);
+      }}
+      onMouseOut={() => {
+        if (interactive) onHover?.(null);
+      }}
+    />
+  );
+}
+
 export function LockerGoogleMap({
   lockers,
   selectedLockerId,
   onSelectLocker,
+  onHoverLocker,
   onMapClick,
+  highlightLockerId,
+  hoveredLockerId,
   draftMarker,
   draftMarkerDraggable = false,
   onDraftMarkerDrag,
@@ -93,6 +147,8 @@ export function LockerGoogleMap({
       return '';
     }
   }, []);
+
+  const highlightedId = hoveredLockerId ?? highlightLockerId;
 
   const center = useMemo(() => {
     if (lockers.length > 0) {
@@ -149,17 +205,17 @@ export function LockerGoogleMap({
           }
         >
           <MapCameraController mapFocus={mapFocus} onViewportChange={onViewportChange} />
-          {lockers.map((locker) => {
-            return (
-              <Marker
-                key={locker.id}
-                position={{ lat: locker.latitude, lng: locker.longitude }}
-                title={locker.name}
-                clickable={interactive}
-                onClick={() => onSelectLocker?.(locker.id)}
-              />
-            );
-          })}
+          {lockers.map((locker) => (
+            <LockerMapPin
+              key={locker.id}
+              locker={locker}
+              selected={locker.id === selectedLockerId}
+              hovered={locker.id === highlightedId}
+              interactive={interactive}
+              onSelect={onSelectLocker}
+              onHover={onHoverLocker}
+            />
+          ))}
           {draftMarker ? (
             <Marker
               position={{ lat: draftMarker.latitude, lng: draftMarker.longitude }}

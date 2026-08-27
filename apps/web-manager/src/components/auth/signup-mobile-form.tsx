@@ -64,7 +64,7 @@ export function SignupMobileForm({ role }: SignupMobileFormProps) {
     return (
       <div className={styles.success}>
         <p>
-          Compte {role === 'customer' ? 'destinataire' : 'coursier'} créé. Continuez dans
+          Compte destinataire créé. Continuez dans
           l’application mobile Eveider.
         </p>
         <Link href="/suivi" className={styles.submit}>
@@ -79,19 +79,17 @@ export function SignupMobileForm({ role }: SignupMobileFormProps) {
 
   return (
     <form className={styles.form} onSubmit={handleSubmit}>
-      {role === 'courier' ? (
-        <label className={styles.field}>
-          <span>Nom complet</span>
-          <input
-            className={styles.input}
-            type="text"
-            value={fullName}
-            onChange={(event) => setFullName(event.target.value)}
-            placeholder="Patrick Mwamba"
-            autoComplete="name"
-          />
-        </label>
-      ) : null}
+      <label className={styles.field}>
+        <span>Nom complet (optionnel)</span>
+        <input
+          className={styles.input}
+          type="text"
+          value={fullName}
+          onChange={(event) => setFullName(event.target.value)}
+          placeholder="Patrick Mwamba"
+          autoComplete="name"
+        />
+      </label>
       <label className={styles.field}>
         <span>Email</span>
         <input
@@ -100,20 +98,16 @@ export function SignupMobileForm({ role }: SignupMobileFormProps) {
           required
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          placeholder={role === 'customer' ? 'vous@exemple.cd' : 'coursier@exemple.cd'}
+          placeholder="vous@exemple.cd"
           autoComplete="email"
         />
       </label>
       <AuthPhoneField
-        label={phoneRequired ? 'Téléphone destinataire' : 'Téléphone (optionnel)'}
+        label="Téléphone destinataire"
         value={phone}
         onChange={setPhone}
         required={phoneRequired}
-        hint={
-          role === 'customer'
-            ? 'Utilisez le même numéro que sur vos colis pour les relier à ce compte.'
-            : 'Les tournées et dépôts se gèrent ensuite dans l’application coursier.'
-        }
+        hint="Utilisez le même numéro que sur vos colis pour les relier à ce compte."
       />
       <AuthPasswordField
         label="Mot de passe"

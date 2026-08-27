@@ -45,11 +45,11 @@ const ADMIN_MODULES: NavModule[] = [
       p.startsWith('/tableau-de-bord/livraisons') || p.startsWith('/tableau-de-bord/incidents'),
   },
   {
-    id: 'entreprises',
-    label: 'Entreprises',
-    href: '/tableau-de-bord/entreprises',
+    id: 'organisations',
+    label: 'Organisations',
+    href: '/tableau-de-bord/organisations',
     icon: <IconBuilding {...NAV_ICON_PROPS} />,
-    match: (p) => p.startsWith('/tableau-de-bord/entreprises'),
+    match: (p) => p.startsWith('/tableau-de-bord/organisations'),
   },
   {
     id: 'points',
@@ -58,6 +58,13 @@ const ADMIN_MODULES: NavModule[] = [
     icon: <IconMapPin {...NAV_ICON_PROPS} />,
     match: (p) =>
       p.startsWith('/tableau-de-bord/points') || p.startsWith('/tableau-de-bord/casiers'),
+  },
+  {
+    id: 'chauffeurs',
+    label: 'Chauffeurs',
+    href: '/tableau-de-bord/chauffeurs',
+    icon: <IconTruck {...NAV_ICON_PROPS} />,
+    match: (p) => p.startsWith('/tableau-de-bord/chauffeurs'),
   },
   {
     id: 'utilisateurs',

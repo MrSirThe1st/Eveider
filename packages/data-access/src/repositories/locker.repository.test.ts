@@ -20,3 +20,30 @@ describe('LockerRepository.listActivePickerOptions', () => {
     ]);
   });
 });
+
+describe('LockerRepository.listByCity', () => {
+  it('filters network points by city', async () => {
+    const db = createSqlMatchMock((sql, values) => {
+      if (sqlIncludes(sql, 'FROM lockers l') && sqlIncludes(sql, 'lower(l.city)')) {
+        expect(values?.[0]).toBe('Lubumbashi');
+        return lockerRow({
+          id: 'locker-1',
+          name: 'EVEIDER KENYA',
+          address: 'Lubumbashi',
+          city: 'Lubumbashi',
+          type: 'SMART_LOCKER',
+          available_count: 4,
+          occupying_count: 0,
+        });
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const repo = new LockerRepository(db);
+    const items = await repo.listByCity('Lubumbashi');
+
+    expect(items).toHaveLength(1);
+    expect(items[0]?.name).toBe('EVEIDER KENYA');
+    expect(items[0]?.city).toBe('Lubumbashi');
+  });
+});

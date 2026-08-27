@@ -1,8 +1,9 @@
-import { nativeColors as colors, radius, borders } from '@eveider/config-ui';
+import { radius, borders, type ColorTokens } from '@eveider/config-ui';
 import type { IssueType } from '@eveider/domain';
 import { ISSUE_TYPE_LABELS } from '@eveider/domain';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useColors } from '../theme';
 import { PrimaryButton } from './PrimaryButton';
 
 type ReportIssueFormProps = {
@@ -20,6 +21,8 @@ export function ReportIssueForm({
   onSuccess,
   onCancel,
 }: ReportIssueFormProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [type, setType] = useState<IssueType>(allowedTypes[0] ?? 'parcel_problem');
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +77,7 @@ export function ReportIssueForm({
         value={description}
         onChangeText={setDescription}
         placeholder="Que s'est-il passé ?"
-        placeholderTextColor={colors.border}
+        placeholderTextColor={colors.textMuted}
         multiline
         numberOfLines={4}
         textAlignVertical="top"
@@ -95,75 +98,77 @@ export function ReportIssueForm({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    gap: 12,
-  },
-  hint: {
-    fontSize: 13,
-    fontWeight: '500',
-    lineHeight: 20,
-    color: colors.secondary,
-    marginBottom: 8,
-  },
-  label: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    color: colors.secondary,
-  },
-  typeList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 8,
-  },
-  typeChip: {
-    borderWidth: borders.width,
-    borderColor: colors.border,
-    borderRadius: radius.button,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: colors.surface,
-  },
-  typeChipSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
-  },
-  typeChipText: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-    color: colors.secondary,
-  },
-  typeChipTextSelected: {
-    color: colors.secondary,
-  },
-  input: {
-    minHeight: 120,
-    borderWidth: borders.width,
-    borderColor: colors.border,
-    borderRadius: radius.card,
-    padding: 14,
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.secondary,
-    backgroundColor: colors.surface,
-  },
-  error: {
-    color: colors.danger,
-    fontWeight: '500',
-    fontSize: 13,
-  },
-  cancel: {
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  cancelText: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-    color: colors.secondary,
-    opacity: 0.7,
-  },
-});
+function createStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+    container: {
+      gap: 12,
+    },
+    hint: {
+      fontSize: 13,
+      fontWeight: '500',
+      lineHeight: 20,
+      color: colors.secondary,
+      marginBottom: 8,
+    },
+    label: {
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 0.8,
+      color: colors.secondary,
+    },
+    typeList: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 8,
+    },
+    typeChip: {
+      borderWidth: borders.width,
+      borderColor: colors.border,
+      borderRadius: radius.button,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      backgroundColor: colors.surface,
+    },
+    typeChipSelected: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primary,
+    },
+    typeChipText: {
+      fontSize: 11,
+      fontWeight: '600',
+      letterSpacing: 0.3,
+      color: colors.secondary,
+    },
+    typeChipTextSelected: {
+      color: colors.onPrimary,
+    },
+    input: {
+      minHeight: 120,
+      borderWidth: borders.width,
+      borderColor: colors.border,
+      borderRadius: radius.card,
+      padding: 14,
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.secondary,
+      backgroundColor: colors.surface,
+    },
+    error: {
+      color: colors.danger,
+      fontWeight: '500',
+      fontSize: 13,
+    },
+    cancel: {
+      alignItems: 'center',
+      paddingVertical: 12,
+    },
+    cancelText: {
+      fontSize: 12,
+      fontWeight: '600',
+      letterSpacing: 0.5,
+      color: colors.secondary,
+      opacity: 0.7,
+    },
+  });
+}

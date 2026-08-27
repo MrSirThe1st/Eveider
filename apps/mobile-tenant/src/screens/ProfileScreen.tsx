@@ -1,54 +1,64 @@
-import type { UserRole } from '@eveider/domain';
-import { nativeColors as colors, radius, borders } from '@eveider/config-ui';
-import { useCallback, useEffect, useState } from 'react';
+import { type ColorTokens } from '@eveider/config-ui';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
-  ActivityIndicator,
+  Alert,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { ProfileMenuItem } from '../components/ProfileMenuItem';
+import { AppSpinner } from '../components/AppSpinner';
+import { ProfileMenuItem, ProfileSection } from '../components/ProfileMenuItem';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { LANGUAGE_LABELS, THEME_LABELS, useSettings } from '../context/settings-context';
-import { fetchCustomerNotifications, fetchProfile, type UserProfile } from '../lib/api';
+import { LANGUAGE_LABELS, useSettings } from '../context/settings-context';
+import { deleteCustomerAccount, deactivateCourierAccount, fetchCustomerNotifications, fetchCourierNotifications, fetchProfile, type UserProfile } from '../lib/api';
 import { supabase } from '../lib/supabase';
-
-const ROLE_LABELS: Record<UserRole, string> = {
-  customer: 'CLIENT',
-  courier: 'COURSIER',
-  business: 'ENTREPRISE',
-  admin: 'ADMIN',
-  operator: 'OPÉRATEUR',
-};
+import { useColors } from '../theme';
 
 type ProfileScreenProps = {
   mode: 'CLIENT' | 'COURSIER';
+  isGuest?: boolean;
+  onRequestAuth?: () => void;
   onOpenNotifications?: () => void;
   onOpenPersonalInfo: () => void;
   onOpenNotificationPreferences: () => void;
   onOpenLanguage: () => void;
+  onOpenCountry: () => void;
   onOpenAppearance: () => void;
   onOpenHelp: () => void;
+  onOpenHowItWorks?: () => void;
+  onOpenMyParcels?: () => void;
   onOpenTerms: () => void;
   onOpenPrivacy: () => void;
   onOpenAbout: () => void;
+  hideHeader?: boolean;
 };
 
 export function ProfileScreen({
   mode,
+  isGuest = false,
+  onRequestAuth,
   onOpenNotifications,
   onOpenPersonalInfo,
   onOpenNotificationPreferences,
   onOpenLanguage,
+  onOpenCountry,
   onOpenAppearance,
   onOpenHelp,
+  onOpenHowItWorks,
+  onOpenMyParcels,
   onOpenTerms,
   onOpenPrivacy,
   onOpenAbout,
+  hideHeader = false,
 }: ProfileScreenProps) {
-  const { language, theme } = useSettings();
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { t } = useTranslation();
+  const { language, country, theme } = useSettings();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -58,6 +68,15 @@ export function ProfileScreen({
   const isCustomer = mode === 'CLIENT';
 
   const loadProfile = useCallback(async (silent = false) => {
+    if (isGuest) {
+      setProfile(null);
+      setUnreadCount(0);
+      setError(null);
+      if (!silent) setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
     if (!silent) setLoading(true);
     setError(null);
     const result = await fetchProfile();
@@ -72,38 +91,71 @@ export function ProfileScreen({
 
     setProfile(result.data);
 
-    if (isCustomer) {
-      const notifications = await fetchCustomerNotifications();
+    if (isCustomer || mode === 'COURSIER') {
+      const notifications = isCustomer
+        ? await fetchCustomerNotifications()
+        : await fetchCourierNotifications();
       if (notifications.success) {
         setUnreadCount(notifications.data.unreadCount);
       }
     }
-  }, [isCustomer]);
+  }, [isCustomer, isGuest, mode]);
+
+  function confirmCloseAccount() {
+    const isCourier = mode === 'COURSIER';
+    Alert.alert(
+      isCourier ? t('profile.deactivateAccount') : t('profile.deleteAccount'),
+      isCourier ? t('profile.deactivateAccountConfirm') : t('profile.deleteAccountConfirm'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: isCourier ? t('profile.deactivateAccount') : t('profile.deleteAccount'),
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              const result = isCourier
+                ? await deactivateCourierAccount()
+                : await deleteCustomerAccount();
+              if (!result.success) {
+                Alert.alert(t('common.error'), result.error);
+                return;
+              }
+              await supabase.auth.signOut();
+            })();
+          },
+        },
+      ],
+    );
+  }
 
   useEffect(() => {
     void loadProfile();
   }, [loadProfile]);
 
-  if (loading && !profile) {
+  const displayName = isGuest
+    ? t('profile.guestName')
+    : (profile?.profile.fullName ?? profile?.email ?? t('profile.guestName'));
+  const roleLabel = isGuest
+    ? t('profile.guestRole')
+    : profile
+      ? t(`roles.${profile.profile.role}`)
+      : mode === 'COURSIER'
+        ? t('roles.courier')
+        : t('roles.customer');
+
+  if (loading && !profile && !isGuest) {
     return (
       <View style={styles.container}>
-        <ScreenHeader mode={mode} title="PARAMÈTRES" />
-        <ActivityIndicator color={colors.secondary} style={styles.loader} />
+        {hideHeader ? null : <ScreenHeader title={t('profile.title')} />}
+        <AppSpinner />
       </View>
     );
   }
 
-  const displayName = profile?.profile.fullName ?? profile?.email ?? 'Utilisateur';
-  const roleLabel = profile ? ROLE_LABELS[profile.profile.role] : mode;
-  const notificationSubtitle =
-    unreadCount > 0
-      ? `${unreadCount} non lue${unreadCount > 1 ? 's' : ''}`
-      : 'Historique des alertes colis';
-
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, hideHeader ? styles.drawerContent : styles.pageContent]}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -115,100 +167,152 @@ export function ProfileScreen({
         />
       }
     >
-      <ScreenHeader mode={mode} title="PARAMÈTRES" />
+      {hideHeader ? null : <ScreenHeader title={t('profile.title')} />}
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error && !isGuest ? <Text style={styles.error}>{error}</Text> : null}
 
-      <View style={styles.identityCard}>
+      <Pressable
+        onPress={isGuest ? onRequestAuth : onOpenPersonalInfo}
+        style={styles.identity}
+        accessibilityRole="button"
+      >
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
         </View>
-        <Text style={styles.name}>{displayName}</Text>
-        <Text style={styles.roleBadge}>{roleLabel}</Text>
-        {profile?.email ? <Text style={styles.meta}>{profile.email}</Text> : null}
-        {profile?.phone ? <Text style={styles.meta}>{profile.phone}</Text> : null}
-      </View>
+        <View style={styles.identityText}>
+          <Text style={styles.name}>{displayName}</Text>
+          {roleLabel ? <Text style={styles.roleLabel}>{roleLabel}</Text> : null}
+        </View>
+      </Pressable>
 
-      <Text style={styles.sectionLabel}>COMPTE</Text>
-      <ProfileMenuItem
-        icon="user"
-        label="INFORMATIONS PERSONNELLES"
-        subtitle="Nom, téléphone et e-mail"
-        onPress={onOpenPersonalInfo}
-      />
-      {isCustomer ? (
+      <ProfileSection title={t('profile.account')}>
+        {isGuest ? (
+          <>
+            <ProfileMenuItem icon="log-in" label={t('profile.signIn')} onPress={onRequestAuth} />
+            <ProfileMenuItem icon="user-plus" label={t('profile.signUp')} onPress={onRequestAuth} last />
+          </>
+        ) : (
+          <>
+            <ProfileMenuItem
+              icon="user"
+              label={t('profile.personalInfo')}
+              onPress={onOpenPersonalInfo}
+            />
+            {isCustomer ? (
+              <ProfileMenuItem
+                icon="package"
+                label={t('profile.myParcels')}
+                onPress={onOpenMyParcels}
+              />
+            ) : null}
+            {isCustomer ? (
+              <ProfileMenuItem
+                icon="bell"
+                label={t('profile.notifications')}
+                value={unreadCount > 0 ? String(unreadCount) : undefined}
+                onPress={onOpenNotifications}
+              />
+            ) : onOpenNotifications ? (
+              <ProfileMenuItem
+                icon="bell"
+                label={t('profile.notifications')}
+                value={unreadCount > 0 ? String(unreadCount) : undefined}
+                onPress={onOpenNotifications}
+              />
+            ) : null}
+            <ProfileMenuItem
+              icon="sliders"
+              label={t('profile.notificationPrefs')}
+              onPress={onOpenNotificationPreferences}
+              last
+            />
+          </>
+        )}
+      </ProfileSection>
+
+      <ProfileSection title={t('profile.application')}>
         <ProfileMenuItem
-          icon="bell"
-          label="NOTIFICATIONS"
-          subtitle={notificationSubtitle}
-          onPress={onOpenNotifications}
+          icon="globe"
+          label={t('profile.language')}
+          value={LANGUAGE_LABELS[language]}
+          onPress={onOpenLanguage}
         />
+        <ProfileMenuItem
+          icon="map-pin"
+          label={t('profile.country')}
+          value={t(`countries.${country}`)}
+          onPress={onOpenCountry}
+        />
+        <ProfileMenuItem
+          icon="moon"
+          label={t('profile.appearance')}
+          value={t(`appearanceSettings.${theme}`)}
+          onPress={onOpenAppearance}
+          last
+        />
+      </ProfileSection>
+
+      <ProfileSection title={t('profile.support')}>
+        <ProfileMenuItem icon="help-circle" label={t('profile.help')} onPress={onOpenHelp} />
+        {onOpenHowItWorks ? (
+          <ProfileMenuItem icon="info" label={t('profile.howItWorks')} onPress={onOpenHowItWorks} />
+        ) : null}
+        <ProfileMenuItem icon="file-text" label={t('profile.terms')} onPress={onOpenTerms} />
+        <ProfileMenuItem icon="shield" label={t('profile.privacy')} onPress={onOpenPrivacy} />
+        <ProfileMenuItem icon="info" label={t('profile.about')} onPress={onOpenAbout} last />
+      </ProfileSection>
+
+      {!isGuest ? (
+        <ProfileSection title={t('profile.session')}>
+          <ProfileMenuItem
+            icon="log-out"
+            label={t('profile.signOut')}
+            onPress={() => void supabase.auth.signOut()}
+            destructive
+            showChevron={false}
+            last={false}
+          />
+          <ProfileMenuItem
+            icon="log-out"
+            label={mode === 'COURSIER' ? t('profile.deactivateAccount') : t('profile.deleteAccount')}
+            onPress={() => confirmCloseAccount()}
+            destructive
+            showChevron={false}
+            last
+          />
+        </ProfileSection>
       ) : null}
-      <ProfileMenuItem
-        icon="sliders"
-        label="PRÉFÉRENCES DE NOTIFICATION"
-        subtitle="Push, e-mail et SMS"
-        onPress={onOpenNotificationPreferences}
-      />
 
-      <Text style={styles.sectionLabel}>APPLICATION</Text>
-      <ProfileMenuItem
-        icon="globe"
-        label="LANGUE"
-        subtitle="Langue de l’interface"
-        value={LANGUAGE_LABELS[language]}
-        onPress={onOpenLanguage}
-      />
-      <ProfileMenuItem
-        icon="moon"
-        label="APPARENCE"
-        subtitle="Mode clair ou sombre"
-        value={THEME_LABELS[theme]}
-        onPress={onOpenAppearance}
-      />
-
-      <Text style={styles.sectionLabel}>ASSISTANCE</Text>
-      <ProfileMenuItem
-        icon="help-circle"
-        label="AIDE & SUPPORT"
-        subtitle="FAQ et contact"
-        onPress={onOpenHelp}
-      />
-      <ProfileMenuItem
-        icon="file-text"
-        label="CONDITIONS D'UTILISATION"
-        onPress={onOpenTerms}
-      />
-      <ProfileMenuItem
-        icon="shield"
-        label="CONFIDENTIALITÉ"
-        onPress={onOpenPrivacy}
-      />
-      <ProfileMenuItem icon="info" label="À PROPOS" onPress={onOpenAbout} />
-
-      <Text style={styles.sectionLabel}>SESSION</Text>
-      <ProfileMenuItem
-        icon="log-out"
-        label="DÉCONNEXION"
-        onPress={() => void supabase.auth.signOut()}
-        destructive
-        showChevron={false}
-      />
-
-      <Text style={styles.version}>EVEIDER MOBILE · MVP</Text>
+      <Text style={styles.version}>{t('profile.version')}</Text>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorTokens) {
+  return StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
   },
   content: {
-    padding: 24,
-    paddingTop: 56,
+    paddingHorizontal: 20,
     paddingBottom: 40,
+  },
+  pageContent: {
+    paddingTop: 8,
+  },
+  drawerContent: {
+    paddingTop: 0,
+  },
+  closeRow: {
+    alignSelf: 'flex-start',
+    marginBottom: 12,
+    paddingVertical: 8,
+  },
+  close: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.secondary,
   },
   loader: {
     marginTop: 32,
@@ -218,57 +322,39 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginBottom: 12,
   },
-  identityCard: {
-    backgroundColor: colors.surface,
-    borderWidth: borders.width,
-    borderColor: colors.border,
-    borderRadius: radius.card,
-    padding: 24,
+  identity: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    gap: 12,
+    marginBottom: 8,
+    paddingVertical: 4,
+  },
+  identityText: {
+    flex: 1,
   },
   avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
   },
-  avatarText: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.secondary,
-  },
+    avatarText: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.onPrimary,
+    },
   name: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
     color: colors.secondary,
-    textAlign: 'center',
   },
-  roleBadge: {
-    marginTop: 6,
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    color: colors.primary,
-  },
-  meta: {
-    marginTop: 6,
+  roleLabel: {
+    marginTop: 2,
     fontSize: 13,
-    fontWeight: '500',
-    color: colors.secondary,
-    opacity: 0.8,
-  },
-  sectionLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    color: colors.secondary,
-    opacity: 0.6,
-    marginBottom: 8,
-    marginTop: 8,
+    fontWeight: '400',
+    color: colors.textMuted,
   },
   version: {
     marginTop: 24,
@@ -279,4 +365,5 @@ const styles = StyleSheet.create({
     color: colors.secondary,
     opacity: 0.4,
   },
-});
+  });
+}

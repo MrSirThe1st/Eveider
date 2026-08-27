@@ -645,7 +645,7 @@ export function AdminApplicationReview({
     >
       {!hidePageChrome ? (
         <Link
-          href="/tableau-de-bord/entreprises/applications"
+          href="/tableau-de-bord/organisations/applications"
           style={{
             textDecoration: 'none',
             color: colors.secondary,
@@ -844,7 +844,7 @@ export function AdminApplicationReview({
           <div style={{ display: 'flex', gap: spacing[2], flexWrap: 'wrap' }}>
             {nextApplicationId && nextApplicationId !== business.id ? (
               <Link
-                href={`/tableau-de-bord/entreprises/applications/${nextApplicationId}`}
+                href={`/tableau-de-bord/organisations/applications/${nextApplicationId}`}
                 className="nb-btn nb-btn-primary nb-btn--sm"
                 style={{ textDecoration: 'none' }}
               >
@@ -852,7 +852,7 @@ export function AdminApplicationReview({
               </Link>
             ) : null}
             <Link
-              href="/tableau-de-bord/entreprises/applications"
+              href="/tableau-de-bord/organisations/applications"
               className="nb-btn nb-btn-secondary nb-btn--sm"
               style={{ textDecoration: 'none' }}
             >
@@ -966,7 +966,7 @@ export function AdminApplicationReview({
                   <dl style={{ margin: 0 }}>
                     <InfoRow
                       label="Utilisateur"
-                      value={`${ownerUser?.fullName ?? '—'} (${ownerUser?.userRole ?? 'owner'})`}
+                      value={`${ownerUser?.fullName ?? '—'} (${ownerUser?.userRole ?? 'admin'})`}
                     />
                     <InfoRow label="Email" value={business.contactEmail ?? ownerUser?.email ?? '—'} />
                     <InfoRow

@@ -4,9 +4,21 @@ import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 
+export type CurrentMembership = {
+  id: string;
+  userId: string;
+  businessId: string;
+  role: import('@eveider/domain').OrganizationRole;
+  createdAt: Date;
+  updatedAt: Date;
+  isPlatformOrg: boolean;
+  organizationName: string;
+};
+
 export type CurrentUser = {
   authUser: SupabaseUser;
   profile: User;
+  memberships: CurrentMembership[];
 };
 
 /**
@@ -35,11 +47,12 @@ export async function resolveCurrentUser(): Promise<CurrentUser | null> {
     return null;
   }
 
-  const { users } = createRepositories();
+  const { users, memberships } = createRepositories();
   const profile = await users.findByAuthId(authUser.id);
-  if (!profile || profile.isBlocked) {
+  if (!profile || profile.isBlocked || profile.deletedAt || profile.deactivatedAt) {
     return null;
   }
 
-  return { authUser, profile };
+  const rows = await memberships.listByUserIdWithOrgFlags(profile.id);
+  return { authUser, profile, memberships: rows };
 }

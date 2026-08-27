@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
+import { resolveAuthApiUrl } from './auth-api-url';
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const key = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -37,5 +38,11 @@ export const supabase = createClient(url, key, {
   },
 });
 
-export const authApiUrl =
-  process.env.EXPO_PUBLIC_AUTH_API_URL ?? 'http://localhost:3000';
+export function getAuthApiUrl() {
+  return resolveAuthApiUrl(
+    process.env.EXPO_PUBLIC_AUTH_API_URL ?? 'https://www.eveider.com',
+    Platform.OS,
+  );
+}
+
+export const authApiUrl = getAuthApiUrl();

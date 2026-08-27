@@ -212,6 +212,7 @@ export function DropdownMenu({
           aria-expanded={open}
           aria-controls={menuId}
           aria-label={label}
+          title={label}
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();

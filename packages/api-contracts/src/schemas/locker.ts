@@ -1,5 +1,7 @@
+import { DRC_CITIES } from '@eveider/domain';
 import { z } from 'zod';
 import { commissionTypeSchema, compartmentStatusSchema, lockerStatusSchema, lockerTypeSchema } from '../schemas.js';
+import { zodEnum } from '../zod-enum.js';
 
 const gridDimensionSchema = z.number().int().min(1).max(12);
 
@@ -119,6 +121,10 @@ export const nearestLockersQuerySchema = z.object({
     .transform((value) => value === 'true'),
 });
 
+export const lockersByCityQuerySchema = z.object({
+  city: zodEnum(DRC_CITIES),
+});
+
 export const selectParcelLockerSchema = z.object({
   lockerId: z.string().uuid('Point invalide'),
 });
@@ -134,6 +140,7 @@ export const updateCompartmentStatusSchema = z.object({
 export type CreateLockerInput = z.infer<typeof createLockerSchema>;
 export type UpdateLockerInput = z.infer<typeof updateLockerSchema>;
 export type NearestLockersQuery = z.infer<typeof nearestLockersQuerySchema>;
+export type LockersByCityQuery = z.infer<typeof lockersByCityQuerySchema>;
 export type SelectParcelLockerInput = z.infer<typeof selectParcelLockerSchema>;
 export type UpdateLockerStatusInput = z.infer<typeof updateLockerStatusSchema>;
 export type UpdateCompartmentStatusInput = z.infer<typeof updateCompartmentStatusSchema>;

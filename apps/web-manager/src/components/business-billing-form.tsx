@@ -42,7 +42,7 @@ export function BusinessBillingForm({
     setSuccess(null);
     setSaving(true);
     try {
-      const response = await fetch('/api/entreprise/billing', {
+      const response = await fetch('/api/organisation/billing', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

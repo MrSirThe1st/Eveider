@@ -1,5 +1,10 @@
 import { PARCEL_STATUS_LABELS, type ParcelStatus } from '@eveider/domain';
-import { AccessDeniedError, assertCustomerRole, type DataAccessContext } from '../context.js';
+import {
+  AccessDeniedError,
+  assertCourierRole,
+  assertCustomerRole,
+  type DataAccessContext,
+} from '../context.js';
 import type { Queryable } from '../db/index.js';
 import { mapNotification, mapParcel } from '../db/mappers.js';
 import type { Notification, Parcel } from '../db/types.js';
@@ -15,6 +20,8 @@ const CUSTOMER_NOTIFY_STATUSES: ParcelStatus[] = [
   'ready_for_pickup',
   'collected',
 ];
+
+const ACTIVE_COURIER_DELIVERY_STATUSES = ['assigned', 'scanned', 'drop_off_pending'] as const;
 
 export class NotificationRepository {
   constructor(private readonly db: Queryable) {}
@@ -67,8 +74,36 @@ export class NotificationRepository {
     }
   }
 
+  async notifyCourierAssigned(
+    courierId: string,
+    parcelId: string,
+    trackingNumber: string,
+    lockerName?: string | null,
+  ): Promise<void> {
+    const locker = lockerName?.trim();
+    const message = locker
+      ? `Nouvelle assignation — ${trackingNumber} · ${locker}`
+      : `Nouvelle assignation — ${trackingNumber}`;
+    await this.insertInAppIfNew(courierId, parcelId, message);
+  }
+
+  async notifyCouriersLockerBlocked(lockerId: string, lockerName: string): Promise<void> {
+    const result = await this.db.query(
+      `SELECT DISTINCT d.driver_id
+       FROM deliveries d
+       JOIN parcels p ON p.id = d.parcel_id
+       WHERE p.locker_id = $1 AND d.status = ANY($2)`,
+      [lockerId, ACTIVE_COURIER_DELIVERY_STATUSES],
+    );
+    const message = `Casier indisponible — ${lockerName} · dépôt bloqué sur vos livraisons`;
+    for (const row of result.rows) {
+      const courierId = String(row.driver_id);
+      await this.insertInAppIfNew(courierId, null, message);
+    }
+  }
+
   async listForCustomer(ctx: DataAccessContext): Promise<CustomerNotification[]> {
-    assertCustomerRole(ctx);
+    this.assertInboxRole(ctx);
 
     const result = await this.db.query(
       `SELECT n.*, p.id AS parcel_id_relation, p.tracking_number AS parcel_tracking_number,
@@ -95,14 +130,14 @@ export class NotificationRepository {
   }
 
   async unreadCount(ctx: DataAccessContext): Promise<number> {
-    assertCustomerRole(ctx);
+    this.assertInboxRole(ctx);
 
     const result = await this.db.query(`SELECT COUNT(*)::int AS count FROM notifications WHERE user_id = $1 AND channel = 'in_app' AND sent_at IS NULL`, [ctx.userId!]);
     return Number(result.rows[0]?.count ?? 0);
   }
 
   async markRead(ctx: DataAccessContext, id: string): Promise<CustomerNotification> {
-    assertCustomerRole(ctx);
+    this.assertInboxRole(ctx);
 
     const found = await this.db.query(`SELECT * FROM notifications WHERE id = $1 LIMIT 1`, [id]);
     const row = found.rows[0];
@@ -133,6 +168,44 @@ export class NotificationRepository {
           }
         : null,
     };
+  }
+
+  private assertInboxRole(ctx: DataAccessContext): void {
+    if (ctx.role === 'customer') {
+      assertCustomerRole(ctx);
+      return;
+    }
+    if (ctx.role === 'courier') {
+      assertCourierRole(ctx);
+      return;
+    }
+    throw new AccessDeniedError('Customer or courier role required');
+  }
+
+  async notifyCourierDeactivated(userIds: string[], courierName: string): Promise<void> {
+    const message = `Le coursier ${courierName} a désactivé son compte.`;
+    for (const userId of userIds) {
+      await this.insertInAppIfNew(userId, null, message);
+    }
+  }
+
+  private async insertInAppIfNew(
+    userId: string,
+    parcelId: string | null,
+    message: string,
+  ): Promise<void> {
+    const duplicate = await this.db.query(
+      `SELECT id FROM notifications
+       WHERE user_id = $1 AND channel = 'in_app' AND message = $2
+         AND COALESCE(parcel_id::text, '') = COALESCE($3::text, '')
+       LIMIT 1`,
+      [userId, message, parcelId],
+    );
+    if (duplicate.rows[0]) return;
+    await this.db.query(
+      `INSERT INTO notifications (user_id, parcel_id, channel, message) VALUES ($1, $2, 'in_app', $3)`,
+      [userId, parcelId, message],
+    );
   }
 
   private async resolveCustomerUserId(parcel: Pick<Parcel, 'customerId' | 'recipientPhone'>) {

@@ -113,7 +113,7 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void fetch('/api/entreprise/shipment-prefill')
+    void fetch('/api/organisation/shipment-prefill')
       .then((res) => res.json())
       .then((result) => {
         if (!result.success) return;
@@ -138,7 +138,7 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
   }, []);
 
   useEffect(() => {
-    void fetch('/api/entreprise/lockers')
+    void fetch('/api/organisation/lockers')
       .then((response) => response.json())
       .then((result) => {
         if (result.success) {
@@ -172,7 +172,7 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
     setCompartmentId('');
     setCompartmentError(null);
 
-    void fetch(`/api/entreprise/lockers/${lockerId}/compartments`)
+    void fetch(`/api/organisation/lockers/${lockerId}/compartments`)
       .then((res) => res.json())
       .then((result) => {
         if (cancelled) return;
@@ -239,7 +239,7 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
     if (senderAddress.trim()) params.set('senderAddress', senderAddress.trim());
 
     let cancelled = false;
-    void fetch(`/api/entreprise/delivery-quote?${params.toString()}`)
+    void fetch(`/api/organisation/delivery-quote?${params.toString()}`)
       .then((res) => res.json())
       .then((json) => {
         if (!cancelled && json.success) {
@@ -332,7 +332,7 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
     setError(null);
 
     try {
-      const response = await fetch('/api/entreprise/parcels', {
+      const response = await fetch('/api/organisation/parcels', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -375,7 +375,7 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
       const tracking = result.data.parcel.trackingNumber as string;
       toast.success(`Envoi ${tracking} créé.`);
       router.refresh();
-      router.replace(`/entreprise/tableau-de-bord/colis/${result.data.parcel.id}?created=1`);
+      router.replace(`/organisation/tableau-de-bord/colis/${result.data.parcel.id}?created=1`);
     } catch {
       const message = 'Erreur réseau. Vérifiez votre connexion et réessayez.';
       setError(message);

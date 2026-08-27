@@ -1,22 +1,153 @@
-import type { UserRole } from '@eveider/domain';
+import type {
+  OrganizationPermission,
+  OrganizationRole,
+  PlatformRole,
+} from '@eveider/domain';
+import {
+  canAdministerPlatform,
+  hasOrganizationPermission,
+  isDriverRole,
+  isOrganizationWebRole,
+} from '@eveider/domain';
 
-export type DataAccessContext = {
-  role: UserRole;
-  userId?: string;
-  businessId?: string;
-  phone?: string;
+export type OrganizationMembershipRef = {
+  organizationId: string;
+  role: OrganizationRole;
 };
 
-export function createDataAccessContext(
-  role: UserRole,
-  options?: { userId?: string; businessId?: string; phone?: string },
-): DataAccessContext {
-  return {
-    role,
+export type DataAccessContext = {
+  userId?: string;
+  phone?: string;
+  isCustomer: boolean;
+  platformRole: PlatformRole | null;
+  organizationId?: string;
+  organizationRole?: OrganizationRole | null;
+  memberships: OrganizationMembershipRef[];
+  /** @deprecated alias of organizationId for existing repository SQL */
+  businessId?: string;
+  /**
+   * @deprecated derived persona for existing repository `ctx.role` branches.
+   * Prefer platformRole / organizationRole / isCustomer.
+   */
+  role: 'admin' | 'business' | 'customer' | 'courier' | 'operator';
+};
+
+type ContextOptions = {
+  userId?: string;
+  phone?: string;
+  isCustomer?: boolean;
+  platformRole?: PlatformRole | null;
+  organizationId?: string;
+  organizationRole?: OrganizationRole | null;
+  memberships?: OrganizationMembershipRef[];
+  businessId?: string;
+  businessUserRole?: OrganizationRole | string | null;
+};
+
+type LegacyRole = 'admin' | 'business' | 'customer' | 'courier' | 'operator' | 'driver';
+
+function mapLegacyOrgRole(role: string | null | undefined): OrganizationRole {
+  if (role === 'account_owner' || role === 'admin' || role === 'dispatcher' || role === 'driver') {
+    return role;
+  }
+  if (role === 'logistics_manager' || role === 'operations_staff' || role === 'viewer' || role === 'manager') {
+    return 'dispatcher';
+  }
+  return 'admin';
+}
+
+function fromLegacy(role: LegacyRole, extra?: ContextOptions): DataAccessContext {
+  if (role === 'admin') {
+    return fromOptions({
+      ...extra,
+      platformRole: extra?.platformRole ?? 'super_admin',
+    });
+  }
+  if (role === 'operator') {
+    return fromOptions({
+      ...extra,
+      organizationId: extra?.organizationId ?? extra?.businessId ?? 'eveider-org',
+      organizationRole: 'dispatcher',
+    });
+  }
+  if (role === 'customer') {
+    return fromOptions({ ...extra, isCustomer: true });
+  }
+  if (role === 'courier' || role === 'driver') {
+    return fromOptions({
+      ...extra,
+      organizationId: extra?.organizationId ?? extra?.businessId,
+      organizationRole: 'driver',
+    });
+  }
+  const organizationId = extra?.organizationId ?? extra?.businessId;
+  return fromOptions({
+    ...extra,
+    organizationId,
+    organizationRole: mapLegacyOrgRole(extra?.organizationRole ?? extra?.businessUserRole ?? 'admin'),
+  });
+}
+
+function deriveLegacyRole(options?: ContextOptions): DataAccessContext['role'] {
+  if (options?.platformRole) return 'admin';
+  if (options?.organizationRole === 'driver') return 'courier';
+  if (
+    options?.organizationRole === 'account_owner' ||
+    options?.organizationRole === 'admin' ||
+    options?.organizationRole === 'dispatcher'
+  ) {
+    return 'business';
+  }
+  if (options?.businessUserRole) {
+    return mapLegacyOrgRole(options.businessUserRole) === 'driver' ? 'courier' : 'business';
+  }
+  if (options?.isCustomer) return 'customer';
+  return 'customer';
+}
+
+function fromOptions(options?: ContextOptions): DataAccessContext {
+  const organizationId = options?.organizationId ?? options?.businessId;
+  const organizationRole = options?.organizationRole
+    ? mapLegacyOrgRole(options.organizationRole)
+    : options?.businessUserRole
+      ? mapLegacyOrgRole(options.businessUserRole)
+      : null;
+  const memberships =
+    options?.memberships ??
+    (organizationId && organizationRole
+      ? [{ organizationId, role: organizationRole }]
+      : []);
+
+  const built = {
     userId: options?.userId,
-    businessId: options?.businessId,
     phone: options?.phone,
+    isCustomer: options?.isCustomer ?? false,
+    platformRole: options?.platformRole ?? null,
+    organizationId,
+    organizationRole,
+    memberships,
+    businessId: organizationId,
   };
+
+  return {
+    ...built,
+    role: deriveLegacyRole({
+      ...options,
+      platformRole: built.platformRole,
+      organizationRole: built.organizationRole,
+      isCustomer: built.isCustomer,
+    }),
+  };
+}
+
+export function createDataAccessContext(
+  roleOrOptions?: LegacyRole | ContextOptions,
+  extra?: ContextOptions,
+): DataAccessContext {
+  if (typeof roleOrOptions === 'string') {
+    return fromLegacy(roleOrOptions, extra);
+  }
+  return fromOptions(roleOrOptions);
 }
 
 export class AccessDeniedError extends Error {
@@ -26,16 +157,36 @@ export class AccessDeniedError extends Error {
   }
 }
 
+export function isPlatformAdminContext(ctx: DataAccessContext): boolean {
+  return canAdministerPlatform(ctx.platformRole);
+}
+
 export function assertAdmin(ctx: DataAccessContext): void {
-  if (ctx.role !== 'admin') {
+  if (!isPlatformAdminContext(ctx)) {
     throw new AccessDeniedError('Admin role required');
   }
 }
 
 export function assertBusinessScope(ctx: DataAccessContext, businessId: string): void {
-  if (ctx.role === 'admin') return;
-  if (ctx.role === 'business' && ctx.businessId === businessId) return;
+  if (isPlatformAdminContext(ctx)) return;
+  if (ctx.organizationId === businessId) return;
+  if (ctx.memberships.some((membership) => membership.organizationId === businessId)) return;
   throw new AccessDeniedError('Business scope violation');
+}
+
+export function assertCompanyPermission(
+  ctx: DataAccessContext,
+  permission: OrganizationPermission | 'manage_couriers',
+): void {
+  if (isPlatformAdminContext(ctx)) return;
+  if (!ctx.organizationId || !isOrganizationWebRole(ctx.organizationRole)) {
+    throw new AccessDeniedError('Autorisation insuffisante');
+  }
+  const mapped: OrganizationPermission =
+    permission === 'manage_couriers' ? 'manage_drivers' : permission;
+  if (!hasOrganizationPermission(ctx.organizationRole, mapped)) {
+    throw new AccessDeniedError('Autorisation insuffisante');
+  }
 }
 
 export function assertCustomerOwnsParcel(
@@ -43,8 +194,8 @@ export function assertCustomerOwnsParcel(
   customerId: string | null | undefined,
   recipientPhone?: string,
 ): void {
-  if (ctx.role === 'admin') return;
-  if (ctx.role === 'customer' && ctx.userId) {
+  if (isPlatformAdminContext(ctx)) return;
+  if (ctx.isCustomer && ctx.userId) {
     if (customerId === ctx.userId) return;
     if (recipientPhone && ctx.phone && recipientPhone === ctx.phone) return;
   }
@@ -52,19 +203,23 @@ export function assertCustomerOwnsParcel(
 }
 
 export function assertCustomerRole(ctx: DataAccessContext): void {
-  if (ctx.role !== 'customer' || !ctx.userId) {
+  if (!ctx.isCustomer || !ctx.userId) {
     throw new AccessDeniedError('Customer role required');
   }
 }
 
 export function assertCourierRole(ctx: DataAccessContext): void {
-  if (ctx.role !== 'courier' || !ctx.userId) {
-    throw new AccessDeniedError('Courier role required');
+  if (!ctx.userId || !isDriverRole(ctx.organizationRole)) {
+    throw new AccessDeniedError('Driver role required');
   }
 }
 
+export function assertDriverRole(ctx: DataAccessContext): void {
+  assertCourierRole(ctx);
+}
+
 export function assertBusinessRole(ctx: DataAccessContext): void {
-  if (ctx.role !== 'business' || !ctx.userId || !ctx.businessId) {
-    throw new AccessDeniedError('Business role required');
+  if (!ctx.userId || !ctx.organizationId || !isOrganizationWebRole(ctx.organizationRole)) {
+    throw new AccessDeniedError('Organization role required');
   }
 }

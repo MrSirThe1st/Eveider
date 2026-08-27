@@ -13,7 +13,7 @@ export const updateBusinessProfileSchema = z.object({
   contactPhone: phoneSchema,
 });
 
-export const businessUserRoleSchema = z.enum(['owner', 'manager', 'logistics_employee']);
+export const businessUserRoleSchema = z.enum(['account_owner', 'admin', 'dispatcher', 'driver']);
 export const businessTypeSchema = z.enum(['registered_company', 'individual_seller', 'marketplace', 'enterprise_partner']);
 export const locationTypeSchema = z.enum(['business_address', 'warehouse', 'pickup_point']);
 export const pickupMethodSchema = z.enum(['courier_pickup', 'merchant_dropoff']);
@@ -46,7 +46,7 @@ export const registerBusinessAccountSchema = z.object({
   email: emailSchema,
   phone: phoneSchema,
   password: z.string().min(8, '8 caractères minimum'),
-  userRole: businessUserRoleSchema,
+  inviteToken: z.string().uuid().optional(),
 });
 
 // Step 2: Verification Code
@@ -204,6 +204,18 @@ export type UpdateBusinessProfileInput = z.infer<typeof updateBusinessProfileSch
 export type UpdateBusinessSettingsInput = z.infer<typeof updateBusinessSettingsSchema>;
 export type RegisterBusinessAccountInput = z.infer<typeof registerBusinessAccountSchema>;
 
+export const inviteTeamMemberSchema = z.object({
+  email: emailSchema,
+  role: businessUserRoleSchema,
+});
+
+export const updateTeamMemberRoleSchema = z.object({
+  role: businessUserRoleSchema,
+});
+
+export type InviteTeamMemberInput = z.infer<typeof inviteTeamMemberSchema>;
+export type UpdateTeamMemberRoleInput = z.infer<typeof updateTeamMemberRoleSchema>;
+
 export const registerBusinessAccountResponseSchema = z.object({
   user: z.object({
     id: z.string().uuid(),
@@ -225,6 +237,7 @@ export const registerBusinessAccountResponseSchema = z.object({
     contactPhone: z.string().nullable(),
     isPhoneVerified: z.boolean(),
   }),
+  joinedExistingCompany: z.boolean(),
 });
 
 export const verifyBusinessPhoneOtpResponseSchema = z.object({

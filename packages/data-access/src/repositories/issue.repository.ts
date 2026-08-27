@@ -1,4 +1,4 @@
-import { transitionIssue, type IssueStatus, type IssueType } from '@eveider/domain';
+import { canTransitionDelivery, transitionDelivery, transitionIssue, type DeliveryStatus, type IssueStatus, type IssueType } from '@eveider/domain';
 import type { Queryable } from '../db/index.js';
 import { mapIssue } from '../db/mappers.js';
 import type { Issue, Locker, Parcel, User } from '../db/types.js';
@@ -6,6 +6,7 @@ import {
   AccessDeniedError,
   assertAdmin,
   assertBusinessRole,
+  assertCompanyPermission,
   assertCourierRole,
   assertCustomerOwnsParcel,
   assertCustomerRole,
@@ -23,6 +24,8 @@ const COURIER_ISSUE_TYPES: IssueType[] = [
   'locker_unavailable',
   'parcel_problem',
 ];
+
+const COURIER_FAIL_ISSUE_TYPES: IssueType[] = ['failed_delivery', 'locker_unavailable'];
 
 const BUSINESS_ISSUE_TYPES: IssueType[] = [
   'parcel_problem',
@@ -99,6 +102,7 @@ export class IssueRepository {
     options?: { parcelId?: string; status?: IssueStatus },
   ): Promise<IssueWithRelations[]> {
     assertBusinessRole(ctx);
+    assertCompanyPermission(ctx, 'manage_operations');
     const params: unknown[] = [ctx.businessId];
     const conditions = ['p.business_id = $1'];
 
@@ -187,7 +191,10 @@ export class IssueRepository {
       throw new Error('Le colis est requis pour signaler un incident');
     }
 
-    const delivery = await this.db.query(`SELECT id FROM deliveries WHERE parcel_id = $1 AND courier_id = $2 LIMIT 1`, [input.parcelId, ctx.userId]);
+    const delivery = await this.db.query(
+      `SELECT id, status FROM deliveries WHERE parcel_id = $1 AND driver_id = $2 LIMIT 1`,
+      [input.parcelId, ctx.userId],
+    );
     if (!delivery.rows[0]) {
       throw new AccessDeniedError('Livraison non assignée');
     }
@@ -201,7 +208,21 @@ export class IssueRepository {
       if (!locker.rows[0]) throw new Error(`Locker ${lockerId} not found`);
     }
 
-    const created = await this.db.query(`INSERT INTO issues (type, description, parcel_id, locker_id, reporter_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`, [input.type, input.description, input.parcelId, lockerId ?? null, ctx.userId!]);
+    const created = await this.db.query(
+      `INSERT INTO issues (type, description, parcel_id, locker_id, reporter_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [input.type, input.description, input.parcelId, lockerId ?? null, ctx.userId!],
+    );
+
+    if (COURIER_FAIL_ISSUE_TYPES.includes(input.type)) {
+      const currentStatus = delivery.rows[0].status as DeliveryStatus;
+      if (canTransitionDelivery(currentStatus, 'failed')) {
+        await this.db.query(`UPDATE deliveries SET status = $1, updated_at = NOW() WHERE id = $2`, [
+          transitionDelivery(currentStatus, 'failed'),
+          String(delivery.rows[0].id),
+        ]);
+      }
+    }
+
     return (await this.loadWithRelations('i.id = $1', [created.rows[0]!.id]))[0]!;
   }
 
@@ -210,6 +231,7 @@ export class IssueRepository {
     input: CreateIssueInput,
   ): Promise<IssueWithRelations> {
     assertBusinessRole(ctx);
+    assertCompanyPermission(ctx, 'manage_operations');
     this.assertAllowedType(input.type, BUSINESS_ISSUE_TYPES);
 
     if (!input.parcelId) {

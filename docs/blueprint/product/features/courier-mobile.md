@@ -4,7 +4,7 @@ Screens and behavior for **courier mode** in the Eveider mobile app.
 
 ## Purpose
 
-Couriers complete assigned deliveries: scan parcels, drop off at lockers, confirm completion, and report exceptions.
+Couriers complete assigned deliveries: scan parcels, drop off at lockers **with a photo of the deposit**, confirm completion, and report exceptions.
 
 **Design:** Industrial handheld-scanner feel — large buttons, large scan area, minimal decoration. See [design-dna.md](../design-dna.md). All UI copy in **French**.
 
@@ -12,9 +12,10 @@ Couriers complete assigned deliveries: scan parcels, drop off at lockers, confir
 
 ### Delivery Dashboard
 
-- Assigned deliveries list
-- Priority and scheduled deliveries highlighted
-- Filters: today, overdue, completed
+- Assigned deliveries list, ordered by a suggested nearest-locker itinerary for active stops
+- 90-day performance strip (completed, failed, success rate) opening history
+- WhatsApp contact to dispatch (communication only — does not change delivery state)
+- Filters: in progress, incidents, completed (90-day window)
 
 **Entry point** after courier login.
 
@@ -26,6 +27,7 @@ Per-assignment view:
 - Destination locker (name, address, map link)
 - Customer reference (not full PII beyond operational need)
 - Current status and allowed next actions
+- WhatsApp dispatch contact
 
 ### Scan & Confirm
 
@@ -37,11 +39,12 @@ Failed scan → surface error; do not advance status without confirmation.
 
 ### Locker Drop-off
 
-- Select assigned locker compartment (or confirm system-assigned slot)
-- Confirm drop-off completion
+- Confirm arrival at locker (`drop_off_pending`)
+- Photograph the parcel in the compartment (required)
+- Confirm drop-off completion with that photo
 - Triggers parcel transition toward `delivered_to_locker` / `ready_for_pickup` per business rules
 
-Courier must not drop off to offline or full lockers — block with clear message and issue reporting path.
+Courier must not drop off to offline or full lockers — block with clear message and issue reporting path. Recipient signature is **out of scope** — Eveider is locker-first.
 
 ### Issue Reporting
 
@@ -51,17 +54,27 @@ Courier must not drop off to offline or full lockers — block with clear messag
 | Locker unavailable | Offline, full, or access blocked |
 | Parcel damaged / missing | Custody or condition problem |
 
-Each report creates an **Issue** for admin resolution and may hold or reverse parcel status per rules.
+Each report creates an **Issue** for admin resolution and may fail the delivery. WhatsApp is for talking to dispatch, not for changing delivery state.
 
 ### Delivery History
 
-- Completed deliveries (date, locker, parcel reference)
-- Performance overview (MVP: counts; advanced metrics later)
+- Completed and failed deliveries for the last **90 days**
+- Operational metrics: completed count, failed count, success rate
+- No earnings / pay
+
+### Notifications
+
+In-app inbox for couriers:
+
+- New assignment
+- Destination locker blocked (offline / full / archived)
+
+No recipient courier-arrival ETA. Recipients are notified when the parcel is ready at the locker.
 
 ## Courier Flow Summary
 
 ```
-Login → Assigned deliveries → Scan → Drop-off → Confirm
+Login → Assigned deliveries → Scan → Arrive at locker → Photo proof → Confirm
 ```
 
 Exception:

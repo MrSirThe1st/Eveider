@@ -41,7 +41,7 @@ export function BusinessReportIssue({ parcelId }: BusinessReportIssueProps) {
   const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(async () => {
-    const response = await fetch(`/api/entreprise/issues?parcelId=${parcelId}`, { cache: 'no-store' });
+    const response = await fetch(`/api/organisation/issues?parcelId=${parcelId}`, { cache: 'no-store' });
     const result = await response.json();
     if (result.success) {
       setIssues(result.data.issues as IssueItem[]);
@@ -58,7 +58,7 @@ export function BusinessReportIssue({ parcelId }: BusinessReportIssueProps) {
     setSuccess(null);
     setSubmitting(true);
     try {
-      const response = await fetch('/api/entreprise/issues', {
+      const response = await fetch('/api/organisation/issues', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, parcelId, description }),

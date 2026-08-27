@@ -25,12 +25,25 @@ vi.mock('../db/pool.js', async (importOriginal) => {
 });
 
 describe('DeliveryRepository', () => {
+  const jpegPhoto = `data:image/jpeg;base64,${Buffer.from([
+    0xff, 0xd8, 0xff, 0xe0, ...Array.from({ length: 40 }, () => 0),
+  ]).toString('base64')}`;
   const notifyParcelStatusChange = vi.fn();
   const notifyParcelCreatedForCustomer = vi.fn();
-  const notifications = { notifyParcelStatusChange, notifyParcelCreatedForCustomer };
+  const notifyCourierAssigned = vi.fn();
+  const notifications = {
+    notifyParcelStatusChange,
+    notifyParcelCreatedForCustomer,
+    notifyCourierAssigned,
+  };
 
   const courierCtx = createDataAccessContext('courier', { userId: 'courier-1' });
   const adminCtx = createDataAccessContext('admin', { userId: 'admin-1' });
+  const businessCtx = createDataAccessContext('business', {
+    userId: 'biz-user-1',
+    businessId: 'biz-1',
+    businessUserRole: 'logistics_manager',
+  });
 
   let db = createSqlMatchMock(() => null);
   let repo: DeliveryRepository;
@@ -64,6 +77,9 @@ describe('DeliveryRepository', () => {
       if (sqlIncludes(sql, 'INSERT INTO deliveries')) {
         return deliveryRow();
       }
+      if (sqlIncludes(sql, 'SELECT name FROM lockers')) {
+        return { name: 'EVEIDER GOMBE' };
+      }
       throw new Error(`Unexpected SQL: ${sql}`);
     });
 
@@ -73,6 +89,67 @@ describe('DeliveryRepository', () => {
       expect.stringContaining('INSERT INTO deliveries'),
       ['parcel-1', 'courier-1'],
     );
+    expect(notifyCourierAssigned).toHaveBeenCalledWith(
+      'courier-1',
+      'parcel-1',
+      'EVD26TEST0001A',
+      'EVEIDER GOMBE',
+    );
+  });
+
+  it('lets a business assign its own active courier', async () => {
+    setup((sql) => {
+      if (sqlIncludes(sql, 'SELECT * FROM parcels')) {
+        return parcelRow();
+      }
+      if (sqlIncludes(sql, 'SELECT * FROM users')) {
+        return {
+          id: 'courier-1',
+          role: 'courier',
+          business_id: 'biz-1',
+          is_blocked: false,
+          deactivated_at: null,
+          deleted_at: null,
+        };
+      }
+      if (sqlIncludes(sql, 'FROM deliveries') && sqlIncludes(sql, 'status = ANY')) {
+        return null;
+      }
+      if (sqlIncludes(sql, 'INSERT INTO deliveries')) {
+        return deliveryRow();
+      }
+      if (sqlIncludes(sql, 'SELECT name FROM lockers')) {
+        return { name: 'EVEIDER GOMBE' };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    await repo.assign(businessCtx, 'parcel-1', 'courier-1');
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO deliveries'),
+      ['parcel-1', 'courier-1'],
+    );
+  });
+
+  it('rejects assigning another company’s courier', async () => {
+    setup((sql) => {
+      if (sqlIncludes(sql, 'SELECT * FROM parcels')) {
+        return parcelRow();
+      }
+      if (sqlIncludes(sql, 'SELECT * FROM users')) {
+        return {
+          id: 'courier-2',
+          role: 'courier',
+          business_id: 'biz-other',
+          is_blocked: false,
+          deactivated_at: null,
+          deleted_at: null,
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    await expect(repo.assign(businessCtx, 'parcel-1', 'courier-2')).rejects.toThrow('périmètre');
   });
 
   it('rejects assign when active delivery exists', async () => {
@@ -142,7 +219,7 @@ describe('DeliveryRepository', () => {
   it('rejects courier access to another courier delivery', async () => {
     setup((sql) => {
       if (sqlIncludes(sql, 'FROM deliveries d')) {
-        return courierDeliveryJoin({ courier_id: 'other-courier' });
+        return courierDeliveryJoin({ driver_id: 'other-courier' });
       }
       throw new Error(`Unexpected SQL: ${sql}`);
     });
@@ -252,10 +329,14 @@ describe('DeliveryRepository', () => {
       throw new Error(`Unexpected SQL: ${sql}`);
     });
 
-    await repo.completeDropOff(courierCtx, 'delivery-1');
+    await repo.completeDropOff(courierCtx, 'delivery-1', undefined, jpegPhoto);
 
     expect(writes).toEqual(['delivery', 'compartment', 'parcel', 'pin']);
     expect(notifyParcelStatusChange).toHaveBeenCalledWith('parcel-1', 'ready_for_pickup');
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining('drop_off_photo'),
+      expect.arrayContaining(['completed', expect.stringContaining('data:image/jpeg;base64,'), 'delivery-1']),
+    );
     expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('UPDATE compartments SET status'),
       ['comp-1'],
@@ -264,5 +345,63 @@ describe('DeliveryRepository', () => {
       expect.stringContaining('UPDATE parcels SET status'),
       expect.arrayContaining(['ready_for_pickup', 'comp-1', 'parcel-1']),
     );
+  });
+
+  it('marks an in-progress delivery as failed', async () => {
+    let loadCount = 0;
+    setup((sql) => {
+      if (sqlIncludes(sql, 'FROM deliveries d') && sqlIncludes(sql, 'JOIN parcels')) {
+        loadCount += 1;
+        if (loadCount === 1) {
+          return courierDeliveryJoin({ status: 'scanned' }, { status: 'in_transit' });
+        }
+        return courierDeliveryJoin({ status: 'failed' }, { status: 'in_transit' });
+      }
+      if (sqlIncludes(sql, 'UPDATE deliveries SET status')) {
+        return null;
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const result = await repo.fail(courierCtx, 'delivery-1');
+    expect(result.status).toBe('failed');
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE deliveries SET status'),
+      ['failed', 'delivery-1'],
+    );
+  });
+
+  it('rejects drop-off completion without a photo', async () => {
+    setup((sql) => {
+      if (sqlIncludes(sql, 'FROM deliveries d') && sqlIncludes(sql, 'JOIN parcels')) {
+        return courierDeliveryJoin(
+          { status: 'drop_off_pending' },
+          { status: 'in_transit', compartment_id: null },
+        );
+      }
+      if (sqlIncludes(sql, 'SELECT id, label FROM compartments')) {
+        return { id: 'comp-1', label: 'A1' };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    await expect(repo.completeDropOff(courierCtx, 'delivery-1')).rejects.toThrow('Photo de dépôt');
+  });
+
+  it('summarizes 90-day courier history', async () => {
+    setup((sql, values) => {
+      if (sqlIncludes(sql, 'COUNT(*) FILTER') && sqlIncludes(sql, 'FROM deliveries')) {
+        expect(values).toEqual(['courier-1', 90]);
+        return { completed: 8, failed: 2 };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    await expect(repo.getCourierHistorySummary(courierCtx)).resolves.toEqual({
+      days: 90,
+      completed: 8,
+      failed: 2,
+      successRate: 80,
+    });
   });
 });

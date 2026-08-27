@@ -3,6 +3,7 @@ import {
   AccessDeniedError,
   assertAdmin,
   assertBusinessScope,
+  assertCompanyPermission,
   assertCustomerOwnsParcel,
   createDataAccessContext,
 } from './context.js';
@@ -45,5 +46,26 @@ describe('DataAccessContext', () => {
   it('requires admin role', () => {
     expect(() => assertAdmin(createDataAccessContext('courier'))).toThrow(AccessDeniedError);
     expect(() => assertAdmin(createDataAccessContext('admin'))).not.toThrow();
+  });
+
+  it('enforces organization membership permissions', () => {
+    const dispatcher = createDataAccessContext('business', {
+      userId: 'u-1',
+      businessId: 'biz-1',
+      businessUserRole: 'dispatcher',
+    });
+    expect(() => assertCompanyPermission(dispatcher, 'view_parcels')).not.toThrow();
+    expect(() => assertCompanyPermission(dispatcher, 'create_parcels')).not.toThrow();
+    expect(() => assertCompanyPermission(dispatcher, 'manage_team')).toThrow(AccessDeniedError);
+    expect(() =>
+      assertCompanyPermission(
+        createDataAccessContext('business', {
+          userId: 'u-2',
+          businessId: 'biz-1',
+          businessUserRole: 'admin',
+        }),
+        'manage_team',
+      ),
+    ).not.toThrow();
   });
 });

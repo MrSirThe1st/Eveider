@@ -5,12 +5,6 @@ import { NextResponse } from 'next/server';
 import { resolveCurrentUser } from '@/lib/auth/resolve-current-user';
 import { getSupabaseEnv } from '@/lib/supabase/env';
 
-const MOBILE_ROLES = ['customer', 'courier'] as const;
-
-function isMobileRole(role: string): role is (typeof MOBILE_ROLES)[number] {
-  return MOBILE_ROLES.includes(role as (typeof MOBILE_ROLES)[number]);
-}
-
 function getBearerToken(request: Request): string | null {
   const header = request.headers.get('Authorization');
   if (!header?.startsWith('Bearer ')) return null;
@@ -62,9 +56,12 @@ export async function POST(request: Request) {
     const bearer = getBearerToken(request);
 
     if (bearer) {
-      if (!isMobileRole(body.data.role)) {
+      if (body.data.role !== 'customer') {
         return withCors(
-          NextResponse.json(fail('Rôle non autorisé sur cette API'), { status: 400 }),
+          NextResponse.json(
+            fail('Les comptes coursiers sont créés par Eveider. Inscrivez-vous en tant que client.'),
+            { status: 400 },
+          ),
         );
       }
     } else if (body.data.role !== 'business') {

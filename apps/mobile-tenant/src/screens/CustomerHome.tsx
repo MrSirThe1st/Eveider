@@ -1,8 +1,9 @@
-import { nativeColors as colors, radius, spacing, borders, nativeShadow } from '@eveider/config-ui';
-import { useCallback, useEffect, useState } from 'react';
+import { borders, type ColorTokens } from '@eveider/config-ui';
+import { Feather } from '@expo/vector-icons';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
-  ActivityIndicator,
-  Platform,
+  ImageBackground,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -11,875 +12,318 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { ParcelJourneyHero } from '../components/ParcelJourneyHero';
-import { LockerIllustration } from '../components/LockerIllustration';
+import { ActionRow } from '../components/ActionRow';
+import { AppSpinner } from '../components/AppSpinner';
+import { EmptyState } from '../components/EmptyState';
 import { ParcelCard } from '../components/ParcelCard';
-import { ParcelTimeline } from '../components/ParcelTimeline';
-import { ParcelStatusBadge } from '../components/ParcelStatusBadge';
-import { PrimaryButton } from '../components/PrimaryButton';
-import { ReportIssueForm } from '../components/ReportIssueForm';
-import { SuccessBanner } from '../components/SuccessBanner';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { useHideTabBar } from '../navigation/useHideTabBar';
-import { fetchCustomerParcel, fetchCustomerParcels, fetchCustomerLockers, assignCustomerParcelLocker, reportCustomerIssue, fetchPickupPaymentProviders, fetchPickupPaymentStatus, initiatePickupPayment, fetchProfile, type CustomerLocker, type CustomerParcel, type PaymentProvider } from '../lib/api';
-import { LockerMapView, LockerSelectPanel, getCurrentCoordinates } from '../components/LockerMapView';
-import { pickFeaturedParcel } from '../lib/parcel-journey';
-import { pickupActionLabel, needsPickupPayment } from '../lib/pickup-payment';
+import { useCustomerShell } from '../navigation/customer-shell';
+import { fetchCustomerParcels, trackParcelByNumber, type CustomerParcel } from '../lib/api';
+import { callEveiderSupport } from '../lib/support';
+import { useColors } from '../theme';
 
-type CustomerScreen =
-  | { name: 'list' }
-  | { name: 'detail'; parcelId: string }
-  | { name: 'payment'; parcelId: string }
-  | { name: 'pickup'; parcelId: string }
-  | { name: 'report'; parcelId: string }
-  | { name: 'select-locker'; parcelId: string };
-
-function openPickupFlow(
-  parcel: CustomerParcel,
-  setScreen: (screen: CustomerScreen) => void,
-) {
-  if (needsPickupPayment(parcel)) {
-    setScreen({ name: 'payment', parcelId: parcel.id });
-    return;
-  }
-  setScreen({ name: 'pickup', parcelId: parcel.id });
-}
+const HOME_HERO = require('../assets/mobile-home.jpeg');
 
 type CustomerHomeProps = {
-  initialParcelId?: string;
+  onTrackResult: (parcel: CustomerParcel) => void;
 };
 
-export function CustomerHome({ initialParcelId }: CustomerHomeProps) {
-  const [screen, setScreen] = useState<CustomerScreen>(
-    initialParcelId ? { name: 'detail', parcelId: initialParcelId } : { name: 'list' },
-  );
+export const CustomerHome = memo(function CustomerHome({ onTrackResult }: CustomerHomeProps) {
+  const { t } = useTranslation();
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { isGuest, requestAuth, goToReceive, goToPoints } = useCustomerShell();
+  const [trackingNumber, setTrackingNumber] = useState('');
+  const [trackError, setTrackError] = useState<string | null>(null);
+  const [tracking, setTracking] = useState(false);
   const [parcels, setParcels] = useState<CustomerParcel[]>([]);
-  const [parcel, setParcel] = useState<CustomerParcel | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isGuest);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [issueSuccess, setIssueSuccess] = useState<string | null>(null);
-  const [lockers, setLockers] = useState<CustomerLocker[]>([]);
-  const [selectedLockerId, setSelectedLockerId] = useState('');
-  const [lockersLoading, setLockersLoading] = useState(false);
-  const [assigningLocker, setAssigningLocker] = useState(false);
-  const [paymentProviders, setPaymentProviders] = useState<PaymentProvider[]>([]);
-  const [selectedProvider, setSelectedProvider] = useState('');
-  const [paymentPhone, setPaymentPhone] = useState('');
-  const [paying, setPaying] = useState(false);
-  const [paymentMessage, setPaymentMessage] = useState<string | null>(null);
 
-  const loadList = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    setError(null);
-    const result = await fetchCustomerParcels();
-    if (!silent) setLoading(false);
-    setRefreshing(false);
-
-    if (!result.success) {
-      setError(result.error);
+  const loadParcels = useCallback(async (silent = false) => {
+    if (isGuest) {
       setParcels([]);
+      setLoading(false);
+      setRefreshing(false);
       return;
     }
-
-    setParcels(result.data.parcels);
-  }, []);
-
-  const loadParcel = useCallback(async (parcelId: string, silent = false) => {
     if (!silent) setLoading(true);
-    setError(null);
-    const result = await fetchCustomerParcel(parcelId);
-    if (!silent) setLoading(false);
-
-    if (!result.success) {
-      setError(result.error);
-      setParcel(null);
-      return;
-    }
-
-    setParcel(result.data.parcel);
-  }, []);
-
-  const loadNearestLockers = useCallback(async () => {
-    setLockersLoading(true);
-    setSelectedLockerId('');
-    const coords = await getCurrentCoordinates();
-    const result = await fetchCustomerLockers(coords.latitude, coords.longitude);
-    setLockersLoading(false);
-
-    if (result.success) {
-      setLockers(result.data.lockers);
-      if (result.data.lockers.length > 0) {
-        setSelectedLockerId(result.data.lockers[0]!.id);
-      }
-    }
-  }, []);
+    const result = await fetchCustomerParcels();
+    setLoading(false);
+    setRefreshing(false);
+    if (result.success) setParcels(result.data.parcels);
+  }, [isGuest]);
 
   useEffect(() => {
-    if (screen.name === 'list') {
-      void loadList();
-    } else if (screen.name === 'detail' || screen.name === 'report') {
-      void loadParcel(screen.parcelId);
-    } else if (screen.name === 'payment' || screen.name === 'pickup') {
-      void loadParcel(screen.parcelId);
-    } else if (screen.name === 'select-locker') {
-      void loadParcel(screen.parcelId);
-      void loadNearestLockers();
+    void loadParcels();
+  }, [loadParcels]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    void loadParcels(true);
+  }, [loadParcels]);
+
+  async function handleTrack() {
+    const value = trackingNumber.trim();
+    setTrackError(null);
+    if (value.length < 8) {
+      setTrackError(t('track.tooShort'));
+      return;
     }
-  }, [screen, loadList, loadParcel, loadNearestLockers]);
 
-  useEffect(() => {
-    if (screen.name !== 'payment') return;
-
-    void (async () => {
-      const [providersResult, profileResult] = await Promise.all([
-        fetchPickupPaymentProviders(),
-        fetchProfile(),
-      ]);
-
-      if (providersResult.success) {
-        setPaymentProviders(providersResult.data.providers);
-        setSelectedProvider(providersResult.data.providers[0]?.id ?? '');
+    if (!isGuest) {
+      const local = parcels.find(
+        (item) =>
+          item.trackingNumber.toLowerCase() === value.toLowerCase() ||
+          (item.reference ?? '').toLowerCase() === value.toLowerCase(),
+      );
+      if (local) {
+        goToReceive(local.id);
+        return;
       }
+    }
 
-      if (profileResult.success) {
-        setPaymentPhone(profileResult.data.phone ?? '');
+    setTracking(true);
+    const result = await trackParcelByNumber(value);
+    setTracking(false);
+    if (!result.success || !result.data.parcel) {
+      setTrackError(result.success ? t('track.notFound') : result.error);
+      return;
+    }
+
+    if (!isGuest) {
+      const owned = parcels.some((item) => item.id === result.data.parcel!.id);
+      if (owned) {
+        goToReceive(result.data.parcel.id);
+        return;
       }
-    })();
-  }, [screen]);
-
-  useEffect(() => {
-    if (screen.name !== 'payment') return;
-    if (!parcel || parcel.id !== screen.parcelId) return;
-    if (parcel.pickupPayment?.status !== 'processing') return;
-
-    const interval = setInterval(() => {
-      void fetchPickupPaymentStatus(screen.parcelId).then((result) => {
-        if (result.success) {
-          setParcel(result.data.parcel);
-          if (result.data.payment.status === 'completed') {
-            setScreen({ name: 'pickup', parcelId: screen.parcelId });
-          }
-        }
-      });
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [screen, parcel]);
-
-  function goBack() {
-    if (screen.name === 'pickup' || screen.name === 'payment') {
-      setScreen({ name: 'detail', parcelId: screen.parcelId });
-      return;
-    }
-    if (screen.name === 'report') {
-      setScreen({ name: 'detail', parcelId: screen.parcelId });
-      return;
-    }
-    if (screen.name === 'select-locker') {
-      setScreen({ name: 'detail', parcelId: screen.parcelId });
-      return;
-    }
-    setScreen({ name: 'list' });
-  }
-
-  const featuredParcel = pickFeaturedParcel(parcels);
-  const otherParcels = featuredParcel
-    ? parcels.filter((p) => p.id !== featuredParcel.id)
-    : parcels;
-
-  useHideTabBar(screen.name !== 'list');
-
-  async function handleAssignLocker() {
-    if (screen.name !== 'select-locker' || !selectedLockerId) return;
-
-    setAssigningLocker(true);
-    setError(null);
-    const result = await assignCustomerParcelLocker(screen.parcelId, selectedLockerId);
-    setAssigningLocker(false);
-
-    if (!result.success) {
-      setError(result.error);
-      return;
     }
 
-    setParcel(result.data.parcel);
-    setScreen({ name: 'detail', parcelId: screen.parcelId });
+    onTrackResult(result.data.parcel);
   }
 
-  if (screen.name === 'select-locker') {
-    if (!parcel || parcel.id !== screen.parcelId) {
-      if (!loading) void loadParcel(screen.parcelId);
-      return (
-        <View style={styles.container}>
-          <ScreenHeader mode="CLIENT" title="CHOISIR UN POINT" onBack={goBack} />
-          <ActivityIndicator color={colors.secondary} />
-        </View>
-      );
-    }
-
-    return (
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.detailContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <ScreenHeader mode="CLIENT" title="CHOISIR UN POINT" onBack={goBack} />
-
-        <Text style={styles.lockerHint}>
-          Sélectionnez le point Eveider le plus proche pour recevoir votre colis {parcel.trackingNumber ?? parcel.reference}.
-        </Text>
-
-        <LockerMapView
-          lockers={lockers}
-          selectedLockerId={selectedLockerId}
-          onSelectLocker={setSelectedLockerId}
-        />
-
-        <LockerSelectPanel
-          lockers={lockers}
-          selectedLockerId={selectedLockerId}
-          onSelectLocker={setSelectedLockerId}
-          loading={lockersLoading}
-        />
-
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        <View style={{ marginTop: 16 }}>
-          <PrimaryButton
-            label="CONFIRMER CE CASIER"
-            onPress={() => void handleAssignLocker()}
-            disabled={!selectedLockerId || lockers.length === 0}
-            loading={assigningLocker}
-          />
-        </View>
-      </ScrollView>
-    );
-  }
-
-  if (screen.name === 'list') {
-    return (
-      <View style={styles.listContainer}>
-        <ScreenHeader mode="CLIENT" title="MES COLIS" compact />
-
-        {loading && !refreshing ? (
-          <ActivityIndicator color={colors.secondary} style={styles.loader} />
-        ) : null}
-
-        {!loading && error ? (
-          <View style={styles.feedback}>
-            <Text style={styles.error}>{error}</Text>
-            <PrimaryButton label="RÉESSAYER" onPress={() => void loadList()} />
-          </View>
-        ) : null}
-
-        {!loading && !error ? (
-          <ScrollView
-            style={styles.scroll}
-            contentContainerStyle={[
-              styles.listContent,
-              otherParcels.length === 0 && styles.listContentCentered,
-            ]}
-            showsVerticalScrollIndicator={false}
-            showsHorizontalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={() => {
-                  setRefreshing(true);
-                  void loadList(true);
-                }}
-                tintColor={colors.secondary}
-              />
-            }
-          >
-            {featuredParcel ? (
-              <ParcelJourneyHero
-                parcel={featuredParcel}
-                onPressDetail={() => setScreen({ name: 'detail', parcelId: featuredParcel.id })}
-                onPressPickup={
-                  featuredParcel.status === 'ready_for_pickup'
-                    ? () => openPickupFlow(featuredParcel, setScreen)
-                    : undefined
-                }
-                pickupActionLabel={pickupActionLabel(featuredParcel)}
-              />
-            ) : (
-              <View style={styles.emptyState}>
-                <LockerIllustration visual="empty" />
-                <Text style={styles.emptyTitle}>AUCUN COLIS</Text>
-                <Text style={styles.emptyMessage}>
-                  Les colis adressés à votre numéro de téléphone apparaîtront ici avec un suivi
-                  en direct.
-                </Text>
-              </View>
-            )}
-
-            {otherParcels.length > 0 ? (
-              <>
-                <Text style={styles.sectionTitle}>
-                  {otherParcels.length === 1 ? 'AUTRE COLIS' : 'AUTRES COLIS'}
-                </Text>
-                {otherParcels.map((item) => (
-                  <Pressable
-                    key={item.id}
-                    onPress={() => setScreen({ name: 'detail', parcelId: item.id })}
-                    style={styles.cardWrap}
-                  >
-                    <ParcelCard parcel={item} />
-                  </Pressable>
-                ))}
-              </>
-            ) : null}
-          </ScrollView>
-        ) : null}
-      </View>
-    );
-  }
-
-  if (screen.name === 'payment') {
-    if (!parcel || parcel.id !== screen.parcelId) {
-      if (!loading) void loadParcel(screen.parcelId);
-      return (
-        <View style={styles.container}>
-          <ScreenHeader mode="CLIENT" title="PAIEMENT RETRAIT" onBack={goBack} />
-          <ActivityIndicator color={colors.secondary} />
-        </View>
-      );
-    }
-
-    const feeLabel =
-      parcel.pickupPayment?.amount && parcel.pickupPayment.currency
-        ? `${parcel.pickupPayment.amount} ${parcel.pickupPayment.currency}`
-        : '—';
-    const paymentStatus = parcel.pickupPayment?.status ?? 'none';
-    const paymentComplete = paymentStatus === 'completed';
-
-    return (
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.detailContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <ScreenHeader mode="CLIENT" title="PAIEMENT RETRAIT" onBack={goBack} />
-
-        {paymentMessage ? <SuccessBanner message={paymentMessage} onDismiss={() => setPaymentMessage(null)} /> : null}
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        <View style={styles.detailSection}>
-          <Text style={styles.sectionLabel}>COLIS</Text>
-          <Text style={styles.detailText}>{parcel.trackingNumber ?? parcel.reference}</Text>
-          <Text style={styles.detailSubtext}>{parcel.businessName}</Text>
-        </View>
-
-        <View style={styles.detailSection}>
-          <Text style={styles.sectionLabel}>FRAIS DE RETRAIT</Text>
-          <Text style={styles.detailText}>{feeLabel}</Text>
-          <Text style={styles.detailSubtext}>
-            Paiement mobile money requis avant d&apos;afficher le code PIN au casier.
-          </Text>
-        </View>
-
-        {paymentComplete ? (
-          <PrimaryButton
-            label="VOIR LE CODE DE RETRAIT"
-            onPress={() => setScreen({ name: 'pickup', parcelId: parcel.id })}
-          />
-        ) : (
-          <>
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionLabel}>OPÉRATEUR</Text>
-              {paymentProviders.map((provider) => (
-                <Pressable
-                  key={provider.id}
-                  onPress={() => setSelectedProvider(provider.id)}
-                  style={[
-                    styles.providerOption,
-                    selectedProvider === provider.id && styles.providerOptionSelected,
-                  ]}
-                >
-                  <Text style={styles.providerOptionText}>{provider.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionLabel}>NUMÉRO MOBILE MONEY</Text>
-              <TextInput
-                value={paymentPhone}
-                onChangeText={setPaymentPhone}
-                placeholder="+243800000000"
-                placeholderTextColor={colors.border}
-                keyboardType="phone-pad"
-                style={styles.phoneInput}
-              />
-            </View>
-
-            {paymentStatus === 'processing' ? (
-              <Text style={styles.detailSubtext}>
-                Paiement en cours de traitement… Cette page se mettra à jour automatiquement.
-              </Text>
-            ) : null}
-
-            {parcel.pickupPayment?.failureReason ? (
-              <Text style={styles.error}>{parcel.pickupPayment.failureReason}</Text>
-            ) : null}
-
-            <PrimaryButton
-              label={paying ? 'PAIEMENT EN COURS…' : 'PAYER ET DÉBLOQUER LE PIN'}
-              disabled={paying || !selectedProvider || !paymentPhone.trim()}
-              onPress={() => {
-                setPaying(true);
-                setError(null);
-                void initiatePickupPayment(parcel.id, {
-                  provider: selectedProvider,
-                  phoneNumber: paymentPhone.trim(),
-                }).then((result) => {
-                  setPaying(false);
-                  if (!result.success) {
-                    setError(result.error);
-                    return;
-                  }
-                  setParcel(result.data.parcel);
-                  if (result.data.payment.status === 'completed') {
-                    setScreen({ name: 'pickup', parcelId: parcel.id });
-                    return;
-                  }
-                  setPaymentMessage('Demande de paiement envoyée. Confirmez sur votre téléphone si demandé.');
-                });
-              }}
-            />
-          </>
-        )}
-      </ScrollView>
-    );
-  }
-
-  if (screen.name === 'pickup') {
-    if (!parcel || parcel.id !== screen.parcelId) {
-      if (!loading) void loadParcel(screen.parcelId);
-      return (
-        <View style={styles.container}>
-          <ScreenHeader mode="CLIENT" title="CODE DE RETRAIT" onBack={goBack} />
-          <ActivityIndicator color={colors.secondary} />
-        </View>
-      );
-    }
-
-    if (needsPickupPayment(parcel)) {
-      return (
-        <View style={styles.container}>
-          <ScreenHeader mode="CLIENT" title="CODE DE RETRAIT" onBack={goBack} />
-          <View style={styles.detailContent}>
-            <Text style={styles.detailSubtext}>
-              Le paiement mobile money est requis avant d&apos;afficher le code PIN.
-            </Text>
-            <PrimaryButton
-              label="PROCÉDER AU PAIEMENT"
-              onPress={() => setScreen({ name: 'payment', parcelId: parcel.id })}
-            />
-          </View>
-        </View>
-      );
-    }
-
-    return (
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.detailContent}
-        showsVerticalScrollIndicator={false}
-        showsHorizontalScrollIndicator={false}
-      >
-        <ScreenHeader mode="CLIENT" title="CODE DE RETRAIT" onBack={goBack} />
-
-        <View style={styles.pinCard}>
-          <Text style={styles.pinLabel}>SAISIR AU CASIER</Text>
-          <Text style={styles.pinCode}>{parcel.pickupPin ?? '———'}</Text>
-          {parcel.compartmentLabel ? (
-            <Text style={styles.compartmentLabel}>COMPARTIMENT {parcel.compartmentLabel}</Text>
-          ) : null}
-          <Text style={styles.pinHint}>
-            Entrez ce code sur le clavier du casier pour ouvrir le compartiment.
-          </Text>
-        </View>
-
-        <View style={styles.detailSection}>
-          <Text style={styles.sectionLabel}>CASIER</Text>
-          <Text style={styles.detailText}>{parcel.locker?.name ?? '—'}</Text>
-          <Text style={styles.detailSubtext}>{parcel.locker?.address ?? ''}</Text>
-        </View>
-
-        <View style={styles.detailSection}>
-          <Text style={styles.sectionLabel}>COLIS</Text>
-          <Text style={styles.detailText}>{parcel.trackingNumber ?? parcel.reference}</Text>
-          <Text style={styles.detailSubtext}>{parcel.businessName}</Text>
-        </View>
-      </ScrollView>
-    );
-  }
-
-  if (screen.name === 'report') {
-    if (!parcel || parcel.id !== screen.parcelId) {
-      if (!loading) void loadParcel(screen.parcelId);
-      return (
-        <View style={styles.container}>
-          <ScreenHeader mode="CLIENT" title="SIGNALER UN PROBLÈME" onBack={goBack} />
-          <ActivityIndicator color={colors.secondary} />
-        </View>
-      );
-    }
-
-    return (
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.detailContent}
-        showsVerticalScrollIndicator={false}
-        showsHorizontalScrollIndicator={false}
-      >
-        <ScreenHeader mode="CLIENT" title="SIGNALER UN PROBLÈME" onBack={goBack} />
-        <ReportIssueForm
-          allowedTypes={['parcel_problem', 'locker_unavailable', 'locker_system']}
-          parcelId={parcel.id}
-          lockerId={parcel.locker?.id}
-          onSubmit={async (input) => {
-            const result = await reportCustomerIssue({
-              ...input,
-              parcelId: parcel.id,
-              lockerId: parcel.locker?.id,
-            });
-            return result.success ? null : result.error;
-          }}
-          onSuccess={() => {
-            setIssueSuccess('Signalement envoyé — notre équipe vous contactera si nécessaire.');
-            setScreen({ name: 'detail', parcelId: parcel.id });
-          }}
-          onCancel={goBack}
-        />
-      </ScrollView>
-    );
-  }
-
-  if (loading && !parcel) {
-    return (
-      <View style={styles.container}>
-        <ScreenHeader mode="CLIENT" title="DÉTAIL COLIS" onBack={goBack} />
-        <ActivityIndicator color={colors.secondary} />
-      </View>
-    );
-  }
-
-  if (error || !parcel) {
-    return (
-      <View style={styles.container}>
-        <ScreenHeader mode="CLIENT" title="DÉTAIL COLIS" onBack={goBack} />
-        <Text style={styles.error}>{error ?? 'Colis introuvable'}</Text>
-      </View>
-    );
-  }
+  const recent = parcels.filter((item) => item.status !== 'collected').slice(0, 3);
+  const displayName = isGuest ? t('common.guest') : t('roles.customer');
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.detailContent}
-      showsVerticalScrollIndicator={false}
-      showsHorizontalScrollIndicator={false}
-    >
-      <ScreenHeader mode="CLIENT" title="DÉTAIL COLIS" onBack={goBack} />
+    <View style={styles.screen}>
+      <ScreenHeader mode="CLIENT" title={t('tabs.home')} />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.secondary}
+            colors={[colors.primary]}
+            progressBackgroundColor={colors.surface}
+          />
+        }
+      >
+        <ImageBackground source={HOME_HERO} style={styles.hero} imageStyle={styles.heroImage}>
+          <View style={styles.heroScrim} />
+          <Text style={styles.hello}>
+            {t('home.greeting')}{' '}
+            <Text style={styles.helloName}>{displayName}</Text>
+          </Text>
+          <View style={styles.trackBox}>
+            <Text style={styles.trackTitle}>{t('home.trackTitle')}</Text>
+            <View style={styles.trackRow}>
+              <TextInput
+                value={trackingNumber}
+                onChangeText={setTrackingNumber}
+                placeholder={t('home.trackPlaceholder')}
+                placeholderTextColor="rgba(255,255,255,0.55)"
+                autoCapitalize="characters"
+                autoCorrect={false}
+                returnKeyType="search"
+                onSubmitEditing={() => void handleTrack()}
+                style={styles.trackInput}
+              />
+              <Pressable
+                onPress={() => void handleTrack()}
+                style={styles.trackButton}
+                accessibilityRole="button"
+                accessibilityLabel={t('home.trackAction')}
+              >
+                {tracking ? (
+                  <AppSpinner size="sm" color={colors.onPrimary} />
+                ) : (
+                  <Feather name="chevron-right" size={22} color={colors.onPrimary} />
+                )}
+              </Pressable>
+            </View>
+            {trackError ? <Text style={styles.trackError}>{trackError}</Text> : null}
+          </View>
+        </ImageBackground>
 
-      {issueSuccess ? (
-        <SuccessBanner message={issueSuccess} onDismiss={() => setIssueSuccess(null)} />
-      ) : null}
+        <View style={styles.body}>
+          {isGuest ? (
+            <View style={styles.getStarted}>
+              <Text style={styles.getStartedLabel}>{t('home.getStarted')}</Text>
+              <View style={styles.authLinks}>
+                <Pressable onPress={() => requestAuth('login')} hitSlop={8}>
+                  <Text style={styles.authLink}>{t('common.signIn')}</Text>
+                </Pressable>
+                <Text style={styles.authSep}>|</Text>
+                <Pressable onPress={() => requestAuth('register')} hitSlop={8}>
+                  <Text style={styles.authLink}>{t('common.signUp')}</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
 
-      <View style={styles.detailHeader}>
-        <Text style={styles.detailReference}>{parcel.trackingNumber ?? parcel.reference}</Text>
-        <ParcelStatusBadge status={parcel.status} />
-      </View>
+          <ActionRow
+            icon="phone"
+            label={t('home.callEveider')}
+            onPress={callEveiderSupport}
+          />
+          <ActionRow
+            icon="map-pin"
+            label={t('home.findPoint')}
+            onPress={goToPoints}
+            last
+          />
 
-      <Text style={styles.detailMeta}>{parcel.businessName}</Text>
+          {!isGuest && loading && !refreshing && parcels.length === 0 ? <AppSpinner /> : null}
 
-      <View style={styles.detailSection}>
-        <Text style={styles.sectionLabel}>SUIVI</Text>
-        <ParcelTimeline currentStatus={parcel.status} />
-      </View>
+          {!isGuest && !loading && recent.length > 0 ? (
+            <>
+              <Text style={styles.section}>{t('home.recentTitle')}</Text>
+              {recent.map((item) => (
+                <Pressable key={item.id} onPress={() => goToReceive(item.id)} style={styles.rowWrap}>
+                  <ParcelCard parcel={item} />
+                </Pressable>
+              ))}
+            </>
+          ) : null}
 
-      {parcel.locker ? (
-        <View style={styles.detailSection}>
-          <Text style={styles.sectionLabel}>CASIER</Text>
-          <Text style={styles.detailText}>{parcel.locker.name}</Text>
-          <Text style={styles.detailSubtext}>{parcel.locker.address}</Text>
-          {parcel.compartmentLabel ? (
-            <Text style={styles.detailSubtext}>Compartiment {parcel.compartmentLabel}</Text>
+          {!isGuest && !loading && recent.length === 0 ? (
+            <EmptyState title={t('home.emptyTitle')} message={t('home.emptyMessage')} />
           ) : null}
         </View>
-      ) : parcel.status === 'created' ? (
-        <View style={styles.detailSection}>
-          <Text style={styles.sectionLabel}>CASIER</Text>
-          <Text style={styles.detailSubtext}>
-            Choisissez votre point de retrait pour lancer la livraison.
-          </Text>
-          <View style={{ marginTop: 12 }}>
-            <PrimaryButton
-              label="CHOISIR UN POINT"
-              onPress={() => setScreen({ name: 'select-locker', parcelId: parcel.id })}
-            />
-          </View>
-        </View>
-      ) : null}
-
-      {parcel.status === 'ready_for_pickup' ? (
-        <PrimaryButton
-          label={pickupActionLabel(parcel)}
-          onPress={() => openPickupFlow(parcel, setScreen)}
-        />
-      ) : null}
-
-      {parcel.status === 'collected' ? (
-        <View style={styles.collectedBanner}>
-          <Text style={styles.collectedText}>COLIS RETIRÉ</Text>
-        </View>
-      ) : null}
-
-      <Pressable
-        onPress={() => setScreen({ name: 'report', parcelId: parcel.id })}
-        style={styles.reportButton}
-      >
-        <Text style={styles.reportButtonText}>SIGNALER UN PROBLÈME</Text>
-      </Pressable>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
-}
+});
 
-const styles = StyleSheet.create({
-  listContainer: {
+function createStyles(colors: ColorTokens) {
+  return StyleSheet.create({
+  screen: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 48,
-    paddingBottom: 0,
     backgroundColor: colors.background,
-    ...(Platform.OS === 'web'
-      ? ({
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none',
-        } as const)
-      : null),
   },
   container: {
     flex: 1,
-    padding: 24,
-    paddingTop: 56,
-    backgroundColor: colors.background,
-    ...(Platform.OS === 'web'
-      ? ({
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none',
-        } as const)
-      : null),
   },
-  detailContent: {
+  content: {
+    flexGrow: 1,
     paddingBottom: 40,
   },
-  loader: {
-    marginTop: 24,
+  hero: {
+    minHeight: 280,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 20,
   },
-  scroll: {
-    flex: 1,
-    ...(Platform.OS === 'web'
-      ? ({
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none',
-        } as const)
-      : null),
+  heroImage: {
+    resizeMode: 'cover',
   },
-  listContent: {
-    flexGrow: 1,
-    paddingBottom: 24,
-    gap: 20,
+  heroScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.42)',
   },
-  listContentCentered: {
-    justifyContent: 'center',
+  hello: {
+    fontSize: 28,
+    fontWeight: '400',
+    color: '#FFFFFF',
+    marginBottom: 16,
   },
-  emptyState: {
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 24,
-  },
-  emptyTitle: {
+  helloName: {
     fontWeight: '700',
-    letterSpacing: 0.5,
+    color: colors.primary,
+  },
+  trackBox: {
+    backgroundColor: 'rgba(18,18,18,0.72)',
+    padding: 14,
+    gap: 10,
+  },
+  trackTitle: {
     fontSize: 14,
-    color: colors.secondary,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
-  emptyMessage: {
+  trackRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  trackInput: {
+    flex: 1,
+    minHeight: 48,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderWidth: borders.width,
+    borderColor: 'rgba(255,255,255,0.18)',
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  trackButton: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+  },
+  trackError: {
+    color: '#FFB4B4',
     fontWeight: '500',
-    textAlign: 'center',
-    color: colors.secondary,
     fontSize: 13,
-    opacity: 0.7,
-    lineHeight: 20,
-    maxWidth: 280,
   },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    color: colors.secondary,
-    opacity: 0.6,
-    marginTop: 8,
-    textAlign: 'center',
-    width: '100%',
+  body: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
   },
-  cardWrap: {
-    marginBottom: 12,
-  },
-  feedback: {
-    gap: 12,
-  },
-  error: {
-    color: colors.danger,
-    fontWeight: '500',
-    marginBottom: 12,
-  },
-  detailHeader: {
+  getStarted: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 16,
     gap: 12,
-    marginBottom: 8,
   },
-  detailReference: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.secondary,
-  },
-  detailMeta: {
-    fontWeight: '500',
-    marginBottom: 24,
-    color: colors.secondary,
-  },
-  detailSection: {
-    marginBottom: 24,
-    backgroundColor: colors.surface,
-    borderWidth: borders.width,
-    borderColor: colors.border,
-    borderRadius: radius.card,
-    padding: 16,
-    ...nativeShadow.hard,
-  },
-  sectionLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1,
-    marginBottom: 12,
-    color: colors.secondary,
-  },
-  detailText: {
+  getStartedLabel: {
+    fontSize: 16,
     fontWeight: '600',
     color: colors.secondary,
+    flex: 1,
   },
-  detailSubtext: {
-    marginTop: 4,
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.secondary,
-  },
-  pinCard: {
-    backgroundColor: colors.surface,
-    borderWidth: borders.width,
-    borderColor: colors.border,
-    borderRadius: radius.card,
-    padding: 32,
+  authLinks: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
-    ...nativeShadow.hard,
+    gap: 8,
   },
-  pinLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1,
-    color: colors.secondary,
-  },
-  pinCode: {
-    marginTop: 16,
-    fontSize: 48,
-    fontWeight: '700',
-    letterSpacing: 10,
-    color: colors.secondary,
-  },
-  compartmentLabel: {
-    marginTop: 12,
+  authLink: {
     fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontWeight: '600',
     color: colors.primary,
   },
-  pinHint: {
-    marginTop: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-    fontSize: 13,
-    color: colors.secondary,
-  },
-  collectedBanner: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.card,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  collectedText: {
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    color: colors.secondary,
-  },
-  reportButton: {
-    marginTop: 16,
-    borderWidth: borders.width,
-    borderColor: colors.border,
-    borderRadius: radius.button,
-    paddingVertical: 14,
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    ...nativeShadow.hard,
-  },
-  reportButtonText: {
+  authSep: {
+    fontSize: 14,
     fontWeight: '600',
-    fontSize: 12,
-    letterSpacing: 0.5,
-    color: colors.secondary,
+    color: colors.primary,
   },
-  lockerHint: {
-    marginBottom: 12,
-    fontWeight: '500',
+  section: {
+    marginTop: 24,
+    marginBottom: 10,
     fontSize: 13,
-    color: colors.secondary,
-    lineHeight: 20,
-  },
-  providerOption: {
-    borderWidth: borders.width,
-    borderColor: colors.border,
-    borderRadius: radius.button,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    marginTop: 8,
-    backgroundColor: colors.surface,
-  },
-  providerOptionSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.background,
-  },
-  providerOptionText: {
     fontWeight: '600',
     color: colors.secondary,
   },
-  phoneInput: {
-    marginTop: 8,
-    borderWidth: borders.width,
-    borderColor: colors.border,
-    borderRadius: radius.button,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: colors.secondary,
-    backgroundColor: colors.surface,
+  rowWrap: {
+    marginBottom: 8,
   },
-});
+  });
+}

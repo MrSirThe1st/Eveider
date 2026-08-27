@@ -25,11 +25,12 @@ export async function sendParcelStatusWhatsApp(
 
   const parcelResult = await db.query(
     `SELECT p.*, b.name AS business_name, l.name AS locker_name, l.address AS locker_address,
-            i.token AS invite_token
+            i.token AS invite_token, pp.code AS pickup_pin_code
      FROM parcels p
      JOIN businesses b ON b.id = p.business_id
      LEFT JOIN lockers l ON l.id = p.locker_id
      LEFT JOIN parcel_invites i ON i.parcel_id = p.id
+     LEFT JOIN pickup_pins pp ON pp.parcel_id = p.id
      WHERE p.id = $1
      LIMIT 1`,
     [parcelId],
@@ -56,19 +57,16 @@ export async function sendParcelStatusWhatsApp(
   const businessName = String(parcel.business_name ?? '').trim() || 'Eveider';
 
   const trackingNumber = String(parcel.tracking_number ?? parcel.reference ?? '').trim();
+  const pickupPin = String(parcel.pickup_pin_code ?? '').trim();
+  const pickupLink = buildParcelPickupLink(parcel.invite_token ? String(parcel.invite_token) : undefined, {
+    trackingNumber,
+    phone: String(parcel.recipient_phone),
+  });
 
   const bodyParams =
     newStatus === 'in_transit'
       ? [customerName, trackingNumber, businessName, lockerLabel]
-      : [
-          customerName,
-          trackingNumber,
-          lockerLabel,
-          buildParcelPickupLink(parcel.invite_token ? String(parcel.invite_token) : undefined, {
-            trackingNumber,
-            phone: String(parcel.recipient_phone),
-          }),
-        ];
+      : [customerName, trackingNumber, lockerLabel, pickupPin || pickupLink];
 
   const result = await sendWhatsAppTemplate({
     to: String(parcel.recipient_phone),

@@ -1,10 +1,12 @@
 import {
   availableSlots,
+  canAcceptDropOff,
   generatePointCode,
   hasPointAvailability,
   isLockerSelectable,
   isValidPointCode,
   normalizePointCode,
+  matchDrcCity,
   OCCUPYING_PARCEL_STATUSES,
   sortByDistance,
   transitionCompartment,
@@ -21,6 +23,7 @@ import type { Queryable } from '../db/index.js';
 import { withTransaction } from '../db/pool.js';
 import { mapCompartment, mapLocker } from '../db/mappers.js';
 import type { Compartment, Locker } from '../db/types.js';
+import { NotificationRepository } from './notification.repository.js';
 
 export type AvailableBySize = {
   small: number;
@@ -64,6 +67,7 @@ export type CreateLockerInput = {
   code?: string;
   name: string;
   address: string;
+  city?: string | null;
   latitude: number;
   longitude: number;
   rows?: number;
@@ -82,6 +86,7 @@ export type CreateLockerInput = {
 export type UpdateLockerInput = {
   name?: string;
   address?: string;
+  city?: string | null;
   latitude?: number;
   longitude?: number;
   status?: LockerStatus;
@@ -95,6 +100,12 @@ export type UpdateLockerInput = {
 };
 
 const EMPTY_AVAILABLE_BY_SIZE: AvailableBySize = { small: 0, medium: 0, large: 0 };
+
+function resolveLockerCity(name: string, address: string, explicit?: string | null): string | null {
+  const trimmed = explicit?.trim();
+  if (trimmed) return trimmed;
+  return matchDrcCity(`${name} ${address}`);
+}
 
 function countAvailableBySize(
   compartments: { status: CompartmentStatus; size: 'small' | 'medium' | 'large' }[],
@@ -135,7 +146,10 @@ function withAvailability(
 }
 
 export class LockerRepository {
-  constructor(private readonly db: Queryable) {}
+  constructor(
+    private readonly db: Queryable,
+    private readonly notifications?: NotificationRepository,
+  ) {}
 
   private async countOccupyingByLockerIds(ids: string[]): Promise<Map<string, number>> {
     const counts = new Map<string, number>();
@@ -180,6 +194,13 @@ export class LockerRepository {
   /** Active, full, and offline points — the network businesses can send parcels to. */
   async listNetworkDirectory(): Promise<LockerWithAvailability[]> {
     return this.listWithAvailability(`l.status IN ('active', 'offline', 'full')`);
+  }
+
+  async listByCity(city: string): Promise<LockerWithAvailability[]> {
+    return this.listWithAvailability(
+      `l.archived_at IS NULL AND l.status IN ('active', 'offline', 'full') AND lower(l.city) = lower($1)`,
+      [city],
+    );
   }
 
   private async listWithAvailability(
@@ -463,13 +484,14 @@ export class LockerRepository {
       return withTransaction(async (tx) => {
         const lockerResult = await tx.query(
           `INSERT INTO lockers (
-             code, name, address, latitude, longitude, rows, columns, status, type
-           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+             code, name, address, city, latitude, longitude, rows, columns, status, type
+           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
            RETURNING *`,
           [
             code,
             input.name.trim(),
             input.address.trim(),
+            resolveLockerCity(input.name, input.address, input.city),
             input.latitude,
             input.longitude,
             rows,
@@ -514,15 +536,16 @@ export class LockerRepository {
 
     const lockerResult = await this.db.query(
       `INSERT INTO lockers (
-         code, name, address, latitude, longitude, rows, columns, status, type,
+         code, name, address, city, latitude, longitude, rows, columns, status, type,
          max_capacity, contact_phone, contact_name, notes,
          commission_type, commission_value, commission_currency
-       ) VALUES ($1, $2, $3, $4, $5, 0, 0, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+       ) VALUES ($1, $2, $3, $4, $5, $6, 0, 0, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING *`,
       [
         code,
         input.name.trim(),
         input.address.trim(),
+        resolveLockerCity(input.name, input.address, input.city),
         input.latitude,
         input.longitude,
         input.status,
@@ -560,27 +583,36 @@ export class LockerRepository {
     const archivedAt =
       nextStatus === 'archived' ? (locker.archivedAt ?? new Date()) : locker.archivedAt;
 
+    const nextName = input.name?.trim() ?? locker.name;
+    const nextAddress = input.address?.trim() ?? locker.address;
+    const nextCity =
+      input.city !== undefined
+        ? input.city?.trim() || null
+        : resolveLockerCity(nextName, nextAddress) ?? locker.city;
+
     const result = await this.db.query(
       `UPDATE lockers SET
          name = COALESCE($1, name),
          address = COALESCE($2, address),
-         latitude = COALESCE($3, latitude),
-         longitude = COALESCE($4, longitude),
-         status = $5,
-         archived_at = $6,
-         max_capacity = COALESCE($7, max_capacity),
-         contact_phone = COALESCE($8, contact_phone),
-         contact_name = CASE WHEN $9::boolean THEN $10 ELSE contact_name END,
-         notes = CASE WHEN $11::boolean THEN $12 ELSE notes END,
-         commission_type = CASE WHEN $13::boolean THEN $14::"CommissionType" ELSE commission_type END,
-         commission_value = CASE WHEN $15::boolean THEN $16 ELSE commission_value END,
-         commission_currency = CASE WHEN $17::boolean THEN $18 ELSE commission_currency END,
+         city = $3,
+         latitude = COALESCE($4, latitude),
+         longitude = COALESCE($5, longitude),
+         status = $6,
+         archived_at = $7,
+         max_capacity = COALESCE($8, max_capacity),
+         contact_phone = COALESCE($9, contact_phone),
+         contact_name = CASE WHEN $10::boolean THEN $11 ELSE contact_name END,
+         notes = CASE WHEN $12::boolean THEN $13 ELSE notes END,
+         commission_type = CASE WHEN $14::boolean THEN $15::"CommissionType" ELSE commission_type END,
+         commission_value = CASE WHEN $16::boolean THEN $17 ELSE commission_value END,
+         commission_currency = CASE WHEN $18::boolean THEN $19 ELSE commission_currency END,
          updated_at = NOW()
-       WHERE id = $19
+       WHERE id = $20
        RETURNING *`,
       [
         input.name?.trim() ?? null,
         input.address?.trim() ?? null,
+        nextCity,
         input.latitude ?? null,
         input.longitude ?? null,
         nextStatus,
@@ -600,7 +632,19 @@ export class LockerRepository {
         id,
       ],
     );
-    return mapLocker(result.rows[0]!);
+    const updated = mapLocker(result.rows[0]!);
+    if (
+      this.notifications &&
+      canAcceptDropOff(locker.status) &&
+      !canAcceptDropOff(updated.status)
+    ) {
+      try {
+        await this.notifications.notifyCouriersLockerBlocked(id, updated.name);
+      } catch (error) {
+        console.error('[eveider:notify] locker blocked alert failed', { lockerId: id, error });
+      }
+    }
+    return updated;
   }
 
   async archive(ctx: DataAccessContext, id: string): Promise<Locker> {

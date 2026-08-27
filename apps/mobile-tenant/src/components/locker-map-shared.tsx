@@ -1,8 +1,11 @@
-import { nativeColors as colors, radius, borders } from '@eveider/config-ui';
+import { radius, borders, type ColorTokens } from '@eveider/config-ui';
 import { formatDistanceKm, KINSHASA_CENTER } from '@eveider/domain';
 import * as Location from 'expo-location';
-import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useMemo } from 'react';
+import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { CustomerLocker } from '../lib/api';
+import { AppSpinner } from './AppSpinner';
+import { useColors } from '../theme';
 
 export type LockerMapViewProps = {
   lockers: CustomerLocker[];
@@ -25,8 +28,10 @@ export function LockerSelectPanel({
   onSelectLocker,
   loading,
 }: LockerSelectPanelProps) {
+  const colors = useColors();
+  const lockerMapStyles = useMemo(() => createLockerMapStyles(colors), [colors]);
   if (loading) {
-    return <ActivityIndicator color={colors.secondary} style={{ marginVertical: 24 }} />;
+    return <AppSpinner />;
   }
 
   return (
@@ -55,20 +60,55 @@ export function LockerSelectPanel({
   );
 }
 
+const LOCATION_TIMEOUT_MS = 4_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('location-timeout')), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
+
 export async function getCurrentCoordinates() {
-  const { status } = await Location.requestForegroundPermissionsAsync();
-  if (status !== 'granted') {
+  try {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      return KINSHASA_CENTER;
+    }
+
+    try {
+      const last = await Location.getLastKnownPositionAsync();
+      if (last) {
+        return {
+          latitude: last.coords.latitude,
+          longitude: last.coords.longitude,
+        };
+      }
+    } catch {
+      // Fall through to a live reading.
+    }
+
+    const position = await withTimeout(
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+      LOCATION_TIMEOUT_MS,
+    );
+
+    return {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+    };
+  } catch {
     return KINSHASA_CENTER;
   }
-
-  const position = await Location.getCurrentPositionAsync({
-    accuracy: Location.Accuracy.Balanced,
-  });
-
-  return {
-    latitude: position.coords.latitude,
-    longitude: position.coords.longitude,
-  };
 }
 
 export function openDirections(latitude: number, longitude: number, label: string) {
@@ -81,9 +121,15 @@ export function openDirections(latitude: number, longitude: number, label: strin
   void Linking.openURL(url);
 }
 
-export const lockerMapStyles = StyleSheet.create({
+export function useLockerMapStyles() {
+  const colors = useColors();
+  return useMemo(() => createLockerMapStyles(colors), [colors]);
+}
+
+export function createLockerMapStyles(colors: ColorTokens) {
+  return StyleSheet.create({
   container: {
-    borderRadius: radius.card,
+    borderRadius: 0,
     overflow: 'hidden',
     borderWidth: borders.width,
     borderColor: colors.border,
@@ -95,13 +141,13 @@ export const lockerMapStyles = StyleSheet.create({
   card: {
     borderWidth: borders.width,
     borderColor: colors.border,
-    borderRadius: radius.card,
+    borderRadius: 0,
     padding: 14,
     backgroundColor: colors.surface,
   },
   cardSelected: {
     borderColor: colors.primary,
-    backgroundColor: '#E8FCE8',
+    backgroundColor: colors.successMuted,
   },
   cardTitle: {
     fontWeight: '700',
@@ -133,4 +179,5 @@ export const lockerMapStyles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
   },
-});
+  });
+}

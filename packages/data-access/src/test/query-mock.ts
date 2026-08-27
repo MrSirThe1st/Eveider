@@ -124,6 +124,7 @@ export function lockerRow(
     code: 'GOMBE',
     name: 'EVEIDER GOMBE',
     address: 'Gombe',
+    city: null,
     latitude: null,
     longitude: null,
     rows: 5,
@@ -157,7 +158,7 @@ export function deliveryRow(
   return {
     id: 'delivery-1',
     parcel_id: 'parcel-1',
-    courier_id: 'courier-1',
+    driver_id: 'courier-1',
     status: 'assigned',
     scanned_at: null,
     completed_at: null,

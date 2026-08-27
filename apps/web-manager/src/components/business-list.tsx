@@ -45,7 +45,7 @@ export function BusinessList({ businesses }: BusinessListProps) {
         sortValue: (row) => row.name,
         cell: (row) => (
           <Link
-            href={`/tableau-de-bord/entreprises/applications/${row.id}`}
+            href={`/tableau-de-bord/organisations/applications/${row.id}`}
             className="nb-data-table__link"
           >
             {row.name}
@@ -122,7 +122,7 @@ export function BusinessList({ businesses }: BusinessListProps) {
           {
             id: 'view',
             label: 'Voir le dossier',
-            href: `/tableau-de-bord/entreprises/applications/${row.id}`,
+            href: `/tableau-de-bord/organisations/applications/${row.id}`,
           },
         ]}
       />

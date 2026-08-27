@@ -3,8 +3,17 @@ import type { CustomerParcel } from './api';
 
 export type LockerVisual = 'empty' | 'incoming' | 'ready' | 'collected';
 
+const JOURNEY_STEPS = [
+  { id: 'received', label: 'Reçu' },
+  { id: 'assigned', label: 'Coursier' },
+  { id: 'transit', label: 'En route' },
+  { id: 'ready', label: 'Prêt' },
+] as const;
+
+export type JourneyStepId = (typeof JOURNEY_STEPS)[number]['id'];
+
 export type JourneyStep = {
-  id: string;
+  id: JourneyStepId;
   label: string;
   done: boolean;
   current: boolean;
@@ -15,13 +24,6 @@ export type ParcelJourney = {
   steps: JourneyStep[];
   headline: string;
 };
-
-const JOURNEY_STEPS = [
-  { id: 'received', label: 'REÇU' },
-  { id: 'assigned', label: 'COURSIER' },
-  { id: 'transit', label: 'EN ROUTE' },
-  { id: 'ready', label: 'PRÊT' },
-] as const;
 
 function isAssigned(deliveryStatus: DeliveryStatus | null) {
   return deliveryStatus !== null;

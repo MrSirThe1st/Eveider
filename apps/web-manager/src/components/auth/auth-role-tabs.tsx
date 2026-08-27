@@ -2,12 +2,11 @@
 
 import styles from './auth-shell.module.css';
 
-export type SignupRole = 'business' | 'customer' | 'courier';
+export type SignupRole = 'business' | 'customer';
 
 const TABS: { id: SignupRole; label: string }[] = [
   { id: 'business', label: 'Entreprise' },
   { id: 'customer', label: 'Client' },
-  { id: 'courier', label: 'Coursier' },
 ];
 
 type AuthRoleTabsProps = {

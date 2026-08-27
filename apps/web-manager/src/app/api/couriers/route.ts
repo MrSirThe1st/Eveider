@@ -5,7 +5,7 @@ import { createRequestTimer } from '@/lib/perf/request-timer';
 import { requireAdminSession } from '@/lib/session';
 
 export async function GET() {
-  const perf = createRequestTimer('GET /api/couriers');
+  const perf = createRequestTimer('GET /api/drivers');
   const auth = await requireAdminSession(perf);
   if ('error' in auth) {
     perf.flush(auth.status);
@@ -14,7 +14,7 @@ export async function GET() {
 
   try {
     const { users } = createRepositories();
-    const couriers = await perf.measure('db.couriers.list', () => users.listByRole('courier'));
+    const couriers = await perf.measure('db.couriers.list', () => users.listAssignableCouriers());
 
     perf.flush(200);
     return NextResponse.json(

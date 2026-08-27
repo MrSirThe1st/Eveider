@@ -1,9 +1,13 @@
-import { nativeColors as colors, radius, borders, PARCEL_STATUS_FILLS } from '@eveider/config-ui';
+import { nativeRadius as radius, borders, type ColorTokens } from '@eveider/config-ui';
 import { Feather } from '@expo/vector-icons';
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import type { CustomerParcel } from '../lib/api';
 import { getParcelJourney } from '../lib/parcel-journey';
+import { useColors } from '../theme';
 import { LockerIllustration } from './LockerIllustration';
+import { ParcelStatusBadge } from './ParcelStatusBadge';
 import { PrimaryButton } from './PrimaryButton';
 
 type ParcelJourneyHeroProps = {
@@ -17,8 +21,11 @@ export function ParcelJourneyHero({
   parcel,
   onPressDetail,
   onPressPickup,
-  pickupActionLabel = 'VOIR LE CODE DE RETRAIT',
+  pickupActionLabel,
 }: ParcelJourneyHeroProps) {
+  const { t } = useTranslation();
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const journey = getParcelJourney(parcel);
   const isReady = parcel.status === 'ready_for_pickup';
   const lastStepIndex = journey.steps.length - 1;
@@ -31,9 +38,7 @@ export function ParcelJourneyHero({
 
       <Pressable onPress={onPressDetail} style={styles.header}>
         <Text style={styles.headline}>{journey.headline}</Text>
-        <View style={[styles.statusPill, { backgroundColor: PARCEL_STATUS_FILLS[parcel.status] }]}>
-          <Text style={styles.statusText}>{parcel.statusLabel}</Text>
-        </View>
+        <ParcelStatusBadge status={parcel.status} />
       </Pressable>
 
       <View style={styles.stepper}>
@@ -73,7 +78,7 @@ export function ParcelJourneyHero({
                 step.current && styles.stepLabelCurrent,
               ]}
             >
-              {step.label}
+              {t(`journey.${step.id}`)}
             </Text>
           </View>
         ))}
@@ -84,17 +89,21 @@ export function ParcelJourneyHero({
           <Feather name="map-pin" size={15} color={colors.secondary} />
           <Text style={styles.lockerText} numberOfLines={2}>
             {parcel.locker.name}
-            {parcel.compartmentLabel ? ` · Comp. ${parcel.compartmentLabel}` : ''}
+            {parcel.compartmentLabel ? ` · ${parcel.compartmentLabel}` : ''}
           </Text>
         </Pressable>
       ) : null}
 
       <View style={styles.actions}>
         {isReady && onPressPickup ? (
-          <PrimaryButton label={pickupActionLabel} onPress={onPressPickup} />
+          <PrimaryButton
+            label={pickupActionLabel ?? t('home.viewPickupCode')}
+            variant="brand"
+            onPress={onPressPickup}
+          />
         ) : (
           <Pressable onPress={onPressDetail} style={styles.detailLinkWrap}>
-            <Text style={styles.detailLink}>Voir le détail du colis</Text>
+            <Text style={styles.detailLink}>{t('journey.viewDetail')}</Text>
           </Pressable>
         )}
       </View>
@@ -102,11 +111,17 @@ export function ParcelJourneyHero({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorTokens) {
+  return StyleSheet.create({
   content: {
     alignItems: 'center',
-    gap: 20,
+    gap: 16,
     width: '100%',
+    backgroundColor: colors.surface,
+    borderWidth: borders.width,
+    borderColor: colors.border,
+    borderRadius: radius.card,
+    padding: 16,
   },
   illustrationWrap: {
     alignItems: 'center',
@@ -114,30 +129,15 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     width: '100%',
   },
   headline: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: colors.secondary,
-    letterSpacing: 0.4,
-    lineHeight: 28,
+    lineHeight: 26,
     textAlign: 'center',
-    textTransform: 'uppercase',
-  },
-  statusPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: radius.badge,
-    borderWidth: borders.width,
-    borderColor: colors.border,
-  },
-  statusText: {
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-    color: colors.secondary,
   },
   stepper: {
     flexDirection: 'row',
@@ -168,9 +168,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   stepDot: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: colors.background,
     borderWidth: 2,
     borderColor: colors.border,
@@ -183,22 +183,19 @@ const styles = StyleSheet.create({
   },
   stepDotCurrent: {
     borderColor: colors.secondary,
-    transform: [{ scale: 1.06 }],
   },
   stepLabel: {
-    fontSize: 9,
-    fontWeight: '600',
-    letterSpacing: 0.3,
+    fontSize: 11,
+    fontWeight: '500',
     textAlign: 'center',
     color: colors.textMuted,
-    textTransform: 'uppercase',
   },
   stepLabelDone: {
     color: colors.secondary,
   },
   stepLabelCurrent: {
     color: colors.secondary,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   lockerRow: {
     flexDirection: 'row',
@@ -218,19 +215,17 @@ const styles = StyleSheet.create({
   },
   actions: {
     width: '100%',
-    maxWidth: 320,
   },
   detailLinkWrap: {
     alignItems: 'center',
     paddingVertical: 4,
   },
   detailLink: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
-    letterSpacing: 0.3,
     color: colors.secondary,
-    opacity: 0.55,
     textDecorationLine: 'underline',
     textAlign: 'center',
   },
-});
+  });
+}

@@ -23,7 +23,7 @@ describe('auth schemas', () => {
     );
   });
 
-  it('requires a phone for customer signup and allows courier without one', () => {
+  it('requires a phone for customer signup and rejects courier self-registration', async () => {
     expect(
       registerMobileAccountSchema.safeParse({
         role: 'customer',
@@ -45,7 +45,7 @@ describe('auth schemas', () => {
         email: 'coursier@eveider.cd',
         password: 'secret123',
       }).success,
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it('requires business payload for business role', () => {

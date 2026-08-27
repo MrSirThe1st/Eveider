@@ -19,6 +19,11 @@ pnpm db:migrate
 | `009_20260722230000_eveider_point_types.sql` | Eveider Point types + soft capacity + commission |
 | `010_20260723001000_tracking_and_point_codes.sql` | Parcel `tracking_number`, optional merchant `reference`, global EVP point codes, unique pickup PINs |
 | `011_20260724001000_shipment_fields.sql` | Create Shipment fields (sender, package, payment responsibility, COD) |
+| `012_20260814103000_business_access_code.sql` | Business access code |
+| `013_20260814103100_delivery_pricing.sql` | Delivery pricing |
+| `014_20260821150000_company_team_roles.sql` | Company team roles |
+| `015_20260823140000_locker_city.sql` | Locker city |
+| `016_20260823180000_delivery_drop_off_photo.sql` | Courier locker drop-off photo proof |
 
 Applied migrations are recorded in `schema_migrations`.
 

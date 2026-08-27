@@ -1,0 +1,30 @@
+import { PageFrame } from '@eveider/ui';
+import Link from 'next/link';
+import { ParcelList } from '@/components/parcel-list';
+import { WEB_ROUTES } from '@/lib/auth-routing';
+import { hasBusinessPermission } from '@eveider/domain';
+import { requireBusinessPermission } from '@/server/business';
+import { listBusinessParcels } from '@/server/parcels';
+
+export default async function BusinessParcelsPage() {
+  const { profile, ctx } = await requireBusinessPermission('view_parcels');
+  const parcels = await listBusinessParcels(ctx, profile.businessId);
+  const canCreate = hasBusinessPermission(profile.userRole, 'create_parcels');
+
+  return (
+    <PageFrame
+      title="Colis"
+      description="Où en sont vos colis : situation actuelle, destinataire, point."
+      layout="wide"
+      action={
+        canCreate ? (
+          <Link href={WEB_ROUTES.businessNewParcel} className="nb-btn nb-btn-primary nb-btn--sm">
+            Nouveau colis
+          </Link>
+        ) : undefined
+      }
+    >
+      <ParcelList parcels={parcels} />
+    </PageFrame>
+  );
+}

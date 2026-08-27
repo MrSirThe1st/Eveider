@@ -9,22 +9,23 @@ import type {
   CompartmentSize,
   CompartmentStatus,
   DeliveryStatus,
+  DriverDossierStatus,
   IssueStatus,
   IssueType,
   LockerStatus,
   LockerType,
+  OrganizationRole,
   PackageCategory,
   PackageSize,
   ParcelStatus,
   PaymentResponsibility,
+  PlatformRole,
   ShipmentPickupType,
-  UserRole,
 } from '@eveider/domain';
-
-export type BusinessUserRole = 'owner' | 'manager' | 'logistics_employee';
 export type PaymentStatus = 'pending' | 'processing' | 'completed' | 'failed';
 export type NotificationChannel = 'sms' | 'push' | 'in_app';
 export type ParcelInviteStatus = 'pending' | 'accepted' | 'expired';
+export type BusinessTeamInviteStatus = 'pending' | 'accepted' | 'expired' | 'revoked';
 
 export type BusinessType =
   | 'registered_company'
@@ -69,13 +70,23 @@ export type PermissionStatus = 'ENABLED' | 'DISABLED';
 export type User = {
   id: string;
   authId: string;
-  role: UserRole;
-  userRole: BusinessUserRole | null;
+  platformRole: PlatformRole | null;
+  isCustomer: boolean;
   email: string | null;
   phone: string | null;
   fullName: string | null;
-  businessId: string | null;
   isBlocked: boolean;
+  deactivatedAt: Date | null;
+  deletedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type OrganizationMembership = {
+  id: string;
+  userId: string;
+  businessId: string;
+  role: OrganizationRole;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -103,6 +114,7 @@ export type Business = {
   idPassportNumber: string | null;
   residentialAddress: string | null;
   accessCode: string | null;
+  isPlatformOrg: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -112,6 +124,7 @@ export type Locker = {
   code: string;
   name: string;
   address: string;
+  city: string | null;
   latitude: number | null;
   longitude: number | null;
   rows: number;
@@ -212,6 +225,8 @@ export type LockerLayoutTemplateRow = {
 export type Delivery = {
   id: string;
   parcelId: string;
+  driverId: string;
+  /** @deprecated alias of driverId */
   courierId: string;
   status: DeliveryStatus;
   scannedAt: Date | null;
@@ -260,6 +275,21 @@ export type ParcelInvite = {
   expiresAt: Date;
   acceptedAt: Date | null;
   createdAt: Date;
+};
+
+export type BusinessTeamInvite = {
+  id: string;
+  token: string;
+  businessId: string;
+  email: string;
+  invitedRole: OrganizationRole;
+  invitedByUserId: string | null;
+  status: BusinessTeamInviteStatus;
+  expiresAt: Date;
+  acceptedAt: Date | null;
+  acceptedUserId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 export type ParcelPayment = {
@@ -377,6 +407,30 @@ export type VerificationCheck = {
   type: CheckType;
   status: CheckStatus;
   notes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type CourierDossier = DriverDossier;
+export type CourierDossierStatus = DriverDossierStatus;
+
+export type DriverDossier = {
+  id: string;
+  contractorType: 'eveider' | 'business';
+  businessId: string | null;
+  userId: string | null;
+  fullName: string;
+  email: string;
+  phone: string | null;
+  idDocumentUrl: string;
+  notes: string | null;
+  reviewNotes: string | null;
+  status: DriverDossierStatus;
+  createdByUserId: string | null;
+  reviewedByUserId: string | null;
+  reviewedAt: Date | null;
+  invitedAt: Date | null;
+  deactivatedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };

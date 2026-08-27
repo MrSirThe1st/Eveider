@@ -1,40 +1,57 @@
 import type { UserRole } from '@eveider/domain';
-import { nativeColors as colors } from '@eveider/config-ui';
 import { Feather } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import type { BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
+import type { NavigatorScreenParams } from '@react-navigation/native';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CourierHome } from '../screens/CourierHome';
-import { CustomerHome } from '../screens/CustomerHome';
-import { ProfileStack } from './ProfileStack';
-import { DEFAULT_TAB_BAR_STYLE } from './useHideTabBar';
+import { useColors } from '../theme';
+import { CustomerNavigator } from './CustomerNavigator';
+import { ProfileStack, type ProfileStackParamList } from './ProfileStack';
+import { getTabBarStyle } from './useHideTabBar';
 
 export type MobileTabParamList = {
   Colis: undefined;
-  Profile: undefined;
+  Profile: NavigatorScreenParams<ProfileStackParamList> | undefined;
 };
 
 const Tab = createBottomTabNavigator<MobileTabParamList>();
 
 function tabIcon(name: keyof typeof Feather.glyphMap): BottomTabNavigationOptions['tabBarIcon'] {
   return ({ focused, color, size }) => (
-    <Feather name={name} size={focused ? size + 1 : size} color={color} strokeWidth={focused ? 2.5 : 2} />
+    <Feather name={name} size={size} color={color} strokeWidth={focused ? 2.25 : 2} />
   );
 }
 
 type MobileTabsProps = {
   role: UserRole;
   initialParcelId?: string;
+  isGuest?: boolean;
+  onRequestAuth?: (mode?: 'login' | 'register') => void;
 };
 
-export function MobileTabs({ role, initialParcelId }: MobileTabsProps) {
+export function MobileTabs({ role, initialParcelId, isGuest = false, onRequestAuth }: MobileTabsProps) {
+  const { t } = useTranslation();
+  const colors = useColors();
   const mode = role === 'courier' ? 'COURSIER' : 'CLIENT';
-  const colisTitle = role === 'courier' ? 'LIVRAISONS' : 'MES COLIS';
   const insets = useSafeAreaInsets();
+  const [focusedParcelId, setFocusedParcelId] = useState(initialParcelId);
+
+  if (role !== 'courier') {
+    return (
+      <CustomerNavigator
+        initialParcelId={initialParcelId}
+        isGuest={isGuest}
+        onRequestAuth={onRequestAuth}
+      />
+    );
+  }
 
   const tabBarStyle = {
-    ...DEFAULT_TAB_BAR_STYLE,
+    ...getTabBarStyle(colors),
     height: 60 + insets.bottom,
     paddingBottom: Math.max(insets.bottom, 8),
   };
@@ -44,12 +61,12 @@ export function MobileTabs({ role, initialParcelId }: MobileTabsProps) {
       screenOptions={{
         headerShown: false,
         tabBarStyle,
-        tabBarActiveTintColor: colors.secondary,
+        tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: {
-          fontSize: 9,
-          fontWeight: '700',
-          letterSpacing: 0.6,
+          fontSize: 11,
+          fontWeight: '600',
+          letterSpacing: 0,
           marginTop: 2,
         },
         tabBarHideOnKeyboard: true,
@@ -58,31 +75,35 @@ export function MobileTabs({ role, initialParcelId }: MobileTabsProps) {
       <Tab.Screen
         name="Colis"
         options={{
-          tabBarLabel: 'COLIS',
+          tabBarLabel: t('tabs.parcels'),
           tabBarIcon: tabIcon('package'),
-          title: colisTitle,
+          title: t('home.title'),
         }}
       >
-        {() =>
-          role === 'courier' ? (
-            <CourierHome />
-          ) : (
-            <CustomerHome initialParcelId={initialParcelId} />
-          )
-        }
+        {() => <CourierHome />}
       </Tab.Screen>
       <Tab.Screen
         name="Profile"
         options={({ route }) => {
           const routeName = getFocusedRouteNameFromRoute(route) ?? 'ProfileMain';
           return {
-            tabBarLabel: 'PARAMÈTRES',
+            tabBarLabel: t('tabs.settings'),
             tabBarIcon: tabIcon('settings'),
             tabBarStyle: routeName === 'ProfileMain' ? tabBarStyle : { display: 'none' },
           };
         }}
       >
-        {() => <ProfileStack mode={mode} />}
+        {({ navigation }) => (
+          <ProfileStack
+            mode={mode}
+            isGuest={isGuest}
+            onRequestAuth={onRequestAuth}
+            onOpenParcel={(parcelId) => {
+              setFocusedParcelId(parcelId);
+              navigation.navigate('Colis');
+            }}
+          />
+        )}
       </Tab.Screen>
     </Tab.Navigator>
   );

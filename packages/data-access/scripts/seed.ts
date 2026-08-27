@@ -11,6 +11,7 @@ import {
   generatePickupPinCode,
   generatePointCode,
   generateTrackingNumber,
+  matchDrcCity,
 } from '@eveider/domain';
 import type { Queryable } from '../src/db/pool.js';
 import { getPgClientConfig, resolveDatabaseUrl } from '../src/db/pool.js';
@@ -35,6 +36,9 @@ const APP_TABLES = [
   'parcel_payments',
   'parcel_invites',
   'notifications',
+  'driver_dossiers',
+  'organization_memberships',
+  'business_team_invites',
   'issues',
   'pickup_pins',
   'deliveries',
@@ -48,117 +52,131 @@ const APP_TABLES = [
 
 type AuthAccount = {
   email: string;
-  role: 'admin' | 'operator' | 'business' | 'courier' | 'customer';
+  kind: 'super_admin' | 'platform_admin' | 'eveider_dispatcher' | 'organization' | 'driver' | 'customer';
   fullName: string;
   phone: string;
-  userRole?: 'owner' | 'manager' | 'logistics_employee';
+  orgRole?: 'account_owner' | 'admin' | 'dispatcher' | 'driver';
   businessKey?: 'lubum' | 'kolwezi' | 'pending';
 };
 
 const ACCOUNTS: AuthAccount[] = [
   {
     email: 'admin@eveider.cd',
-    role: 'admin',
+    kind: 'super_admin',
     fullName: 'Marie Kalala',
     phone: '+243810000001',
   },
   {
     email: 'admin.ops@eveider.cd',
-    role: 'admin',
+    kind: 'platform_admin',
     fullName: 'David Mwamba',
     phone: '+243810000002',
   },
   {
     email: 'operator@eveider.cd',
-    role: 'operator',
+    kind: 'eveider_dispatcher',
     fullName: 'Sarah Ilunga',
     phone: '+243810000011',
   },
   {
     email: 'operator.kolwezi@eveider.cd',
-    role: 'operator',
+    kind: 'eveider_dispatcher',
     fullName: 'Patrick Mutombo',
     phone: '+243810000012',
   },
   {
     email: 'boutique.lubum@eveider.cd',
-    role: 'business',
+    kind: 'organization',
     fullName: 'Chantal Kasongo',
     phone: '+243970100001',
-    userRole: 'owner',
+    orgRole: 'account_owner',
     businessKey: 'lubum',
   },
   {
     email: 'boutique.lubum.manager@eveider.cd',
-    role: 'business',
+    kind: 'organization',
     fullName: 'Eric Kabongo',
     phone: '+243970100002',
-    userRole: 'manager',
+    orgRole: 'admin',
     businessKey: 'lubum',
   },
   {
     email: 'boutique.lubum.logistics@eveider.cd',
-    role: 'business',
+    kind: 'organization',
     fullName: 'Nadia Fwamba',
     phone: '+243970100003',
-    userRole: 'logistics_employee',
+    orgRole: 'dispatcher',
+    businessKey: 'lubum',
+  },
+  {
+    email: 'boutique.lubum.viewer@eveider.cd',
+    kind: 'organization',
+    fullName: 'Grace Ilunga',
+    phone: '+243970100004',
+    orgRole: 'dispatcher',
     businessKey: 'lubum',
   },
   {
     email: 'mine.kolwezi@eveider.cd',
-    role: 'business',
+    kind: 'organization',
     fullName: 'Joseph Mwepu',
     phone: '+243970200001',
-    userRole: 'owner',
+    orgRole: 'account_owner',
     businessKey: 'kolwezi',
   },
   {
     email: 'pending.shop@eveider.cd',
-    role: 'business',
+    kind: 'organization',
     fullName: 'Alice Ngoie',
     phone: '+243970300001',
-    userRole: 'owner',
+    orgRole: 'account_owner',
     businessKey: 'pending',
   },
   {
     email: 'courier.lubum1@eveider.cd',
-    role: 'courier',
+    kind: 'driver',
     fullName: 'Jean-Pierre Tshibanda',
     phone: '+243820100001',
+    orgRole: 'driver',
+    businessKey: 'lubum',
   },
   {
     email: 'courier.lubum2@eveider.cd',
-    role: 'courier',
+    kind: 'driver',
     fullName: 'Ruth Mbuyi',
     phone: '+243820100002',
+    orgRole: 'driver',
+    businessKey: 'lubum',
   },
   {
     email: 'courier.kolwezi@eveider.cd',
-    role: 'courier',
+    kind: 'driver',
     fullName: 'Michel Kabwe',
     phone: '+243820200001',
+    orgRole: 'driver',
+    businessKey: 'kolwezi',
   },
   {
     email: 'customer.amina@eveider.cd',
-    role: 'customer',
+    kind: 'customer',
     fullName: 'Amina Mwamba',
     phone: '+243970111001',
   },
   {
     email: 'customer.jean@eveider.cd',
-    role: 'customer',
+    kind: 'customer',
     fullName: 'Jean Kalonji',
     phone: '+243970111002',
   },
   {
     email: 'customer.grace@eveider.cd',
-    role: 'customer',
+    kind: 'customer',
     fullName: 'Grace Kyungu',
     phone: '+243970222001',
   },
   {
     email: 'customer.patrick@eveider.cd',
-    role: 'customer',
+    kind: 'customer',
     fullName: 'Patrick Ilunga',
     phone: '+243970222002',
   },
@@ -239,7 +257,7 @@ async function createAuthAccounts(db: Queryable) {
         instanceId,
         account.email,
         SEED_PASSWORD,
-        JSON.stringify({ full_name: account.fullName, role: account.role }),
+        JSON.stringify({ full_name: account.fullName, kind: account.kind }),
       ],
     );
     const id = String(inserted.rows[0]!.id);
@@ -302,10 +320,18 @@ async function uniquePin(db: Queryable): Promise<string> {
 }
 
 async function seed(db: Queryable, authIds: Map<string, string>) {
+  const eveiderOrgId = await insertReturningId(
+    db,
+    `INSERT INTO businesses (name, status, is_platform_org, contact_email, is_phone_verified)
+     VALUES ('Eveider', 'active', true, 'ops@eveider.cd', true)
+     RETURNING id`,
+    [],
+  );
+
   const adminId = await insertReturningId(
     db,
-    `INSERT INTO users (auth_id, role, email, phone, full_name)
-     VALUES ($1, 'admin', $2, $3, $4)
+    `INSERT INTO users (auth_id, email, phone, full_name, platform_role, is_customer)
+     VALUES ($1, $2, $3, $4, 'super_admin', false)
      RETURNING id`,
     [
       authIds.get('admin@eveider.cd'),
@@ -316,8 +342,8 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
   );
 
   await db.query(
-    `INSERT INTO users (auth_id, role, email, phone, full_name)
-     VALUES ($1, 'admin', $2, $3, $4)`,
+    `INSERT INTO users (auth_id, email, phone, full_name, platform_role, is_customer)
+     VALUES ($1, $2, $3, $4, 'admin', false)`,
     [
       authIds.get('admin.ops@eveider.cd'),
       'admin.ops@eveider.cd',
@@ -325,14 +351,6 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
       'David Mwamba',
     ],
   );
-
-  for (const account of ACCOUNTS.filter((item) => item.role === 'operator')) {
-    await db.query(
-      `INSERT INTO users (auth_id, role, email, phone, full_name)
-       VALUES ($1, 'operator', $2, $3, $4)`,
-      [authIds.get(account.email), account.email, account.phone, account.fullName],
-    );
-  }
 
   const lubumBusinessId = await insertReturningId(
     db,
@@ -391,26 +409,43 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
   } as const;
 
   const profileIds = new Map<string, string>();
+  profileIds.set('admin@eveider.cd', adminId);
+  const opsAdmin = await db.query(`SELECT id FROM users WHERE email = 'admin.ops@eveider.cd' LIMIT 1`);
+  if (opsAdmin.rows[0]) profileIds.set('admin.ops@eveider.cd', String(opsAdmin.rows[0].id));
+
   for (const account of ACCOUNTS) {
-    if (account.role === 'admin' || account.role === 'operator') continue;
+    if (account.kind === 'super_admin' || account.kind === 'platform_admin') continue;
+    const platformRole = null;
+    const isCustomer = account.kind === 'customer';
     const id = await insertReturningId(
       db,
-      `INSERT INTO users (auth_id, role, user_role, email, phone, full_name, business_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO users (auth_id, email, phone, full_name, platform_role, is_customer)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id`,
       [
         authIds.get(account.email),
-        account.role,
-        account.userRole ?? null,
         account.email,
         account.phone,
         account.fullName,
-        account.businessKey ? businessIds[account.businessKey] : null,
+        platformRole,
+        isCustomer,
       ],
     );
     profileIds.set(account.email, id);
+
+    if (account.kind === 'eveider_dispatcher') {
+      await db.query(
+        `INSERT INTO organization_memberships (user_id, business_id, role) VALUES ($1, $2, 'dispatcher')`,
+        [id, eveiderOrgId],
+      );
+    }
+    if ((account.kind === 'organization' || account.kind === 'driver') && account.businessKey && account.orgRole) {
+      await db.query(
+        `INSERT INTO organization_memberships (user_id, business_id, role) VALUES ($1, $2, $3)`,
+        [id, businessIds[account.businessKey], account.orgRole],
+      );
+    }
   }
-  profileIds.set('admin@eveider.cd', adminId);
 
   await db.query(
     `INSERT INTO delivery_pricing_rules (
@@ -596,13 +631,14 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
 
     const lockerId = await insertReturningId(
       db,
-      `INSERT INTO lockers (code, name, address, latitude, longitude, rows, columns, status, type)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'active', 'SMART_LOCKER')
+      `INSERT INTO lockers (code, name, address, city, latitude, longitude, rows, columns, status, type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active', 'SMART_LOCKER')
        RETURNING id`,
       [
         await uniquePointCode(db),
         locker.name,
         locker.address,
+        matchDrcCity(`${locker.name} ${locker.address}`),
         locker.latitude,
         locker.longitude,
         locker.rows,
@@ -630,11 +666,11 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
     await insertReturningId(
       db,
       `INSERT INTO lockers (
-         code, name, address, latitude, longitude, rows, columns, status, type,
+         code, name, address, city, latitude, longitude, rows, columns, status, type,
          max_capacity, contact_phone, contact_name, notes,
          commission_type, commission_value, commission_currency
        ) VALUES (
-         $1, 'Shop Kenya Partner', 'Marché Kenya, Lubumbashi', -11.69, 27.45,
+         $1, 'Shop Kenya Partner', 'Marché Kenya, Lubumbashi', 'Lubumbashi', -11.69, 27.45,
          0, 0, 'active', 'PARTNER_POINT',
          25, '+243970100001', 'Chantal Kasongo', 'Point partenaire boutique',
          'percent', 8, 'USD'
@@ -648,12 +684,12 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
     await insertReturningId(
       db,
       `INSERT INTO lockers (
-         code, name, address, latitude, longitude, rows, columns, status, type,
+         code, name, address, city, latitude, longitude, rows, columns, status, type,
          max_capacity, contact_phone, contact_name, notes,
          commission_type, commission_value, commission_currency
        ) VALUES (
          $1, 'Point résidentiel Kampemba', 'Résidence Sendwe, Kampemba, Lubumbashi',
-         -11.64, 27.51, 0, 0, 'active', 'RESIDENTIAL_LOCKER',
+         'Lubumbashi', -11.64, 27.51, 0, 0, 'active', 'RESIDENTIAL_LOCKER',
          12, '+243810000011', 'Sarah Ilunga', 'Point résidentiel opéré Eveider',
          'fixed', 500, 'CDF'
        ) RETURNING id`,
@@ -666,11 +702,11 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
     await insertReturningId(
       db,
       `INSERT INTO lockers (
-         code, name, address, latitude, longitude, rows, columns, status, type,
+         code, name, address, city, latitude, longitude, rows, columns, status, type,
          max_capacity, contact_phone, contact_name, notes,
          commission_type, commission_value, commission_currency
        ) VALUES (
-         $1, 'Shop Dilala Partner', 'Av. Dilala, Kolwezi', -10.73, 25.47,
+         $1, 'Shop Dilala Partner', 'Av. Dilala, Kolwezi', 'Kolwezi', -10.73, 25.47,
          0, 0, 'active', 'PARTNER_POINT',
          20, '+243970200001', 'Joseph Mwepu', 'Point partenaire Kolwezi',
          'percent', 10, 'USD'
@@ -682,6 +718,17 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
   const courierLubum1 = profileIds.get('courier.lubum1@eveider.cd')!;
   const courierLubum2 = profileIds.get('courier.lubum2@eveider.cd')!;
   const courierKolwezi = profileIds.get('courier.kolwezi@eveider.cd')!;
+
+  await db.query(
+    `INSERT INTO driver_dossiers (
+       contractor_type, business_id, user_id, full_name, email, phone, id_document_url, status
+     ) VALUES
+       ('business', $4, $1, 'Jean-Pierre Tshibanda', 'courier.lubum1@eveider.cd', '+243820100001', 'https://files.eveider.cd/id/lubum1.jpg', 'active'),
+       ('business', $4, $2, 'Ruth Mbuyi', 'courier.lubum2@eveider.cd', '+243820100002', 'https://files.eveider.cd/id/lubum2.jpg', 'active'),
+       ('business', $5, $3, 'Michel Kabwe', 'courier.kolwezi@eveider.cd', '+243820200001', 'https://files.eveider.cd/id/kolwezi.jpg', 'active')`,
+    [courierLubum1, courierLubum2, courierKolwezi, lubumBusinessId, kolweziBusinessId],
+  );
+
   const customerAmina = profileIds.get('customer.amina@eveider.cd')!;
   const customerJean = profileIds.get('customer.jean@eveider.cd')!;
   const customerGrace = profileIds.get('customer.grace@eveider.cd')!;
@@ -869,7 +916,7 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
 
     if (parcel.courierId && parcel.deliveryStatus) {
       await db.query(
-        `INSERT INTO deliveries (parcel_id, courier_id, status, scanned_at, completed_at)
+        `INSERT INTO deliveries (parcel_id, driver_id, status, scanned_at, completed_at)
          VALUES ($1, $2, $3, $4, $5)`,
         [
           parcelId,
@@ -948,17 +995,17 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
 function printCredentials() {
   console.log('\nSeed login (password for all accounts):');
   console.log(`  ${SEED_PASSWORD}\n`);
-  console.log('Web (admin / operator / business):');
+  console.log('Web (platform / organisation):');
   for (const account of ACCOUNTS.filter((item) =>
-    ['admin', 'operator', 'business'].includes(item.role),
+    ['super_admin', 'platform_admin', 'eveider_dispatcher', 'organization'].includes(item.kind),
   )) {
-    console.log(`  ${account.role.padEnd(10)} ${account.email}  ${account.fullName}`);
+    console.log(`  ${account.kind.padEnd(22)} ${account.email}  ${account.fullName}`);
   }
-  console.log('\nMobile (customer / courier):');
+  console.log('\nMobile (customer / driver):');
   for (const account of ACCOUNTS.filter((item) =>
-    ['customer', 'courier'].includes(item.role),
+    ['customer', 'driver'].includes(item.kind),
   )) {
-    console.log(`  ${account.role.padEnd(10)} ${account.email}  ${account.phone}`);
+    console.log(`  ${account.kind.padEnd(10)} ${account.email}  ${account.phone}`);
   }
 }
 

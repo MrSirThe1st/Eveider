@@ -248,6 +248,17 @@ export const colors: ColorTokens = {
 /** Hex palette for React Native (CSS variables are not supported). */
 export const nativeColors: ColorTokens = lightColors;
 
+/** Mobile radii — 8–10px, logistics UI, not pills. */
+export const nativeRadius = {
+  sm: 6,
+  md: 8,
+  lg: 10,
+  card: 10,
+  button: 8,
+  input: 8,
+  badge: 4,
+} as const;
+
 export function readCssColor(token: keyof ColorTokens, theme: 'light' | 'dark' = 'light'): string {
   const global = globalThis as {
     document?: { documentElement: object };

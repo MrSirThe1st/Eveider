@@ -13,7 +13,11 @@ import {
 import { z } from 'zod';
 import { zodEnum } from './zod-enum.js';
 
-export const userRoleSchema = zodEnum(USER_ROLES);
+export const userRoleSchema = z.union([
+  zodEnum(USER_ROLES),
+  z.literal('courier'),
+  z.literal('business'),
+]);
 export const parcelStatusSchema = zodEnum(PARCEL_STATUSES);
 export const businessStatusSchema = zodEnum(BUSINESS_STATUSES);
 export const lockerStatusSchema = zodEnum(LOCKER_STATUSES);

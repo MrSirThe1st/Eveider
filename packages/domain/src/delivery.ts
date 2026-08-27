@@ -35,3 +35,6 @@ export function transitionDelivery(from: DeliveryStatus, to: DeliveryStatus): De
 export function isTerminalDeliveryStatus(status: DeliveryStatus): boolean {
   return status === 'completed' || status === 'failed';
 }
+
+/** Courier-facing history window. Active deliveries are always included. */
+export const COURIER_HISTORY_DAYS = 90;
