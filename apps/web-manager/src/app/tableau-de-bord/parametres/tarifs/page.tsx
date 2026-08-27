@@ -3,6 +3,7 @@
 import { colors, borderSubtle, webInputStyle } from '@eveider/config-ui';
 import { Button, CardListSkeleton, PageFrame, useToast } from '@eveider/ui';
 import { useEffect, useState, type FormEvent } from 'react';
+import { AdminParametresTabs } from '@/components/admin-module-tabs';
 import { fetchJson } from '@/lib/api/fetch-json';
 
 type PricingRules = {
@@ -54,6 +55,7 @@ export default function AdminPricingPage() {
   if (loading || !rules) {
     return (
       <PageFrame title="Tarifs livraison" layout="standard">
+        <AdminParametresTabs />
         <CardListSkeleton cards={2} />
       </PageFrame>
     );
@@ -67,6 +69,7 @@ export default function AdminPricingPage() {
       description="Barème distance + taille (FC). Les frais de retrait client restent configurés séparément."
       layout="standard"
     >
+      <AdminParametresTabs />
       <form
         onSubmit={(event) => void handleSave(event)}
         style={{

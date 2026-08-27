@@ -13,6 +13,7 @@ export * from './schemas/auth.js';
 export * from './schemas/parcel.js';
 export * from './schemas/business.js';
 export * from './schemas/locker.js';
+export * from './schemas/locker-settings.js';
 export * from './schemas/delivery.js';
 export * from './schemas/issue.js';
 export * from './schemas/invite.js';

@@ -65,3 +65,46 @@ export function AdminEntreprisesTabs() {
     />
   );
 }
+
+export function AdminParametresTabs() {
+  return (
+    <PageTabs
+      aria-label="Sections paramètres"
+      tabs={[
+        {
+          href: '/tableau-de-bord/parametres/tarifs',
+          label: 'Tarifs',
+          isActive: (pathname: string) => pathname.startsWith('/tableau-de-bord/parametres/tarifs'),
+        },
+        {
+          href: '/tableau-de-bord/parametres/casiers/configuration',
+          label: 'Casiers',
+          isActive: (pathname: string) =>
+            pathname.startsWith('/tableau-de-bord/parametres/casiers'),
+        },
+      ]}
+    />
+  );
+}
+
+export function AdminCasiersSettingsTabs() {
+  return (
+    <PageTabs
+      aria-label="Paramètres casiers"
+      tabs={[
+        {
+          href: '/tableau-de-bord/parametres/casiers/configuration',
+          label: 'Configuration',
+          isActive: (pathname: string) =>
+            pathname.startsWith('/tableau-de-bord/parametres/casiers/configuration'),
+        },
+        {
+          href: '/tableau-de-bord/parametres/casiers/modeles',
+          label: 'Modèles',
+          isActive: (pathname: string) =>
+            pathname.startsWith('/tableau-de-bord/parametres/casiers/modeles'),
+        },
+      ]}
+    />
+  );
+}

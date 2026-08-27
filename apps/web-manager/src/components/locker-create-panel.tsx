@@ -22,6 +22,8 @@ import {
   LockerLayoutPreview,
   useLockerLayout,
 } from '@/components/locker-layout-preview';
+import { fetchJson } from '@/lib/api/fetch-json';
+import type { LockerLayoutTemplateDto } from '@/server/locker-settings';
 
 const inputStyle: React.CSSProperties = {
   ...webInputStyle,
@@ -69,6 +71,7 @@ type LockerCreatePanelProps = {
 };
 
 type CreateStatus = 'active' | 'offline';
+type LayoutSource = 'manual' | 'template';
 
 const BULK_SIZES: CompartmentSize[] = ['small', 'medium', 'large'];
 const POINT_TYPES: LockerType[] = ['SMART_LOCKER', 'PARTNER_POINT', 'RESIDENTIAL_LOCKER'];
@@ -84,12 +87,16 @@ export function LockerCreatePanel({
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [nameTouched, setNameTouched] = useState(false);
+  const [layoutSource, setLayoutSource] = useState<LayoutSource>('manual');
   const [layoutPreset, setLayoutPreset] = useState<LockerLayoutPreset>('3x3');
   const [customRows, setCustomRows] = useState(3);
   const [customColumns, setCustomColumns] = useState(3);
   const [rowsInput, setRowsInput] = useState('3');
   const [columnsInput, setColumnsInput] = useState('3');
   const [cells, setCells] = useState<CompartmentCell[]>(() => resolveLockerLayout('3x3').cells);
+  const [templates, setTemplates] = useState<LockerLayoutTemplateDto[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [status, setStatus] = useState<CreateStatus>('active');
   const [suggesting, setSuggesting] = useState(false);
   const [maxCapacity, setMaxCapacity] = useState('20');
@@ -101,6 +108,7 @@ export function LockerCreatePanel({
   const [commissionCurrency, setCommissionCurrency] = useState('CDF');
 
   useEffect(() => {
+    if (layoutSource !== 'manual') return;
     if (layoutPreset === '3x3') {
       setCells(resolveLockerLayout('3x3').cells);
       return;
@@ -110,9 +118,44 @@ export function LockerCreatePanel({
       return;
     }
     setCells((previous) => resizeLayoutCells(customRows, customColumns, previous));
-  }, [layoutPreset, customRows, customColumns]);
+  }, [layoutSource, layoutPreset, customRows, customColumns]);
 
-  const layout = useLockerLayout(layoutPreset, customRows, customColumns, cells);
+  useEffect(() => {
+    if (layoutSource !== 'template') return;
+    let cancelled = false;
+    setTemplatesLoading(true);
+    void fetchJson<{ templates: LockerLayoutTemplateDto[] }>('/api/locker-templates')
+      .then((data) => {
+        if (cancelled) return;
+        setTemplates(data.templates);
+        const first = data.templates[0];
+        if (first) {
+          setSelectedTemplateId(first.id);
+          setCustomRows(first.rows);
+          setCustomColumns(first.columns);
+          setRowsInput(String(first.rows));
+          setColumnsInput(String(first.columns));
+          setCells(first.cells);
+          setLayoutPreset('custom');
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setTemplates([]);
+      })
+      .finally(() => {
+        if (!cancelled) setTemplatesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [layoutSource]);
+
+  const layout = useLockerLayout(
+    layoutSource === 'template' ? 'custom' : layoutPreset,
+    customRows,
+    customColumns,
+    cells,
+  );
   const softCapacity = usesSoftCapacity(type);
   const smartLocker = usesCompartmentGrid(type);
 
@@ -142,7 +185,9 @@ export function LockerCreatePanel({
 
   const capacityOk = softCapacity
     ? Number.parseInt(maxCapacity, 10) >= 1 && contactPhone.trim().length >= 8
-    : true;
+    : layoutSource === 'template'
+      ? Boolean(selectedTemplateId)
+      : true;
 
   const canCreate =
     placementConfirmed && code.trim() && name.trim() && address.trim() && capacityOk;
@@ -150,6 +195,18 @@ export function LockerCreatePanel({
   const previewCapacity = smartLocker
     ? `${layout.cells.length} compartiments`
     : `${maxCapacity || '—'} colis max`;
+
+  const selectedTemplate = templates.find((template) => template.id === selectedTemplateId);
+
+  function applyTemplate(template: LockerLayoutTemplateDto) {
+    setSelectedTemplateId(template.id);
+    setCustomRows(template.rows);
+    setCustomColumns(template.columns);
+    setRowsInput(String(template.rows));
+    setColumnsInput(String(template.columns));
+    setCells(template.cells);
+    setLayoutPreset('custom');
+  }
 
   function handlePresetChange(preset: LockerLayoutPreset) {
     setLayoutPreset(preset);
@@ -196,6 +253,7 @@ export function LockerCreatePanel({
   }
 
   function handleCellClick(label: string) {
+    if (layoutSource === 'template') return;
     setCells((previous) =>
       previous.map((cell) =>
         cell.label === label ? { ...cell, size: cycleCompartmentSize(cell.size) } : cell,
@@ -305,15 +363,20 @@ export function LockerCreatePanel({
 
       {smartLocker ? (
         <>
-          <p style={{ margin: '0 0 0.5rem', fontSize: '0.75rem', fontWeight: 600 }}>MODÈLE DE GRILLE</p>
+          <p style={{ margin: '0 0 0.5rem', fontSize: '0.75rem', fontWeight: 600 }}>SOURCE DE GRILLE</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: '0.75rem' }}>
-            {(Object.keys(LAYOUT_PRESET_LABELS) as LockerLayoutPreset[]).map((preset) => {
-              const selected = layoutPreset === preset;
+            {(
+              [
+                { value: 'manual' as const, label: 'Manuel' },
+                { value: 'template' as const, label: 'Créer depuis un modèle' },
+              ] as const
+            ).map((option) => {
+              const selected = layoutSource === option.value;
               return (
                 <button
-                  key={preset}
+                  key={option.value}
                   type="button"
-                  onClick={() => handlePresetChange(preset)}
+                  onClick={() => setLayoutSource(option.value)}
                   style={{
                     padding: '0.45rem 0.75rem',
                     borderRadius: radius.button,
@@ -325,44 +388,102 @@ export function LockerCreatePanel({
                     color: colors.secondary,
                   }}
                 >
-                  {LAYOUT_PRESET_LABELS[preset]}
+                  {option.label}
                 </button>
               );
             })}
           </div>
 
-          {layoutPreset === 'custom' ? (
-            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.85rem' }}>
-              <label style={{ display: 'block' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>LIGNES</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  value={rowsInput}
-                  onChange={(e) => handleDimensionInputChange(e.target.value, setRowsInput, setCustomRows)}
-                  onBlur={() => commitDimensionInput(rowsInput, customRows, setCustomRows, setRowsInput)}
-                  style={dimensionInputStyle}
-                />
-              </label>
-              <label style={{ display: 'block' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>COLONNES</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  value={columnsInput}
-                  onChange={(e) =>
-                    handleDimensionInputChange(e.target.value, setColumnsInput, setCustomColumns)
-                  }
-                  onBlur={() =>
-                    commitDimensionInput(columnsInput, customColumns, setCustomColumns, setColumnsInput)
-                  }
-                  style={dimensionInputStyle}
-                />
-              </label>
-            </div>
-          ) : null}
+          {layoutSource === 'template' ? (
+            <label style={{ display: 'block', marginBottom: '1rem' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>MODÈLE</span>
+              <select
+                value={selectedTemplateId}
+                disabled={templatesLoading || templates.length === 0}
+                onChange={(e) => {
+                  const template = templates.find((item) => item.id === e.target.value);
+                  if (template) applyTemplate(template);
+                }}
+                style={{ ...inputStyle, appearance: 'auto' }}
+              >
+                {templatesLoading ? <option value="">Chargement…</option> : null}
+                {!templatesLoading && templates.length === 0 ? (
+                  <option value="">Aucun modèle — créez-en dans Paramètres</option>
+                ) : null}
+                {templates.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.name} ({template.rows}×{template.columns})
+                  </option>
+                ))}
+              </select>
+              {selectedTemplate ? (
+                <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: colors.secondary, opacity: 0.75 }}>
+                  {selectedTemplate.capacity} compartiments — copie figée à la création
+                </p>
+              ) : null}
+            </label>
+          ) : (
+            <>
+              <p style={{ margin: '0 0 0.5rem', fontSize: '0.75rem', fontWeight: 600 }}>MODÈLE DE GRILLE</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: '0.75rem' }}>
+                {(Object.keys(LAYOUT_PRESET_LABELS) as LockerLayoutPreset[]).map((preset) => {
+                  const selected = layoutPreset === preset;
+                  return (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => handlePresetChange(preset)}
+                      style={{
+                        padding: '0.45rem 0.75rem',
+                        borderRadius: radius.button,
+                        border: `1px solid ${selected ? colors.primary : colors.border}`,
+                        background: selected ? '#E8FCE8' : colors.surface,
+                        fontWeight: 700,
+                        fontSize: '0.75rem',
+                        cursor: 'pointer',
+                        color: colors.secondary,
+                      }}
+                    >
+                      {LAYOUT_PRESET_LABELS[preset]}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {layoutPreset === 'custom' ? (
+                <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.85rem' }}>
+                  <label style={{ display: 'block' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>LIGNES</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      value={rowsInput}
+                      onChange={(e) => handleDimensionInputChange(e.target.value, setRowsInput, setCustomRows)}
+                      onBlur={() => commitDimensionInput(rowsInput, customRows, setCustomRows, setRowsInput)}
+                      style={dimensionInputStyle}
+                    />
+                  </label>
+                  <label style={{ display: 'block' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>COLONNES</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      value={columnsInput}
+                      onChange={(e) =>
+                        handleDimensionInputChange(e.target.value, setColumnsInput, setCustomColumns)
+                      }
+                      onBlur={() =>
+                        commitDimensionInput(columnsInput, customColumns, setCustomColumns, setColumnsInput)
+                      }
+                      style={dimensionInputStyle}
+                    />
+                  </label>
+                </div>
+              ) : null}
+            </>
+          )}
 
           <div
             style={{
@@ -376,26 +497,34 @@ export function LockerCreatePanel({
               TAILLES DES COMPARTIMENTS
             </p>
             <p style={{ margin: '0 0 0.75rem', fontSize: '0.75rem', color: colors.secondary, opacity: 0.75 }}>
-              Cliquez sur un compartiment pour faire défiler S → M → L.
+              {layoutSource === 'template'
+                ? 'Aperçu du modèle sélectionné (non modifiable ici).'
+                : 'Cliquez sur un compartiment pour faire défiler S → M → L.'}
             </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: '0.75rem' }}>
-              {BULK_SIZES.map((size) => (
-                <button
-                  key={size}
-                  type="button"
-                  onClick={() => setAllCellSizes(size)}
-                  style={{
-                    ...webSecondaryButtonStyle,
-                    padding: '0.35rem 0.65rem',
-                    fontSize: '0.6875rem',
-                    color: colors.secondary,
-                  }}
-                >
-                  {COMPARTMENT_SIZE_FULL_LABELS[size]}
-                </button>
-              ))}
-            </div>
-            <LockerLayoutPreview layout={layout} interactive onCellClick={handleCellClick} />
+            {layoutSource === 'manual' ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: '0.75rem' }}>
+                {BULK_SIZES.map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => setAllCellSizes(size)}
+                    style={{
+                      ...webSecondaryButtonStyle,
+                      padding: '0.35rem 0.65rem',
+                      fontSize: '0.6875rem',
+                      color: colors.secondary,
+                    }}
+                  >
+                    {COMPARTMENT_SIZE_FULL_LABELS[size]}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            <LockerLayoutPreview
+              layout={layout}
+              interactive={layoutSource === 'manual'}
+              onCellClick={handleCellClick}
+            />
           </div>
         </>
       ) : (
@@ -523,6 +652,11 @@ export function LockerCreatePanel({
         <p style={{ margin: '0 0 4px', fontSize: '0.8125rem' }}>
           <strong>Lieu :</strong> {address || '—'}
         </p>
+        {smartLocker && layoutSource === 'template' ? (
+          <p style={{ margin: '0 0 4px', fontSize: '0.8125rem' }}>
+            <strong>Modèle :</strong> {selectedTemplate?.name ?? '—'}
+          </p>
+        ) : null}
         <p style={{ margin: '0 0 12px', fontSize: '0.8125rem' }}>
           <strong>Capacité :</strong> {previewCapacity} — {status === 'active' ? 'ACTIF' : 'INACTIF'}
         </p>
