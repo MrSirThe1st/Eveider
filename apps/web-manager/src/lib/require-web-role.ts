@@ -1,4 +1,4 @@
-import { getAuthenticatedLandingPath } from '@/lib/auth-routing';
+import { getAuthenticatedLandingPath, getWebPersona } from '@/lib/auth-routing';
 import { getCurrentUser } from '@/lib/auth/get-current-user';
 import type { UserRole } from '@eveider/domain';
 import { redirect } from 'next/navigation';
@@ -10,15 +10,14 @@ export async function requireWebRole(allowedRoles: readonly UserRole[]) {
     redirect('/connexion');
   }
 
-  const profile = current.profile;
-
-  if (!allowedRoles.includes(profile.role as UserRole)) {
-    const fallback = getAuthenticatedLandingPath(profile.role as UserRole);
+  const persona = getWebPersona(current);
+  if (!persona || !allowedRoles.includes(persona)) {
+    const fallback = persona ? getAuthenticatedLandingPath(persona) : null;
     if (fallback && fallback !== '/') {
       redirect(fallback);
     }
     redirect('/connexion');
   }
 
-  return profile;
+  return current.profile;
 }

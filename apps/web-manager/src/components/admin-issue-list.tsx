@@ -143,7 +143,8 @@ export function AdminIssueList({ issues }: AdminIssueListProps) {
                 ) : null}
 
                 <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 500, opacity: 0.7 }}>
-                  {issue.reporterName ?? 'Utilisateur'} ({issue.reporterRole.toUpperCase()}) ·{' '}
+                  {issue.reporterName ?? 'Utilisateur'}
+                  {issue.reporterRole ? ` (${issue.reporterRole.toUpperCase()})` : ''} ·{' '}
                   {formatDate(issue.createdAt)}
                 </p>
 

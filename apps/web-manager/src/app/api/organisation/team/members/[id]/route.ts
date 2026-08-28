@@ -28,7 +28,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
           id: member.id,
           fullName: member.fullName,
           email: member.email,
-          userRole: member.userRole,
+          userRole: body.data.role,
         },
       }),
     );

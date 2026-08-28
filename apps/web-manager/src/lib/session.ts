@@ -3,7 +3,7 @@ import {
   createDataAccessContext,
   type DataAccessContext,
 } from '@eveider/data-access';
-import type { OrganizationPermission, OrganizationRole } from '@eveider/domain';
+import type { BusinessPermission, OrganizationRole } from '@eveider/domain';
 import {
   hasOrganizationPermission,
   hasOrganizationWebAccess,
@@ -118,7 +118,7 @@ export type BusinessSession = {
 
 export async function requireBusinessSession(
   perf?: PerfTimer,
-  permission?: OrganizationPermission,
+  permission?: BusinessPermission,
 ): Promise<{ session: BusinessSession } | { error: string; status: number }> {
   const current = await measure(perf, 'auth.resolveCurrentUser', () => getCurrentUser());
 

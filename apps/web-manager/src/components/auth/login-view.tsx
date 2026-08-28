@@ -1,6 +1,6 @@
 'use client';
 
-import type { UserRole } from '@eveider/domain';
+import { normalizeUserRole } from '@eveider/domain';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -59,7 +59,13 @@ export function LoginView() {
       return;
     }
 
-    const role = meResult.data.profile.role as UserRole;
+    const role = normalizeUserRole(meResult.data.profile.persona ?? meResult.data.profile.role);
+    if (!role) {
+      setLoading(false);
+      setError('Profil utilisateur introuvable');
+      await supabase.auth.signOut();
+      return;
+    }
 
     if (isMobileRole(role)) {
       setLoading(false);
@@ -70,7 +76,7 @@ export function LoginView() {
       return;
     }
 
-    if (role === 'business' && !meResult.data.profile.businessId) {
+    if (role === 'organization' && !meResult.data.profile.businessId) {
       setLoading(false);
       setError('Compte entreprise requis');
       await supabase.auth.signOut();

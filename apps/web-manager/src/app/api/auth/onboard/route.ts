@@ -70,7 +70,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { onboarding } = createRepositories();
+    const { onboarding, memberships } = createRepositories();
     const profile = await onboarding.ensureProfile(user.id, {
       role: body.data.role,
       fullName: body.data.fullName,
@@ -79,13 +79,16 @@ export async function POST(request: Request) {
       inviteToken: body.data.inviteToken,
       business: body.data.business,
     });
+    const orgs = await memberships.listByUserIdWithOrgFlags(profile.id);
+    const businessId =
+      orgs.find((row) => !row.isPlatformOrg && row.role !== 'driver')?.businessId ?? null;
 
     return withCors(
       NextResponse.json(
         ok({
           id: profile.id,
-          role: profile.role,
-          businessId: profile.businessId,
+          role: body.data.role,
+          businessId,
         }),
       ),
     );

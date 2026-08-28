@@ -21,7 +21,7 @@ export async function POST(request: Request) {
       return NextResponse.json(fail('Rôle non autorisé sur ce portail'), { status: 400 });
     }
 
-    const { onboarding } = createRepositories();
+    const { onboarding, memberships } = createRepositories();
     const profile = await onboarding.ensureProfile(current.authUser.id, {
       role: 'business',
       fullName: body.data.fullName,
@@ -29,12 +29,15 @@ export async function POST(request: Request) {
       email: body.data.email ?? current.authUser.email ?? undefined,
       business: body.data.business,
     });
+    const orgs = await memberships.listByUserIdWithOrgFlags(profile.id);
+    const businessId =
+      orgs.find((row) => !row.isPlatformOrg && row.role !== 'driver')?.businessId ?? null;
 
     return NextResponse.json(
       ok({
         id: profile.id,
-        role: profile.role,
-        businessId: profile.businessId,
+        role: 'business' as const,
+        businessId,
       }),
     );
   } catch (err) {

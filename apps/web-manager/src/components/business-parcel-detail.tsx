@@ -8,7 +8,7 @@ import {
   locationStatusCopy,
 } from '@/components/business-parcel-progression';
 import { ParcelInvitePanel } from '@/components/parcel-invite-panel';
-import { BusinessAssignCourier } from '@/components/business-assign-driver';
+import { BusinessAssignCourier } from '@/components/business-assign-courier';
 import { ShippingLabel } from '@/components/shipping-label';
 import { WEB_ROUTES } from '@/lib/auth-routing';
 import type { AssignableCourierView } from '@/server/couriers';

@@ -12,8 +12,10 @@ const inter = Inter({
   display: 'swap',
 });
 
+const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL?.trim() || 'http://localhost:3000';
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_PORTAL_URL ?? 'http://localhost:3000'),
+  metadataBase: new URL(portalUrl),
   title: {
     default: 'Eveider — Livraison et retrait de colis à Kinshasa',
     template: '%s · Eveider',

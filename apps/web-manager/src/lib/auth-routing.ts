@@ -96,8 +96,8 @@ export function getAuthenticatedLandingPath(role: UserRole | string): string | n
   return getPostLoginPath(role);
 }
 
-export function getLandingPathForUser(current: CurrentUser): string | null {
-  const persona = deriveUserRole({
+export function getWebPersona(current: CurrentUser): UserRole | null {
+  return deriveUserRole({
     isCustomer: current.profile.isCustomer,
     platformRole: current.profile.platformRole,
     memberships: current.memberships.map((membership) => ({
@@ -107,6 +107,10 @@ export function getLandingPathForUser(current: CurrentUser): string | null {
     })),
     surface: 'web',
   });
+}
+
+export function getLandingPathForUser(current: CurrentUser): string | null {
+  const persona = getWebPersona(current);
   if (!persona) return null;
   return getAuthenticatedLandingPath(persona);
 }

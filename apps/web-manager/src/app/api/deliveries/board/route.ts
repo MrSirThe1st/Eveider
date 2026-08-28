@@ -66,7 +66,7 @@ export async function GET(request: Request) {
     const ctx = auth.session.ctx;
 
     const [courierItems, lockerItems, businessItems] = await perf.measure('db.board.meta', () =>
-      Promise.all([users.listByRole('courier'), lockers.listAll(ctx), businesses.list(ctx)]),
+      Promise.all([users.listAssignableCouriers(), lockers.listAll(ctx), businesses.list(ctx)]),
     );
 
     const meta = {

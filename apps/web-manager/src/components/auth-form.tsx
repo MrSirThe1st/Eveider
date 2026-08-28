@@ -7,7 +7,7 @@ import {
   webInputStyle,
   webPrimaryButtonStyle,
 } from '@eveider/config-ui';
-import type { UserRole } from '@eveider/domain';
+import { normalizeUserRole, type UserRole } from '@eveider/domain';
 import { PasswordInput, Spinner } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -90,7 +90,7 @@ export function AuthForm({ mode, businessName, redirectParam, onAuthenticated }:
 
       setLoading(false);
       if (onAuthenticated) {
-        onAuthenticated('business');
+        onAuthenticated('organization');
       } else {
         router.replace(WEB_ROUTES.businessDashboard);
       }
@@ -118,7 +118,13 @@ export function AuthForm({ mode, businessName, redirectParam, onAuthenticated }:
       return;
     }
 
-    const role = (meResult.data.profile.persona ?? meResult.data.profile.role) as UserRole;
+    const role = normalizeUserRole(meResult.data.profile.persona ?? meResult.data.profile.role);
+    if (!role) {
+      setLoading(false);
+      setError('Profil utilisateur introuvable');
+      await supabase.auth.signOut();
+      return;
+    }
 
     if (isMobileRole(role)) {
       setLoading(false);
@@ -127,7 +133,7 @@ export function AuthForm({ mode, businessName, redirectParam, onAuthenticated }:
       return;
     }
 
-    if ((role === 'organization' || role === 'business') && !meResult.data.profile.businessId) {
+    if (role === 'organization' && !meResult.data.profile.businessId) {
       setLoading(false);
       setError('Compte entreprise requis');
       await supabase.auth.signOut();

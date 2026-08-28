@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       ok({
         id: profile.id,
-        role: profile.role,
+        role: parsed.data.role,
       }),
     );
   } catch (err) {
