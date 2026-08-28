@@ -1,32 +1,6 @@
-import { notFound, redirect } from 'next/navigation';
-import { OnboardingWizard } from '@/components/onboarding-wizard';
-import type { OnboardingSummary } from '@/hooks/queries/use-onboarding-summary-query';
-import { loadOnboardingPageData, requireBusinessPermission } from '@/server/business';
+import { redirect } from 'next/navigation';
 import { WEB_ROUTES } from '@/lib/auth-routing';
 
-export default async function OnboardingPage() {
-  const { profile } = await requireBusinessPermission('settings');
-  const { summary, lockerList } = await loadOnboardingPageData(profile.businessId);
-
-  if (!summary) {
-    notFound();
-  }
-
-  if (summary.status !== 'onboarding' && summary.status !== 'draft' && summary.status !== 'pending_correction') {
-    redirect(WEB_ROUTES.businessSettings);
-  }
-
-  return (
-    <main style={{ minHeight: '100vh', background: '#F8FAFC' }}>
-      <OnboardingWizard
-        initialSummary={summary as OnboardingSummary}
-        availableLockers={lockerList.map((l) => ({
-          id: l.id,
-          name: l.name,
-          address: l.address,
-          code: l.code,
-        }))}
-      />
-    </main>
-  );
+export default function OnboardingRedirectPage() {
+  redirect(WEB_ROUTES.businessVerification);
 }

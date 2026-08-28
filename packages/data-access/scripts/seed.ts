@@ -393,7 +393,7 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
        risk_classification, contact_email, contact_phone, is_phone_verified,
        individual_full_name, id_passport_number, residential_address
      ) VALUES (
-       'Atelier Kampemba', 'pending_review', 'individual_seller', 'fashion',
+       'Atelier Kampemba', 'active', 'individual_seller', 'fashion',
        ARRAY['instagram'],
        'Couture sur mesure — Kampemba',
        'individual_seller', 'pending.shop@eveider.cd', '+243970300001', true,

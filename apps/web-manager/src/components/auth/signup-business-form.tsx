@@ -1,5 +1,6 @@
 'use client';
 
+import { BUSINESS_INDUSTRY_OPTIONS } from '@eveider/domain';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Spinner } from '@eveider/ui';
@@ -9,13 +10,11 @@ import { AuthPhoneField } from './auth-phone-field';
 import styles from './auth-shell.module.css';
 
 type SignupBusinessFormProps = {
-  onOtpStepChange: (otp: boolean) => void;
   inviteToken?: string;
 };
 
-export function SignupBusinessForm({ onOtpStepChange, inviteToken }: SignupBusinessFormProps) {
+export function SignupBusinessForm({ inviteToken }: SignupBusinessFormProps) {
   const router = useRouter();
-  const [step, setStep] = useState<'account' | 'otp'>('account');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [firstName, setFirstName] = useState('');
@@ -26,7 +25,8 @@ export function SignupBusinessForm({ onOtpStepChange, inviteToken }: SignupBusin
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [otpCode, setOtpCode] = useState('');
+  const [organizationName, setOrganizationName] = useState('');
+  const [industry, setIndustry] = useState<string>(BUSINESS_INDUSTRY_OPTIONS[0]);
 
   useEffect(() => {
     if (!inviteToken) return;
@@ -49,16 +49,6 @@ export function SignupBusinessForm({ onOtpStepChange, inviteToken }: SignupBusin
       });
   }, [inviteToken]);
 
-  function goToOtp() {
-    setStep('otp');
-    onOtpStepChange(true);
-  }
-
-  function goToAccount() {
-    setStep('account');
-    onOtpStepChange(false);
-  }
-
   async function handleRegister(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
@@ -79,7 +69,9 @@ export function SignupBusinessForm({ onOtpStepChange, inviteToken }: SignupBusin
           email,
           phone,
           password,
-          ...(inviteToken ? { inviteToken } : {}),
+          ...(inviteToken
+            ? { inviteToken }
+            : { organizationName, industry }),
         }),
       });
       const result = await response.json();
@@ -87,76 +79,12 @@ export function SignupBusinessForm({ onOtpStepChange, inviteToken }: SignupBusin
         setError(result.error ?? 'Erreur lors de la création du compte');
         return;
       }
-      if (result.data.joinedExistingCompany) {
-        router.replace(WEB_ROUTES.businessDashboard);
-        return;
-      }
-      goToOtp();
+      router.replace(WEB_ROUTES.businessDashboard);
     } catch {
       setError('Erreur réseau. Veuillez réessayer.');
     } finally {
       setLoading(false);
     }
-  }
-
-  async function handleVerifyOtp(event: React.FormEvent) {
-    event.preventDefault();
-    setError(null);
-    setLoading(true);
-    try {
-      const response = await fetch('/api/auth/verify-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, code: otpCode }),
-      });
-      const result = await response.json();
-      if (!result.success) {
-        setError(result.error ?? 'Code invalide');
-        return;
-      }
-      router.replace('/onboarding');
-    } catch {
-      setError('Erreur de vérification.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (step === 'otp') {
-    return (
-      <form className={styles.form} onSubmit={handleVerifyOtp}>
-        <div className={styles.otpBox}>
-          <span className={styles.otpLabel}>Code de test</span>
-          <span className={styles.otpCode}>123456</span>
-        </div>
-        <label className={styles.field}>
-          <span>Code à 6 chiffres</span>
-          <input
-            className={`${styles.input} ${styles.otpInput}`}
-            type="text"
-            inputMode="numeric"
-            required
-            maxLength={6}
-            value={otpCode}
-            onChange={(event) => setOtpCode(event.target.value)}
-            placeholder="123456"
-          />
-        </label>
-        {error ? <p className={styles.error}>{error}</p> : null}
-        <button type="submit" className={styles.submit} disabled={loading}>
-          {loading ? <Spinner size="sm" color="currentColor" /> : null}
-          {loading ? 'Vérification…' : 'Vérifier le numéro'}
-        </button>
-        <div className={styles.otpActions}>
-          <button type="button" className={styles.ghostBtn} onClick={goToAccount}>
-            Changer de numéro
-          </button>
-          <button type="button" className={styles.secondaryBtn} onClick={() => setError(null)}>
-            Renvoyer le code
-          </button>
-        </div>
-      </form>
-    );
   }
 
   return (
@@ -187,6 +115,37 @@ export function SignupBusinessForm({ onOtpStepChange, inviteToken }: SignupBusin
           />
         </label>
       </div>
+      {inviteToken ? null : (
+        <>
+          <label className={styles.field}>
+            <span>Nom de l’organisation</span>
+            <input
+              className={styles.input}
+              type="text"
+              required
+              value={organizationName}
+              onChange={(event) => setOrganizationName(event.target.value)}
+              placeholder="Kin Fashion"
+              autoComplete="organization"
+            />
+          </label>
+          <label className={styles.field}>
+            <span>Secteur d’activité</span>
+            <select
+              className={styles.input}
+              required
+              value={industry}
+              onChange={(event) => setIndustry(event.target.value)}
+            >
+              {BUSINESS_INDUSTRY_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+        </>
+      )}
       <label className={styles.field}>
         <span>Email professionnel</span>
         <input
@@ -226,7 +185,7 @@ export function SignupBusinessForm({ onOtpStepChange, inviteToken }: SignupBusin
       {error ? <p className={styles.error}>{error}</p> : null}
       <button type="submit" className={styles.submit} disabled={loading}>
         {loading ? <Spinner size="sm" color="currentColor" /> : null}
-        {loading ? 'Création…' : 'Créer le compte'}
+        {loading ? 'Création…' : inviteToken ? 'Rejoindre l’équipe' : 'Créer le compte'}
       </button>
     </form>
   );

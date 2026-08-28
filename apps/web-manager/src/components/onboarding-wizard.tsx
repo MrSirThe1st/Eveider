@@ -8,6 +8,7 @@ import type {
 } from '@eveider/api-contracts';
 import { colors, radius, webCardStyle, webInputStyle, webPrimaryButtonStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
 import { Spinner } from '@eveider/ui';
+import type { OrganizationVerificationStatus } from '@eveider/domain';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { OnboardingSummary } from '@/hooks/queries/use-onboarding-summary-query';
@@ -27,16 +28,22 @@ type OnboardingDocument = OnboardingSummary['documents'][number];
 
 interface OnboardingWizardProps {
   initialSummary?: OnboardingSummary;
-  availableLockers?: Array<{ id: string; name: string; address: string; code: string }>;
+  verificationStatus?: OrganizationVerificationStatus;
+  availableLockers?: Array<{ id: string; name: string; address: string; code?: string }>;
 }
 
-export function OnboardingWizard({ initialSummary, availableLockers = [] }: OnboardingWizardProps) {
+export function OnboardingWizard({
+  initialSummary,
+  verificationStatus: initialVerificationStatus = 'not_started',
+  availableLockers = [],
+}: OnboardingWizardProps) {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState<StepNumber>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmedAccuracy, setConfirmedAccuracy] = useState(false);
-  const [businessStatus, setBusinessStatus] = useState<string>(initialSummary?.status ?? 'onboarding');
+  const [verificationStatus, setVerificationStatus] =
+    useState<OrganizationVerificationStatus>(initialVerificationStatus);
 
   // STEP 1 — Business Info
   const [name, setName] = useState(initialSummary?.name ?? '');
@@ -234,7 +241,7 @@ export function OnboardingWizard({ initialSummary, availableLockers = [] }: Onbo
         return;
       }
       router.refresh();
-      setBusinessStatus('pending_review');
+      setVerificationStatus('pending');
     } catch {
       setError('Erreur réseau lors de la soumission.');
     } finally {
@@ -242,7 +249,32 @@ export function OnboardingWizard({ initialSummary, availableLockers = [] }: Onbo
     }
   }
 
-  if (businessStatus === 'pending_review' || businessStatus === 'pending') {
+  if (verificationStatus === 'approved') {
+    return (
+      <div style={{ width: '100%', maxWidth: 'none', margin: 0, padding: '3rem 2rem 1rem' }}>
+        <div style={{ ...webCardStyle, padding: '2.5rem', textAlign: 'center', borderRadius: radius.card }}>
+          <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#DCF5D6', color: '#067A07', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.75rem', margin: '0 auto 1.5rem', fontWeight: 800 }}>
+            ✓
+          </div>
+          <h2 style={{ margin: '1rem 0 0.5rem', fontSize: '1.5rem', fontWeight: 800 }}>
+            Organisation vérifiée
+          </h2>
+          <p style={{ margin: '0 0 1.5rem', color: '#475569', lineHeight: 1.6, fontSize: '0.9375rem' }}>
+            Votre dossier KYC a été validé. Vous pouvez continuer à utiliser l’ensemble de la plateforme.
+          </p>
+          <button
+            type="button"
+            onClick={() => router.push(WEB_ROUTES.businessDashboard)}
+            style={{ ...webSecondaryButtonStyle, height: 44, padding: '0 1.5rem' }}
+          >
+            Retour au tableau de bord
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (verificationStatus === 'pending') {
     return (
       <div style={{ width: '100%', maxWidth: 'none', margin: 0, padding: '3rem 2rem 1rem' }}>
         <div style={{ ...webCardStyle, padding: '2.5rem', textAlign: 'center', borderRadius: radius.card }}>
@@ -260,14 +292,14 @@ export function OnboardingWizard({ initialSummary, availableLockers = [] }: Onbo
             <strong>Temps de traitement estimé : 24 à 48 heures.</strong>
           </p>
           <div style={{ background: '#F8FAFC', border: '1px dashed #CBD5E1', padding: '1rem', borderRadius: 8, fontSize: '0.8125rem', color: '#64748B', marginBottom: '2rem' }}>
-            Pendant cette période, vous ne pouvez pas encore créer d&apos;expéditions. Vous recevrez une notification dès validation de votre compte.
+            Vous pouvez continuer à créer des expéditions pendant la revue. La vérification n’est pas obligatoire pour utiliser la plateforme.
           </div>
           <button
             type="button"
             onClick={() => router.push(WEB_ROUTES.businessDashboard)}
             style={{ ...webSecondaryButtonStyle, height: 44, padding: '0 1.5rem' }}
           >
-            Accéder au tableau de bord (Lecture seule)
+            Retour au tableau de bord
           </button>
         </div>
       </div>
@@ -280,10 +312,10 @@ export function OnboardingWizard({ initialSummary, availableLockers = [] }: Onbo
       {/* Header & Steps Nav */}
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{ margin: '0 0 0.5rem', fontSize: '1.75rem', fontWeight: 800, color: colors.secondary }}>
-          Configuration du compte Business
+          Vérification de l’organisation
         </h1>
         <p style={{ margin: 0, fontSize: '0.875rem', color: '#64748B', fontWeight: 500 }}>
-          Complétez les 5 étapes pour activer votre accès aux services logistiques Eveider.
+          Société enregistrée ou vendeur individuel : mêmes étapes. Ce dossier est optionnel.
         </p>
 
         {/* Progress Indicator */}
@@ -319,7 +351,7 @@ export function OnboardingWizard({ initialSummary, availableLockers = [] }: Onbo
         </div>
       </div>
 
-      {businessStatus === 'pending_correction' ? (
+      {verificationStatus === 'correction_requested' || verificationStatus === 'rejected' ? (
         <div style={{ background: '#FFFBEB', border: '2px solid #F59E0B', color: '#92400E', padding: '1rem 1.25rem', borderRadius: 8, marginBottom: '1.5rem', fontWeight: 600, fontSize: '0.875rem' }}>
           ⚠️ <strong>Demande de correction par l&apos;administration :</strong> Veuillez vérifier et re-soumettre vos documents ou informations avant validation final.
           {initialSummary?.verifications?.[0]?.reviewNotes ? (

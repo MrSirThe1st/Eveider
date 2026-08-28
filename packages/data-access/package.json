@@ -25,6 +25,7 @@
     "@eveider/domain": "workspace:*",
     "@supabase/supabase-js": "^2.49.8",
     "pg": "^8.22.0",
+    "resend": "^6.24.0",
     "zod": "^3.25.51"
   },
   "devDependencies": {

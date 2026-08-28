@@ -33,7 +33,21 @@ describe('updateBusinessProfileSchema', () => {
 });
 
 describe('registerBusinessAccountSchema', () => {
-  it('creates a company admin without a self-selected role', () => {
+  it('creates an organization owner with name and sector', () => {
+    expect(
+      registerBusinessAccountSchema.safeParse({
+        firstName: 'Chantal',
+        lastName: 'Kasongo',
+        email: 'chantal@boutique.cd',
+        phone: '+243800000001',
+        password: 'secret123',
+        organizationName: 'Boutique Kenya',
+        industry: 'Fashion',
+      }).success,
+    ).toBe(true);
+  });
+
+  it('requires organization name and sector without an invite', () => {
     expect(
       registerBusinessAccountSchema.safeParse({
         firstName: 'Chantal',
@@ -42,7 +56,7 @@ describe('registerBusinessAccountSchema', () => {
         phone: '+243800000001',
         password: 'secret123',
       }).success,
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it('accepts an invite token to join an existing company', () => {

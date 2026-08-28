@@ -11,7 +11,7 @@ export default async function BusinessApplicationsPage() {
   return (
     <PageFrame
       title="Dossiers"
-      description="Dossiers en cours de vérification, corrections et comptes non actifs."
+      description="Dossiers KYC soumis pour revue ou en attente de correction. L’accès opérationnel des organisations est indépendant de cette liste."
       layout="wide"
     >
       <AdminEntreprisesTabs />

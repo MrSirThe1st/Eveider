@@ -5,7 +5,7 @@ import type {
   OperationsSetupStepInput,
   PaymentSetupStepInput,
 } from '@eveider/api-contracts';
-import { canTransitionBusiness, generateBusinessAccessCode, transitionBusiness, type BusinessStatus } from '@eveider/domain';
+import { generateBusinessAccessCode, operationalStatusAfterVerificationApproval, transitionBusiness } from '@eveider/domain';
 import { assertAdmin, type DataAccessContext } from '../context.js';
 import type { Queryable } from '../db/index.js';
 import {
@@ -22,7 +22,7 @@ import {
   mapUser,
   mapVerificationCheck,
 } from '../db/mappers.js';
-import type { BillingAccount, Business, BusinessLocation, SettlementAccount } from '../db/types.js';
+import type { BillingAccount, Business, BusinessLocation, SettlementAccount, VerificationStatus } from '../db/types.js';
 import { withTransaction } from '../db/pool.js';
 
 export type BusinessSettingsSnapshot = {
@@ -38,6 +38,13 @@ export type BusinessSettingsSnapshot = {
   legalRepName: string | null;
   accessCode: string | null;
   locations: BusinessLocation[];
+  verificationStatus: VerificationStatus | null;
+  verificationNotes: string | null;
+};
+
+export type LatestVerificationSnapshot = {
+  status: VerificationStatus;
+  reviewNotes: string | null;
 };
 
 export type BusinessBillingSnapshot = {
@@ -113,7 +120,14 @@ async function loadSummary(db: Queryable, businessId: string) {
     historyResult,
     verificationResult,
   ] = await Promise.all([
-    db.query(`SELECT * FROM users WHERE business_id = $1`, [businessId]),
+    db.query(
+      `SELECT u.*, m.role AS membership_role
+       FROM organization_memberships m
+       JOIN users u ON u.id = m.user_id
+       WHERE m.business_id = $1
+       ORDER BY CASE WHEN m.role = 'account_owner' THEN 0 ELSE 1 END, m.created_at ASC`,
+      [businessId],
+    ),
     db.query(`SELECT * FROM business_locations WHERE business_id = $1 ORDER BY created_at ASC`, [businessId]),
     db.query(`SELECT * FROM business_documents WHERE business_id = $1 ORDER BY created_at ASC`, [businessId]),
     db.query(`SELECT * FROM billing_accounts WHERE business_id = $1 LIMIT 1`, [businessId]),
@@ -149,7 +163,10 @@ async function loadSummary(db: Queryable, businessId: string) {
 
   return {
     ...mapBusiness(businessRow),
-    users: usersResult.rows.map(mapUser),
+    users: usersResult.rows.map((row: Row) => ({
+      ...mapUser(row),
+      userRole: row.membership_role == null ? null : String(row.membership_role),
+    })),
     locations: locationsResult.rows.map((location: Row) => {
       const mapped = mapBusinessLocation(location);
       return {
@@ -175,7 +192,7 @@ export class BusinessOnboardingRepository {
       const businessResult = await tx.query(
         `UPDATE businesses
          SET name = $1, business_type = $2, industry = $3, sales_channels = $4,
-             description = $5, status = 'onboarding', updated_at = NOW()
+             description = $5, updated_at = NOW()
          WHERE id = $6
          RETURNING *`,
         [input.name, input.businessType, input.industry, input.salesChannels, input.description, businessId],
@@ -443,25 +460,26 @@ export class BusinessOnboardingRepository {
         [businessId],
       );
       const business = mapBusiness(requiredRow(businessResult.rows, `Business ${businessId} not found`));
-      const nextStatus: BusinessStatus = 'pending_review';
-      if (!canTransitionBusiness(business.status, nextStatus)) {
-        throw new Error(`Impossible de soumettre l'application (Statut actuel: ${business.status})`);
+      if (business.status === 'blocked' || business.status === 'suspended') {
+        throw new Error(`Impossible de soumettre le dossier (compte ${business.status})`);
       }
 
-      const updatedResult = await tx.query(
-        `UPDATE businesses SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
-        [nextStatus, businessId],
+      const latestResult = await tx.query(
+        `SELECT * FROM business_verifications
+         WHERE business_id = $1
+         ORDER BY created_at DESC
+         LIMIT 1
+         FOR UPDATE`,
+        [businessId],
       );
-      await tx.query(
-        `INSERT INTO business_status_histories (business_id, previous_status, new_status, reason)
-         VALUES ($1, $2, $3, $4)`,
-        [
-          businessId,
-          business.status,
-          nextStatus,
-          "Soumission du dossier d'enregistrement entreprise pour vérification admin",
-        ],
-      );
+      const latest = latestResult.rows[0] ? mapBusinessVerification(latestResult.rows[0]) : null;
+      if (latest?.status === 'pending') {
+        throw new Error('Un dossier de vérification est déjà en cours de revue');
+      }
+      if (latest?.status === 'approved') {
+        throw new Error('Cette organisation est déjà vérifiée');
+      }
+
       const verificationResult = await tx.query(
         `INSERT INTO business_verifications (business_id, status, submitted_at)
          VALUES ($1, 'pending', NOW())
@@ -488,7 +506,7 @@ export class BusinessOnboardingRepository {
         [verification.id],
       );
       return {
-        business: mapBusiness(requiredRow(updatedResult.rows, `Business ${businessId} not found`)),
+        business,
         verification: { ...verification, checks: checkResult.rows.map(mapVerificationCheck) },
       };
     });
@@ -512,6 +530,20 @@ export class BusinessOnboardingRepository {
               b.nif_number,
               b.legal_rep_name,
               b.access_code,
+              (
+                SELECT v.status
+                FROM business_verifications v
+                WHERE v.business_id = b.id
+                ORDER BY v.created_at DESC
+                LIMIT 1
+              ) AS verification_status,
+              (
+                SELECT v.review_notes
+                FROM business_verifications v
+                WHERE v.business_id = b.id
+                ORDER BY v.created_at DESC
+                LIMIT 1
+              ) AS verification_notes,
               COALESCE((
                 SELECT json_agg(loc.* ORDER BY loc.created_at ASC)
                 FROM business_locations loc
@@ -537,6 +569,8 @@ export class BusinessOnboardingRepository {
       nifNumber: row.nif_number == null ? null : String(row.nif_number),
       legalRepName: row.legal_rep_name == null ? null : String(row.legal_rep_name),
       accessCode: row.access_code == null || row.access_code === '' ? null : String(row.access_code),
+      verificationStatus: (row.verification_status as VerificationStatus | null) ?? null,
+      verificationNotes: row.verification_notes == null ? null : String(row.verification_notes),
       locations: asJsonRows(row.locations_json).map(mapBusinessLocation),
     };
   }
@@ -573,22 +607,47 @@ export class BusinessOnboardingRepository {
     };
   }
 
+  async getLatestVerification(businessId: string): Promise<LatestVerificationSnapshot | null> {
+    const result = await this.db.query(
+      `SELECT status, review_notes
+       FROM business_verifications
+       WHERE business_id = $1
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [businessId],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+      status: row.status as VerificationStatus,
+      reviewNotes: row.review_notes == null ? null : String(row.review_notes),
+    };
+  }
+
   async listApplications(ctx: DataAccessContext, options?: { search?: string }) {
     assertAdmin(ctx);
     const params: unknown[] = [];
-    const conditions = [`b.status != 'active'`];
+    const conditions: string[] = [];
     if (options?.search?.trim()) {
       params.push(`%${options.search.trim()}%`);
       conditions.push(
         `(b.name ILIKE $${params.length} OR COALESCE(b.contact_email, '') ILIKE $${params.length} OR COALESCE(b.access_code, '') ILIKE $${params.length})`,
       );
     }
+    const where = conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '';
     const businessesResult = await this.db.query(
       `SELECT b.*,
+              latest.verification_status,
+              latest.verification_notes,
+              latest.verification_submitted_at,
               COALESCE((
-                SELECT json_agg(u.* ORDER BY u.created_at ASC)
-                FROM users u
-                WHERE u.business_id = b.id
+                SELECT json_agg(
+                  to_jsonb(u) || jsonb_build_object('membership_role', m.role)
+                  ORDER BY CASE WHEN m.role = 'account_owner' THEN 0 ELSE 1 END, m.created_at ASC
+                )
+                FROM organization_memberships m
+                JOIN users u ON u.id = m.user_id
+                WHERE m.business_id = b.id
               ), '[]'::json) AS users_json,
               COALESCE((
                 SELECT json_agg(loc.* ORDER BY loc.created_at ASC)
@@ -596,7 +655,16 @@ export class BusinessOnboardingRepository {
                 WHERE loc.business_id = b.id
               ), '[]'::json) AS locations_json
        FROM businesses b
-       WHERE ${conditions.join(' AND ')}
+       JOIN LATERAL (
+         SELECT v.status AS verification_status,
+                v.review_notes AS verification_notes,
+                v.submitted_at AS verification_submitted_at
+         FROM business_verifications v
+         WHERE v.business_id = b.id
+         ORDER BY v.created_at DESC
+         LIMIT 1
+       ) latest ON latest.verification_status IN ('pending', 'correction_requested')
+       WHERE true ${where}
        ORDER BY b.updated_at DESC`,
       params,
     );
@@ -604,8 +672,12 @@ export class BusinessOnboardingRepository {
 
     return businessesResult.rows.map((row: Row) => {
       const business = mapBusiness(row);
-      const users = asJsonRows(row.users_json).map(mapUser);
+      const users = asJsonRows(row.users_json).map((userRow) => ({
+        ...mapUser(userRow),
+        userRole: userRow.membership_role == null ? null : String(userRow.membership_role),
+      }));
       const locations = asJsonRows(row.locations_json).map(mapBusinessLocation);
+      const verificationStatus = row.verification_status == null ? null : String(row.verification_status);
       return {
         ...business,
         users,
@@ -613,7 +685,17 @@ export class BusinessOnboardingRepository {
         documents: [],
         billingAccount: null,
         settlementAccount: null,
-        verifications: [],
+        verifications: verificationStatus
+          ? [
+              {
+                status: verificationStatus,
+                reviewNotes: row.verification_notes == null ? null : String(row.verification_notes),
+                submittedAt: row.verification_submitted_at ? new Date(String(row.verification_submitted_at)) : null,
+                reviewedAt: null,
+                checks: [],
+              },
+            ]
+          : [],
         statusHistory: [],
       };
     });
@@ -622,15 +704,26 @@ export class BusinessOnboardingRepository {
   async listApplicationIds(ctx: DataAccessContext, options?: { search?: string }): Promise<string[]> {
     assertAdmin(ctx);
     const params: unknown[] = [];
-    const conditions = [`status != 'active'`];
+    const conditions: string[] = [];
     if (options?.search?.trim()) {
       params.push(`%${options.search.trim()}%`);
       conditions.push(
-        `(name ILIKE $${params.length} OR COALESCE(contact_email, '') ILIKE $${params.length} OR COALESCE(access_code, '') ILIKE $${params.length})`,
+        `(b.name ILIKE $${params.length} OR COALESCE(b.contact_email, '') ILIKE $${params.length} OR COALESCE(b.access_code, '') ILIKE $${params.length})`,
       );
     }
+    const where = conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '';
     const result = await this.db.query(
-      `SELECT id FROM businesses WHERE ${conditions.join(' AND ')} ORDER BY updated_at DESC`,
+      `SELECT b.id
+       FROM businesses b
+       JOIN LATERAL (
+         SELECT v.status AS verification_status
+         FROM business_verifications v
+         WHERE v.business_id = b.id
+         ORDER BY v.created_at DESC
+         LIMIT 1
+       ) latest ON latest.verification_status IN ('pending', 'correction_requested')
+       WHERE true ${where}
+       ORDER BY b.updated_at DESC`,
       params,
     );
     return result.rows.map((row) => String(row.id));
@@ -657,7 +750,10 @@ export class BusinessOnboardingRepository {
         : null;
 
       if (input.action === 'approve') {
-        const nextStatus = transitionBusiness(business.status, 'active');
+        if (!currentVerification || currentVerification.status === 'approved') {
+          throw new Error('Aucun dossier de vérification à approuver');
+        }
+        const nextStatus = operationalStatusAfterVerificationApproval(business.status);
         let accessCode = business.accessCode;
         if (!accessCode) {
           for (let attempt = 0; attempt < 8; attempt++) {
@@ -721,31 +817,32 @@ export class BusinessOnboardingRepository {
            ON CONFLICT (business_id) DO NOTHING`,
           [businessId],
         );
-        await tx.query(
-          `INSERT INTO business_status_histories
-             (business_id, previous_status, new_status, changed_by, reason)
-           VALUES ($1, $2, 'active', $3, $4)`,
-          [
-            businessId,
-            business.status,
-            ctx.userId ?? 'ADMIN',
-            input.reviewNotes ?? "Dossier approuvé par l'équipe de vérification Eveider.",
-          ],
-        );
+        if (nextStatus !== business.status) {
+          await tx.query(
+            `INSERT INTO business_status_histories
+               (business_id, previous_status, new_status, changed_by, reason)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [
+              businessId,
+              business.status,
+              nextStatus,
+              ctx.userId ?? 'ADMIN',
+              input.reviewNotes ?? "Dossier approuvé par l'équipe de vérification Eveider.",
+            ],
+          );
+        }
         await tx.query(
           `INSERT INTO notifications (user_id, channel, message)
            VALUES ($1, 'sms', $2)`,
-          [ctx.userId ?? null, `Bienvenue chez Eveider ! Votre compte professionnel "${business.name}" est maintenant actif.`],
+          [ctx.userId ?? null, `Votre organisation "${business.name}" est maintenant vérifiée.`],
         );
         return mapBusiness(requiredRow(updatedResult.rows, `Business ${businessId} not found`));
       }
 
       if (input.action === 'request_correction') {
-        const nextStatus = transitionBusiness(business.status, 'pending_correction');
-        const updatedResult = await tx.query(
-          `UPDATE businesses SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
-          [nextStatus, businessId],
-        );
+        if (!currentVerification) {
+          throw new Error('Aucun dossier de vérification à corriger');
+        }
         if (currentVerification) {
           await tx.query(
             `UPDATE business_verifications
@@ -775,18 +872,7 @@ export class BusinessOnboardingRepository {
           );
           requiredRow(documentResult.rows, `Business document ${feedback.documentId} not found`);
         }
-        await tx.query(
-          `INSERT INTO business_status_histories
-             (business_id, previous_status, new_status, changed_by, reason)
-           VALUES ($1, $2, 'pending_correction', $3, $4)`,
-          [
-            businessId,
-            business.status,
-            ctx.userId ?? 'ADMIN',
-            input.reviewNotes ?? 'Corrections requises pour la validation du compte.',
-          ],
-        );
-        return mapBusiness(requiredRow(updatedResult.rows, `Business ${businessId} not found`));
+        return business;
       }
 
       if (input.action === 'block') {

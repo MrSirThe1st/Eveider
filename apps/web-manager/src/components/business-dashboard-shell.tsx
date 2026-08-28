@@ -111,6 +111,7 @@ export function BusinessDashboardShell({ children, permissions = [] }: BusinessD
             icon: <IconLayout {...NAV_ICON_PROPS} />,
             match: (p: string) =>
               p.startsWith(WEB_ROUTES.businessSettings) ||
+              p.startsWith(WEB_ROUTES.businessVerification) ||
               p.startsWith('/organisation/tableau-de-bord/profil'),
           },
         ]

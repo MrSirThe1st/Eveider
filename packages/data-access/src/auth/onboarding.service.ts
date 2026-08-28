@@ -11,6 +11,7 @@ export type OnboardBusinessInput = {
   name: string;
   contactEmail?: string;
   contactPhone?: string;
+  industry?: string;
 };
 
 export type OnboardInput = {
@@ -46,7 +47,12 @@ export class OnboardingService {
       if (!input.business) {
         throw new Error('Business details required for organization role');
       }
-      const business = await this.businesses.create(input.business);
+      const business = await this.businesses.create({
+        name: input.business.name,
+        contactEmail: input.business.contactEmail,
+        contactPhone: input.business.contactPhone,
+        industry: input.business.industry,
+      });
       const profile = await this.users.createProfile({
         authId,
         fullName: input.fullName,

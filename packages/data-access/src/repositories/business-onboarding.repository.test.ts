@@ -20,6 +20,8 @@ describe('BusinessOnboardingRepository page snapshots', () => {
           nif_number: 'NIF-1',
           legal_rep_name: 'Alice',
           access_code: 'EVD123',
+          verification_status: null,
+          verification_notes: null,
           locations_json: [
             {
               id: 'loc-1',

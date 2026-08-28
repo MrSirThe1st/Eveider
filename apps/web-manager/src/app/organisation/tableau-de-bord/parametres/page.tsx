@@ -1,14 +1,17 @@
 import { redirect } from 'next/navigation';
+import { deriveOrganizationVerificationStatus } from '@eveider/domain';
 import { PageFrame } from '@eveider/ui';
 import { BusinessSettingsForm } from '@/components/business-settings-form';
+import { OrganizationVerificationBanner } from '@/components/organization-verification-banner';
 import { loadBusinessSettingsPageData, requireBusinessPermission } from '@/server/business';
+import { WEB_ROUTES } from '@/lib/auth-routing';
 
 export default async function BusinessSettingsPage() {
   const { profile } = await requireBusinessPermission('settings');
   const { settings, lockerList } = await loadBusinessSettingsPageData(profile.businessId);
 
   if (!settings) {
-    redirect('/onboarding');
+    redirect(WEB_ROUTES.businessDashboard);
   }
 
   const address = settings.locations.find((location) => location.type === 'business_address');
@@ -20,6 +23,10 @@ export default async function BusinessSettingsPage() {
       description="Toutes les informations de votre entreprise. Modifiez et enregistrez."
       layout="standard"
     >
+      <OrganizationVerificationBanner
+        status={deriveOrganizationVerificationStatus(settings.verificationStatus)}
+        reviewNotes={settings.verificationNotes}
+      />
       <BusinessSettingsForm
         fullName={profile.fullName ?? ''}
         loginEmail={profile.email}

@@ -53,6 +53,7 @@ export type OnboardingSummary = {
     userRole: string | null;
   }>;
   verifications: Array<{
+    status?: 'pending' | 'approved' | 'rejected' | 'correction_requested';
     reviewNotes?: string | null;
     checks: Array<{ type: string; status: string }>;
   }>;

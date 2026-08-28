@@ -2,13 +2,14 @@ import { redirect } from 'next/navigation';
 import { PageFrame } from '@eveider/ui';
 import { BusinessBillingForm } from '@/components/business-billing-form';
 import { loadBusinessBillingPageData, requireBusinessPermission } from '@/server/business';
+import { WEB_ROUTES } from '@/lib/auth-routing';
 
 export default async function BusinessBillingPage() {
   const { profile } = await requireBusinessPermission('billing');
   const billing = await loadBusinessBillingPageData(profile.businessId);
 
   if (!billing) {
-    redirect('/onboarding');
+    redirect(WEB_ROUTES.businessDashboard);
   }
 
   return (

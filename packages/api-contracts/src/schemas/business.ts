@@ -39,15 +39,38 @@ export const documentTypeSchema = z.enum([
   'proof_of_address',
 ]);
 
+const organizationNameSchema = z.string().trim().min(2, 'Nom de l’organisation requis');
+const industrySchema = z.string().trim().min(2, 'Secteur d’activité requis');
+
 // Step 1: Create Account
-export const registerBusinessAccountSchema = z.object({
-  firstName: z.string().min(2, 'Prénom requis'),
-  lastName: z.string().min(2, 'Nom requis'),
-  email: emailSchema,
-  phone: phoneSchema,
-  password: z.string().min(8, '8 caractères minimum'),
-  inviteToken: z.string().uuid().optional(),
-});
+export const registerBusinessAccountSchema = z
+  .object({
+    firstName: z.string().min(2, 'Prénom requis'),
+    lastName: z.string().min(2, 'Nom requis'),
+    email: emailSchema,
+    phone: phoneSchema,
+    password: z.string().min(8, '8 caractères minimum'),
+    organizationName: organizationNameSchema.optional(),
+    industry: industrySchema.optional(),
+    inviteToken: z.string().uuid().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.inviteToken) return;
+    if (!value.organizationName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Nom de l’organisation requis',
+        path: ['organizationName'],
+      });
+    }
+    if (!value.industry) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Secteur d’activité requis',
+        path: ['industry'],
+      });
+    }
+  });
 
 // Step 2: Verification Code
 export const verifyBusinessPhoneOtpSchema = z.object({
@@ -220,12 +243,9 @@ export const registerBusinessAccountResponseSchema = z.object({
   user: z.object({
     id: z.string().uuid(),
     authId: z.string().uuid(),
-    role: z.string(),
-    userRole: businessUserRoleSchema.nullable(),
     email: z.string().nullable(),
     phone: z.string().nullable(),
     fullName: z.string().nullable(),
-    businessId: z.string().uuid().nullable(),
     isBlocked: z.boolean(),
     createdAt: z.coerce.date(),
     updatedAt: z.coerce.date(),

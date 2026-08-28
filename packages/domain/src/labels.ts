@@ -1,4 +1,4 @@
-import type { BusinessStatus } from './business.js';
+import type { BusinessStatus, OrganizationVerificationStatus } from './business.js';
 import type { CompartmentStatus, LockerStatus, LockerType } from './locker.js';
 import type { DeliveryStatus } from './delivery.js';
 import type { IssueStatus, IssueType } from './issue.js';
@@ -45,6 +45,14 @@ export const BUSINESS_STATUS_LABELS: Record<BusinessStatus, string> = {
   active: 'ACTIF',
   suspended: 'SUSPENDU',
   blocked: 'BLOQUÉ',
+};
+
+export const ORGANIZATION_VERIFICATION_LABELS: Record<OrganizationVerificationStatus, string> = {
+  not_started: 'NON VÉRIFIÉ',
+  pending: 'EN ATTENTE DE VÉRIFICATION',
+  approved: 'VÉRIFIÉ',
+  rejected: 'REFUSÉ',
+  correction_requested: 'CORRECTION REQUISE',
 };
 
 export const LOCKER_STATUS_LABELS: Record<LockerStatus, string> = {

@@ -1,7 +1,7 @@
 import { canTransitionDelivery, transitionDelivery, transitionIssue, type DeliveryStatus, type IssueStatus, type IssueType } from '@eveider/domain';
 import type { Queryable } from '../db/index.js';
 import { mapIssue } from '../db/mappers.js';
-import type { Issue, Locker, Parcel, User } from '../db/types.js';
+import type { Issue, Locker, Parcel } from '../db/types.js';
 import {
   AccessDeniedError,
   assertAdmin,
@@ -36,7 +36,7 @@ const BUSINESS_ISSUE_TYPES: IssueType[] = [
 export type IssueWithRelations = Issue & {
   parcel: Pick<Parcel, 'id' | 'reference'> | null;
   locker: Pick<Locker, 'id' | 'name'> | null;
-  reporter: Pick<User, 'id' | 'fullName' | 'email' | 'role'>;
+  reporter: { id: string; fullName: string | null; email: string | null; role: string | null };
 };
 
 export type CreateIssueInput = {
@@ -54,7 +54,7 @@ export class IssueRepository {
       `SELECT i.*, p.id AS parcel_relation_id, p.reference AS parcel_reference,
               l.id AS locker_relation_id, l.name AS locker_name,
               u.id AS reporter_relation_id, u.full_name AS reporter_full_name,
-              u.email AS reporter_email, u.role AS reporter_role
+              u.email AS reporter_email
        FROM issues i
        LEFT JOIN parcels p ON p.id = i.parcel_id
        LEFT JOIN lockers l ON l.id = i.locker_id
@@ -66,7 +66,7 @@ export class IssueRepository {
       ...mapIssue(row),
       parcel: row.parcel_relation_id ? { id: String(row.parcel_relation_id), reference: String(row.parcel_reference) } : null,
       locker: row.locker_relation_id ? { id: String(row.locker_relation_id), name: String(row.locker_name) } : null,
-      reporter: { id: String(row.reporter_relation_id), fullName: row.reporter_full_name == null ? null : String(row.reporter_full_name), email: row.reporter_email == null ? null : String(row.reporter_email), role: row.reporter_role as User['role'] },
+      reporter: { id: String(row.reporter_relation_id), fullName: row.reporter_full_name == null ? null : String(row.reporter_full_name), email: row.reporter_email == null ? null : String(row.reporter_email), role: null },
     }));
   }
 

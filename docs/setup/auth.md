@@ -10,8 +10,9 @@ All web roles share one app (`apps/web-manager`, port **3000**):
 |-----|---------|
 | `/` | Public landing page |
 | `/connexion` | Shared login (all web roles) |
-| `/inscription` | Business self-registration |
-| `/onboarding` | Business KYC wizard (post-registration) |
+| `/inscription` | Organization self-registration |
+| `/organisation/tableau-de-bord/verification` | Optional KYC / Get verified |
+| `/onboarding` | Redirects to organization verification |
 | `/tableau-de-bord/*` | Admin dashboard (role: `admin`) |
 | `/entreprise/tableau-de-bord/*` | Business dashboard (role: `business`) |
 

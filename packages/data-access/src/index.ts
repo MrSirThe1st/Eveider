@@ -11,6 +11,7 @@ export {
   BusinessOnboardingRepository,
   type BusinessSettingsSnapshot,
   type BusinessBillingSnapshot,
+  type LatestVerificationSnapshot,
 } from './repositories/business-onboarding.repository.js';
 export { DeliveryRepository, type CourierAdminDetail, type CourierHistorySummary } from './repositories/delivery.repository.js';
 export { ParcelRepository } from './repositories/parcel.repository.js';
@@ -47,6 +48,8 @@ export {
   normalizeWhatsAppPhone,
   sendWhatsAppTemplate,
   sendParcelStatusWhatsApp,
+  getResendConfig,
+  sendTeamInviteEmail,
 } from './messaging/index.js';
 export {
   PaymentRepository,

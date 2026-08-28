@@ -19,7 +19,7 @@ export const SIGNUP_VISUALS = {
     alt: 'Commerce préparant des colis',
     kicker: 'Entreprises',
     title: 'Expédiez vers un casier',
-    body: 'Créez le compte de votre activité, faites vérifier votre dossier, puis envoyez des colis dans tout Kinshasa.',
+    body: 'Créez le compte de votre organisation et envoyez des colis dès aujourd’hui. La vérification d’identité reste optionnelle.',
   },
   customer: {
     image: '/landing/pickup.jpg',
@@ -55,8 +55,8 @@ export const AUTH_VISUAL_IMAGES = [
 
 export const SIGNUP_HEADINGS = {
   business: {
-    title: 'Compte entreprise',
-    sub: 'Pour expédier des colis vers le réseau Eveider.',
+    title: 'Compte organisation',
+    sub: 'Pour expédier des colis vers le réseau Eveider. Société enregistrée ou vendeur individuel : même inscription.',
   },
   customer: {
     title: 'Compte destinataire',

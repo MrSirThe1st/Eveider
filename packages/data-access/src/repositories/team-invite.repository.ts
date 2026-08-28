@@ -1,15 +1,16 @@
 import {
   INVITABLE_ORGANIZATION_ROLES,
+  ORGANIZATION_ROLE_LABELS,
   isAccountOwnerRole,
   isOrganizationAdminRole,
   type OrganizationRole,
 } from '@eveider/domain';
-import { createSupabaseAdminClient } from '../supabase/server.js';
 import { AccessDeniedError, assertBusinessRole, assertCompanyPermission, type DataAccessContext } from '../context.js';
 import type { Queryable } from '../db/index.js';
 import { mapBusinessTeamInvite, mapUser } from '../db/mappers.js';
 import type { BusinessTeamInvite, User } from '../db/types.js';
 import { buildTeamInviteLink } from '../invitations/invite-links.js';
+import { sendTeamInviteEmail } from '../messaging/team-invite-email.js';
 import { OrganizationMembershipRepository } from './organization-membership.repository.js';
 import { UserRepository } from './user.repository.js';
 
@@ -167,7 +168,15 @@ export class TeamInviteRepository {
     );
     const invite = mapBusinessTeamInvite(inserted.rows[0]!);
     const inviteUrl = buildTeamInviteLink(invite.token);
-    await this.sendPasswordlessInvite(email, inviteUrl);
+    try {
+      await this.deliverInviteEmail(ctx.businessId!, invite);
+    } catch (error) {
+      await this.db.query(
+        `DELETE FROM business_team_invites WHERE id = $1 AND status = 'pending'`,
+        [invite.id],
+      );
+      throw error;
+    }
     return { invite, inviteUrl };
   }
 
@@ -188,7 +197,7 @@ export class TeamInviteRepository {
     );
     const invite = mapBusinessTeamInvite(updated.rows[0]!);
     const inviteUrl = buildTeamInviteLink(invite.token);
-    await this.sendPasswordlessInvite(invite.email, inviteUrl);
+    await this.deliverInviteEmail(ctx.businessId!, invite);
     return { invite, inviteUrl };
   }
 
@@ -307,20 +316,16 @@ export class TeamInviteRepository {
     });
   }
 
-  private async sendPasswordlessInvite(email: string, inviteUrl: string): Promise<void> {
-    try {
-      const admin = createSupabaseAdminClient();
-      const { error } = await admin.auth.admin.generateLink({
-        type: 'magiclink',
-        email,
-        options: { redirectTo: inviteUrl },
-      });
-      if (error) {
-        console.info('[eveider:team-invite:magic-link-fallback]', { email, inviteUrl, error: error.message });
-      }
-    } catch {
-      console.info('[eveider:team-invite:simulated]', { email, inviteUrl });
-    }
+  private async deliverInviteEmail(businessId: string, invite: BusinessTeamInvite): Promise<void> {
+    const business = await this.db.query(`SELECT name FROM businesses WHERE id = $1 LIMIT 1`, [businessId]);
+    const organizationName = business.rows[0] ? String(business.rows[0].name) : 'Eveider';
+    await sendTeamInviteEmail({
+      to: invite.email,
+      organizationName,
+      roleLabel: ORGANIZATION_ROLE_LABELS[invite.invitedRole],
+      inviteUrl: buildTeamInviteLink(invite.token),
+      expiresAt: invite.expiresAt,
+    });
   }
 
   private async requireInviteInBusiness(

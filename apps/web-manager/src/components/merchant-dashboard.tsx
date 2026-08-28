@@ -2,18 +2,21 @@
 
 import type { BusinessAnalytics } from '@eveider/data-access';
 import { colors, radius, spacing, typography, webCardStyle } from '@eveider/config-ui';
-import type { BusinessStatus } from '@eveider/domain';
+import type { BusinessStatus, OrganizationVerificationStatus } from '@eveider/domain';
 import { PageFrame } from '@eveider/ui';
 import Link from 'next/link';
 import { Fragment } from 'react';
 import { Bar } from 'react-chartjs-2';
 import { BusinessStatusBadge } from '@/components/business-status-badge';
+import { OrganizationVerificationBanner } from '@/components/organization-verification-banner';
 import { WEB_ROUTES } from '@/lib/auth-routing';
 import { baseBarOptions, chartPalette, formatDayLabel } from '@/lib/admin-chart-theme';
 
 type MerchantDashboardProps = {
   businessName: string;
   status: BusinessStatus;
+  verificationStatus: OrganizationVerificationStatus;
+  verificationNotes?: string | null;
   analytics: BusinessAnalytics;
 };
 
@@ -137,10 +140,14 @@ function TrendCard({
   );
 }
 
-export function MerchantDashboard({ businessName, status, analytics }: MerchantDashboardProps) {
-  const isPendingReview = status === 'pending_review' || status === 'pending';
-  const isPendingCorrection = status === 'pending_correction';
-  const isActive = status === 'active';
+export function MerchantDashboard({
+  businessName,
+  status,
+  verificationStatus,
+  verificationNotes,
+  analytics,
+}: MerchantDashboardProps) {
+  const isBlocked = status === 'blocked' || status === 'suspended';
 
   const overview = [
     { label: 'Total colis', value: analytics.total, hint: 'Tous statuts' },
@@ -175,59 +182,40 @@ export function MerchantDashboard({ businessName, status, analytics }: MerchantD
       description="Performance de vos expéditions : volume, retrait, délais et points utilisés."
       layout="standard"
     >
-      {!isActive ? (
+      {isBlocked ? (
         <div
           role="status"
           style={{
             marginBottom: spacing[6],
             padding: `${spacing[4]}px ${spacing[5]}px`,
             borderRadius: radius.card,
-            border: `1px solid ${isPendingCorrection ? colors.warning : isPendingReview ? colors.info : colors.danger}`,
-            background: isPendingCorrection
-              ? colors.warningMuted
-              : isPendingReview
-                ? colors.infoMuted
-                : colors.dangerMuted,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: spacing[4],
-            flexWrap: 'wrap',
+            border: `1px solid ${colors.danger}`,
+            background: colors.dangerMuted,
           }}
         >
-          <div>
-            <p
-              style={{
-                margin: 0,
-                fontWeight: typography.weights.bold,
-                fontSize: typography.bodySm.fontSize,
-                color: colors.secondary,
-              }}
-            >
-              {isPendingReview
-                ? 'Compte en attente de vérification'
-                : isPendingCorrection
-                  ? 'Correction requise sur le dossier KYC'
-                  : 'Compte en cours de configuration'}
-            </p>
-            <p
-              style={{
-                margin: `${spacing[1]}px 0 0`,
-                fontSize: typography.caption.fontSize,
-                color: colors.textMuted,
-              }}
-            >
-              Les indicateurs se remplissent dès les premières expéditions.
-            </p>
-          </div>
-          <Link
-            href={isPendingCorrection ? '/onboarding' : WEB_ROUTES.businessSettings}
-            className="nb-btn nb-btn-secondary nb-btn--sm"
+          <p
+            style={{
+              margin: 0,
+              fontWeight: typography.weights.bold,
+              fontSize: typography.bodySm.fontSize,
+              color: colors.secondary,
+            }}
           >
-            {isPendingCorrection ? 'Corriger le dossier KYC' : 'Paramètres'}
-          </Link>
+            {status === 'blocked' ? 'Compte bloqué' : 'Compte suspendu'}
+          </p>
+          <p
+            style={{
+              margin: `${spacing[1]}px 0 0`,
+              fontSize: typography.caption.fontSize,
+              color: colors.textMuted,
+            }}
+          >
+            Les nouvelles expéditions sont indisponibles tant que le compte n’est pas réactivé.
+          </p>
         </div>
-      ) : null}
+      ) : (
+        <OrganizationVerificationBanner status={verificationStatus} reviewNotes={verificationNotes} />
+      )}
 
       <div style={{ marginBottom: spacing[6] }}>
         <BusinessStatusBadge status={status} />

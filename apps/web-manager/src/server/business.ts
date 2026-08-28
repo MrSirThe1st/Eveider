@@ -83,10 +83,11 @@ export async function requireBusinessPermission(
 }
 
 export async function loadBusinessDashboard(businessId: string, ctx: DataAccessContext) {
-  const { businesses, stats } = createRepositories();
-  const [business, analytics] = await Promise.all([
+  const { businesses, stats, businessOnboarding } = createRepositories();
+  const [business, analytics, verification] = await Promise.all([
     businesses.findById(ctx, businessId),
     stats.getBusinessAnalytics(ctx, businessId),
+    businessOnboarding.getLatestVerification(businessId),
   ]);
 
   if (!business) {
@@ -96,7 +97,18 @@ export async function loadBusinessDashboard(businessId: string, ctx: DataAccessC
   return {
     business,
     analytics,
+    verification,
   };
+}
+
+export async function loadVerificationPageData(businessId: string) {
+  const { businessOnboarding, lockers } = createRepositories();
+  const [summary, lockerList] = await Promise.all([
+    businessOnboarding.getOnboardingSummary(businessId),
+    lockers.listActivePickerOptions(),
+  ]);
+
+  return { summary, lockerList };
 }
 
 export async function loadBusinessSettingsPageData(businessId: string) {

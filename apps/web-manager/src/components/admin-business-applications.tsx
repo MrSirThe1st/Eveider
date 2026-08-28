@@ -8,7 +8,7 @@ import {
 } from '@eveider/ui';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { BusinessStatusBadge } from '@/components/business-status-badge';
+import { VerificationStatusBadge } from '@/components/verification-status-badge';
 import { ListSearchField } from '@/components/list-search-field';
 import type { BusinessApplicationItem } from '@/server/business-applications';
 import { matchesListSearch } from '@/lib/list-search';
@@ -117,8 +117,19 @@ export function AdminBusinessApplications({ applications }: AdminBusinessApplica
         id: 'status',
         header: 'Statut',
         sortable: true,
-        sortValue: (row) => row.status,
-        cell: (row) => <BusinessStatusBadge status={row.status} />,
+        sortValue: (row) => row.verificationStatus ?? row.status,
+        cell: (row) => (
+          <VerificationStatusBadge
+            status={
+              row.verificationStatus === 'pending' ||
+              row.verificationStatus === 'approved' ||
+              row.verificationStatus === 'rejected' ||
+              row.verificationStatus === 'correction_requested'
+                ? row.verificationStatus
+                : 'not_started'
+            }
+          />
+        ),
       },
       {
         id: 'updatedAt',
@@ -161,7 +172,7 @@ export function AdminBusinessApplications({ applications }: AdminBusinessApplica
         emptyDescription={
           searchQuery.trim()
             ? 'Essayez un autre nom ou contact.'
-            : "Les nouvelles demandes d'inscription entreprise apparaîtront ici."
+            : 'Les dossiers KYC soumis pour revue apparaîtront ici.'
         }
         initialSortId="updatedAt"
         initialSortDirection="desc"

@@ -47,7 +47,7 @@ Postgres is remote (Supabase pooler). Each round trip is expensive (~200–300ms
 | Name, status, analytics | `loadBusinessDashboard` → `businesses.findById` + `stats.getBusinessAnalytics` | `getOnboardingSummary` |
 | Settings form + dropoff picker | `loadBusinessSettingsPageData` → `getSettingsSnapshot` + `listActivePickerOptions` | `getOnboardingSummary`, `listActiveWithAvailability` |
 | Billing / settlement / limits | `loadBusinessBillingPageData` → `getBillingSnapshot` | lockers, documents, verifications, users |
-| Onboarding wizard / admin dossier | `getOnboardingSummary` (`loadSummary`) | — this is the only full-graph reader |
+| Onboarding wizard / admin dossier | `getOnboardingSummary` (`loadSummary`) | — this is the only full-graph reader. Optional KYC lives at `/organisation/tableau-de-bord/verification`. |
 | Locker map / Points / parcel destination with capacity | `listActiveWithAvailability` / `listNetworkDirectory` | — |
 | Business Colis list (location) | `listBusinessColis` → pickup type + latest delivery, then `resolveBusinessParcelLocation` | `listForBusiness` full graph |
 | Business Colis detail | `findForBusiness` + derived location/progression | `useEffect` + `GET /api/entreprise/parcels/:id` for first paint |

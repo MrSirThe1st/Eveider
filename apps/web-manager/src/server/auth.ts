@@ -3,7 +3,6 @@ import { createRepositories } from '@eveider/data-access';
 import type { Business, User } from '@eveider/data-access';
 
 const DEMO_OTP = '123456';
-const OTP_TTL_MS = 15 * 60 * 1000;
 
 export type RegisterBusinessAccountResult = {
   user: User;
@@ -64,12 +63,16 @@ export async function registerBusinessAccount(
     };
   }
 
+  const organizationName = input.organizationName?.trim();
+  if (!organizationName) {
+    throw new Error('Nom de l’organisation requis');
+  }
+
   const business = await businesses.createForRegistration({
-    name: `${fullName} Business`,
+    name: organizationName,
     contactEmail: input.email,
     contactPhone: input.phone,
-    otpCode: DEMO_OTP,
-    otpExpiresAt: new Date(Date.now() + OTP_TTL_MS),
+    industry: input.industry,
   });
 
   const user = await users.createProfile({

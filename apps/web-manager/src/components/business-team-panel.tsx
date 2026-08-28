@@ -57,7 +57,7 @@ export function BusinessTeamPanel({ members, invites }: BusinessTeamPanelProps) 
         return;
       }
       setEmail('');
-      setSuccess('Invitation créée. Partagez le lien avec le membre.');
+      setSuccess('Invitation envoyée par email.');
       setInviteUrl(result.data.invite.inviteUrl);
       await refresh();
     } catch {
@@ -91,7 +91,7 @@ export function BusinessTeamPanel({ members, invites }: BusinessTeamPanelProps) 
       return;
     }
     setInviteUrl(result.data.invite.inviteUrl);
-    setSuccess('Nouveau lien d’invitation généré.');
+    setSuccess('Invitation renvoyée par email.');
     await refresh();
   }
 

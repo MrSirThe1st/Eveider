@@ -23,6 +23,7 @@ import Link from 'next/link';
 import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import type { BusinessApplicationDetail } from '@/server/business-applications';
 import { BusinessStatusBadge } from './business-status-badge';
+import { VerificationStatusBadge } from './verification-status-badge';
 import { KycDocumentPreview } from './kyc-document-preview';
 import {
   CHECK_FAIL_REASONS,
@@ -725,6 +726,16 @@ export function AdminApplicationReview({
               </div>
             </div>
             <BusinessStatusBadge status={business.status as BusinessStatus} />
+            <VerificationStatusBadge
+              status={
+                business.verifications[0]?.status === 'pending' ||
+                business.verifications[0]?.status === 'approved' ||
+                business.verifications[0]?.status === 'rejected' ||
+                business.verifications[0]?.status === 'correction_requested'
+                  ? business.verifications[0].status
+                  : 'not_started'
+              }
+            />
             <StatusBadge tone={confTone} withDot>
               Confiance {confidence}%
             </StatusBadge>

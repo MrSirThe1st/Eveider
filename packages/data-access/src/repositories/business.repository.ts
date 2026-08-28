@@ -14,43 +14,50 @@ export type CreateBusinessInput = {
   name: string;
   contactEmail?: string;
   contactPhone?: string;
+  industry?: string;
 };
 
-export type CreateBusinessRegistrationInput = CreateBusinessInput & {
-  otpCode: string;
-  otpExpiresAt: Date;
-};
+export type CreateBusinessRegistrationInput = CreateBusinessInput;
+
+const DEFAULT_FEATURES = ['CREATE_SHIPMENT', 'API_ACCESS', 'COD', 'MONTHLY_INVOICE'] as const;
 
 export class BusinessRepository {
   constructor(private readonly db: Queryable) {}
 
   async create(input: CreateBusinessInput): Promise<Business> {
+    const accessCode = await this.allocateAccessCode();
     const result = await this.db.query(
-      `INSERT INTO businesses (name, contact_email, contact_phone, status)
-       VALUES ($1, $2, $3, 'onboarding')
+      `INSERT INTO businesses (name, contact_email, contact_phone, industry, status, access_code)
+       VALUES ($1, $2, $3, $4, 'active', $5)
        RETURNING *`,
-      [input.name, input.contactEmail ?? null, input.contactPhone ?? null],
+      [input.name, input.contactEmail ?? null, input.contactPhone ?? null, input.industry ?? null, accessCode],
     );
-    return mapBusiness(result.rows[0]!);
+    const business = mapBusiness(result.rows[0]!);
+    await this.enableDefaultOperatingAccess(business.id);
+    return business;
   }
 
   async createForRegistration(input: CreateBusinessRegistrationInput): Promise<Business> {
-    const result = await this.db.query(
-      `INSERT INTO businesses (
-         name, contact_email, contact_phone, status,
-         is_phone_verified, otp_code, otp_expires_at
-       )
-       VALUES ($1, $2, $3, 'onboarding', false, $4, $5)
-       RETURNING *`,
-      [
-        input.name,
-        input.contactEmail ?? null,
-        input.contactPhone ?? null,
-        input.otpCode,
-        input.otpExpiresAt,
-      ],
+    return this.create(input);
+  }
+
+  async enableDefaultOperatingAccess(businessId: string): Promise<void> {
+    for (const feature of DEFAULT_FEATURES) {
+      await this.db.query(
+        `INSERT INTO business_permissions (business_id, feature, status)
+         VALUES ($1, $2, 'ENABLED')
+         ON CONFLICT (business_id, feature) DO UPDATE
+         SET status = 'ENABLED', updated_at = NOW()`,
+        [businessId, feature],
+      );
+    }
+    await this.db.query(
+      `INSERT INTO business_limits
+         (business_id, daily_shipments, monthly_shipments, max_package_value_usd, cod_daily_limit_usd)
+       VALUES ($1, 50, 1000, 500.0, 200.0)
+       ON CONFLICT (business_id) DO NOTHING`,
+      [businessId],
     );
-    return mapBusiness(result.rows[0]!);
   }
 
   async findByIdUnscoped(id: string): Promise<Business | null> {

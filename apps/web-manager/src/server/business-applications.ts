@@ -1,5 +1,4 @@
 import type { BusinessStatus } from '@eveider/domain';
-import { canSubmitParcelsAsBusiness } from '@eveider/domain';
 import type { DataAccessContext } from '@eveider/data-access';
 import { createRepositories } from '@eveider/data-access';
 
@@ -7,6 +6,7 @@ export type BusinessApplicationItem = {
   id: string;
   name: string;
   status: BusinessStatus;
+  verificationStatus: string | null;
   accessCode: string | null;
   riskClassification: string | null;
   businessType: string | null;
@@ -85,6 +85,7 @@ function toApplicationItem(row: ApplicationRow | SummaryRow): BusinessApplicatio
     id: row.id,
     name: row.name,
     status: row.status as BusinessStatus,
+    verificationStatus: row.verifications[0]?.status ?? null,
     accessCode: row.accessCode ?? null,
     riskClassification: row.riskClassification,
     businessType: row.businessType,
@@ -105,7 +106,7 @@ function toApplicationItem(row: ApplicationRow | SummaryRow): BusinessApplicatio
       fullName: u.fullName,
       email: u.email,
       phone: u.phone,
-      userRole: u.userRole,
+      userRole: 'userRole' in u ? (u.userRole as string | null) : null,
     })),
     documents: row.documents.map((d) => ({
       id: d.id,
@@ -133,9 +134,7 @@ export async function listBusinessApplications(
 ): Promise<BusinessApplicationItem[]> {
   const { businessOnboarding } = createRepositories();
   const rows = await businessOnboarding.listApplications(ctx, options);
-  return rows
-    .map(toApplicationItem)
-    .filter((application) => !canSubmitParcelsAsBusiness(application.status));
+  return rows.map(toApplicationItem);
 }
 
 export async function getBusinessApplicationDetail(

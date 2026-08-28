@@ -19,6 +19,7 @@ export const WEB_ROUTES = {
   businessBilling: '/organisation/tableau-de-bord/facturation',
   businessTeam: '/organisation/tableau-de-bord/equipe',
   businessCouriers: '/organisation/tableau-de-bord/chauffeurs',
+  businessVerification: '/organisation/tableau-de-bord/verification',
 } as const;
 
 export function businessParcelPath(parcelId: string) {
