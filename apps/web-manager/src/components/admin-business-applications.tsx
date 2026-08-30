@@ -59,13 +59,13 @@ export function AdminBusinessApplications({ applications }: AdminBusinessApplica
     () => [
       {
         id: 'name',
-        header: 'Entreprise',
+        header: 'Organisation',
         sortable: true,
         sortValue: (row) => row.name,
         cell: (row) => (
           <div>
             <Link
-              href={`/tableau-de-bord/organisations/applications/${row.id}`}
+              href={`/tableau-de-bord/organisations/${row.id}/verification/dossier`}
               className="nb-data-table__link"
             >
               {row.name}
@@ -153,7 +153,7 @@ export function AdminBusinessApplications({ applications }: AdminBusinessApplica
         <ListSearchField
           value={searchQuery}
           onChange={setSearchQuery}
-          placeholder="Rechercher un dossier (entreprise, propriétaire, contact)…"
+          placeholder="Rechercher un dossier (organisation, propriétaire, contact)…"
           ariaLabel="Rechercher un dossier de vérification"
         />
       </div>
@@ -164,23 +164,23 @@ export function AdminBusinessApplications({ applications }: AdminBusinessApplica
         caption={
           filteredApplications.length > 0
             ? searchQuery.trim()
-              ? `${filteredApplications.length} dossier${filteredApplications.length > 1 ? 's' : ''} sur ${applications.length}`
-              : `${filteredApplications.length} dossier${filteredApplications.length > 1 ? 's' : ''}`
+              ? `${filteredApplications.length} demande${filteredApplications.length > 1 ? 's' : ''} sur ${applications.length}`
+              : `${filteredApplications.length} demande${filteredApplications.length > 1 ? 's' : ''}`
             : undefined
         }
-        emptyTitle={searchQuery.trim() ? 'Aucun dossier pour cette recherche' : 'Aucun dossier'}
+        emptyTitle={searchQuery.trim() ? 'Aucune demande pour cette recherche' : 'Aucune demande'}
         emptyDescription={
           searchQuery.trim()
             ? 'Essayez un autre nom ou contact.'
-            : 'Les dossiers KYC soumis pour revue apparaîtront ici.'
+            : 'Les demandes de vérification apparaîtront ici.'
         }
         initialSortId="updatedAt"
         initialSortDirection="desc"
         rowActions={(row) => [
           {
             id: 'review',
-            label: 'Examiner le dossier',
-            href: `/tableau-de-bord/organisations/applications/${row.id}`,
+            label: 'Examiner',
+            href: `/tableau-de-bord/organisations/${row.id}/verification/dossier`,
           },
         ]}
       />

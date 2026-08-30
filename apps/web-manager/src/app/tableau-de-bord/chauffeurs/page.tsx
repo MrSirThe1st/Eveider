@@ -1,20 +1,30 @@
 import { PageFrame } from '@eveider/ui';
-import { AdminCourierPanel } from '@/components/admin-courier-panel';
-import { loadAdminCourierDossiers } from '@/server/couriers';
+import Link from 'next/link';
+import { AdminDriverList } from '@/components/admin-driver-list';
+import { WEB_ROUTES } from '@/lib/auth-routing';
+import { loadAdminDriverRoster } from '@/server/drivers';
 import { getAdminSession } from '@/server/session';
 
-export default async function AdminCouriersPage() {
-  await getAdminSession();
-  const dossiers = await loadAdminCourierDossiers();
+export default async function AdminDriversPage() {
+  const session = await getAdminSession();
+  const drivers = await loadAdminDriverRoster(session.ctx);
 
   return (
     <PageFrame
-      title="Coursiers"
-      description="Revue des dossiers, invitation mobile, et réactivation. Bloquer un compte reste une action séparée."
+      title="Chauffeurs"
+      description="Chauffeurs Eveider et chauffeurs des entreprises."
       layout="wide"
-      breadcrumbs={[{ label: 'Coursiers' }]}
+      breadcrumbs={[
+        { label: 'Tableau de bord', href: WEB_ROUTES.adminDashboard },
+        { label: 'Chauffeurs' },
+      ]}
+      action={
+        <Link href={WEB_ROUTES.adminNewDriver} className="nb-btn nb-btn-primary nb-btn--sm">
+          Ajouter un chauffeur
+        </Link>
+      }
     >
-      <AdminCourierPanel dossiers={dossiers} />
+      <AdminDriverList drivers={drivers} />
     </PageFrame>
   );
 }

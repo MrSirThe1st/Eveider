@@ -17,6 +17,7 @@ import type {
   Parcel,
   ParcelInvite,
   BusinessTeamInvite,
+  PlatformAdminInvite,
   ParcelPayment,
   PickupPin,
   SettlementAccount,
@@ -243,6 +244,22 @@ export function mapBusinessTeamInvite(row: Record<string, unknown>): BusinessTea
     invitedRole: row.invited_role as BusinessTeamInvite['invitedRole'],
     invitedByUserId: row.invited_by_user_id == null ? null : String(row.invited_by_user_id),
     status: row.status as BusinessTeamInvite['status'],
+    expiresAt: asDate(row.expires_at),
+    acceptedAt: asDateOrNull(row.accepted_at),
+    acceptedUserId: row.accepted_user_id == null ? null : String(row.accepted_user_id),
+    createdAt: asDate(row.created_at),
+    updatedAt: asDate(row.updated_at),
+  };
+}
+
+export function mapPlatformAdminInvite(row: Record<string, unknown>): PlatformAdminInvite {
+  return {
+    id: String(row.id),
+    token: String(row.token),
+    email: String(row.email),
+    invitedRole: row.invited_role as PlatformAdminInvite['invitedRole'],
+    invitedByUserId: row.invited_by_user_id == null ? null : String(row.invited_by_user_id),
+    status: row.status as PlatformAdminInvite['status'],
     expiresAt: asDate(row.expires_at),
     acceptedAt: asDateOrNull(row.accepted_at),
     acceptedUserId: row.accepted_user_id == null ? null : String(row.accepted_user_id),

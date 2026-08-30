@@ -110,7 +110,7 @@ export async function loadAdminCourierDossiers() {
 
 export async function loadAssignableBusinessCouriers(businessId: string): Promise<AssignableCourierView[]> {
   const { users } = createRepositories();
-  const couriers = await users.listActiveCouriersByBusiness(businessId);
+  const couriers = await users.listAssignableDriversByBusiness(businessId);
   return couriers.map((courier) => ({
     id: courier.id,
     fullName: courier.fullName,

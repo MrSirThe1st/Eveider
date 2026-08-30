@@ -19,7 +19,7 @@ export const SIGNUP_VISUALS = {
     alt: 'Commerce préparant des colis',
     kicker: 'Entreprises',
     title: 'Expédiez vers un casier',
-    body: 'Créez le compte de votre organisation et envoyez des colis dès aujourd’hui. La vérification d’identité reste optionnelle.',
+    body: 'Créez le compte de votre boutique et envoyez des colis dès aujourd’hui. Envoyer vos pièces n’est pas obligatoire.',
   },
   customer: {
     image: '/landing/pickup.jpg',
@@ -42,7 +42,7 @@ export const OTP_VISUAL: AuthVisual = {
   alt: 'Colis prêts pour le dépôt',
   kicker: 'Vérification',
   title: 'Confirmez votre numéro',
-  body: 'Un code à 6 chiffres active le compte entreprise. Ensuite, le dossier d’inscription continue.',
+  body: 'Un code à 6 chiffres confirme votre numéro. Ensuite, vous continuez la création du compte.',
 };
 
 export const AUTH_VISUAL_IMAGES = [
@@ -55,8 +55,8 @@ export const AUTH_VISUAL_IMAGES = [
 
 export const SIGNUP_HEADINGS = {
   business: {
-    title: 'Compte organisation',
-    sub: 'Pour expédier des colis vers le réseau Eveider. Société enregistrée ou vendeur individuel : même inscription.',
+    title: 'Compte entreprise',
+    sub: 'Pour envoyer des colis vers un casier Eveider. Société ou vendeur : même démarche.',
   },
   customer: {
     title: 'Compte destinataire',

@@ -52,6 +52,12 @@ Postgres is remote (Supabase pooler). Each round trip is expensive (~200–300ms
 | Business Colis list (location) | `listBusinessColis` → pickup type + latest delivery, then `resolveBusinessParcelLocation` | `listForBusiness` full graph |
 | Business Colis detail | `findForBusiness` + derived location/progression | `useEffect` + `GET /api/entreprise/parcels/:id` for first paint |
 | Dropoff `<select>` of name+address | `listActivePickerOptions` | availability aggregates |
+| Organization Drivers list | `loadBusinessDriverRoster` → `listRosterForBusiness` (dossier + current delivery + today’s count) | `getOnboardingSummary`, full delivery history |
+| Organization Driver detail (overview / documents) | `loadBusinessDriverDetail` (`React.cache` on businessId + dossier id) | deliveries except the Livraisons tab |
+| Organization Driver deliveries tab | `loadBusinessDriverDeliveries` → `listForBusinessDriver` | roster columns already on the chrome |
+| Admin Drivers list | `loadAdminDriverRoster` → `listRosterForAdmin` (same snapshot + organization / Eveider fleet) | `listForAdmin`, `getOnboardingSummary` |
+| Admin Driver detail (overview / documents) | `loadAdminDriverDetail` (`React.cache` on ctx + dossier id) | deliveries except the Livraisons tab |
+| Admin Driver deliveries tab | `loadAdminDriverDeliveries` → `listForAdminDriver` | KYC actions (those stay on Documents) |
 
 `getOnboardingSummary` / `loadSummary` loads business + users + locations + documents + billing + settlement + permissions + limits + history + verification + checks + reviewer. That is correct for the KYC wizard and admin application review. It is **wrong** for dashboard home, Paramètres, Facturation, Colis, Incidents, or any new settings-like page.
 
@@ -179,11 +185,12 @@ Everything else follows the server-first pattern above.
 
 ## Database / pool
 
-- `DATABASE_URL` — runtime transaction pooler (port `6543`)
+- `DATABASE_URL` — runtime transaction pooler (port `6543`); `pgbouncer=true` is appended automatically
 - `DIRECT_URL` — migrations only
 - Shared pool: `packages/data-access/src/db/pool.ts` (`getPool()`, concurrency gate)
 - **Production** idle: 20s, `allowExitOnIdle: false` — do not change this when tuning local UX
 - **Development** idle: 10 minutes, `allowExitOnIdle: false` (`resolvePoolIdleOptions`) — do not reintroduce `allowExitOnIdle: true` on the Next.js pool; it drops warm TLS clients between navigations
+- **Development** connect timeout: 15s (prod 5s); one automatic retry recreates the pool after transient Supabase disconnects
 - Dashboards: prefer `listRecent({ take: N })` over unbounded `listAll()` when the UI is a preview, not a full register
 - Query timings in dev include **checkout + TLS**. A 2s `SELECT … LIMIT 1` is almost always a new connection, not a missing index
 

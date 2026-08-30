@@ -304,11 +304,11 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
   function validatePayment(): boolean {
     if (paymentResponsibility === 'cod') {
       if (!codAllowed) {
-        setError('Le COD n’est pas disponible pour les casiers intelligents.');
+        setError('Le paiement à la livraison n’est pas disponible pour les casiers intelligents.');
         return false;
       }
       if (!optionalNumber(codAmountCdf) && !optionalNumber(codAmountUsd)) {
-        setError('Indiquez un montant COD (CDF ou USD).');
+        setError('Indiquez un montant à encaisser (FC ou USD).');
         return false;
       }
     }
@@ -742,14 +742,14 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
               }}
             >
               <TextField
-                label="Montant COD (CDF)"
+                label="Montant à encaisser (FC)"
                 name="codAmountCdf"
                 value={codAmountCdf}
                 onChange={(e) => setCodAmountCdf(e.target.value)}
                 disabled={loading}
               />
               <TextField
-                label="Montant COD (USD)"
+                label="Montant à encaisser (USD)"
                 name="codAmountUsd"
                 value={codAmountUsd}
                 onChange={(e) => setCodAmountUsd(e.target.value)}

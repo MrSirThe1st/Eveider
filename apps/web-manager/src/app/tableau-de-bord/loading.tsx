@@ -3,8 +3,8 @@ import { DashboardOverviewSkeleton, PageFrame } from '@eveider/ui';
 export default function AdminDashboardLoading() {
   return (
     <PageFrame
-      title="Dashboard"
-      description="Indicateurs du jour, alertes et activité réseau."
+      title="Tableau de bord"
+      description="Ce qui se passe aujourd’hui."
       layout="standard"
     >
       <DashboardOverviewSkeleton />

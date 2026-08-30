@@ -103,7 +103,7 @@ export function ShippingLabel({ data }: ShippingLabelProps) {
               EVEIDER
             </p>
             <p style={{ margin: '0.35rem 0 0', fontSize: '0.75rem', color: colors.textMuted }}>
-              Étiquette d’expédition
+              Étiquette du colis
             </p>
           </div>
           {qrDataUrl ? (

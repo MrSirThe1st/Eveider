@@ -48,4 +48,82 @@ describe('CourierDossierRepository', () => {
       }),
     ).rejects.toThrow('existe déjà');
   });
+
+  it('loads the business driver roster snapshot', async () => {
+    const db = createSqlMatchMock((sql) => {
+      if (sqlIncludes(sql, 'FROM driver_dossiers d') && sqlIncludes(sql, 'LEFT JOIN LATERAL')) {
+        return {
+          id: 'dossier-1',
+          user_id: 'user-1',
+          full_name: 'Jean-Pierre Tshibanda',
+          email: 'courier.lubum1@eveider.cd',
+          phone: '+243820100001',
+          status: 'active',
+          id_document_url: 'https://files.eveider.cd/id/lubum1.jpg',
+          notes: null,
+          review_notes: null,
+          invited_at: new Date('2026-08-01T12:00:00.000Z'),
+          created_at: new Date('2026-08-01T12:00:00.000Z'),
+          contractor_type: 'business',
+          business_id: 'biz-1',
+          business_name: 'Boutique Lubum',
+          is_blocked: false,
+          deactivated_at: null,
+          current_tracking_number: 'EV12345',
+          current_locker_name: 'Kenya',
+          deliveries_today: 8,
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const repo = new CourierDossierRepository(db);
+    const ctx = createDataAccessContext('business', {
+      userId: 'owner-1',
+      businessId: 'biz-1',
+      businessUserRole: 'admin',
+    });
+
+    const rows = await repo.listRosterForBusiness(ctx);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.currentTrackingNumber).toBe('EV12345');
+    expect(rows[0]?.deliveriesToday).toBe(8);
+    expect(rows[0]?.organizationName).toBe('Boutique Lubum');
+  });
+
+  it('loads the admin driver roster snapshot across organizations', async () => {
+    const db = createSqlMatchMock((sql) => {
+      if (sqlIncludes(sql, 'FROM driver_dossiers d') && sqlIncludes(sql, 'LEFT JOIN LATERAL')) {
+        return {
+          id: 'dossier-1',
+          user_id: 'user-1',
+          full_name: 'Jean-Pierre Tshibanda',
+          email: 'courier.lubum1@eveider.cd',
+          phone: '+243820100001',
+          status: 'active',
+          id_document_url: 'https://files.eveider.cd/id/lubum1.jpg',
+          notes: null,
+          review_notes: null,
+          invited_at: new Date('2026-08-01T12:00:00.000Z'),
+          created_at: new Date('2026-08-01T12:00:00.000Z'),
+          contractor_type: 'business',
+          business_id: 'biz-1',
+          business_name: 'Boutique Kenya',
+          is_blocked: false,
+          deactivated_at: null,
+          current_tracking_number: 'EV12345',
+          current_locker_name: 'Kenya',
+          deliveries_today: 8,
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const repo = new CourierDossierRepository(db);
+    const ctx = createDataAccessContext('admin', { userId: 'admin-1' });
+
+    const rows = await repo.listRosterForAdmin(ctx);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.contractorType).toBe('business');
+    expect(rows[0]?.organizationName).toBe('Boutique Kenya');
+    expect(rows[0]?.currentTrackingNumber).toBe('EV12345');
+  });
 });

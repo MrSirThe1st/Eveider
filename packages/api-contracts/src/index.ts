@@ -19,6 +19,8 @@ export * from './schemas/issue.js';
 export * from './schemas/invite.js';
 export * from './schemas/payment.js';
 export * from './schemas/pricing.js';
+export * from './schemas/platform.js';
+export * from './schemas/platform-staff.js';
 export * from './schemas/track.js';
 export * from './schemas/courier.js';
 export * from './zod-enum.js';

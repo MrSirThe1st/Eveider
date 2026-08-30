@@ -1,50 +1,10 @@
-import { BUSINESS_STATUS_LABELS, type BusinessStatus } from '@eveider/domain';
-import { PageFrame } from '@eveider/ui';
-import { notFound } from 'next/navigation';
-import { AdminApplicationReview } from '@/components/admin-application-review';
-import {
-  getBusinessApplicationDetail,
-  getNextBusinessApplicationId,
-} from '@/server/business-applications';
-import { getAdminSession } from '@/server/session';
+import { redirect } from 'next/navigation';
 
-export default async function AdminApplicationReviewPage({
-  params,
-}: {
+type PageProps = {
   params: Promise<{ id: string }>;
-}) {
-  const { id: businessId } = await params;
-  const { ctx } = await getAdminSession();
-  const [business, nextApplicationId] = await Promise.all([
-    getBusinessApplicationDetail(businessId),
-    getNextBusinessApplicationId(ctx, businessId),
-  ]);
+};
 
-  if (!business) {
-    notFound();
-  }
-
-  const statusLabel =
-    BUSINESS_STATUS_LABELS[business.status as BusinessStatus] ?? business.status;
-
-  return (
-    <PageFrame
-      title={`Revue KYC — ${business.name}`}
-      description={`Mode revue · Statut : ${statusLabel}`}
-      layout="standard"
-      breadcrumbs={[
-        {
-          label: 'Dossiers',
-          href: '/tableau-de-bord/organisations/applications',
-        },
-        { label: business.name },
-      ]}
-    >
-      <AdminApplicationReview
-        business={business}
-        nextApplicationId={nextApplicationId}
-        hidePageChrome
-      />
-    </PageFrame>
-  );
+export default async function LegacyApplicationDetailRedirect({ params }: PageProps) {
+  const { id } = await params;
+  redirect(`/tableau-de-bord/organisations/${id}/verification/dossier`);
 }

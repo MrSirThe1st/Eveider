@@ -1,6 +1,5 @@
-import { Button, PageFrame } from '@eveider/ui';
+import { Button } from '@eveider/ui';
 import Link from 'next/link';
-import { AdminCasiersSettingsTabs, AdminParametresTabs } from '@/components/admin-module-tabs';
 import { LockerTemplateList } from '@/components/locker-template-list';
 import { listLockerLayoutTemplates } from '@/server/locker-settings';
 import { getAdminSession } from '@/server/session';
@@ -10,13 +9,7 @@ export default async function AdminLockerTemplatesPage() {
   const templates = await listLockerLayoutTemplates(ctx);
 
   return (
-    <PageFrame
-      title="Casiers"
-      description="Modèles de grille réutilisables pour créer des casiers standardisés."
-      layout="standard"
-    >
-      <AdminParametresTabs />
-      <AdminCasiersSettingsTabs />
+    <>
       <div
         style={{
           display: 'flex',
@@ -31,6 +24,6 @@ export default async function AdminLockerTemplatesPage() {
         </Link>
       </div>
       <LockerTemplateList templates={templates} />
-    </PageFrame>
+    </>
   );
 }

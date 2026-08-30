@@ -9,11 +9,11 @@ export function BusinessSection() {
         <p className={styles.kicker}>Entreprises</p>
         <h2 className={styles.title}>Envoyez vos colis vers un casier Eveider.</h2>
         <p className={styles.lead}>
-          Créez une expédition, indiquez le destinataire, choisissez un casier, puis suivez le colis
-          jusqu’au retrait.
+          Créez un colis, indiquez le destinataire, choisissez un casier, puis suivez jusqu’au
+          retrait.
         </p>
         <ul className={styles.plainList}>
-          <li>Créer une expédition</li>
+          <li>Créer un colis</li>
           <li>Choisir un casier à Kinshasa</li>
           <li>Suivre la livraison</li>
         </ul>

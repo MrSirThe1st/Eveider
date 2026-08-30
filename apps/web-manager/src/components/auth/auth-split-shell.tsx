@@ -17,7 +17,7 @@ type AuthSplitShellProps = {
 
 export function AuthSplitShell({ visual, visualKey, toolbar, dots, children }: AuthSplitShellProps) {
   return (
-    <main className={styles.page}>
+    <main className={`${styles.page} auth-viewport`}>
       <div className={styles.card}>
         <section className={styles.panel}>
           <div className={styles.panelBrand}>

@@ -11,7 +11,7 @@ export default async function AdminIssuesPage() {
   return (
     <PageFrame
       title="Incidents"
-      description="Signalements clients et coursiers à traiter."
+      description="Problèmes signalés, à traiter."
       layout="wide"
     >
       <AdminLivraisonsTabs />

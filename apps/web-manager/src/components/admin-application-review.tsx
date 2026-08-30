@@ -8,7 +8,11 @@ import {
   typography,
   webInputStyle,
 } from '@eveider/config-ui';
-import { BUSINESS_STATUS_LABELS, type BusinessStatus } from '@eveider/domain';
+import {
+  normalizeAdminAccountStatus,
+  ADMIN_ACCOUNT_STATUS_LABELS,
+  type BusinessStatus,
+} from '@eveider/domain';
 import { Button, ConfirmDialog, StatusBadge } from '@eveider/ui';
 import {
   Building2,
@@ -22,7 +26,7 @@ import {
 import Link from 'next/link';
 import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import type { BusinessApplicationDetail } from '@/server/business-applications';
-import { BusinessStatusBadge } from './business-status-badge';
+import { AdminAccountStatusBadge } from './admin-account-status-badge';
 import { VerificationStatusBadge } from './verification-status-badge';
 import { KycDocumentPreview } from './kyc-document-preview';
 import {
@@ -51,6 +55,8 @@ interface AdminApplicationReviewProps {
   nextApplicationId?: string | null;
   /** When true, skip outer max-width / title (provided by PageFrame). */
   hidePageChrome?: boolean;
+  backHref?: string;
+  queueHref?: string;
 }
 
 function InfoRow({ label, value }: { label: string; value: ReactNode }) {
@@ -253,17 +259,19 @@ export function AdminApplicationReview({
   business,
   nextApplicationId = null,
   hidePageChrome = false,
+  backHref = '/tableau-de-bord/organisations/verification',
+  queueHref = '/tableau-de-bord/organisations/verification',
 }: AdminApplicationReviewProps) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successAction, setSuccessAction] = useState<'approve' | 'request_correction' | 'block' | null>(
+  const [successAction, setSuccessAction] = useState<'approve' | 'request_correction' | 'reject' | null>(
     null,
   );
   const [reviewNotes, setReviewNotes] = useState('');
   const [noDocsAcknowledged, setNoDocsAcknowledged] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<ApplicationDocument | null>(null);
-  const [pendingAction, setPendingAction] = useState<'approve' | 'request_correction' | 'block' | null>(
+  const [pendingAction, setPendingAction] = useState<'approve' | 'request_correction' | 'reject' | null>(
     null,
   );
 
@@ -405,13 +413,13 @@ export function AdminApplicationReview({
     return issues;
   }, [business.documents, checks, docFailMeta, docStatuses, failMeta]);
 
-  function buildStructuredReviewNotes(action: 'approve' | 'request_correction' | 'block'): string {
+  function buildStructuredReviewNotes(action: 'approve' | 'request_correction' | 'reject'): string {
     const parts: string[] = [];
     if (action === 'request_correction' && structuredIssues.length > 0) {
       parts.push('Corrections requises :');
       parts.push(...structuredIssues);
     }
-    if (action === 'block' && structuredIssues.length > 0) {
+    if (action === 'reject' && structuredIssues.length > 0) {
       parts.push('Motifs de rejet :');
       parts.push(...structuredIssues);
     }
@@ -443,15 +451,15 @@ export function AdminApplicationReview({
     return formatFailNote(label, meta.comment) || undefined;
   }
 
-  async function handleDecision(action: 'approve' | 'request_correction' | 'block') {
-    if (!canDecide && action !== 'block') {
+  async function handleDecision(action: 'approve' | 'request_correction' | 'reject') {
+    if (!canDecide && action !== 'reject') {
       setError('Complétez la checklist, les motifs FAIL et la revue documents avant de décider.');
       setStep(canLeaveStep2 ? (canLeaveStep3 ? 4 : 3) : 2);
       setPendingAction(null);
       return;
     }
-    if (action === 'block' && !allFailsHaveReasons && structuredIssues.length === 0 && !reviewNotes.trim()) {
-      setError('Indiquez au moins un motif (FAIL + raison ou remarque) avant de bloquer.');
+    if (action === 'reject' && !allFailsHaveReasons && structuredIssues.length === 0 && !reviewNotes.trim()) {
+      setError('Indiquez au moins un motif (FAIL + raison ou remarque) avant de refuser.');
       setPendingAction(null);
       return;
     }
@@ -514,16 +522,16 @@ export function AdminApplicationReview({
     }
   }
 
-  function requestDecision(action: 'approve' | 'request_correction' | 'block') {
+  function requestDecision(action: 'approve' | 'request_correction' | 'reject') {
     setError(null);
 
-    if (!canDecide && action !== 'block') {
+    if (!canDecide && action !== 'reject') {
       setError('Complétez la checklist, les motifs FAIL et la revue documents avant de décider.');
       setStep(canLeaveStep2 ? (canLeaveStep3 ? 4 : 3) : 2);
       return;
     }
-    if (action === 'block' && !allFailsHaveReasons && structuredIssues.length === 0 && !reviewNotes.trim()) {
-      setError('Indiquez au moins un motif (FAIL + raison ou remarque) avant de bloquer.');
+    if (action === 'reject' && !allFailsHaveReasons && structuredIssues.length === 0 && !reviewNotes.trim()) {
+      setError('Indiquez au moins un motif (FAIL + raison ou remarque) avant de refuser.');
       return;
     }
     if (action === 'request_correction' && structuredIssues.length === 0 && !reviewNotes.trim()) {
@@ -543,23 +551,23 @@ export function AdminApplicationReview({
   const confirmCopy =
     pendingAction === 'approve'
       ? {
-          title: 'Confirmer l’approbation ?',
-          description: `Vous allez activer le compte business « ${business.name} ». Cette action est irréversible depuis cet écran.`,
-          confirmLabel: 'Oui, approuver',
+          title: 'Confirmer la vérification ?',
+          description: `« ${business.name} » sera marquée comme vérifiée. Le statut du compte ne change pas.`,
+          confirmLabel: 'Oui, vérifier',
           tone: 'default' as const,
         }
       : pendingAction === 'request_correction'
         ? {
             title: 'Demander une correction ?',
-            description: `Le marchand « ${business.name} » recevra les motifs structurés et devra soumettre à nouveau son dossier.`,
+            description: `« ${business.name} » recevra les motifs structurés et pourra soumettre à nouveau son dossier.`,
             confirmLabel: 'Oui, demander correction',
             tone: 'default' as const,
           }
-        : pendingAction === 'block'
+        : pendingAction === 'reject'
           ? {
-              title: 'Rejeter et bloquer ce compte ?',
-              description: `Le compte « ${business.name} » sera bloqué. Confirmez uniquement si le dossier ne peut pas être corrigé.`,
-              confirmLabel: 'Oui, rejeter',
+              title: 'Refuser la vérification ?',
+              description: `Le dossier de « ${business.name} » sera refusé. L’organisation reste active et pourra soumettre à nouveau.`,
+              confirmLabel: 'Oui, refuser',
               tone: 'danger' as const,
             }
           : null;
@@ -614,7 +622,8 @@ export function AdminApplicationReview({
     }
     for (const entry of business.statusHistory ?? []) {
       const statusLabel =
-        BUSINESS_STATUS_LABELS[entry.newStatus as BusinessStatus] ?? entry.newStatus;
+        ADMIN_ACCOUNT_STATUS_LABELS[normalizeAdminAccountStatus(entry.newStatus as BusinessStatus)] ??
+        entry.newStatus;
       events.push({
         at: entry.createdAt,
         label: entry.reason?.trim()
@@ -629,24 +638,24 @@ export function AdminApplicationReview({
 
   const successTitle =
     successAction === 'approve'
-      ? 'Compte approuvé et activé'
+      ? 'Organisation vérifiée'
       : successAction === 'request_correction'
         ? 'Corrections demandées'
-        : successAction === 'block'
-          ? 'Compte rejeté et bloqué'
+        : successAction === 'reject'
+          ? 'Vérification refusée'
           : null;
 
   return (
     <div
       style={
-        hidePageChrome
+          hidePageChrome
           ? { paddingBottom: 104 }
           : { width: '100%', padding: '0 0 7rem' }
       }
     >
       {!hidePageChrome ? (
         <Link
-          href="/tableau-de-bord/organisations/applications"
+          href={backHref}
           style={{
             textDecoration: 'none',
             color: colors.secondary,
@@ -654,7 +663,7 @@ export function AdminApplicationReview({
             fontSize: '0.8125rem',
           }}
         >
-          ← Retour aux dossiers d&apos;inscription
+          ← Retour aux demandes
         </Link>
       ) : null}
 
@@ -725,7 +734,7 @@ export function AdminApplicationReview({
                 {business.name}
               </div>
             </div>
-            <BusinessStatusBadge status={business.status as BusinessStatus} />
+            <AdminAccountStatusBadge status={normalizeAdminAccountStatus(business.status as BusinessStatus)} />
             <VerificationStatusBadge
               status={
                 business.verifications[0]?.status === 'pending' ||
@@ -855,7 +864,7 @@ export function AdminApplicationReview({
           <div style={{ display: 'flex', gap: spacing[2], flexWrap: 'wrap' }}>
             {nextApplicationId && nextApplicationId !== business.id ? (
               <Link
-                href={`/tableau-de-bord/organisations/applications/${nextApplicationId}`}
+                href={`/tableau-de-bord/organisations/${nextApplicationId}/verification/dossier`}
                 className="nb-btn nb-btn-primary nb-btn--sm"
                 style={{ textDecoration: 'none' }}
               >
@@ -863,7 +872,7 @@ export function AdminApplicationReview({
               </Link>
             ) : null}
             <Link
-              href="/tableau-de-bord/organisations/applications"
+              href={queueHref}
               className="nb-btn nb-btn-secondary nb-btn--sm"
               style={{ textDecoration: 'none' }}
             >
@@ -1096,10 +1105,10 @@ export function AdminApplicationReview({
                 </span>
               }
             >
-              Grille de vérification
+              Points à contrôler
             </PanelHeading>
             <p style={{ margin: `-${spacing[2]}px 0 ${spacing[4]}px`, fontSize: typography.bodySm.fontSize, color: colors.textMuted }}>
-              Chaque FAIL exige un motif — feedback marchand + audit.
+              Si un point n’est pas bon, dites pourquoi. L’entreprise verra ce message.
             </p>
           </div>
 
@@ -1574,7 +1583,7 @@ export function AdminApplicationReview({
             position: 'fixed',
             left: 0,
             right: 0,
-            bottom: 0,
+            bottom: 'var(--support-widget-clearance, 96px)',
             zIndex: 50,
             background: colors.surface,
             borderTop: `1px solid ${colors.borderSubtle}`,
@@ -1610,7 +1619,7 @@ export function AdminApplicationReview({
               variant="danger"
               loading={loading}
               disabled={loading}
-              onClick={() => requestDecision('block')}
+              onClick={() => requestDecision('reject')}
             >
               Rejeter
             </Button>

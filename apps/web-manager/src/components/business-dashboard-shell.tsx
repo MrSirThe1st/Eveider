@@ -7,16 +7,16 @@ import {
   IconLayout,
   IconMapPin,
   IconPackage,
-  IconReceipt,
   IconTruck,
-  IconUser,
   type NavModule,
 } from '@eveider/ui';
 import type { BusinessPermission } from '@eveider/domain';
 import { useRouter } from 'next/navigation';
+import { OrganizationSettingsChrome } from '@/components/settings-chrome';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { createClient } from '@/lib/supabase/client';
 import { WEB_ROUTES } from '@/lib/auth-routing';
+
 
 type BusinessDashboardShellProps = {
   children: React.ReactNode;
@@ -69,17 +69,6 @@ export function BusinessDashboardShell({ children, permissions = [] }: BusinessD
           },
         ]
       : []),
-    ...(can(permissions, 'billing')
-      ? [
-          {
-            id: 'facturation',
-            label: 'Facturation',
-            href: WEB_ROUTES.businessBilling,
-            icon: <IconReceipt {...NAV_ICON_PROPS} />,
-            match: (p: string) => p.startsWith(WEB_ROUTES.businessBilling),
-          },
-        ]
-      : []),
     ...(can(permissions, 'manage_drivers')
       ? [
           {
@@ -91,31 +80,16 @@ export function BusinessDashboardShell({ children, permissions = [] }: BusinessD
           },
         ]
       : []),
-    ...(can(permissions, 'manage_team')
-      ? [
-          {
-            id: 'equipe',
-            label: 'Équipe',
-            href: WEB_ROUTES.businessTeam,
-            icon: <IconUser {...NAV_ICON_PROPS} />,
-            match: (p: string) => p.startsWith(WEB_ROUTES.businessTeam),
-          },
-        ]
-      : []),
-    ...(can(permissions, 'settings')
-      ? [
-          {
-            id: 'parametres',
-            label: 'Paramètres',
-            href: WEB_ROUTES.businessSettings,
-            icon: <IconLayout {...NAV_ICON_PROPS} />,
-            match: (p: string) =>
-              p.startsWith(WEB_ROUTES.businessSettings) ||
-              p.startsWith(WEB_ROUTES.businessVerification) ||
-              p.startsWith('/organisation/tableau-de-bord/profil'),
-          },
-        ]
-      : []),
+    {
+      id: 'parametres',
+      label: 'Paramètres',
+      href: WEB_ROUTES.businessSettings,
+      icon: <IconLayout {...NAV_ICON_PROPS} />,
+      match: (p: string) =>
+        p.startsWith(WEB_ROUTES.businessSettings) ||
+        p.startsWith(WEB_ROUTES.businessVerification) ||
+        p.startsWith('/organisation/tableau-de-bord/profil'),
+    },
   ];
 
   async function handleSignOut() {
@@ -130,11 +104,11 @@ export function BusinessDashboardShell({ children, permissions = [] }: BusinessD
       brandShort="Eveider"
       onSignOut={handleSignOut}
       modules={modules}
-      profileHref={can(permissions, 'settings') ? WEB_ROUTES.businessSettings : WEB_ROUTES.businessDashboard}
-      profileLabel={can(permissions, 'settings') ? 'Paramètres' : 'Tableau de bord'}
-      toolbar={<ThemeToggle variant="menu" />}
+      profileHref={WEB_ROUTES.businessSettingsProfile}
+      profileLabel="Mon compte"
+      toolbar={<ThemeToggle />}
     >
-      {children}
+      <OrganizationSettingsChrome permissions={permissions}>{children}</OrganizationSettingsChrome>
     </AppShell>
   );
 }

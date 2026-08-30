@@ -2,10 +2,12 @@ import {
   canAcceptDropOff,
   COURIER_HISTORY_DAYS,
   generatePickupPinCode,
+  isAssignableDriverDossier,
   normalizeTrackingNumber,
   transitionDelivery,
   transitionParcel,
   type DeliveryStatus,
+  type DriverDossierStatus,
   type ParcelStatus,
 } from '@eveider/domain';
 import { normalizeDropOffPhoto } from '../deliveries/drop-off-photo.js';
@@ -218,6 +220,24 @@ export class DeliveryRepository {
         if (!membership.rows[0]) {
           throw new AccessDeniedError('Chauffeur hors périmètre');
         }
+      }
+    }
+
+    const dossierResult = await this.db.query(
+      `SELECT status, business_id FROM driver_dossiers
+       WHERE user_id = $1 AND status <> 'rejected'
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [courierId],
+    );
+    const dossierRow = dossierResult.rows[0];
+    if (!dossierRow || !isAssignableDriverDossier(dossierRow.status as DriverDossierStatus)) {
+      throw new Error('Ce chauffeur n’est pas encore approuvé');
+    }
+    if (ctx.role === 'business' && ctx.businessId) {
+      const dossierBusinessId = dossierRow.business_id == null ? null : String(dossierRow.business_id);
+      if (dossierBusinessId && dossierBusinessId !== ctx.businessId) {
+        throw new AccessDeniedError('Chauffeur hors périmètre');
       }
     }
 
@@ -791,6 +811,91 @@ export class DeliveryRepository {
       stats,
       deliveries,
     };
+  }
+
+  async listForBusinessDriver(
+    ctx: DataAccessContext,
+    driverUserId: string,
+  ): Promise<
+    Array<{
+      id: string;
+      status: DeliveryStatus;
+      createdAt: Date;
+      completedAt: Date | null;
+      trackingNumber: string;
+      reference: string | null;
+      lockerName: string | null;
+      lockerAddress: string | null;
+    }>
+  > {
+    assertBusinessRole(ctx);
+    assertCompanyPermission(ctx, 'manage_couriers');
+    const result = await this.db.query(
+      `SELECT d.id, d.status, d.created_at, d.completed_at,
+              p.tracking_number, p.reference,
+              l.name AS locker_name, l.address AS locker_address
+       FROM deliveries d
+       JOIN parcels p ON p.id = d.parcel_id
+       LEFT JOIN lockers l ON l.id = p.locker_id
+       WHERE d.driver_id = $1 AND p.business_id = $2
+       ORDER BY d.created_at DESC`,
+      [driverUserId, ctx.businessId],
+    );
+    return result.rows.map((row) => ({
+      id: String(row.id),
+      status: row.status as DeliveryStatus,
+      createdAt: new Date(String(row.created_at)),
+      completedAt: row.completed_at ? new Date(String(row.completed_at)) : null,
+      trackingNumber: String(row.tracking_number),
+      reference:
+        row.reference == null || row.reference === '' ? null : String(row.reference),
+      lockerName: row.locker_name == null ? null : String(row.locker_name),
+      lockerAddress: row.locker_address == null ? null : String(row.locker_address),
+    }));
+  }
+
+  async listForAdminDriver(
+    ctx: DataAccessContext,
+    driverUserId: string,
+  ): Promise<
+    Array<{
+      id: string;
+      status: DeliveryStatus;
+      createdAt: Date;
+      completedAt: Date | null;
+      trackingNumber: string;
+      reference: string | null;
+      lockerName: string | null;
+      lockerAddress: string | null;
+      businessName: string | null;
+    }>
+  > {
+    assertAdmin(ctx);
+    const result = await this.db.query(
+      `SELECT d.id, d.status, d.created_at, d.completed_at,
+              p.tracking_number, p.reference,
+              l.name AS locker_name, l.address AS locker_address,
+              b.name AS business_name
+       FROM deliveries d
+       JOIN parcels p ON p.id = d.parcel_id
+       JOIN businesses b ON b.id = p.business_id
+       LEFT JOIN lockers l ON l.id = p.locker_id
+       WHERE d.driver_id = $1
+       ORDER BY d.created_at DESC`,
+      [driverUserId],
+    );
+    return result.rows.map((row) => ({
+      id: String(row.id),
+      status: row.status as DeliveryStatus,
+      createdAt: new Date(String(row.created_at)),
+      completedAt: row.completed_at ? new Date(String(row.completed_at)) : null,
+      trackingNumber: String(row.tracking_number),
+      reference:
+        row.reference == null || row.reference === '' ? null : String(row.reference),
+      lockerName: row.locker_name == null ? null : String(row.locker_name),
+      lockerAddress: row.locker_address == null ? null : String(row.locker_address),
+      businessName: row.business_name == null ? null : String(row.business_name),
+    }));
   }
 
   private async requireCourierDelivery(ctx: DataAccessContext, id: string): Promise<CourierDelivery> {

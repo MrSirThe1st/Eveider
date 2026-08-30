@@ -16,7 +16,7 @@ export function HowItWorksSection() {
       </div>
       <div className={styles.howInner}>
         <p className={styles.kicker}>Comment ça marche</p>
-        <h2 className={styles.cardTitle}>De l’expédition au retrait</h2>
+        <h2 className={styles.cardTitle}>Du colis au retrait</h2>
         <ol className={styles.howFlow}>
           {HOW_IT_WORKS_STEPS.map((item, index) => (
             <li key={item.id} className={styles.howStep}>

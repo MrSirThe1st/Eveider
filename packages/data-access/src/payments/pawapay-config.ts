@@ -6,6 +6,11 @@ export type PawaPayConfig = {
   pickupFeeCurrency: string;
 };
 
+export type PickupFeeOverride = {
+  amount: string;
+  currency: string;
+};
+
 export const DRC_DEPOSIT_PROVIDERS = [
   { id: 'ORANGE_COD', label: 'Orange Money' },
   { id: 'AIRTEL_COD', label: 'Airtel Money' },
@@ -14,7 +19,7 @@ export const DRC_DEPOSIT_PROVIDERS = [
 
 export type DrcDepositProvider = (typeof DRC_DEPOSIT_PROVIDERS)[number]['id'];
 
-export function getPawaPayConfig(): PawaPayConfig | null {
+export function buildPawaPayConfig(pickupFee?: PickupFeeOverride): PawaPayConfig | null {
   const apiToken = process.env.PAWAPAY_API_TOKEN?.trim();
   const baseUrl = (process.env.PAWAPAY_API_BASE_URL?.trim() || 'https://api.sandbox.pawapay.io').replace(
     /\/$/,
@@ -26,9 +31,15 @@ export function getPawaPayConfig(): PawaPayConfig | null {
     apiToken,
     baseUrl,
     country: process.env.PAWAPAY_DEFAULT_COUNTRY?.trim() || 'COD',
-    pickupFeeAmount: process.env.PAWAPAY_PICKUP_FEE_AMOUNT?.trim() || '5',
-    pickupFeeCurrency: process.env.PAWAPAY_PICKUP_FEE_CURRENCY?.trim() || 'USD',
+    pickupFeeAmount:
+      pickupFee?.amount ?? (process.env.PAWAPAY_PICKUP_FEE_AMOUNT?.trim() || '5'),
+    pickupFeeCurrency:
+      pickupFee?.currency ?? (process.env.PAWAPAY_PICKUP_FEE_CURRENCY?.trim() || 'USD'),
   };
+}
+
+export function getPawaPayConfig(): PawaPayConfig | null {
+  return buildPawaPayConfig();
 }
 
 /** PawaPay expects MSISDN digits only (country code, no +). */

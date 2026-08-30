@@ -7,10 +7,10 @@ export function ContactBand() {
       <div className={styles.shell}>
         <div className={styles.contactPanel}>
           <div className={styles.contactCopy}>
-            <h2 className={styles.display}>Rejoindre le réseau pour expédier.</h2>
+            <h2 className={styles.display}>Rejoindre le réseau pour envoyer des colis.</h2>
             <p>
-              Inscrivez votre activité, faites vérifier le compte, puis créez des expéditions vers
-              un casier.
+              Inscrivez votre activité, puis envoyez des colis vers un casier. Envoyer vos
+              pièces n’est pas obligatoire.
             </p>
           </div>
           <div className={styles.contactActions}>

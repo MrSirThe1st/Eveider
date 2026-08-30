@@ -11,6 +11,11 @@ export type BusinessStatus =
 /** Operational account status. KYC lives on `business_verifications`, not here. */
 export const OPERATIONAL_BUSINESS_STATUSES = ['active', 'suspended', 'blocked'] as const satisfies readonly BusinessStatus[];
 
+/** Admin UI account status — verification is shown separately. */
+export type AdminAccountStatus = 'active' | 'suspended';
+
+export const ADMIN_ACCOUNT_STATUSES = ['active', 'suspended'] as const satisfies readonly AdminAccountStatus[];
+
 export const BUSINESS_STATUSES: readonly BusinessStatus[] = [
   'draft',
   'onboarding',
@@ -51,14 +56,14 @@ const KYC_OPERATIONAL_LEFTOVERS: readonly BusinessStatus[] = [
 ];
 
 const BUSINESS_TRANSITIONS: Record<BusinessStatus, readonly BusinessStatus[]> = {
-  draft: ['onboarding', 'active', 'blocked'],
-  onboarding: ['pending_review', 'active', 'blocked'],
-  pending_review: ['active', 'pending_correction', 'blocked'],
-  pending_correction: ['pending_review', 'active', 'blocked'],
-  pending: ['active', 'pending_correction', 'blocked'],
+  draft: ['active', 'suspended', 'blocked'],
+  onboarding: ['active', 'suspended', 'blocked'],
+  pending_review: ['active', 'suspended', 'blocked'],
+  pending_correction: ['active', 'suspended', 'blocked'],
+  pending: ['active', 'suspended', 'blocked'],
   active: ['suspended', 'blocked'],
   suspended: ['active', 'blocked'],
-  blocked: ['active'],
+  blocked: ['active', 'suspended'],
 };
 
 export function canTransitionBusiness(from: BusinessStatus, to: BusinessStatus): boolean {
@@ -79,6 +84,18 @@ export function canSubmitParcelsAsBusiness(status: BusinessStatus): boolean {
 
 export function isKycOperationalLeftover(status: BusinessStatus): boolean {
   return KYC_OPERATIONAL_LEFTOVERS.includes(status);
+}
+
+/** Maps stored status to admin list/detail account badge (legacy rows → active). */
+export function normalizeAdminAccountStatus(status: BusinessStatus): AdminAccountStatus {
+  if (status === 'suspended' || status === 'blocked') return 'suspended';
+  if (status === 'active') return 'active';
+  if (isKycOperationalLeftover(status)) return 'active';
+  return 'active';
+}
+
+export function adminAccountStatusToBusinessStatus(status: AdminAccountStatus): BusinessStatus {
+  return status === 'suspended' ? 'suspended' : 'active';
 }
 
 /** KYC approval must not change suspended/blocked accounts; leftover KYC statuses become active. */

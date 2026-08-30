@@ -5,8 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useId, useState, useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Button } from './button.js';
-import { IconChevronLeft, IconChevronRight, IconMenu, IconUser, IconX } from './icons.js';
+import { IconChevronLeft, IconChevronRight, IconLogOut, IconMenu, IconSettings, IconX } from './icons.js';
 
 export type NavItem = {
   href: string;
@@ -83,177 +82,8 @@ function SidebarNavTooltip({ tooltip }: { tooltip: NavTooltipState | null }) {
   );
 }
 
-type ProfileDropdownProps = {
-  profileHref: string;
-  profileLabel?: string;
-  onSignOut: () => void | Promise<void>;
-  signOutLabel?: string;
-  extraItems?: ReactNode;
-};
-
-function ProfileDropdownItem({
-  children,
-  href,
-  onClick,
-  tone = 'default',
-}: {
-  children: ReactNode;
-  href?: string;
-  onClick?: () => void;
-  tone?: 'default' | 'danger';
-}) {
-  const [hovered, setHovered] = useState(false);
-
-  const style: React.CSSProperties = {
-    display: 'block',
-    width: '100%',
-    textAlign: 'left',
-    padding: '8px 12px',
-    borderRadius: radius.sm,
-    textDecoration: 'none',
-    border: 'none',
-    background: hovered ? colors.surfaceSubtle : 'transparent',
-    color: tone === 'danger' ? colors.danger : colors.secondary,
-    fontSize: typography.bodySm.fontSize,
-    fontWeight: typography.weights.semibold,
-    cursor: 'pointer',
-    transition: 'background 0.15s ease',
-    fontFamily: typography.fontFamily,
-    boxSizing: 'border-box',
-  };
-
-  if (href) {
-    return (
-      <Link
-        href={href}
-        style={style}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        onClick={onClick}
-      >
-        {children}
-      </Link>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      style={style}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      onClick={onClick}
-    >
-      {children}
-    </button>
-  );
-}
-
-function ProfileDropdown({
-  profileHref,
-  profileLabel = 'Modifier mon profil',
-  onSignOut,
-  signOutLabel = 'Déconnexion',
-  extraItems,
-}: ProfileDropdownProps) {
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const menuId = useId();
-
-  useEffect(() => {
-    if (!open) return;
-
-    function onPointerDown(event: MouseEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setOpen(false);
-    }
-
-    document.addEventListener('mousedown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [open]);
-
-  return (
-    <div
-      ref={rootRef}
-      className="nb-profile-dropdown"
-      style={{ position: 'relative', display: 'inline-flex' }}
-    >
-      <button
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-controls={menuId}
-        aria-label="Menu profil"
-        onClick={() => setOpen((o) => !o)}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 36,
-          height: 36,
-          padding: 0,
-          border: `1px solid ${colors.borderSubtle}`,
-          borderRadius: '50%',
-          background: open ? colors.surfaceSubtle : colors.surface,
-          color: colors.secondary,
-          cursor: 'pointer',
-          boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
-          transition: 'background 0.2s ease, border-color 0.2s ease',
-        }}
-      >
-        <IconUser width={20} height={20} />
-      </button>
-
-      {open ? (
-        <div
-          id={menuId}
-          role="menu"
-          style={{
-            position: 'absolute',
-            top: 'calc(100% + 8px)',
-            right: 0,
-            zIndex: 40,
-            minWidth: 188,
-            padding: 4,
-            background: colors.surface,
-            border: `1px solid ${colors.borderSubtle}`,
-            borderRadius: radius.md,
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-          }}
-        >
-          <ProfileDropdownItem href={profileHref} onClick={() => setOpen(false)}>
-            {profileLabel}
-          </ProfileDropdownItem>
-          {extraItems}
-          <ProfileDropdownItem
-            tone="danger"
-            onClick={() => {
-              setOpen(false);
-              void onSignOut();
-            }}
-          >
-            {signOutLabel}
-          </ProfileDropdownItem>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 /**
- * Portal chrome: full-height module sidebar + sticky top bar (profile).
+ * Portal chrome: full-height module sidebar + sticky top bar (account actions).
  */
 export function AppShell({
   brand,
@@ -607,19 +437,28 @@ export function AppShell({
 
             <div style={{ flex: 1 }} />
 
-            {profileHref ? (
-              <ProfileDropdown
-                profileHref={profileHref}
-                profileLabel={profileLabel}
-                onSignOut={onSignOut}
-                signOutLabel={signOutLabel}
-                extraItems={toolbar}
-              />
-            ) : (
-              <Button variant="secondary" size="sm" onClick={() => void onSignOut()}>
-                {signOutLabel}
-              </Button>
-            )}
+            <div className="nb-top-bar__actions">
+              {toolbar}
+              {profileHref ? (
+                <Link
+                  href={profileHref}
+                  className="nb-top-bar__icon"
+                  aria-label={profileLabel ?? 'Paramètres'}
+                  title={profileLabel ?? 'Paramètres'}
+                >
+                  <IconSettings width={18} height={18} />
+                </Link>
+              ) : null}
+              <button
+                type="button"
+                className="nb-top-bar__icon"
+                aria-label={signOutLabel}
+                title={signOutLabel}
+                onClick={() => void onSignOut()}
+              >
+                <IconLogOut width={18} height={18} />
+              </button>
+            </div>
           </header>
 
           <main
@@ -631,7 +470,8 @@ export function AppShell({
               minWidth: 0,
               width: '100%',
               overflowY: 'auto',
-              padding: `${spacing[6]}px ${spacing[8]}px ${spacing[12]}px`,
+              padding: `${spacing[6]}px ${spacing[8]}px var(--support-widget-clearance, 96px)`,
+              scrollPaddingBottom: 'var(--support-widget-clearance, 96px)',
               boxSizing: 'border-box',
             }}
           >

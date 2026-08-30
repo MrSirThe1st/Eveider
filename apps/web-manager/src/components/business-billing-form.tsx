@@ -70,7 +70,7 @@ export function BusinessBillingForm({
   return (
     <form onSubmit={(event) => void handleSubmit(event)} style={{ display: 'grid', gap: '1.5rem' }}>
       <section style={{ ...webCardStyle, padding: '1.5rem' }}>
-        <h3 style={{ margin: '0 0 1.25rem', fontSize: '0.875rem', fontWeight: 700 }}>Règles</h3>
+        <h3 style={{ margin: '0 0 1.25rem', fontSize: '0.875rem', fontWeight: 700 }}>Qui paie</h3>
         <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
           <label>
             <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 8 }}>
@@ -88,25 +88,28 @@ export function BusinessBillingForm({
           </label>
           <label>
             <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 8 }}>
-              Mode de facturation
+              Comment vous êtes facturé
             </span>
             <select
               value={billingType}
               onChange={(e) => setBillingType(e.target.value as BillingFormProps['billingType'])}
               style={selectStyle}
             >
-              <option value="pay_per_shipment">À l’expédition</option>
+              <option value="pay_per_shipment">À chaque colis</option>
               <option value="monthly_invoice">Facture mensuelle</option>
             </select>
           </label>
         </div>
         <p style={{ margin: '1rem 0 0', fontSize: '0.75rem', color: colors.textMuted }}>
-          Les relevés et encaissements COD arriveront ici. Pour l’instant, ces règles s’appliquent aux nouvelles expéditions.
+          Ces règles s’appliquent aux nouveaux colis. Le détail des paiements à la livraison
+          arrivera ici plus tard.
         </p>
       </section>
 
       <section style={{ ...webCardStyle, padding: '1.5rem' }}>
-        <h3 style={{ margin: '0 0 1.25rem', fontSize: '0.875rem', fontWeight: 700 }}>Compte de règlement</h3>
+        <h3 style={{ margin: '0 0 1.25rem', fontSize: '0.875rem', fontWeight: 700 }}>
+          Compte pour recevoir l’argent
+        </h3>
         <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
           <label>
             <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 8 }}>
@@ -142,17 +145,17 @@ export function BusinessBillingForm({
 
       {dailyShipments != null || codDailyLimitUsd != null ? (
         <section style={{ ...webCardStyle, padding: '1.5rem' }}>
-          <h3 style={{ margin: '0 0 1rem', fontSize: '0.875rem', fontWeight: 700 }}>Plafonds Eveider</h3>
+          <h3 style={{ margin: '0 0 1rem', fontSize: '0.875rem', fontWeight: 700 }}>Limites Eveider</h3>
           <dl style={{ margin: 0, display: 'grid', gap: '0.75rem', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
             {dailyShipments != null ? (
               <div>
-                <dt style={{ fontSize: '0.6875rem', fontWeight: 600, color: colors.textMuted }}>QUOTA JOURNALIER</dt>
+                <dt style={{ fontSize: '0.6875rem', fontWeight: 600, color: colors.textMuted }}>COLIS PAR JOUR</dt>
                 <dd style={{ margin: '0.25rem 0 0', fontWeight: 600 }}>{dailyShipments} colis / jour</dd>
               </div>
             ) : null}
             {codDailyLimitUsd != null ? (
               <div>
-                <dt style={{ fontSize: '0.6875rem', fontWeight: 600, color: colors.textMuted }}>PLAFOND COD</dt>
+                <dt style={{ fontSize: '0.6875rem', fontWeight: 600, color: colors.textMuted }}>PAIEMENT À LA LIVRAISON — MAX / JOUR</dt>
                 <dd style={{ margin: '0.25rem 0 0', fontWeight: 600 }}>${codDailyLimitUsd} / jour</dd>
               </div>
             ) : null}

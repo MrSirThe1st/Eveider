@@ -1,4 +1,4 @@
-import type { RegisterBusinessAccountInput } from '@eveider/api-contracts';
+import type { RegisterBusinessAccountInput, RegisterPlatformAdminInput } from '@eveider/api-contracts';
 import { createRepositories } from '@eveider/data-access';
 import type { Business, User } from '@eveider/data-access';
 
@@ -12,6 +12,42 @@ export type RegisterBusinessAccountResult = {
   >;
   joinedExistingCompany: boolean;
 };
+
+export async function registerPlatformAdminAccount(
+  authId: string,
+  input: RegisterPlatformAdminInput,
+): Promise<{ user: User }> {
+  const { users, platformStaff } = createRepositories();
+  const preview = await platformStaff.getPreview(input.adminInviteToken);
+  if (!preview) {
+    throw new Error('Invitation introuvable');
+  }
+  if (input.email.trim().toLowerCase() !== preview.email.trim().toLowerCase()) {
+    throw new Error('Cette invitation est destinée à une autre adresse email');
+  }
+
+  let user = await users.findByAuthId(authId);
+  if (!user) {
+    user = await users.createProfile({
+      authId,
+      fullName: `${input.firstName} ${input.lastName}`.trim(),
+      email: input.email,
+      phone: input.phone,
+    });
+  }
+
+  await platformStaff.acceptForUser({
+    token: input.adminInviteToken,
+    email: input.email,
+    userId: user.id,
+  });
+
+  const refreshed = await users.findById(user.id);
+  if (!refreshed) {
+    throw new Error('Profil introuvable');
+  }
+  return { user: refreshed };
+}
 
 export async function registerBusinessAccount(
   authId: string,
@@ -65,7 +101,7 @@ export async function registerBusinessAccount(
 
   const organizationName = input.organizationName?.trim();
   if (!organizationName) {
-    throw new Error('Nom de l’organisation requis');
+    throw new Error('Nom de l’entreprise requis');
   }
 
   const business = await businesses.createForRegistration({
@@ -108,7 +144,7 @@ export async function verifyBusinessPhoneOtp(
   const linked = await users.findByAuthIdWithBusiness(authId);
 
   if (!linked?.business) {
-    throw new Error('Profil organisation introuvable');
+    throw new Error('Profil entreprise introuvable');
   }
 
   const { business } = linked;

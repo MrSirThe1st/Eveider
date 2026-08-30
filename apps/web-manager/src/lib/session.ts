@@ -145,7 +145,7 @@ export async function requireBusinessSession(
       cookieStore.get(ORGANIZATION_COOKIE)?.value,
     );
     if (!membership) {
-      return { error: 'Compte organisation requis', status: 403 };
+      return { error: 'Compte entreprise requis', status: 403 };
     }
 
     const requiredPermission =

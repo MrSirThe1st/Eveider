@@ -30,6 +30,26 @@ const nextConfig: NextConfig = {
       { source: '/tableau-de-bord/entreprises/:path*', destination: '/tableau-de-bord/organisations/:path*', permanent: true },
       { source: '/tableau-de-bord/entreprises', destination: '/tableau-de-bord/organisations', permanent: true },
       { source: '/tableau-de-bord/coursiers', destination: '/tableau-de-bord/chauffeurs', permanent: true },
+      {
+        source: '/organisation/tableau-de-bord/facturation',
+        destination: '/organisation/tableau-de-bord/parametres/facturation',
+        permanent: true,
+      },
+      {
+        source: '/organisation/tableau-de-bord/equipe',
+        destination: '/organisation/tableau-de-bord/parametres/membres',
+        permanent: true,
+      },
+      {
+        source: '/tableau-de-bord/organisations/applications',
+        destination: '/tableau-de-bord/organisations/verification',
+        permanent: true,
+      },
+      {
+        source: '/tableau-de-bord/organisations/applications/:id',
+        destination: '/tableau-de-bord/organisations/:id/verification/dossier',
+        permanent: false,
+      },
     ];
   },
 };

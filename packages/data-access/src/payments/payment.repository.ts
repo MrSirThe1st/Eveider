@@ -4,6 +4,7 @@ import { mapParcelPayment } from '../db/mappers.js';
 import type { ParcelPayment, PaymentStatus } from '../db/types.js';
 import { phonesMatch } from '../tracking/guest-track.js';
 import {
+  buildPawaPayConfig,
   getPawaPayConfig,
   isDrcDepositProvider,
   normalizePawaPayPhone,
@@ -39,8 +40,23 @@ export type InitiatePickupPaymentResult = {
 export class PaymentRepository {
   constructor(private readonly db: Queryable) {}
 
+  private async resolvePawaPayConfig() {
+    const settingsResult = await this.db.query(
+      `SELECT pickup_fee_amount, pickup_fee_currency
+       FROM platform_settings
+       ORDER BY updated_at DESC
+       LIMIT 1`,
+    );
+    const row = settingsResult.rows[0];
+    if (!row) return getPawaPayConfig();
+    return buildPawaPayConfig({
+      amount: String(row.pickup_fee_amount),
+      currency: String(row.pickup_fee_currency),
+    });
+  }
+
   async getPickupPaymentSummary(parcelId: string): Promise<PickupPaymentSummary> {
-    const config = getPawaPayConfig();
+    const config = await this.resolvePawaPayConfig();
     const parcelResult = await this.db.query(
       `SELECT payment_responsibility FROM parcels WHERE id = $1 LIMIT 1`,
       [parcelId],
@@ -86,7 +102,7 @@ export class PaymentRepository {
   ): Promise<InitiatePickupPaymentResult> {
     assertCustomerRole(ctx);
 
-    const config = getPawaPayConfig();
+    const config = await this.resolvePawaPayConfig();
     if (!config) {
       throw new Error('Paiement mobile indisponible pour le moment');
     }
@@ -234,7 +250,7 @@ export class PaymentRepository {
     recipientPhone: string,
     input: InitiatePickupPaymentInput,
   ): Promise<InitiatePickupPaymentResult> {
-    const config = getPawaPayConfig();
+    const config = await this.resolvePawaPayConfig();
     if (!config) {
       throw new Error('Paiement mobile indisponible pour le moment');
     }

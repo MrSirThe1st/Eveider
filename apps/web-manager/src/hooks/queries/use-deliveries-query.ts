@@ -60,7 +60,13 @@ export type DeliveriesBoardResponse = {
   businesses: BusinessListItem[];
 };
 
-function buildDeliveriesBoardUrl(filters: DeliveryFilters) {
+type LoadOptions = {
+  silent?: boolean;
+  /** Full load includes filter catalogs; silent refresh skips them. */
+  includeMeta?: boolean;
+};
+
+function buildDeliveriesBoardUrl(filters: DeliveryFilters, includeMeta: boolean) {
   const params = new URLSearchParams();
   params.set('view', filters.view);
   if (filters.status !== 'all') params.set('status', filters.status);
@@ -68,11 +74,30 @@ function buildDeliveriesBoardUrl(filters: DeliveryFilters) {
   if (filters.lockerId) params.set('lockerId', filters.lockerId);
   if (filters.businessId) params.set('businessId', filters.businessId);
   if (filters.search.trim()) params.set('search', filters.search.trim());
+  if (!includeMeta) params.set('includeMeta', '0');
   return `/api/deliveries/board?${params.toString()}`;
 }
 
-export async function fetchDeliveriesBoard(filters: DeliveryFilters): Promise<DeliveriesBoardResponse> {
-  return fetchJson<DeliveriesBoardResponse>(buildDeliveriesBoardUrl(filters));
+export async function fetchDeliveriesBoard(
+  filters: DeliveryFilters,
+  options?: { includeMeta?: boolean },
+): Promise<DeliveriesBoardResponse> {
+  const includeMeta = options?.includeMeta ?? true;
+  return fetchJson<DeliveriesBoardResponse>(buildDeliveriesBoardUrl(filters, includeMeta));
+}
+
+function mergeBoardResponse(
+  previous: DeliveriesBoardResponse | null,
+  next: DeliveriesBoardResponse,
+  includeMeta: boolean,
+): DeliveriesBoardResponse {
+  if (includeMeta || !previous) return next;
+  return {
+    ...next,
+    couriers: previous.couriers,
+    lockers: previous.lockers,
+    businesses: previous.businesses,
+  };
 }
 
 export function useDeliveriesBoardQuery(filters: DeliveryFilters) {
@@ -82,50 +107,85 @@ export function useDeliveriesBoardQuery(filters: DeliveryFilters) {
   const [error, setError] = useState<Error | null>(null);
   const [dataUpdatedAt, setDataUpdatedAt] = useState(0);
   const hasDataRef = useRef(false);
+  const dataRef = useRef<DeliveriesBoardResponse | null>(null);
 
-  const load = useCallback(
-    async (opts?: { silent?: boolean }) => {
-      const isInitial = !hasDataRef.current;
-      if (isInitial && !opts?.silent) {
-        setIsLoading(true);
-      } else if (!isInitial) {
-        setIsFetching(true);
-      }
-      setError(null);
+  const load = useCallback(async (opts?: LoadOptions) => {
+    const includeMeta = opts?.includeMeta ?? true;
+    const isInitial = !hasDataRef.current;
+    if (isInitial && !opts?.silent) {
+      setIsLoading(true);
+    } else if (!isInitial) {
+      setIsFetching(true);
+    }
+    setError(null);
 
-      try {
-        const next = await fetchDeliveriesBoard(filters);
-        setData(next);
-        setDataUpdatedAt(Date.now());
-        hasDataRef.current = true;
-      } catch (e) {
-        setError(e instanceof Error ? e : new Error('Impossible de charger les livraisons.'));
-      } finally {
-        setIsLoading(false);
-        setIsFetching(false);
-      }
-    },
-    [
-      filters.view,
-      filters.status,
-      filters.courierId,
-      filters.lockerId,
-      filters.businessId,
-      filters.search,
-    ],
-  );
+    try {
+      const next = await fetchDeliveriesBoard(filters, { includeMeta });
+      const merged = mergeBoardResponse(dataRef.current, next, includeMeta);
+      dataRef.current = merged;
+      setData(merged);
+      setDataUpdatedAt(Date.now());
+      hasDataRef.current = true;
+    } catch (e) {
+      setError(e instanceof Error ? e : new Error('Impossible de charger les livraisons.'));
+    } finally {
+      setIsLoading(false);
+      setIsFetching(false);
+    }
+  }, [
+    filters.view,
+    filters.status,
+    filters.courierId,
+    filters.lockerId,
+    filters.businessId,
+    filters.search,
+  ]);
 
   useEffect(() => {
     hasDataRef.current = false;
-    void load();
+    dataRef.current = null;
+    void load({ includeMeta: true });
   }, [load]);
 
   useEffect(() => {
     if (filters.view !== 'active') return undefined;
-    const intervalId = setInterval(() => {
-      void load({ silent: true });
-    }, DELIVERIES_REFRESH_MS);
-    return () => clearInterval(intervalId);
+
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const refreshSilent = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      void load({ silent: true, includeMeta: false });
+    };
+
+    const start = () => {
+      if (intervalId !== null) return;
+      intervalId = setInterval(refreshSilent, DELIVERIES_REFRESH_MS);
+    };
+
+    const stop = () => {
+      if (intervalId === null) return;
+      clearInterval(intervalId);
+      intervalId = null;
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshSilent();
+        start();
+        return;
+      }
+      stop();
+    };
+
+    if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+      start();
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   }, [filters.view, load]);
 
   return {
@@ -135,6 +195,6 @@ export function useDeliveriesBoardQuery(filters: DeliveryFilters) {
     isError: error !== null,
     error,
     dataUpdatedAt,
-    refetch: () => load(),
+    refetch: () => load({ includeMeta: true }),
   };
 }

@@ -13,6 +13,7 @@ Project memory and product context. Read these before implementing features.
 7. [`templates/project-updates.md`](templates/project-updates.md) — implementation history
 8. [`ai/AGENT_RULES.md`](ai/AGENT_RULES.md) — coding and delivery rules
 9. [`ai/data-fetching.md`](ai/data-fetching.md) — **mandatory** before any new `web-manager` page, API route, or repository loader
+10. [`ai/ui-verification.md`](ai/ui-verification.md) — Cursor Browser + Playwright for web-manager UI checks
 
 ## Product Docs
 
@@ -35,6 +36,7 @@ Project memory and product context. Read these before implementing features.
 | [templates/project-updates.md](templates/project-updates.md) | Append-only change log |
 | [ai/AGENT_RULES.md](ai/AGENT_RULES.md) | Agent workflow and standards |
 | [ai/data-fetching.md](ai/data-fetching.md) | Server-first reads, page-specific loaders, auth lookup rules, pg pool policy |
+| [ai/ui-verification.md](ai/ui-verification.md) | Cursor Browser + Playwright e2e for UI / settings / role-gated nav |
 | [decisions/ADR-001.md](decisions/ADR-001.md) | Monorepo architecture and blueprint adoption |
 | [decisions/ADR-002.md](decisions/ADR-002.md) | Parcel vs delivery; derived business location on Colis |
 | [../setup/supabase.md](../setup/supabase.md) | Supabase project setup and env vars |

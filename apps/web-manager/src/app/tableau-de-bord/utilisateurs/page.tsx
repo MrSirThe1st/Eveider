@@ -85,7 +85,7 @@ export default function UsersPage() {
   return (
     <PageFrame
       title="Utilisateurs"
-      description="Consultez et gérez les comptes des clients et des coursiers."
+      description="Comptes des clients et des chauffeurs."
       layout="wide"
     >
       {success ? <FlashBanner message={success} onDismiss={() => setSuccess(null)} /> : null}

@@ -5,6 +5,9 @@ import {
 } from '@eveider/domain';
 import type { Queryable } from '../db/index.js';
 import type { OrganizationMembership } from '../db/types.js';
+import { assertAdmin, type DataAccessContext } from '../context.js';
+import { mapUser } from '../db/mappers.js';
+import type { User } from '../db/types.js';
 
 function mapMembership(row: Record<string, unknown>): OrganizationMembership {
   return {
@@ -43,6 +46,40 @@ export class OrganizationMembershipRepository {
       ...mapMembership(row),
       isPlatformOrg: Boolean(row.is_platform_org),
       organizationName: String(row.organization_name),
+    }));
+  }
+
+  async listMembersForOrganization(
+    ctx: DataAccessContext,
+    businessId: string,
+  ): Promise<Array<{ user: User; role: OrganizationRole }>> {
+    assertAdmin(ctx);
+    const result = await this.db.query(
+      `SELECT u.*, m.role AS membership_role
+       FROM organization_memberships m
+       JOIN users u ON u.id = m.user_id
+       WHERE m.business_id = $1
+       ORDER BY CASE WHEN m.role = 'account_owner' THEN 0 ELSE 1 END, m.created_at ASC`,
+      [businessId],
+    );
+    return result.rows.map((row) => ({
+      user: mapUser(row),
+      role: String(row.membership_role) as OrganizationRole,
+    }));
+  }
+
+  async listOperationalMembers(businessId: string): Promise<Array<{ user: User; role: OrganizationRole }>> {
+    const result = await this.db.query(
+      `SELECT u.*, m.role AS membership_role
+       FROM organization_memberships m
+       JOIN users u ON u.id = m.user_id
+       WHERE m.business_id = $1 AND m.role IN ('dispatcher', 'driver')
+       ORDER BY CASE WHEN m.role = 'dispatcher' THEN 0 ELSE 1 END, u.full_name ASC NULLS LAST`,
+      [businessId],
+    );
+    return result.rows.map((row) => ({
+      user: mapUser(row),
+      role: String(row.membership_role) as OrganizationRole,
     }));
   }
 

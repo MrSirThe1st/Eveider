@@ -10,20 +10,33 @@ export const WEB_ROUTES = {
   login: '/connexion',
   register: '/inscription',
   adminDashboard: '/tableau-de-bord',
+  adminDrivers: '/tableau-de-bord/chauffeurs',
+  adminNewDriver: '/tableau-de-bord/chauffeurs/nouveau',
   businessDashboard: '/organisation/tableau-de-bord',
   businessParcels: '/organisation/tableau-de-bord/colis',
   businessNewParcel: '/organisation/tableau-de-bord/colis/nouveau',
   businessLockers: '/organisation/tableau-de-bord/points',
   businessIssues: '/organisation/tableau-de-bord/incidents',
   businessSettings: '/organisation/tableau-de-bord/parametres',
-  businessBilling: '/organisation/tableau-de-bord/facturation',
-  businessTeam: '/organisation/tableau-de-bord/equipe',
+  businessSettingsOrganisation: '/organisation/tableau-de-bord/parametres/organisation',
+  businessSettingsProfile: '/organisation/tableau-de-bord/parametres/mon-compte/profil',
+  businessBilling: '/organisation/tableau-de-bord/parametres/facturation',
+  businessTeam: '/organisation/tableau-de-bord/parametres/membres',
   businessCouriers: '/organisation/tableau-de-bord/chauffeurs',
+  businessNewDriver: '/organisation/tableau-de-bord/chauffeurs/nouveau',
   businessVerification: '/organisation/tableau-de-bord/verification',
 } as const;
 
 export function businessParcelPath(parcelId: string) {
   return `/organisation/tableau-de-bord/colis/${parcelId}`;
+}
+
+export function businessDriverPath(driverId: string) {
+  return `/organisation/tableau-de-bord/chauffeurs/${driverId}`;
+}
+
+export function adminDriverPath(driverId: string) {
+  return `/tableau-de-bord/chauffeurs/${driverId}`;
 }
 
 export function businessNewParcelPath(lockerId?: string) {

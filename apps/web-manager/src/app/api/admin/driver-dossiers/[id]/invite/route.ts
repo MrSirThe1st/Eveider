@@ -14,7 +14,7 @@ export async function POST(_request: Request, { params }: RouteParams) {
   const { id } = await params;
   try {
     const { accounts } = createRepositories();
-    const dossier = await accounts.inviteApprovedDossier(auth.session.ctx, id);
+    const dossier = await accounts.inviteDossier(auth.session.ctx, id);
     return NextResponse.json(ok({ id: dossier.id, status: dossier.status }));
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur serveur';

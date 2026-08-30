@@ -2,8 +2,8 @@ export const HOW_IT_WORKS_STEPS = [
   {
     id: 'expedition',
     step: '01',
-    title: 'Expédition',
-    description: 'L’entreprise crée l’expédition.',
+    title: 'Envoi',
+    description: 'L’entreprise crée le colis.',
   },
   {
     id: 'livraison',
@@ -37,7 +37,7 @@ export const SOLUTIONS = [
   {
     id: 'acheminer',
     title: 'Acheminer',
-    description: 'Chaque expédition a un suivi. L’entreprise et le destinataire voient où en est le colis, sans créer un compte côté client.',
+    description: 'Chaque colis a un suivi. L’entreprise et le destinataire voient où il en est, sans compte côté client.',
     image: '/landing/dispatch.jpg',
     imageAlt: 'Colis prêts à être acheminés',
     href: '#suivi-rapide',
@@ -80,7 +80,7 @@ export const VOICES = [
     id: 'entreprise',
     lens: 'Côté entreprise',
     quote:
-      'Vous créez l’expédition. Un coursier dépose au casier. Le destinataire retire quand il peut — le colis ne reste pas en boutique.',
+      'Vous créez le colis. Un chauffeur dépose au casier. Le destinataire retire quand il peut — le colis ne reste pas en boutique.',
     image: '/landing/shop.jpg',
     imageAlt: 'Point de vente, préparation de commandes',
   },
@@ -119,13 +119,13 @@ export const FAQ_ITEMS = [
     id: 'envoyer',
     question: 'Comment envoyer des colis avec Eveider ?',
     answer:
-      'Créez un compte entreprise, complétez la vérification, puis créez une expédition : destinataire, casier, suivi. Un coursier dépose le colis au casier choisi.',
+      'Créez un compte entreprise, puis un colis : destinataire, casier, suivi. Un chauffeur dépose au casier choisi. Envoyer vos pièces n’est pas obligatoire.',
   },
   {
     id: 'compte-entreprise',
     question: 'Comment créer un compte entreprise ?',
     answer:
-      'Utilisez Créer un compte pour inscrire votre activité. Après vérification, vous pouvez créer des expéditions depuis le portail entreprise.',
+      'Utilisez Créer un compte pour inscrire votre activité. Vous pouvez ensuite envoyer des colis depuis le portail.',
   },
   {
     id: 'deposer',

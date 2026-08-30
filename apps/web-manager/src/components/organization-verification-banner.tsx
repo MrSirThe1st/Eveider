@@ -13,29 +13,29 @@ function copyFor(status: OrganizationVerificationStatus): { title: string; body:
   if (status === 'approved') return null;
   if (status === 'pending') {
     return {
-      title: 'Dossier en cours de vérification',
-      body: 'Vous pouvez continuer à utiliser la plateforme. Notre équipe examine votre dossier.',
-      action: 'Voir le dossier',
+      title: 'Pièces en cours de contrôle',
+      body: 'Vous pouvez déjà envoyer des colis. Notre équipe lit vos documents.',
+      action: 'Voir la demande',
     };
   }
   if (status === 'correction_requested') {
     return {
-      title: 'Correction requise sur le dossier KYC',
-      body: 'Mettez à jour les informations demandées, puis renvoyez le dossier.',
-      action: 'Corriger le dossier',
+      title: 'Il manque une correction',
+      body: 'Mettez à jour ce qui est demandé, puis renvoyez.',
+      action: 'Corriger',
     };
   }
   if (status === 'rejected') {
     return {
-      title: 'Vérification refusée',
-      body: 'Vous pouvez toujours utiliser la plateforme. Soumettez un nouveau dossier si besoin.',
-      action: 'Reprendre la vérification',
+      title: 'Documents refusés',
+      body: 'Vous pouvez toujours envoyer des colis. Vous pouvez renvoyer une nouvelle demande.',
+      action: 'Renvoyer les pièces',
     };
   }
   return {
-    title: 'Faites vérifier votre organisation',
-    body: 'La vérification est optionnelle. Elle confirme votre identité auprès d’Eveider (société enregistrée ou vendeur individuel).',
-    action: 'Obtenir la vérification',
+    title: 'Vérifier votre entreprise',
+    body: 'Ce n’est pas obligatoire. Cela confirme qui vous êtes auprès d’Eveider (société ou vendeur).',
+    action: 'Envoyer les pièces',
   };
 }
 

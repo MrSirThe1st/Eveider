@@ -53,9 +53,14 @@ export const onboardUserSchema = z.object({
     .optional(),
 });
 
+export const updateAccountProfileSchema = z.object({
+  fullName: z.string().trim().min(2, 'Nom requis').max(80),
+});
+
 export type SignInInput = z.infer<typeof signInSchema>;
 export type SignUpInput = z.infer<typeof signUpSchema>;
 export type RequestPhoneOtpInput = z.infer<typeof requestPhoneOtpSchema>;
 export type VerifyPhoneOtpInput = z.infer<typeof verifyPhoneOtpSchema>;
 export type OnboardUserInput = z.infer<typeof onboardUserSchema>;
 export type RegisterMobileAccountInput = z.infer<typeof registerMobileAccountSchema>;
+export type UpdateAccountProfileInput = z.infer<typeof updateAccountProfileSchema>;

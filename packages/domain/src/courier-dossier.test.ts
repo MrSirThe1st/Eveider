@@ -29,9 +29,11 @@ describe('courier dossier status machine', () => {
     expect(() => assertCourierDossierTransition('rejected', 'approved')).toThrow(/invalide/);
   });
 
-  it('only treats active dossiers as assignable', () => {
+  it('treats KYC-approved dossiers as assignable', () => {
     expect(isAssignableCourierDossier('active')).toBe(true);
-    expect(isAssignableCourierDossier('invited')).toBe(false);
+    expect(isAssignableCourierDossier('invited')).toBe(true);
+    expect(isAssignableCourierDossier('approved')).toBe(true);
+    expect(isAssignableCourierDossier('pending_review')).toBe(false);
     expect(isAssignableCourierDossier('deactivated')).toBe(false);
   });
 });

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Spinner } from '@eveider/ui';
-import { getPostLoginPath, isMobileRole } from '@/lib/auth-routing';
+import { getPostLoginPath, isMobileRole, WEB_ROUTES } from '@/lib/auth-routing';
 import { createClient } from '@/lib/supabase/client';
 import { LOGIN_VISUAL } from './auth-copy';
 import { AuthPasswordField } from './auth-password-field';
@@ -18,6 +18,7 @@ export function LoginView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTarget = searchParams.get('redirect') || undefined;
+  const adminInvite = searchParams.get('adminInvite') || undefined;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
@@ -87,6 +88,24 @@ export function LoginView() {
       window.localStorage.setItem(REMEMBER_KEY, email);
     } else {
       window.localStorage.removeItem(REMEMBER_KEY);
+    }
+
+    if (adminInvite) {
+      const acceptResponse = await fetch('/api/admin/platform-staff/invites/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: adminInvite }),
+      });
+      const acceptResult = await acceptResponse.json();
+      if (!acceptResult.success) {
+        setLoading(false);
+        setError(acceptResult.error ?? 'Impossible d’accepter l’invitation');
+        await supabase.auth.signOut();
+        return;
+      }
+      setLoading(false);
+      router.replace(WEB_ROUTES.adminDashboard);
+      return;
     }
 
     setLoading(false);

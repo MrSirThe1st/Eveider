@@ -10,7 +10,9 @@
     "start": "next start --port 3000",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@eveider/api-contracts": "workspace:*",
@@ -37,6 +39,7 @@
   "devDependencies": {
     "@eveider/config-eslint": "workspace:*",
     "@eveider/config-typescript": "workspace:*",
+    "@playwright/test": "^1.62.1",
     "@types/google.maps": "^3.65.3",
     "@types/node": "^22.15.29",
     "@types/qrcode": "^1.5.6",

@@ -9,17 +9,17 @@ export type CheckKey =
 export type CheckStatusValue = 'PASS' | 'FAIL' | 'PENDING';
 
 export const CHECK_ITEMS: Array<{ key: CheckKey; label: string }> = [
-  { key: 'PHONE_VERIFIED', label: 'Téléphone vérifié (SMS OTP)' },
-  { key: 'IDENTITY_MATCHED', label: 'Identité du propriétaire correspondante aux pièces' },
-  { key: 'COMPANY_REGISTERED', label: 'Registre RCCM & NIF valides' },
-  { key: 'DOCUMENT_VALID', label: 'Documents lisibles et non périmés' },
-  { key: 'ADDRESS_CONFIRMED', label: "Adresse d'enlèvement / d'exploitation vérifiée" },
-  { key: 'BANK_ACCOUNT_VERIFIED', label: 'Coordonnées de paiement COD valides' },
+  { key: 'PHONE_VERIFIED', label: 'Téléphone confirmé par SMS' },
+  { key: 'IDENTITY_MATCHED', label: 'Le nom sur la pièce correspond' },
+  { key: 'COMPANY_REGISTERED', label: 'RCCM et NIF valides' },
+  { key: 'DOCUMENT_VALID', label: 'Documents lisibles et encore valides' },
+  { key: 'ADDRESS_CONFIRMED', label: 'Adresse d’enlèvement vérifiée' },
+  { key: 'BANK_ACCOUNT_VERIFIED', label: 'Compte pour recevoir l’argent valide' },
 ];
 
 export const CHECK_FAIL_REASONS: Record<CheckKey, Array<{ code: string; label: string }>> = {
   PHONE_VERIFIED: [
-    { code: 'not_verified', label: 'OTP non validé' },
+    { code: 'not_verified', label: 'SMS non validé' },
     { code: 'wrong_number', label: 'Numéro incorrect ou inaccessible' },
   ],
   IDENTITY_MATCHED: [
@@ -35,7 +35,7 @@ export const CHECK_FAIL_REASONS: Record<CheckKey, Array<{ code: string; label: s
   DOCUMENT_VALID: [
     { code: 'illegible', label: 'Document(s) illisible(s)' },
     { code: 'expired', label: 'Document(s) périmé(s)' },
-    { code: 'incomplete', label: 'Dossier documentaire incomplet' },
+    { code: 'incomplete', label: 'Il manque des documents' },
   ],
   ADDRESS_CONFIRMED: [
     { code: 'address_unclear', label: 'Adresse illisible ou incomplète' },
@@ -67,10 +67,10 @@ export const DOCUMENT_TYPE_LABELS: Record<string, string> = {
 };
 
 export const REVIEW_STEPS = [
-  { id: 1, label: 'Company Info', short: 'Infos' },
-  { id: 2, label: 'Verification', short: 'Vérification' },
+  { id: 1, label: 'Entreprise', short: 'Infos' },
+  { id: 2, label: 'Contrôles', short: 'Contrôles' },
   { id: 3, label: 'Documents', short: 'Documents' },
-  { id: 4, label: 'Decision', short: 'Décision' },
+  { id: 4, label: 'Décision', short: 'Décision' },
 ] as const;
 
 export function formatFailNote(reasonLabel: string, comment?: string): string {

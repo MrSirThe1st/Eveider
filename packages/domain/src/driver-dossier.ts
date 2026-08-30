@@ -45,15 +45,64 @@ export function assertDriverDossierTransition(
   }
 }
 
+/** KYC-approved dossiers can be assigned; pending review cannot. */
 export function isAssignableDriverDossier(status: DriverDossierStatus): boolean {
-  return status === 'active';
+  return status === 'approved' || status === 'invited' || status === 'active';
+}
+
+export type DriverOperationalStatus =
+  | 'pending_approval'
+  | 'available'
+  | 'on_delivery'
+  | 'suspended'
+  | 'rejected';
+
+export const DRIVER_OPERATIONAL_STATUSES: readonly DriverOperationalStatus[] = [
+  'pending_approval',
+  'available',
+  'on_delivery',
+  'suspended',
+  'rejected',
+] as const;
+
+export const DRIVER_OPERATIONAL_STATUS_LABELS: Record<DriverOperationalStatus, string> = {
+  pending_approval: 'PIÈCES À CONTRÔLER',
+  available: 'DISPONIBLE',
+  on_delivery: 'EN LIVRAISON',
+  suspended: 'SUSPENDU',
+  rejected: 'REJETÉ',
+};
+
+export type DriverOperationalStatusInput = {
+  dossierStatus: DriverDossierStatus;
+  isBlocked?: boolean;
+  deactivated?: boolean;
+  hasActiveDelivery: boolean;
+};
+
+export function deriveDriverOperationalStatus(
+  input: DriverOperationalStatusInput,
+): DriverOperationalStatus {
+  if (input.isBlocked || input.deactivated || input.dossierStatus === 'deactivated') {
+    return 'suspended';
+  }
+  if (input.dossierStatus === 'rejected') {
+    return 'rejected';
+  }
+  if (input.dossierStatus === 'pending_review' || input.dossierStatus === 'needs_correction') {
+    return 'pending_approval';
+  }
+  if (input.hasActiveDelivery) {
+    return 'on_delivery';
+  }
+  return 'available';
 }
 
 export const DRIVER_DOSSIER_STATUS_LABELS: Record<DriverDossierStatus, string> = {
-  pending_review: 'En revue',
-  needs_correction: 'Correction demandée',
-  rejected: 'Rejeté',
-  approved: 'Approuvé',
+  pending_review: 'Pièces à contrôler',
+  needs_correction: 'À corriger',
+  rejected: 'Refusé',
+  approved: 'Validé',
   invited: 'Invité',
   active: 'Actif',
   deactivated: 'Désactivé',

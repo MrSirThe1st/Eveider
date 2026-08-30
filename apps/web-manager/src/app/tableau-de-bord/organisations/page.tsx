@@ -1,21 +1,21 @@
 import { PageFrame } from '@eveider/ui';
-import { AdminEntreprisesTabs } from '@/components/admin-module-tabs';
-import { BusinessList } from '@/components/business-list';
-import { listBusinesses } from '@/server/businesses';
+import { AdminOrganisationsTabs } from '@/components/admin-module-tabs';
+import { AdminOrganizationList } from '@/components/admin-organization-list';
+import { listAdminOrganizations } from '@/server/organizations';
 import { getAdminSession } from '@/server/session';
 
-export default async function AdminBusinessesPage() {
+export default async function AdminOrganizationsPage() {
   const { ctx } = await getAdminSession();
-  const businesses = await listBusinesses(ctx, { statuses: ['active'] });
+  const organizations = await listAdminOrganizations(ctx);
 
   return (
     <PageFrame
-      title="Entreprises"
-      description="Répertoire des comptes partenaires vérifiés et actifs."
+      title="Organisations"
+      description="Annuaire des organisations Eveider. Le statut de compte et la vérification sont indépendants."
       layout="wide"
     >
-      <AdminEntreprisesTabs />
-      <BusinessList businesses={businesses} />
+      <AdminOrganisationsTabs />
+      <AdminOrganizationList organizations={organizations} />
     </PageFrame>
   );
 }

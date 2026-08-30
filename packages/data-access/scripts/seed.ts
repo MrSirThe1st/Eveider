@@ -38,6 +38,7 @@ const APP_TABLES = [
   'notifications',
   'driver_dossiers',
   'organization_memberships',
+  'platform_admin_invites',
   'business_team_invites',
   'issues',
   'pickup_pins',

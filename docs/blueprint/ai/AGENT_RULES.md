@@ -31,7 +31,7 @@ Defer or reject work that does not advance business onboarding, parcel delivery,
 
 1. Read `docs/blueprint/templates/project-updates.md` first.
 2. Read relevant product context in `docs/blueprint/product/` (start with `overview.md`; see `docs/blueprint/README.md` for the full index).
-3. For UI work, read `docs/blueprint/product/design-dna.md` and `brand.md` — French copy, RDC locale, no improvised visual styles.
+3. For UI work, read `docs/blueprint/product/design-dna.md` and `brand.md` — French copy (plain language, no KYC/COD/organisation jargon), RDC locale, no improvised visual styles. Verify with Cursor Browser when available, otherwise Playwright — see `docs/blueprint/ai/ui-verification.md`.
 4. For data loading, new pages, new API routes, or new repository loaders, read `docs/blueprint/ai/data-fetching.md` and follow it strictly. That doc is the architecture: page-specific SQL, RSC lists, one auth profile lookup per request. Do not reuse `getOnboardingSummary` / `loadSummary` / `listActiveWithAvailability` just because they already exist.
 5. If the task is ambiguous or touches schema, auth, packages, or large refactors → ask before proceeding.
 

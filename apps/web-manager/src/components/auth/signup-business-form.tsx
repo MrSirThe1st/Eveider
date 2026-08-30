@@ -118,7 +118,7 @@ export function SignupBusinessForm({ inviteToken }: SignupBusinessFormProps) {
       {inviteToken ? null : (
         <>
           <label className={styles.field}>
-            <span>Nom de l’organisation</span>
+            <span>Nom de l’entreprise</span>
             <input
               className={styles.input}
               type="text"

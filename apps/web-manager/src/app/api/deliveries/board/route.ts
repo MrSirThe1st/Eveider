@@ -36,6 +36,17 @@ function mapParcelBoardItem(
   };
 }
 
+const EMPTY_META = {
+  couriers: [] as Array<{
+    id: string;
+    fullName: string | null;
+    email: string | null;
+    phone: string | null;
+  }>,
+  lockers: [] as ReturnType<typeof toLockerSummaryDto>[],
+  businesses: [] as ReturnType<typeof toBusinessDto>[],
+};
+
 export async function GET(request: Request) {
   const perf = createRequestTimer('GET /api/deliveries/board');
   const auth = await requireAdminSession(perf);
@@ -52,6 +63,7 @@ export async function GET(request: Request) {
     lockerId: searchParams.get('lockerId') ?? undefined,
     businessId: searchParams.get('businessId') ?? undefined,
     search: searchParams.get('search') ?? undefined,
+    includeMeta: searchParams.get('includeMeta') ?? undefined,
   });
 
   if (!query.success) {
@@ -60,25 +72,31 @@ export async function GET(request: Request) {
   }
 
   const view = query.data.view ?? 'active';
+  const includeMeta = query.data.includeMeta;
 
   try {
     const { deliveries, parcels, users, lockers, businesses } = createRepositories();
     const ctx = auth.session.ctx;
 
-    const [courierItems, lockerItems, businessItems] = await perf.measure('db.board.meta', () =>
-      Promise.all([users.listAssignableCouriers(), lockers.listAll(ctx), businesses.list(ctx)]),
-    );
-
-    const meta = {
-      couriers: courierItems.map((courier) => ({
-        id: courier.id,
-        fullName: courier.fullName,
-        email: courier.email,
-        phone: courier.phone,
-      })),
-      lockers: lockerItems.map(toLockerSummaryDto),
-      businesses: businessItems.map(toBusinessDto),
-    };
+    const meta = includeMeta
+      ? await perf.measure('db.board.meta', async () => {
+          const [courierItems, lockerItems, businessItems] = await Promise.all([
+            users.listAssignableCouriers(),
+            lockers.listAll(ctx),
+            businesses.list(ctx),
+          ]);
+          return {
+            couriers: courierItems.map((courier) => ({
+              id: courier.id,
+              fullName: courier.fullName,
+              email: courier.email,
+              phone: courier.phone,
+            })),
+            lockers: lockerItems.map(toLockerSummaryDto),
+            businesses: businessItems.map(toBusinessDto),
+          };
+        })
+      : EMPTY_META;
 
     if (view === 'au_casier') {
       const parcelItems = await parcels.listForAdminBoard(ctx, {
@@ -112,16 +130,21 @@ export async function GET(request: Request) {
       );
     }
 
-    const deliveryItems = await deliveries.listForAdmin(ctx, {
+    const listFilters = {
       status: query.data.status,
       courierId: query.data.courierId,
       lockerId: query.data.lockerId,
       businessId: query.data.businessId,
       search: query.data.search,
       includeAllStatuses: view === 'all',
-    });
+    };
 
-    const summary = view === 'active' ? await deliveries.getActiveSummary(ctx) : null;
+    const [deliveryItems, summary] = await perf.measure('db.board.rows', () =>
+      Promise.all([
+        deliveries.listForAdmin(ctx, listFilters),
+        view === 'active' ? deliveries.getActiveSummary(ctx) : Promise.resolve(null),
+      ]),
+    );
 
     perf.flush(200);
     return NextResponse.json(

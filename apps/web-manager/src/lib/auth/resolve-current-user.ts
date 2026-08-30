@@ -21,9 +21,28 @@ export type CurrentUser = {
   memberships: CurrentMembership[];
 };
 
+/** Short TTL so silent API polls re-validate the session without reloading profile/memberships every tick. */
+const IDENTITY_CACHE_TTL_MS = 30_000;
+
+type CachedIdentity = {
+  profile: User;
+  memberships: CurrentMembership[];
+  expiresAt: number;
+};
+
+const identityCache = new Map<string, CachedIdentity>();
+
+export function invalidateCurrentUserCache(authUserId?: string): void {
+  if (authUserId) {
+    identityCache.delete(authUserId);
+    return;
+  }
+  identityCache.clear();
+}
+
 /**
  * Resolves the authenticated Supabase session and Eveider profile once.
- * Uses getSession() only — middleware already refreshes tokens.
+ * Always validates the session via getUser(); profile + memberships are cached briefly.
  */
 export async function resolveCurrentUser(): Promise<CurrentUser | null> {
   const cookieStore = await cookies();
@@ -47,12 +66,28 @@ export async function resolveCurrentUser(): Promise<CurrentUser | null> {
     return null;
   }
 
+  const cached = identityCache.get(authUser.id);
+  if (cached && cached.expiresAt > Date.now()) {
+    if (cached.profile.isBlocked || cached.profile.deletedAt || cached.profile.deactivatedAt) {
+      identityCache.delete(authUser.id);
+      return null;
+    }
+    return { authUser, profile: cached.profile, memberships: cached.memberships };
+  }
+
   const { users, memberships } = createRepositories();
   const profile = await users.findByAuthId(authUser.id);
   if (!profile || profile.isBlocked || profile.deletedAt || profile.deactivatedAt) {
+    identityCache.delete(authUser.id);
     return null;
   }
 
   const rows = await memberships.listByUserIdWithOrgFlags(profile.id);
+  identityCache.set(authUser.id, {
+    profile,
+    memberships: rows,
+    expiresAt: Date.now() + IDENTITY_CACHE_TTL_MS,
+  });
+
   return { authUser, profile, memberships: rows };
 }

@@ -17,8 +17,8 @@ export default async function AdminDashboardPage() {
 
   return (
     <PageFrame
-      title="Dashboard"
-      description="Indicateurs du jour, alertes et activité réseau."
+      title="Tableau de bord"
+      description="Ce qui se passe aujourd’hui."
       layout="standard"
     >
       <AdminDashboardView stats={stats}>

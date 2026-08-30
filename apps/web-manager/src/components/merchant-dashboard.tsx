@@ -179,7 +179,7 @@ export function MerchantDashboard({
   return (
     <PageFrame
       title={businessName}
-      description="Performance de vos expéditions : volume, retrait, délais et points utilisés."
+      description="Vos colis : volume, retraits, délais et points utilisés."
       layout="standard"
     >
       {isBlocked ? (
@@ -210,7 +210,7 @@ export function MerchantDashboard({
               color: colors.textMuted,
             }}
           >
-            Les nouvelles expéditions sont indisponibles tant que le compte n’est pas réactivé.
+            Vous ne pouvez plus envoyer de colis tant que le compte n’est pas réactivé.
           </p>
         </div>
       ) : (

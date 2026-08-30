@@ -8,6 +8,7 @@
   height: 100dvh;
   display: flex;
   padding: clamp(0.7rem, 1.8vh, 1.25rem) clamp(0.7rem, 1.6vw, 1.35rem);
+  padding-bottom: calc(clamp(0.7rem, 1.8vh, 1.25rem) + var(--support-widget-clearance, 96px));
   background:
     radial-gradient(900px 480px at 8% 0%, rgba(9, 212, 11, 0.16), transparent 55%),
     radial-gradient(700px 420px at 100% 100%, rgba(9, 212, 11, 0.1), transparent 48%),

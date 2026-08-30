@@ -108,6 +108,20 @@ export async function withDbQueryTrace<T>(label: string, fn: () => Promise<T>): 
 }
 
 /**
+ * Transaction pooler (6543) requires pgbouncer mode — prepared statements
+ * are incompatible and can stall or drop connections.
+ */
+export function ensureTransactionPoolerParams(url: string): string {
+  const usesTransactionPooler =
+    url.includes(':6543/') || (url.includes('pooler.supabase.com') && !url.includes(':5432/'));
+  if (!usesTransactionPooler || url.includes('pgbouncer=')) {
+    return url;
+  }
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}pgbouncer=true`;
+}
+
+/**
  * Prefer Supabase transaction pooler (6543) for serverless/HMR.
  * Session pooler (5432) has a tiny shared client cap.
  */
@@ -128,7 +142,7 @@ export function resolveDatabaseUrl(url = process.env.DATABASE_URL): string | und
     }
   }
 
-  return resolved;
+  return ensureTransactionPoolerParams(resolved);
 }
 
 /**
@@ -152,21 +166,54 @@ export function resolvePoolIdleOptions(nodeEnv = process.env.NODE_ENV): {
  * connectionTimeoutMillis. `rejectUnauthorized: false` keeps TLS without
  * the verify-full hang.
  *
- * Fail checkout in ~5s so exhausted pools surface quickly instead of hanging
- * a request for 20s. This is not a substitute for reducing query fan-out.
+ * Fail checkout in ~5s (prod) so exhausted pools surface quickly instead of
+ * hanging a request for 20s. Dev uses a longer window for cold Supabase wake-ups.
  */
-export function getPgClientConfig(connectionString: string): pg.PoolConfig {
+export function getPgClientConfig(
+  connectionString: string,
+  nodeEnv = process.env.NODE_ENV,
+): pg.PoolConfig {
   const isSupabase = connectionString.includes('supabase.com');
   return {
     connectionString,
     keepAlive: true,
-    connectionTimeoutMillis: 5_000,
+    connectionTimeoutMillis: nodeEnv === 'development' ? 15_000 : 5_000,
     ...(isSupabase ? { ssl: { rejectUnauthorized: false } } : {}),
   };
 }
 
+function isTransientConnectionError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const message = error.message.toLowerCase();
+  const cause =
+    error.cause instanceof Error ? error.cause.message.toLowerCase() : '';
+  const combined = `${message} ${cause}`;
+  return (
+    combined.includes('connection terminated') ||
+    combined.includes('timeout') ||
+    combined.includes('econnreset') ||
+    combined.includes('socket hang up') ||
+    combined.includes('client has encountered a connection error')
+  );
+}
+
+function invalidateGlobalPool(): void {
+  const globalStore = globalThis as GlobalPool;
+  const existing = globalStore.__eveiderPgPool;
+  if (!existing) return;
+  globalStore.__eveiderPgPool = undefined;
+  globalStore.__eveiderQueryGate = undefined;
+  void existing.end().catch(() => {});
+}
+
+async function pause(ms: number): Promise<void> {
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 function wrapPoolQuery(pool: pg.Pool, gate: QueryConcurrencyGate): void {
-  const nativeQuery = pool.query.bind(pool) as (...args: unknown[]) => unknown;
+  const nativeQuery = pool.query.bind(pool) as (...args: unknown[]) => Promise<unknown>;
 
   const wrapped = (...args: unknown[]) => {
     const sql = extractSql(args[0]);
@@ -174,7 +221,7 @@ function wrapPoolQuery(pool: pg.Pool, gate: QueryConcurrencyGate): void {
       const waitingBefore = pool.waitingCount;
       const started = performance.now();
       try {
-        return await Promise.resolve(nativeQuery(...args));
+        return await runQueryWithRetry(nativeQuery, args);
       } finally {
         recordQuery(pool, sql, performance.now() - started, waitingBefore);
       }
@@ -182,6 +229,25 @@ function wrapPoolQuery(pool: pg.Pool, gate: QueryConcurrencyGate): void {
   };
 
   pool.query = wrapped as typeof pool.query;
+}
+
+async function runQueryWithRetry(
+  nativeQuery: (...args: unknown[]) => Promise<unknown>,
+  args: unknown[],
+  allowRetry = true,
+): Promise<unknown> {
+  try {
+    return await nativeQuery(...args);
+  } catch (error) {
+    if (!allowRetry || !isTransientConnectionError(error)) {
+      throw error;
+    }
+    invalidateGlobalPool();
+    await pause(400);
+    const freshPool = getPool();
+    const retryQuery = freshPool.query.bind(freshPool) as (...args: unknown[]) => Promise<unknown>;
+    return runQueryWithRetry(retryQuery, args, false);
+  }
 }
 
 function createPool(): pg.Pool {
@@ -198,6 +264,7 @@ function createPool(): pg.Pool {
   const pool = new Pool({
     ...getPgClientConfig(connectionString),
     max,
+    ...(process.env.NODE_ENV === 'development' ? { min: 1 } : {}),
     ...resolvePoolIdleOptions(),
   });
 

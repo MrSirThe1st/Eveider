@@ -6,9 +6,6 @@ import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 
 type BusinessSettingsFormProps = {
-  fullName: string;
-  loginEmail: string | null;
-  accessCode: string | null;
   name: string;
   businessType: string;
   industry: string;
@@ -35,15 +32,14 @@ type BusinessSettingsFormProps = {
 const BUSINESS_TYPES: Array<{ value: string; label: string }> = [
   { value: 'registered_company', label: 'Société enregistrée' },
   { value: 'individual_seller', label: 'Vendeur individuel' },
-  { value: 'marketplace', label: 'Marketplace' },
-  { value: 'enterprise_partner', label: 'Partenaire entreprise' },
+  { value: 'marketplace', label: 'Place de marché' },
+  { value: 'enterprise_partner', label: 'Grande entreprise' },
 ];
 
 const selectStyle = { ...webInputStyle, width: '100%', height: 44 };
 
 export function BusinessSettingsForm(props: BusinessSettingsFormProps) {
   const router = useRouter();
-  const [fullName, setFullName] = useState(props.fullName);
   const [name, setName] = useState(props.name);
   const [businessType, setBusinessType] = useState(props.businessType || 'registered_company');
   const [industry, setIndustry] = useState(props.industry);
@@ -78,7 +74,6 @@ export function BusinessSettingsForm(props: BusinessSettingsFormProps) {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fullName,
           name,
           businessType,
           industry,
@@ -117,15 +112,6 @@ export function BusinessSettingsForm(props: BusinessSettingsFormProps) {
 
   return (
     <form onSubmit={(event) => void handleSubmit(event)} style={{ display: 'grid', gap: '1.5rem' }}>
-      <section style={{ ...webCardStyle, padding: '1.5rem' }}>
-        <h3 style={{ margin: '0 0 1.25rem', fontSize: '0.875rem', fontWeight: 700 }}>Compte</h3>
-        <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
-          <TextField label="Nom de l’utilisateur" name="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-          <TextField label="E-mail de connexion" name="loginEmail" value={props.loginEmail ?? ''} disabled />
-          <TextField label="Code d’accès Eveider" name="accessCode" value={props.accessCode ?? '—'} disabled />
-        </div>
-      </section>
-
       <section style={{ ...webCardStyle, padding: '1.5rem' }}>
         <h3 style={{ margin: '0 0 1.25rem', fontSize: '0.875rem', fontWeight: 700 }}>Entreprise</h3>
         <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
@@ -168,15 +154,18 @@ export function BusinessSettingsForm(props: BusinessSettingsFormProps) {
       </section>
 
       <section style={{ ...webCardStyle, padding: '1.5rem' }}>
-        <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.875rem', fontWeight: 700 }}>Informations légales</h3>
+        <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.875rem', fontWeight: 700 }}>
+          Papiers de l’entreprise
+        </h3>
         <p style={{ margin: '0 0 1.25rem', fontSize: '0.75rem', color: colors.textMuted }}>
-          Ces champs correspondent au dossier vérifié. Une modification n’ouvre pas un nouveau KYC automatiquement.
+          RCCM et NIF si vous êtes enregistré. Changer ces champs n’envoie pas une nouvelle
+          demande de vérification.
         </p>
         <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
-          <TextField label="Raison sociale" name="legalCompanyName" value={legalCompanyName} onChange={(e) => setLegalCompanyName(e.target.value)} />
+          <TextField label="Nom officiel (sur les papiers)" name="legalCompanyName" value={legalCompanyName} onChange={(e) => setLegalCompanyName(e.target.value)} />
           <TextField label="RCCM" name="rccmNumber" value={rccmNumber} onChange={(e) => setRccmNumber(e.target.value)} />
           <TextField label="NIF" name="nifNumber" value={nifNumber} onChange={(e) => setNifNumber(e.target.value)} />
-          <TextField label="Représentant légal" name="legalRepName" value={legalRepName} onChange={(e) => setLegalRepName(e.target.value)} />
+          <TextField label="Nom du gérant" name="legalRepName" value={legalRepName} onChange={(e) => setLegalRepName(e.target.value)} />
         </div>
       </section>
 
@@ -190,8 +179,8 @@ export function BusinessSettingsForm(props: BusinessSettingsFormProps) {
               onChange={(e) => setPickupMethod(e.target.value as 'courier_pickup' | 'merchant_dropoff')}
               style={selectStyle}
             >
-              <option value="courier_pickup">Enlèvement par coursier</option>
-              <option value="merchant_dropoff">Dépôt au point Eveider</option>
+              <option value="courier_pickup">Un chauffeur vient chercher les colis</option>
+              <option value="merchant_dropoff">Vous déposez au point Eveider</option>
             </select>
           </label>
           <TextField label="Adresse d’enlèvement" name="pickupAddress" value={pickupAddress} onChange={(e) => setPickupAddress(e.target.value)} />

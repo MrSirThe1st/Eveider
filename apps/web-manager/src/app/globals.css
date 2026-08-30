@@ -60,6 +60,9 @@
   --control-height: 48px;
   --control-height-sm: 36px;
 
+  /* Empty inset so the Tawk bubble does not cover last rows, menus, or toasts. */
+  --support-widget-clearance: max(96px, calc(76px + env(safe-area-inset-bottom, 0px)));
+
   /* Type & shadow */
   --font-family: Inter, system-ui, -apple-system, sans-serif;
   --transition-fast: 0.15s ease;
@@ -774,9 +777,54 @@ button:focus-visible,
   position: relative;
 }
 
+.nb-top-bar__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.nb-top-bar__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-button);
+  background: transparent;
+  color: var(--color-secondary);
+  cursor: pointer;
+  text-decoration: none;
+  flex-shrink: 0;
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.nb-top-bar__icon:hover {
+  background: var(--color-surface-subtle);
+}
+
+.nb-top-bar__icon:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
 /* Workspace fills the pane beside the sidebar (PostHog-style), not a centered column. */
 .portal-content {
   width: 100%;
+  padding-bottom: var(--support-widget-clearance) !important;
+  scroll-padding-bottom: var(--support-widget-clearance);
+}
+
+html {
+  scroll-padding-bottom: var(--support-widget-clearance);
+}
+
+/* Public pages that scroll the document (landing, suivi, cookies). Portal and auth handle this on their own viewport. */
+body:not(:has(.portal-shell)):not(:has(.auth-viewport)) {
+  padding-bottom: var(--support-widget-clearance);
 }
 
 .page-frame,

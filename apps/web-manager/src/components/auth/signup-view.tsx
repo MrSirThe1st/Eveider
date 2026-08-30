@@ -8,19 +8,27 @@ import styles from './auth-shell.module.css';
 import { AuthSplitShell } from './auth-split-shell';
 import { SignupBusinessForm } from './signup-business-form';
 import { SignupMobileForm } from './signup-mobile-form';
+import { SignupPlatformAdminForm } from './signup-platform-admin-form';
 
 type SignupViewProps = {
   inviteToken?: string;
+  adminInviteToken?: string;
 };
 
-export function SignupView({ inviteToken }: SignupViewProps) {
+export function SignupView({ inviteToken, adminInviteToken }: SignupViewProps) {
   const joiningTeam = Boolean(inviteToken);
+  const joiningPlatformAdmin = Boolean(adminInviteToken);
   const [role, setRole] = useState<SignupRole>('business');
 
   const visual = SIGNUP_VISUALS[role];
-  const heading = joiningTeam
-    ? { title: 'Rejoindre l’équipe', sub: 'Créez votre compte pour accepter l’invitation.' }
-    : SIGNUP_HEADINGS[role];
+  const heading = joiningPlatformAdmin
+    ? {
+        title: 'Administration Eveider',
+        sub: 'Créez votre compte pour accepter l’invitation administrateur.',
+      }
+    : joiningTeam
+      ? { title: 'Rejoindre l’équipe', sub: 'Créez votre compte pour accepter l’invitation.' }
+      : SIGNUP_HEADINGS[role];
 
   const dots = useMemo(
     () =>
@@ -39,8 +47,8 @@ export function SignupView({ inviteToken }: SignupViewProps) {
     <AuthSplitShell
       visual={visual}
       visualKey={role}
-      dots={joiningTeam ? [] : dots}
-      toolbar={joiningTeam ? null : <AuthRoleTabs value={role} onChange={setRole} />}
+      dots={joiningTeam || joiningPlatformAdmin ? [] : dots}
+      toolbar={joiningTeam || joiningPlatformAdmin ? null : <AuthRoleTabs value={role} onChange={setRole} />}
     >
       <div className={styles.formCardHead}>
         <div className={styles.panelHead}>
@@ -48,7 +56,7 @@ export function SignupView({ inviteToken }: SignupViewProps) {
           <p className={styles.panelSub}>{heading.sub}</p>
           {joiningTeam || role === 'business' ? null : (
             <p className={styles.panelSub}>
-              Les coursiers sont invités par Eveider ou par leur entreprise — pas d’inscription libre.
+              Les chauffeurs sont invités par Eveider ou par leur entreprise — pas d’inscription libre.
             </p>
           )}
         </div>
@@ -60,7 +68,9 @@ export function SignupView({ inviteToken }: SignupViewProps) {
           role="tabpanel"
           aria-labelledby={`signup-tab-${role}`}
         >
-          {role === 'business' || joiningTeam ? (
+          {joiningPlatformAdmin ? (
+            <SignupPlatformAdminForm adminInviteToken={adminInviteToken!} />
+          ) : role === 'business' || joiningTeam ? (
             <SignupBusinessForm inviteToken={inviteToken} />
           ) : (
             <SignupMobileForm key={role} role={role} />

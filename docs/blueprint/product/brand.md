@@ -35,10 +35,38 @@ It is not a lifestyle brand or a generic delivery tracker. It is infrastructure 
 | Principle | Do | Don't |
 |-----------|-----|-------|
 | Clear | « Votre colis est prêt au casier Mall East. » | « Bonne nouvelle ! Votre colis continue son aventure ! » |
+| Simple | « Attendre votre accord avant qu’elle puisse envoyer des colis. » | « La vérification KYC reste optionnelle et distincte de l’approbation d’inscription. » |
 | Action-oriented | « Entrez le PIN au casier pour ouvrir votre compartiment. » | Long explanations before the next step |
 | Calm under failure | « Livraison échouée. Nous vous informerons de la reprogrammation. » | Blame users or couriers |
 | Operational precision | Use exact statuses from the glossary | Invent informal status labels in code or UI |
 | Industrial confidence | Direct, structured, ALL CAPS for key labels | Playful, cute, startup hype |
+
+## Langage simple (obligatoire)
+
+The product is used by boutique owners, dispatchers, and operations staff in RDC — not by SaaS operators. Every user-facing sentence must say **what happens**, in everyday French.
+
+**Rules**
+
+1. One idea per sentence. Prefer a verb over an abstract noun.
+2. Never put English in the French UI (`KYC`, `COD`, `webhook`, `Dashboard`, `Business Info`, `Pay per shipment`).
+3. Never mention internals (`variables d’environnement`, `statut initial`, `accès opérationnel`, `dossier distinct`).
+4. Say **entreprise** (or **boutique**) for the company. Keep `organisation` for URLs and code only.
+5. Say **colis** / **envoi**, not **expédition**, unless quoting a legal document.
+6. Explain a control by its effect: what the user can or cannot do after ticking it.
+
+| Never in UI | Say instead |
+|-------------|-------------|
+| KYC | Contrôle des pièces / Vérifier l’identité |
+| COD | Paiement à la livraison |
+| Organisation | Entreprise |
+| Approbation d’inscription | Votre accord avant d’activer le compte |
+| Valeurs par défaut | Réglages pour les nouvelles entreprises |
+| Plafond | Montant maximum |
+| Webhook | (developer screens only) Notification envoyée à votre logiciel |
+| Rôles et permissions | Droits d’accès |
+| API et webhooks | API |
+
+RCCM, NIF, PIN, SMS, WhatsApp are fine — people in RDC already use them.
 
 See [design-dna.md](design-dna.md) for visual personality constraints (never playful, never "AI generated").
 
@@ -63,7 +91,9 @@ Use consistent terms in French UI (English equivalents for internal docs):
 | PIN de retrait | Pickup PIN | Code, mot de passe |
 | Prêt pour retrait | Ready for pickup | Disponible, terminé |
 | Coursier | Courier | Chauffeur (unless regional copy requires) |
-| Entreprise | Business | Client, marchand (marketing only) |
+| Entreprise | Business | Organisation, Client, marchand (marketing only) |
+| Paiement à la livraison | Cash on delivery | COD |
+| Contrôle des pièces | Identity verification | KYC |
 
 Full domain definitions: [glossary.md](glossary.md).
 

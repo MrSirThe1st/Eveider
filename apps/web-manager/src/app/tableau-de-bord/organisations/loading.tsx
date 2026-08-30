@@ -1,10 +1,10 @@
 import { PageFrame, TableSkeleton } from '@eveider/ui';
 
-export default function AdminBusinessesLoading() {
+export default function AdminOrganizationsLoading() {
   return (
     <PageFrame
-      title="Entreprises"
-      description="Répertoire des comptes partenaires vérifiés et actifs."
+      title="Organisations"
+      description="Annuaire des organisations Eveider."
       layout="wide"
     >
       <TableSkeleton />

@@ -120,6 +120,23 @@ export class UserRepository {
     return result.rows.map(mapUser);
   }
 
+  async listAssignableDriversByBusiness(businessId: string): Promise<User[]> {
+    const result = await this.db.query(
+      `SELECT DISTINCT u.* FROM users u
+       JOIN organization_memberships m
+         ON m.user_id = u.id AND m.business_id = $1 AND m.role = 'driver'
+       JOIN driver_dossiers d
+         ON d.user_id = u.id AND d.business_id = $1
+        AND d.status IN ('approved', 'invited', 'active')
+       WHERE u.is_blocked = false
+         AND u.deactivated_at IS NULL
+         AND u.deleted_at IS NULL
+       ORDER BY u.full_name ASC NULLS LAST`,
+      [businessId],
+    );
+    return result.rows.map(mapUser);
+  }
+
   async listAssignableCouriers(): Promise<User[]> {
     return this.listAssignableDrivers();
   }

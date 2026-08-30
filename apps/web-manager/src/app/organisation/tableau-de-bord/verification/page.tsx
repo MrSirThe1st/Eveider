@@ -10,8 +10,12 @@ export default async function OrganizationVerificationPage() {
 
   if (!summary) {
     return (
-      <PageFrame title="Vérification" description="Dossier KYC optionnel." layout="standard">
-        <p>Organisation introuvable.</p>
+      <PageFrame
+        title="Vérification"
+        description="Envoyez vos pièces pour confirmer votre identité. Ce n’est pas obligatoire pour envoyer des colis."
+        layout="standard"
+      >
+        <p>Entreprise introuvable.</p>
       </PageFrame>
     );
   }
@@ -21,7 +25,7 @@ export default async function OrganizationVerificationPage() {
   return (
     <PageFrame
       title="Vérification"
-      description="Dossier optionnel pour faire certifier votre organisation. Vous pouvez utiliser la plateforme sans être vérifié."
+      description="Envoyez vos pièces pour confirmer votre identité. Ce n’est pas obligatoire pour envoyer des colis."
       layout="standard"
     >
       <OnboardingWizard

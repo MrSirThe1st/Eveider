@@ -211,7 +211,7 @@ export function OnboardingWizard({
       if (ok) setCurrentStep(4);
     } else if (step === 4) {
       if (!accountHolder || !accountNumber) {
-        setError('Veuillez renseigner les détails du compte de règlement (COD).');
+        setError('Indiquez le compte où recevoir l’argent du paiement à la livraison.');
         return;
       }
       const ok = await saveStep(4, {
@@ -257,10 +257,10 @@ export function OnboardingWizard({
             ✓
           </div>
           <h2 style={{ margin: '1rem 0 0.5rem', fontSize: '1.5rem', fontWeight: 800 }}>
-            Organisation vérifiée
+            Entreprise vérifiée
           </h2>
           <p style={{ margin: '0 0 1.5rem', color: '#475569', lineHeight: 1.6, fontSize: '0.9375rem' }}>
-            Votre dossier KYC a été validé. Vous pouvez continuer à utiliser l’ensemble de la plateforme.
+            Vos documents ont été acceptés. Vous pouvez continuer à envoyer des colis.
           </p>
           <button
             type="button"
@@ -282,17 +282,17 @@ export function OnboardingWizard({
             ⏳
           </div>
           <span style={{ background: '#FFFBEB', color: '#B45309', border: '1px solid #FCD34D', padding: '0.25rem 0.75rem', borderRadius: 6, fontWeight: 700, fontSize: '0.75rem', letterSpacing: '0.1em' }}>
-            DOSSIER SOUMIS POUR REVUE
+            DEMANDE ENVOYÉE
           </span>
           <h2 style={{ margin: '1rem 0 0.5rem', fontSize: '1.5rem', fontWeight: 800 }}>
             Votre demande est en cours de vérification.
           </h2>
           <p style={{ margin: '0 0 1.5rem', color: '#475569', lineHeight: 1.6, fontSize: '0.9375rem' }}>
-            Notre équipe de conformité vérifie actuellement vos pièces d&apos;identité et coordonnées d&apos;exploitation.<br />
-            <strong>Temps de traitement estimé : 24 à 48 heures.</strong>
+            Notre équipe lit vos pièces et vos coordonnées.<br />
+            <strong>Réponse en général sous 24 à 48 heures.</strong>
           </p>
           <div style={{ background: '#F8FAFC', border: '1px dashed #CBD5E1', padding: '1rem', borderRadius: 8, fontSize: '0.8125rem', color: '#64748B', marginBottom: '2rem' }}>
-            Vous pouvez continuer à créer des expéditions pendant la revue. La vérification n’est pas obligatoire pour utiliser la plateforme.
+            Vous pouvez déjà envoyer des colis. Ce contrôle n’est pas obligatoire.
           </div>
           <button
             type="button"
@@ -312,20 +312,20 @@ export function OnboardingWizard({
       {/* Header & Steps Nav */}
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{ margin: '0 0 0.5rem', fontSize: '1.75rem', fontWeight: 800, color: colors.secondary }}>
-          Vérification de l’organisation
+          Vérifier votre entreprise
         </h1>
         <p style={{ margin: 0, fontSize: '0.875rem', color: '#64748B', fontWeight: 500 }}>
-          Société enregistrée ou vendeur individuel : mêmes étapes. Ce dossier est optionnel.
+          Société ou vendeur : mêmes étapes. Ce n’est pas obligatoire.
         </p>
 
         {/* Progress Indicator */}
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
           {[
-            { step: 1, title: '1. Business Info' },
-            { step: 2, title: '2. Vérification Légale' },
-            { step: 3, title: '3. Opérations' },
-            { step: 4, title: '4. Paiements' },
-            { step: 5, title: '5. Revue & Soumission' },
+            { step: 1, title: '1. Entreprise' },
+            { step: 2, title: '2. Documents' },
+            { step: 3, title: '3. Enlèvement' },
+            { step: 4, title: '4. Paiement' },
+            { step: 5, title: '5. Envoi' },
           ].map((item) => (
             <div
               key={item.step}
@@ -353,7 +353,7 @@ export function OnboardingWizard({
 
       {verificationStatus === 'correction_requested' || verificationStatus === 'rejected' ? (
         <div style={{ background: '#FFFBEB', border: '2px solid #F59E0B', color: '#92400E', padding: '1rem 1.25rem', borderRadius: 8, marginBottom: '1.5rem', fontWeight: 600, fontSize: '0.875rem' }}>
-          ⚠️ <strong>Demande de correction par l&apos;administration :</strong> Veuillez vérifier et re-soumettre vos documents ou informations avant validation final.
+          ⚠️ <strong>Correction demandée :</strong> Relisez ce qui manque, puis renvoyez.
           {initialSummary?.verifications?.[0]?.reviewNotes ? (
             <pre
               style={{
@@ -380,10 +380,10 @@ export function OnboardingWizard({
       {/* STEP 1 */}
       {currentStep === 1 ? (
         <section style={{ ...webCardStyle, padding: '2rem', borderRadius: radius.card }}>
-          <h2 style={{ margin: '0 0 1.5rem', fontSize: '1.25rem', fontWeight: 700 }}>Tell us about your business</h2>
+          <h2 style={{ margin: '0 0 1.5rem', fontSize: '1.25rem', fontWeight: 700 }}>Votre activité</h2>
           
           <label style={{ display: 'block', marginBottom: '1.25rem' }}>
-            <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Nom commercial (Business name) *</span>
+            <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Nom commercial *</span>
             <input
               type="text"
               required
@@ -396,28 +396,41 @@ export function OnboardingWizard({
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
             <label style={{ display: 'block' }}>
-              <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Type d&apos;entreprise (Business type) *</span>
+              <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Type d&apos;entreprise *</span>
               <select
                 value={businessType}
                 onChange={(e) => setBusinessType(e.target.value as BusinessType)}
                 style={{ ...webInputStyle, marginTop: '0.35rem' }}
               >
-                <option value="registered_company">Registered Company (Société)</option>
-                <option value="individual_seller">Individual Seller (Vendeur individuel)</option>
-                <option value="marketplace">Marketplace</option>
-                <option value="enterprise_partner">Enterprise Partner</option>
+                <option value="registered_company">Société enregistrée</option>
+                <option value="individual_seller">Vendeur individuel</option>
+                <option value="marketplace">Place de marché</option>
+                <option value="enterprise_partner">Grande entreprise</option>
               </select>
             </label>
 
             <label style={{ display: 'block' }}>
-              <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Secteur (Industry) *</span>
+              <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Secteur *</span>
               <select
                 value={industry}
                 onChange={(e) => setIndustry(e.target.value)}
                 style={{ ...webInputStyle, marginTop: '0.35rem' }}
               >
-                {['Fashion', 'Electronics', 'Beauty', 'Food', 'Pharmacy', 'Retail', 'Documents', 'Other'].map((i) => (
-                  <option key={i} value={i}>{i}</option>
+                {(
+                  [
+                    ['Fashion', 'Mode'],
+                    ['Electronics', 'Électronique'],
+                    ['Beauty', 'Beauté'],
+                    ['Food', 'Alimentaire'],
+                    ['Pharmacy', 'Pharmacie'],
+                    ['Retail', 'Commerce'],
+                    ['Documents', 'Documents'],
+                    ['Other', 'Autre'],
+                  ] as const
+                ).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
                 ))}
               </select>
             </label>
@@ -425,10 +438,19 @@ export function OnboardingWizard({
 
           <div style={{ marginBottom: '1.25rem' }}>
             <span style={{ fontWeight: 600, fontSize: '0.8125rem', display: 'block', marginBottom: '0.5rem' }}>
-              Canaux de vente (Sales channels) * — Où vendez-vous ?
+              Où vendez-vous ? *
             </span>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.5rem' }}>
-              {['Physical store', 'Website', 'Instagram', 'Facebook Marketplace', 'WhatsApp', 'Other'].map((ch) => (
+              {(
+                [
+                  ['Physical store', 'Boutique'],
+                  ['Website', 'Site web'],
+                  ['Instagram', 'Instagram'],
+                  ['Facebook Marketplace', 'Facebook'],
+                  ['WhatsApp', 'WhatsApp'],
+                  ['Other', 'Autre'],
+                ] as const
+              ).map(([ch, label]) => (
                 <label
                   key={ch}
                   style={{
@@ -449,14 +471,14 @@ export function OnboardingWizard({
                     checked={salesChannels.includes(ch)}
                     onChange={() => toggleChannel(ch)}
                   />
-                  {ch}
+                  {label}
                 </label>
               ))}
             </div>
           </div>
 
           <label style={{ display: 'block', marginBottom: '1.25rem' }}>
-            <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Description de l&apos;entreprise (Optionnel)</span>
+            <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Description (facultatif)</span>
             <textarea
               rows={3}
               value={description}
@@ -468,7 +490,7 @@ export function OnboardingWizard({
 
           <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '1.25rem', marginTop: '1.25rem' }}>
             <span style={{ fontWeight: 700, fontSize: '0.875rem', color: '#1E293B', display: 'block', marginBottom: '0.75rem' }}>
-              Localisation du siège
+              Adresse de l&apos;activité
             </span>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '0.75rem' }}>
               <label style={{ display: 'block' }}>
@@ -502,7 +524,7 @@ export function OnboardingWizard({
             }}
           >
             {loading ? <Spinner size="sm" color="currentColor" /> : null}
-            {loading ? 'Sauvegarde…' : 'Enregistrer & Continuer →'}
+            {loading ? 'Enregistrement…' : 'Enregistrer et continuer →'}
           </button>
         </section>
       ) : null}
@@ -510,7 +532,7 @@ export function OnboardingWizard({
       {/* STEP 2 */}
       {currentStep === 2 ? (
         <section style={{ ...webCardStyle, padding: '2rem', borderRadius: radius.card }}>
-          <h2 style={{ margin: '0 0 1.25rem', fontSize: '1.25rem', fontWeight: 700 }}>Vérification Légale & Documents</h2>
+          <h2 style={{ margin: '0 0 1.25rem', fontSize: '1.25rem', fontWeight: 700 }}>Documents</h2>
           
           <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '1.25rem', borderRadius: 8, marginBottom: '1.5rem' }}>
             <span style={{ fontWeight: 700, fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem' }}>
@@ -532,7 +554,7 @@ export function OnboardingWizard({
                   cursor: 'pointer',
                 }}
               >
-                OUI (Entreprise Enregistrée / SARL)
+                Oui, société enregistrée
               </button>
               <button
                 type="button"
@@ -549,7 +571,7 @@ export function OnboardingWizard({
                   cursor: 'pointer',
                 }}
               >
-                NON (Vendeur Individuel / Informal Seller)
+                Non, vendeur individuel
               </button>
             </div>
           </div>
@@ -579,18 +601,18 @@ export function OnboardingWizard({
               </div>
 
               <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '1.25rem' }}>
-                <span style={{ fontWeight: 700, fontSize: '0.875rem', display: 'block', marginBottom: '0.75rem' }}>Upload des Documents</span>
+                <span style={{ fontWeight: 700, fontSize: '0.875rem', display: 'block', marginBottom: '0.75rem' }}>Joindre les documents</span>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   <label style={{ display: 'block', background: '#F8FAFC', padding: '0.75rem', borderRadius: 6, border: '1px border #E2E8F0' }}>
-                    <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>1. Certificat RCCM (Requis)</span>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>1. RCCM (obligatoire)</span>
                     <input type="text" value={rccmUrl} onChange={(e) => setRccmUrl(e.target.value)} style={{ ...webInputStyle, marginTop: '0.25rem', fontSize: '0.75rem' }} />
                   </label>
                   <label style={{ display: 'block', background: '#F8FAFC', padding: '0.75rem', borderRadius: 6, border: '1px border #E2E8F0' }}>
-                    <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>2. Certificat NIF (Requis)</span>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>2. NIF (obligatoire)</span>
                     <input type="text" value={nifUrl} onChange={(e) => setNifUrl(e.target.value)} style={{ ...webInputStyle, marginTop: '0.25rem', fontSize: '0.75rem' }} />
                   </label>
                   <label style={{ display: 'block', background: '#F8FAFC', padding: '0.75rem', borderRadius: 6, border: '1px border #E2E8F0' }}>
-                    <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>3. Pièce d&apos;identité du gérant (Requis)</span>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>3. Pièce d&apos;identité du gérant (obligatoire)</span>
                     <input type="text" value={legalRepIdUrl} onChange={(e) => setLegalRepIdUrl(e.target.value)} style={{ ...webInputStyle, marginTop: '0.25rem', fontSize: '0.75rem' }} />
                   </label>
                 </div>
@@ -600,29 +622,29 @@ export function OnboardingWizard({
             <div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                 <label style={{ display: 'block' }}>
-                  <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Nom complet légal *</span>
+                  <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Nom complet *</span>
                   <input type="text" value={individualFullName} onChange={(e) => setIndividualFullName(e.target.value)} placeholder="Jean-Pierre Lumumba" style={{ ...webInputStyle, marginTop: '0.35rem' }} />
                 </label>
                 <label style={{ display: 'block' }}>
-                  <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Passeport ou ID National *</span>
+                  <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Numéro de pièce d&apos;identité *</span>
                   <input type="text" value={idPassportNumber} onChange={(e) => setIdPassportNumber(e.target.value)} placeholder="ID123456789" style={{ ...webInputStyle, marginTop: '0.35rem' }} />
                 </label>
               </div>
 
               <label style={{ display: 'block', marginBottom: '1.5rem' }}>
-                <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Adresse résidentielle *</span>
+                <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Adresse *</span>
                 <input type="text" value={residentialAddress} onChange={(e) => setResidentialAddress(e.target.value)} placeholder="Av. Kasavubu, Bandalungwa" style={{ ...webInputStyle, marginTop: '0.35rem' }} />
               </label>
 
               <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '1.25rem' }}>
-                <span style={{ fontWeight: 700, fontSize: '0.875rem', display: 'block', marginBottom: '0.75rem' }}>Documents Vendeur Individuel</span>
+                <span style={{ fontWeight: 700, fontSize: '0.875rem', display: 'block', marginBottom: '0.75rem' }}>Documents du vendeur</span>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   <label style={{ display: 'block', background: '#F8FAFC', padding: '0.75rem', borderRadius: 6 }}>
-                    <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>1. Carte d&apos;identité nationale / Passeport</span>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>1. Carte d&apos;identité ou passeport</span>
                     <input type="text" value={nationalIdUrl} onChange={(e) => setNationalIdUrl(e.target.value)} style={{ ...webInputStyle, marginTop: '0.25rem', fontSize: '0.75rem' }} />
                   </label>
                   <label style={{ display: 'block', background: '#F8FAFC', padding: '0.75rem', borderRadius: 6 }}>
-                    <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>2. Photo Selfie de vérification</span>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>2. Photo de vous (selfie)</span>
                     <input type="text" value={selfieUrl} onChange={(e) => setSelfieUrl(e.target.value)} style={{ ...webInputStyle, marginTop: '0.25rem', fontSize: '0.75rem' }} />
                   </label>
                 </div>
@@ -634,7 +656,7 @@ export function OnboardingWizard({
             <button type="button" onClick={() => setCurrentStep(1)} style={{ ...webSecondaryButtonStyle, flex: 1, height: 46 }}>← Retour</button>
             <button type="button" onClick={() => void handleNext(2)} disabled={loading} style={{ ...webPrimaryButtonStyle, flex: 2, height: 46, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               {loading ? <Spinner size="sm" color="currentColor" /> : null}
-              {loading ? 'Sauvegarde…' : 'Enregistrer & Continuer →'}
+              {loading ? 'Enregistrement…' : 'Enregistrer et continuer →'}
             </button>
           </div>
         </section>
@@ -643,7 +665,7 @@ export function OnboardingWizard({
       {/* STEP 3 */}
       {currentStep === 3 ? (
         <section style={{ ...webCardStyle, padding: '2rem', borderRadius: radius.card }}>
-          <h2 style={{ margin: '0 0 1.25rem', fontSize: '1.25rem', fontWeight: 700 }}>Logistics Operations Setup</h2>
+          <h2 style={{ margin: '0 0 1.25rem', fontSize: '1.25rem', fontWeight: 700 }}>Comment on récupère vos colis</h2>
           <p style={{ margin: '0 0 1.5rem', color: '#64748B', fontSize: '0.875rem' }}>
             Comment prévoyez-vous de nous transmettre vos colis ?
           </p>
@@ -659,9 +681,9 @@ export function OnboardingWizard({
                 background: pickupMethod === 'courier_pickup' ? '#F0FDF4' : '#FFFFFF',
               }}
             >
-              <h4 style={{ margin: '0 0 0.5rem', fontWeight: 700, fontSize: '0.9375rem' }}>1. Eveider Courier Pickup</h4>
+              <h4 style={{ margin: '0 0 0.5rem', fontWeight: 700, fontSize: '0.9375rem' }}>1. Un chauffeur vient chercher</h4>
               <p style={{ margin: 0, fontSize: '0.8125rem', color: '#475569' }}>
-                Un coursier Eveider vient récupérer vos colis directement à votre adresse ou entrepôt.
+                Un chauffeur Eveider vient chercher vos colis à votre adresse.
               </p>
             </div>
 
@@ -675,16 +697,16 @@ export function OnboardingWizard({
                 background: pickupMethod === 'merchant_dropoff' ? '#F0FDF4' : '#FFFFFF',
               }}
             >
-              <h4 style={{ margin: '0 0 0.5rem', fontWeight: 700, fontSize: '0.9375rem' }}>2. Merchant Drop-off</h4>
+              <h4 style={{ margin: '0 0 0.5rem', fontWeight: 700, fontSize: '0.9375rem' }}>2. Vous déposez au point Eveider</h4>
               <p style={{ margin: 0, fontSize: '0.8125rem', color: '#475569' }}>
-                Vous déposez vous-même vos colis dans une station casier ou un point relais Eveider.
+                Vous déposez vous-même les colis dans un casier Eveider.
               </p>
             </div>
           </div>
 
           {pickupMethod === 'courier_pickup' ? (
             <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '1.25rem', borderRadius: 8 }}>
-              <span style={{ fontWeight: 700, fontSize: '0.875rem', display: 'block', marginBottom: '1rem' }}>Adresse d&apos;enlèvement (Pickup Address)</span>
+              <span style={{ fontWeight: 700, fontSize: '0.875rem', display: 'block', marginBottom: '1rem' }}>Adresse d&apos;enlèvement</span>
               <label style={{ display: 'block', marginBottom: '1rem' }}>
                 <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Adresse complète d&apos;enlèvement *</span>
                 <input type="text" value={pickupAddress} onChange={(e) => setPickupAddress(e.target.value)} placeholder="Entrepôt Limete, 14ème Rue Industrielle" style={{ ...webInputStyle, marginTop: '0.35rem' }} />
@@ -714,7 +736,7 @@ export function OnboardingWizard({
             </div>
           ) : (
             <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '1.25rem', borderRadius: 8 }}>
-              <span style={{ fontWeight: 700, fontSize: '0.875rem', display: 'block', marginBottom: '0.75rem' }}>Choisissez votre station de dépôt préférentielle</span>
+              <span style={{ fontWeight: 700, fontSize: '0.875rem', display: 'block', marginBottom: '0.75rem' }}>Choisissez le point de dépôt habituel</span>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {[
                   { id: 'point-gombe', label: '○ Eveider Point Gombe (Av. Kananga)' },
@@ -754,7 +776,7 @@ export function OnboardingWizard({
             <button type="button" onClick={() => setCurrentStep(2)} style={{ ...webSecondaryButtonStyle, flex: 1, height: 46 }}>← Retour</button>
             <button type="button" onClick={() => void handleNext(3)} disabled={loading} style={{ ...webPrimaryButtonStyle, flex: 2, height: 46, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               {loading ? <Spinner size="sm" color="currentColor" /> : null}
-              {loading ? 'Sauvegarde…' : 'Enregistrer & Continuer →'}
+              {loading ? 'Enregistrement…' : 'Enregistrer et continuer →'}
             </button>
           </div>
         </section>
@@ -763,17 +785,17 @@ export function OnboardingWizard({
       {/* STEP 4 */}
       {currentStep === 4 ? (
         <section style={{ ...webCardStyle, padding: '2rem', borderRadius: radius.card }}>
-          <h2 style={{ margin: '0 0 1.25rem', fontSize: '1.25rem', fontWeight: 700 }}>Payment & Billing Setup</h2>
+          <h2 style={{ margin: '0 0 1.25rem', fontSize: '1.25rem', fontWeight: 700 }}>Paiement</h2>
           
           <div style={{ marginBottom: '1.5rem' }}>
             <span style={{ fontWeight: 700, fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem' }}>
-              Qui paie les frais de livraison ? (Delivery Payment Rules)
+              Qui paie la livraison ?
             </span>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.5rem' }}>
               {[
-                { value: 'merchant_pays', label: 'Merchant pays' },
-                { value: 'customer_pays', label: 'Customer pays' },
-                { value: 'depends_on_order', label: 'Depends on order' },
+                { value: 'merchant_pays', label: 'L’entreprise' },
+                { value: 'customer_pays', label: 'Le destinataire' },
+                { value: 'depends_on_order', label: 'Selon la commande' },
               ].map((rule) => (
                 <button
                   type="button"
@@ -798,11 +820,11 @@ export function OnboardingWizard({
 
           <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '1.25rem', borderRadius: 8, marginBottom: '1.5rem' }}>
             <span style={{ fontWeight: 700, fontSize: '0.875rem', display: 'block', marginBottom: '0.75rem' }}>
-              Compte de versement des fonds COD (Settlement Information)
+              Compte pour recevoir l’argent (paiement à la livraison)
             </span>
             
             <label style={{ display: 'block', marginBottom: '1rem' }}>
-              <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Mode de versement (Payout Method)</span>
+              <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Comment recevoir l’argent</span>
               <select
                 value={payoutMethod}
                 onChange={(e) => setPayoutMethod(e.target.value as SettlementMethod)}
@@ -811,7 +833,7 @@ export function OnboardingWizard({
                 <option value="mobile_money_orange">Orange Money</option>
                 <option value="mobile_money_airtel">Airtel Money</option>
                 <option value="mobile_money_mpesa">M-Pesa</option>
-                <option value="bank_transfer">Virement Bancaire (Bank Transfer)</option>
+                <option value="bank_transfer">Virement bancaire</option>
               </select>
             </label>
 
@@ -829,16 +851,16 @@ export function OnboardingWizard({
 
           <div style={{ marginBottom: '1.5rem' }}>
             <span style={{ fontWeight: 700, fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem' }}>
-              Mode de facturation (Billing Type)
+              Comment vous êtes facturé
             </span>
             <div style={{ display: 'flex', gap: '1rem' }}>
               <label style={{ flex: 1, padding: '0.75rem 1rem', border: billingType === 'pay_per_shipment' ? '2px solid #09D40B' : '1px solid #CBD5E1', borderRadius: 6, cursor: 'pointer', background: billingType === 'pay_per_shipment' ? '#F0FDF4' : '#FFFFFF' }}>
                 <input type="radio" name="billingType" checked={billingType === 'pay_per_shipment'} onChange={() => setBillingType('pay_per_shipment')} />
-                <span style={{ marginLeft: '0.5rem', fontWeight: 700, fontSize: '0.8125rem' }}>Paiement par expédition (Pay per shipment)</span>
+                <span style={{ marginLeft: '0.5rem', fontWeight: 700, fontSize: '0.8125rem' }}>À chaque colis</span>
               </label>
               <label style={{ flex: 1, padding: '0.75rem 1rem', border: billingType === 'monthly_invoice' ? '2px solid #09D40B' : '1px solid #CBD5E1', borderRadius: 6, cursor: 'pointer', background: billingType === 'monthly_invoice' ? '#F0FDF4' : '#FFFFFF' }}>
                 <input type="radio" name="billingType" checked={billingType === 'monthly_invoice'} onChange={() => setBillingType('monthly_invoice')} />
-                <span style={{ marginLeft: '0.5rem', fontWeight: 700, fontSize: '0.8125rem' }}>Facturation mensuelle (Entreprise approuvée uniquement)</span>
+                <span style={{ marginLeft: '0.5rem', fontWeight: 700, fontSize: '0.8125rem' }}>Facture chaque mois</span>
               </label>
             </div>
           </div>
@@ -847,7 +869,7 @@ export function OnboardingWizard({
             <button type="button" onClick={() => setCurrentStep(3)} style={{ ...webSecondaryButtonStyle, flex: 1, height: 46 }}>← Retour</button>
             <button type="button" onClick={() => void handleNext(4)} disabled={loading} style={{ ...webPrimaryButtonStyle, flex: 2, height: 46, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               {loading ? <Spinner size="sm" color="currentColor" /> : null}
-              {loading ? 'Sauvegarde…' : 'Enregistrer & Continuer →'}
+              {loading ? 'Enregistrement…' : 'Enregistrer et continuer →'}
             </button>
           </div>
         </section>
@@ -856,15 +878,15 @@ export function OnboardingWizard({
       {/* STEP 5 */}
       {currentStep === 5 ? (
         <section style={{ ...webCardStyle, padding: '2rem', borderRadius: radius.card }}>
-          <h2 style={{ margin: '0 0 1.25rem', fontSize: '1.25rem', fontWeight: 700 }}>Résumé & Confirmation de la demande</h2>
+          <h2 style={{ margin: '0 0 1.25rem', fontSize: '1.25rem', fontWeight: 700 }}>Vérifiez avant d’envoyer</h2>
           
           <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '1.25rem', borderRadius: 8, marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.875rem' }}>
-            <div><strong>Business Name :</strong> {name}</div>
-            <div><strong>Type :</strong> {isRegistered ? 'Registered Company' : 'Individual Seller'}</div>
+            <div><strong>Nom :</strong> {name}</div>
+            <div><strong>Type :</strong> {isRegistered ? 'Société enregistrée' : 'Vendeur individuel'}</div>
             <div><strong>Secteur :</strong> {industry}</div>
             <div><strong>Adresse :</strong> {address}, {city}</div>
-            <div><strong>Mode d&apos;enlèvement :</strong> {pickupMethod === 'courier_pickup' ? `Courier Pickup (${pickupAddress})` : `Drop-off (${dropoffLockerId})`}</div>
-            <div><strong>Paiement COD :</strong> {payoutMethod} — {accountHolder} ({accountNumber})</div>
+            <div><strong>Enlèvement :</strong> {pickupMethod === 'courier_pickup' ? `Un chauffeur vient chercher (${pickupAddress})` : `Dépôt au point (${dropoffLockerId})`}</div>
+            <div><strong>Compte pour recevoir l’argent :</strong> {payoutMethod} — {accountHolder} ({accountNumber})</div>
           </div>
 
           <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '1rem', background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: 8, cursor: 'pointer', marginBottom: '1.5rem' }}>
@@ -875,7 +897,7 @@ export function OnboardingWizard({
               style={{ marginTop: 2, accentColor: '#09D40B' }}
             />
             <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#166534', lineHeight: 1.5 }}>
-              Je confirme que l&apos;ensemble des informations et documents fournis sont exacts et conformes aux exigences d&apos;exploitation Eveider.
+              Je confirme que ces informations sont exactes.
             </span>
           </label>
 
@@ -900,7 +922,7 @@ export function OnboardingWizard({
               }}
             >
               {loading ? <Spinner size="sm" color="currentColor" /> : null}
-              {loading ? 'Soumission en cours…' : 'Soumettre le dossier'}
+              {loading ? 'Envoi…' : 'Envoyer la demande'}
             </button>
           </div>
         </section>

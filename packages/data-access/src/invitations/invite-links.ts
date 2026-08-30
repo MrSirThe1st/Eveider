@@ -28,6 +28,11 @@ export function buildTeamInviteLink(token: string): string {
   return `${webBaseUrl}/invite/equipe/${token}`;
 }
 
+export function buildPlatformAdminInviteLink(token: string): string {
+  const { webBaseUrl } = getInviteConfig();
+  return `${webBaseUrl}/invite/admin/${token}`;
+}
+
 /** Public guest tracking page — no account required. */
 export function buildParcelTrackLink(input: {
   trackingNumber?: string;

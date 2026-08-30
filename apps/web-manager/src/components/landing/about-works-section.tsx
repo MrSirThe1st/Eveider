@@ -11,7 +11,7 @@ export function AboutWorksSection() {
               Un réseau pensé pour <em>simplifier la livraison.</em>
             </h2>
             <p className={styles.lede}>
-              Eveider relie l’expédition, le dépôt en casier et le retrait. Le coursier dessert le
+              Eveider relie le colis, le dépôt en casier et le retrait. Le chauffeur dessert le
               casier. Le client récupère son colis quand il le peut.
             </p>
           </div>

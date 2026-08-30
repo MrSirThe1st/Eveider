@@ -1,24 +1,30 @@
 import { PageFrame } from '@eveider/ui';
-import { BusinessCourierPanel } from '@/components/business-courier-panel';
+import Link from 'next/link';
+import { BusinessDriverList } from '@/components/business-driver-list';
 import { WEB_ROUTES } from '@/lib/auth-routing';
 import { requireBusinessPermission } from '@/server/business';
-import { loadBusinessCourierDossiers } from '@/server/couriers';
+import { loadBusinessDriverRoster } from '@/server/drivers';
 
-export default async function BusinessCouriersPage() {
+export default async function BusinessDriversPage() {
   const { ctx } = await requireBusinessPermission('manage_couriers');
-  const dossiers = await loadBusinessCourierDossiers(ctx);
+  const drivers = await loadBusinessDriverRoster(ctx);
 
   return (
     <PageFrame
-      title="Coursiers"
-      description="Déposez un dossier d’identité. Eveider le valide, puis vous invitez le coursier dans l’app mobile."
+      title="Chauffeurs"
+      description="Vos chauffeurs et où ils en sont."
       layout="wide"
       breadcrumbs={[
         { label: 'Tableau de bord', href: WEB_ROUTES.businessDashboard },
-        { label: 'Coursiers' },
+        { label: 'Chauffeurs' },
       ]}
+      action={
+        <Link href={WEB_ROUTES.businessNewDriver} className="nb-btn nb-btn-primary nb-btn--sm">
+          Ajouter un chauffeur
+        </Link>
+      }
     >
-      <BusinessCourierPanel dossiers={dossiers} />
+      <BusinessDriverList drivers={drivers} />
     </PageFrame>
   );
 }

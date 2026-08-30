@@ -124,7 +124,7 @@ function ToastViewport({
       style={{
         position: 'fixed',
         right: spacing[4],
-        bottom: spacing[4],
+        bottom: 'var(--support-widget-clearance, 96px)',
         zIndex: 1000,
         display: 'flex',
         flexDirection: 'column-reverse',

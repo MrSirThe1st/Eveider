@@ -20,6 +20,38 @@ Use this file as the first project memory source before searching the codebase.
 
 ## Entries
 
+## 2026-08-30
+- Change type: API | Frontend
+- Description: Livraisons board silent refresh is cheaper — still 30s auto-refresh on the active view, but pauses when the tab is hidden, resumes (and refreshes once) on return, and silent ticks request `includeMeta=0` so businesses/lockers/drivers catalogs are not reloaded. Profile + memberships cached ~30s after `getUser()` so polls do not re-hit those tables every tick. No other pages use interval polling.
+- Impact: `GET /api/deliveries/board?includeMeta=0`; `useDeliveriesBoardQuery`; `resolveCurrentUser` identity cache; `listDeliveriesQuerySchema.includeMeta`.
+- Tests: Browser — board still updates; terminal shows lighter silent polls when tab visible.
+
+## 2026-08-30
+- Change type: Frontend
+- Description: Reserved bottom space for the Tawk support bubble so it no longer covers last table rows, row actions, or toasts. One CSS token `--support-widget-clearance` on the portal scroll area, public pages, auth viewport, dropdowns, and toasts.
+- Impact: `globals.css`, `AppShell` `.portal-content`, landing/auth/cookie chrome, `DropdownMenu` collision, toast viewport.
+- Tests: Cursor Browser on a full-height table page.
+
+
+## 2026-08-30
+- Change type: Frontend | Other
+- Description: Platform-wide French copy pass — everyday RDC language. Removed KYC/COD/organisation/expédition jargon from settings, onboarding, drivers, auth, landing, and admin review. Settings labels: Entreprise, Facturation, API, Droits d’accès. Brand.md now requires plain language (say what happens, no English in FR UI).
+- Impact: User-facing strings in web-manager + domain labels; URLs unchanged. Playwright settings/drivers assertions updated.
+- Tests: e2e settings-sidebar + drivers copy; Cursor Browser on settings.
+
+
+## 2026-08-29
+- Change type: Frontend | API
+- Description: Admin Drivers remodel — same Driver entity as Organization, platform-wide list (organization / Eveider fleet, operational status, current delivery, today), details tabs Overview / Deliveries / Documents with KYC approve/reject/invite/reactivate and account block, and a separate Add page that creates Eveider-fleet drivers then invites. Organization details dropped Routes/Activity placeholders so both portals share three tabs. List stays compact; KYC actions live on Documents.
+- Impact: `listRosterForAdmin` / `findRosterById`; `listForAdminDriver`; admin routes `/tableau-de-bord/chauffeurs` (+ `/nouveau`, `/[id]` tabs); `POST /api/admin/driver-dossiers` creates Eveider fleet + invite; Documents uses review/invite/reactivate + `PATCH /api/users/:id/status`. Deleted `admin-courier-panel` and org itineraires/activité pages.
+- Tests: admin roster snapshot SQL; Playwright org (3 tabs) + admin list/detail/add.
+
+## 2026-08-29
+- Change type: Frontend | API
+- Description: Organization Drivers V1 — operational list (status, current delivery, today), driver profile tabs (overview / deliveries / documents; routes and activity coming soon), and a separate add-and-invite flow. Drivers stay out of Members. Invite can happen during KYC review; assignment still requires an approved dossier. Team / vehicle / live location show as —. Platform admin KYC page unchanged.
+- Impact: `CourierDossierRepository.listRosterForBusiness` / `findRosterByBusiness` / `attachInvite`; `AccountService.inviteDossier`; `DeliveryRepository.assign` KYC gate; `listAssignableDriversByBusiness`; org routes `/organisation/tableau-de-bord/chauffeurs` (+ `/nouveau`, `/[id]` tabs); `POST /api/organisation/drivers` invites immediately.
+- Tests: operational status derivation, assignable KYC, roster snapshot SQL, assign rejects pending review, Playwright drivers list/detail/add.
+
 ## 2026-08-23
 - Change type: DB | API | Mobile
 - Description: Courier locker-first ops slice — required drop-off photo proof, nearest-locker itinerary for active stops, in-app courier notifications (new assignment / locker blocked), WhatsApp dispatch contact (no in-app chat), 90-day history metrics. No pay, no recipient ETA, no door delivery/signature.

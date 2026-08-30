@@ -1,4 +1,5 @@
 export type { User, CourierDossier, DriverDossier, OrganizationMembership } from './db/types.js';
+export type { DriverRosterRecord } from './repositories/courier-dossier.repository.js';
 export * from './context.js';
 export * from './env.js';
 export * from './db/index.js';
@@ -31,11 +32,23 @@ export {
   toLockerNetworkSettings,
 } from './repositories/locker-settings.repository.js';
 export {
+  PlatformSettingsRepository,
+  PLATFORM_DEFAULT_FEATURES,
+  type PlatformDefaultFeature,
+  type PlatformSettingsRow,
+} from './repositories/platform-settings.repository.js';
+export {
+  PlatformStaffRepository,
+  type PlatformStaffMember,
+  type PlatformAdminInviteDelivery,
+  type PlatformAdminInvitePreview,
+} from './repositories/platform-staff.repository.js';
+export {
   resolveBusinessPickupCoordinates,
   distanceKmToLocker,
   type PickupCoordinates,
 } from './pricing/delivery-distance.js';
-export { buildInviteLinks, getInviteConfig, buildParcelPickupLink, buildParcelTrackLink, buildTeamInviteLink } from './invitations/invite-links.js';
+export { buildInviteLinks, getInviteConfig, buildParcelPickupLink, buildParcelTrackLink, buildTeamInviteLink, buildPlatformAdminInviteLink } from './invitations/invite-links.js';
 export { sendInvitation } from './invitations/invitation.service.js';
 export {
   createGuestTrackToken,
@@ -74,6 +87,8 @@ import { OrganizationMembershipRepository } from './repositories/organization-me
 import { PaymentRepository } from './payments/payment.repository.js';
 import { PricingRepository } from './repositories/pricing.repository.js';
 import { LockerSettingsRepository } from './repositories/locker-settings.repository.js';
+import { PlatformSettingsRepository } from './repositories/platform-settings.repository.js';
+import { PlatformStaffRepository } from './repositories/platform-staff.repository.js';
 import { CourierDossierRepository } from './repositories/courier-dossier.repository.js';
 import { OnboardingService } from './auth/onboarding.service.js';
 import { AccountService } from './auth/account.service.js';
@@ -91,6 +106,8 @@ export function createRepositories() {
   const payments = new PaymentRepository(db);
   const pricing = new PricingRepository(db);
   const lockerSettings = new LockerSettingsRepository(db);
+  const platformSettings = new PlatformSettingsRepository(db);
+  const platformStaff = new PlatformStaffRepository(db, users);
   const deliveries = new DeliveryRepository(db, notifications);
 
   return {
@@ -102,6 +119,8 @@ export function createRepositories() {
     deliveries,
     lockers: new LockerRepository(db, notifications),
     lockerSettings,
+    platformSettings,
+    platformStaff,
     issues: new IssueRepository(db),
     notifications,
     invites,

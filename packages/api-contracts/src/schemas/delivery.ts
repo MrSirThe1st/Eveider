@@ -24,6 +24,15 @@ export const listDeliveriesQuerySchema = z.object({
   lockerId: z.string().uuid('Casier invalide').optional(),
   businessId: z.string().uuid('Entreprise invalide').optional(),
   search: z.string().trim().max(64).optional(),
+  /** When false, skip static filter catalogs (couriers / lockers / businesses). Used by silent board refresh. */
+  includeMeta: z
+    .union([z.literal('0'), z.literal('1'), z.literal('true'), z.literal('false'), z.boolean()])
+    .optional()
+    .transform((value) => {
+      if (value === undefined) return true;
+      if (typeof value === 'boolean') return value;
+      return value === '1' || value === 'true';
+    }),
 });
 
 export type AssignCourierInput = z.infer<typeof assignCourierSchema>;

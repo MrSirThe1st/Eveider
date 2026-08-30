@@ -11,7 +11,7 @@ export default async function AdminPointsPage() {
   return (
     <PageFrame
       title="Points"
-      description="Casiers intelligents, points partenaires et points résidentiels."
+      description="Tous les casiers et points de retrait."
       layout="wide"
     >
       <AdminLockerManager lockers={lockers} />

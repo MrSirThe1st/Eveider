@@ -71,6 +71,9 @@ describe('DeliveryRepository', () => {
       if (sqlIncludes(sql, 'SELECT * FROM users')) {
         return { id: 'courier-1', role: 'courier' };
       }
+      if (sqlIncludes(sql, 'FROM driver_dossiers')) {
+        return { status: 'active', business_id: null };
+      }
       if (sqlIncludes(sql, 'FROM deliveries') && sqlIncludes(sql, 'status = ANY')) {
         return null;
       }
@@ -111,6 +114,9 @@ describe('DeliveryRepository', () => {
           deactivated_at: null,
           deleted_at: null,
         };
+      }
+      if (sqlIncludes(sql, 'FROM driver_dossiers')) {
+        return { status: 'active', business_id: 'biz-1' };
       }
       if (sqlIncludes(sql, 'FROM deliveries') && sqlIncludes(sql, 'status = ANY')) {
         return null;
@@ -160,6 +166,9 @@ describe('DeliveryRepository', () => {
       if (sqlIncludes(sql, 'SELECT * FROM users')) {
         return { id: 'courier-1', role: 'courier' };
       }
+      if (sqlIncludes(sql, 'FROM driver_dossiers')) {
+        return { status: 'active', business_id: null };
+      }
       if (sqlIncludes(sql, 'FROM deliveries') && sqlIncludes(sql, 'status = ANY')) {
         return { id: 'existing' };
       }
@@ -168,6 +177,32 @@ describe('DeliveryRepository', () => {
 
     await expect(repo.assign(adminCtx, 'parcel-1', 'courier-1')).rejects.toThrow(
       'livraison active',
+    );
+  });
+
+  it('rejects assigning a driver whose KYC is still pending', async () => {
+    setup((sql) => {
+      if (sqlIncludes(sql, 'SELECT * FROM parcels')) {
+        return parcelRow();
+      }
+      if (sqlIncludes(sql, 'SELECT * FROM users')) {
+        return {
+          id: 'courier-1',
+          role: 'courier',
+          business_id: 'biz-1',
+          is_blocked: false,
+          deactivated_at: null,
+          deleted_at: null,
+        };
+      }
+      if (sqlIncludes(sql, 'FROM driver_dossiers')) {
+        return { status: 'pending_review', business_id: 'biz-1' };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    await expect(repo.assign(businessCtx, 'parcel-1', 'courier-1')).rejects.toThrow(
+      'pas encore approuvé',
     );
   });
 

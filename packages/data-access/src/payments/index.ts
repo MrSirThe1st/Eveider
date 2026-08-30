@@ -1,6 +1,7 @@
 export {
   DRC_DEPOSIT_PROVIDERS,
   getPawaPayConfig,
+  buildPawaPayConfig,
   isDrcDepositProvider,
   normalizePawaPayPhone,
   type DrcDepositProvider,

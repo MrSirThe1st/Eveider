@@ -33,6 +33,16 @@ export type DropdownMenuProps = {
   style?: CSSProperties;
 };
 
+const SUPPORT_WIDGET_CLEARANCE_FALLBACK_PX = 96;
+
+function supportWidgetClearancePx(): number {
+  if (typeof window === 'undefined') return SUPPORT_WIDGET_CLEARANCE_FALLBACK_PX;
+  const value = Number.parseFloat(
+    getComputedStyle(document.documentElement).scrollPaddingBottom,
+  );
+  return Number.isFinite(value) && value > 0 ? value : SUPPORT_WIDGET_CLEARANCE_FALLBACK_PX;
+}
+
 /**
  * Contextual actions menu (view / edit / delete).
  * Closes on outside click, Escape, and after selecting an item.
@@ -68,9 +78,10 @@ export function DropdownMenu({
       const menuHeight = menuRef.current?.offsetHeight ?? 0;
       const gap = spacing[1];
       const margin = spacing[2];
+      const bottomLimit = window.innerHeight - Math.max(margin, supportWidgetClearancePx());
 
       let top = rect.bottom + gap;
-      if (menuHeight > 0 && top + menuHeight > window.innerHeight - margin) {
+      if (menuHeight > 0 && top + menuHeight > bottomLimit) {
         const above = rect.top - menuHeight - gap;
         if (above >= margin) top = above;
       }

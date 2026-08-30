@@ -12,8 +12,10 @@ import {
   type NavModule,
 } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
+import { AdminSettingsChrome } from '@/components/settings-chrome';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { createClient } from '@/lib/supabase/client';
+
 
 type AdminShellProps = {
   children: React.ReactNode;
@@ -24,7 +26,7 @@ const NAV_ICON_PROPS = { width: 16, height: 16 } as const;
 const ADMIN_MODULES: NavModule[] = [
   {
     id: 'dashboard',
-    label: 'Dashboard',
+    label: 'Tableau de bord',
     href: '/tableau-de-bord',
     icon: <IconHome {...NAV_ICON_PROPS} />,
     match: (p) => p === '/tableau-de-bord',
@@ -76,7 +78,7 @@ const ADMIN_MODULES: NavModule[] = [
   {
     id: 'parametres',
     label: 'Paramètres',
-    href: '/tableau-de-bord/parametres/tarifs',
+    href: '/tableau-de-bord/parametres',
     icon: <IconLayout {...NAV_ICON_PROPS} />,
     match: (p) => p.startsWith('/tableau-de-bord/parametres'),
   },
@@ -97,10 +99,11 @@ export function AdminShell({ children }: AdminShellProps) {
       brandShort="Admin"
       onSignOut={handleSignOut}
       modules={ADMIN_MODULES}
-      profileHref="/tableau-de-bord/profil"
-      toolbar={<ThemeToggle variant="menu" />}
+      profileHref="/tableau-de-bord/parametres/mon-compte/profil"
+      profileLabel="Mon compte"
+      toolbar={<ThemeToggle />}
     >
-      {children}
+      <AdminSettingsChrome>{children}</AdminSettingsChrome>
     </AppShell>
   );
 }

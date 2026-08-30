@@ -45,47 +45,32 @@ export function AdminLivraisonsTabs() {
   );
 }
 
-export function AdminEntreprisesTabs() {
+export function AdminOrganisationsTabs() {
   return (
     <PageTabs
-      aria-label="Vues entreprises"
+      aria-label="Vues organisations"
       tabs={[
         {
           href: '/tableau-de-bord/organisations',
-          label: 'Actives',
-          isActive: (pathname: string) => pathname === '/tableau-de-bord/organisations',
+          label: 'Toutes les organisations',
+          isActive: (pathname: string) =>
+            pathname === '/tableau-de-bord/organisations' ||
+            (pathname.startsWith('/tableau-de-bord/organisations/') &&
+              !pathname.startsWith('/tableau-de-bord/organisations/verification')),
         },
         {
-          href: '/tableau-de-bord/organisations/applications',
-          label: 'Dossiers',
+          href: '/tableau-de-bord/organisations/verification',
+          label: 'Vérification',
           isActive: (pathname: string) =>
-            pathname.startsWith('/tableau-de-bord/organisations/applications'),
+            pathname.startsWith('/tableau-de-bord/organisations/verification'),
         },
       ]}
     />
   );
 }
 
-export function AdminParametresTabs() {
-  return (
-    <PageTabs
-      aria-label="Sections paramètres"
-      tabs={[
-        {
-          href: '/tableau-de-bord/parametres/tarifs',
-          label: 'Tarifs',
-          isActive: (pathname: string) => pathname.startsWith('/tableau-de-bord/parametres/tarifs'),
-        },
-        {
-          href: '/tableau-de-bord/parametres/casiers/configuration',
-          label: 'Casiers',
-          isActive: (pathname: string) =>
-            pathname.startsWith('/tableau-de-bord/parametres/casiers'),
-        },
-      ]}
-    />
-  );
-}
+/** @deprecated Use AdminOrganisationsTabs */
+export const AdminEntreprisesTabs = AdminOrganisationsTabs;
 
 export function AdminCasiersSettingsTabs() {
   return (

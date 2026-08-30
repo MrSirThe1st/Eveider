@@ -71,6 +71,7 @@ export {
   IconEyeOff,
   IconLogOut,
   IconMoreHorizontal,
+  IconSettings,
   IconPackage,
   IconPlus,
   IconReceipt,

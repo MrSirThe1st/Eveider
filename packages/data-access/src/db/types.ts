@@ -27,6 +27,20 @@ export type NotificationChannel = 'sms' | 'push' | 'in_app';
 export type ParcelInviteStatus = 'pending' | 'accepted' | 'expired';
 export type BusinessTeamInviteStatus = 'pending' | 'accepted' | 'expired' | 'revoked';
 
+export type PlatformAdminInvite = {
+  id: string;
+  token: string;
+  email: string;
+  invitedRole: PlatformRole;
+  invitedByUserId: string | null;
+  status: BusinessTeamInviteStatus;
+  expiresAt: Date;
+  acceptedAt: Date | null;
+  acceptedUserId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export type BusinessType =
   | 'registered_company'
   | 'individual_seller'

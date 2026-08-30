@@ -1,4 +1,4 @@
-import type { BusinessStatus, OrganizationVerificationStatus } from './business.js';
+import type { AdminAccountStatus, BusinessStatus, OrganizationVerificationStatus } from './business.js';
 import type { CompartmentStatus, LockerStatus, LockerType } from './locker.js';
 import type { DeliveryStatus } from './delivery.js';
 import type { IssueStatus, IssueType } from './issue.js';
@@ -38,8 +38,8 @@ export const LOCKER_TYPE_LABELS: Record<LockerType, string> = {
 
 export const BUSINESS_STATUS_LABELS: Record<BusinessStatus, string> = {
   draft: 'BROUILLON',
-  onboarding: 'CONFIGURATION EN COURS',
-  pending_review: 'EN ATTENTE DE VÉRIFICATION',
+  onboarding: 'EN COURS',
+  pending_review: 'À VÉRIFIER',
   pending_correction: 'CORRECTION REQUISE',
   pending: 'EN ATTENTE',
   active: 'ACTIF',
@@ -47,9 +47,14 @@ export const BUSINESS_STATUS_LABELS: Record<BusinessStatus, string> = {
   blocked: 'BLOQUÉ',
 };
 
+export const ADMIN_ACCOUNT_STATUS_LABELS: Record<AdminAccountStatus, string> = {
+  active: 'ACTIF',
+  suspended: 'SUSPENDU',
+};
+
 export const ORGANIZATION_VERIFICATION_LABELS: Record<OrganizationVerificationStatus, string> = {
   not_started: 'NON VÉRIFIÉ',
-  pending: 'EN ATTENTE DE VÉRIFICATION',
+  pending: 'EN ATTENTE',
   approved: 'VÉRIFIÉ',
   rejected: 'REFUSÉ',
   correction_requested: 'CORRECTION REQUISE',

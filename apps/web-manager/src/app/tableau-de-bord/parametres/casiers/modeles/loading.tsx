@@ -1,9 +1,5 @@
-import { CardListSkeleton, PageFrame } from '@eveider/ui';
+import { SettingsBodySkeleton } from '@/components/settings-body-skeleton';
 
 export default function AdminLockerTemplatesLoading() {
-  return (
-    <PageFrame title="Casiers" layout="standard">
-      <CardListSkeleton cards={3} />
-    </PageFrame>
-  );
+  return <SettingsBodySkeleton cards={3} />;
 }

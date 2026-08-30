@@ -5,7 +5,6 @@ import type {
   OperationsSetupStepInput,
   PaymentSetupStepInput,
 } from '@eveider/api-contracts';
-import { generateBusinessAccessCode, operationalStatusAfterVerificationApproval, transitionBusiness } from '@eveider/domain';
 import { assertAdmin, type DataAccessContext } from '../context.js';
 import type { Queryable } from '../db/index.js';
 import {
@@ -624,6 +623,78 @@ export class BusinessOnboardingRepository {
     };
   }
 
+  async listOrganizationsForAdmin(
+    ctx: DataAccessContext,
+    options?: {
+      search?: string;
+      accountStatus?: 'active' | 'suspended' | 'all';
+      verificationStatus?: string | 'all';
+    },
+  ) {
+    assertAdmin(ctx);
+    const params: unknown[] = [];
+    const conditions: string[] = ['b.is_platform_org = FALSE'];
+
+    if (options?.accountStatus === 'active') {
+      conditions.push(`b.status IN ('active', 'draft', 'onboarding', 'pending_review', 'pending_correction', 'pending')`);
+    } else if (options?.accountStatus === 'suspended') {
+      conditions.push(`b.status IN ('suspended', 'blocked')`);
+    }
+
+    if (options?.verificationStatus && options.verificationStatus !== 'all') {
+      if (options.verificationStatus === 'not_started') {
+        conditions.push('latest.verification_status IS NULL');
+      } else {
+        params.push(options.verificationStatus);
+        conditions.push(`latest.verification_status = $${params.length}::"VerificationStatus"`);
+      }
+    }
+
+    if (options?.search?.trim()) {
+      params.push(`%${options.search.trim()}%`);
+      conditions.push(
+        `(b.name ILIKE $${params.length}
+          OR COALESCE(b.contact_email, '') ILIKE $${params.length}
+          OR COALESCE(owner.full_name, '') ILIKE $${params.length}
+          OR COALESCE(owner.email, '') ILIKE $${params.length})`,
+      );
+    }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const result = await this.db.query(
+      `SELECT b.*,
+              COALESCE(latest.verification_status::text, 'not_started') AS verification_status,
+              owner.full_name AS owner_name,
+              owner.email AS owner_email
+       FROM businesses b
+       LEFT JOIN LATERAL (
+         SELECT v.status AS verification_status
+         FROM business_verifications v
+         WHERE v.business_id = b.id
+         ORDER BY v.created_at DESC
+         LIMIT 1
+       ) latest ON TRUE
+       LEFT JOIN LATERAL (
+         SELECT u.full_name, u.email
+         FROM organization_memberships m
+         JOIN users u ON u.id = m.user_id
+         WHERE m.business_id = b.id AND m.role = 'account_owner'
+         ORDER BY m.created_at ASC
+         LIMIT 1
+       ) owner ON TRUE
+       ${where}
+       ORDER BY b.updated_at DESC`,
+      params,
+    );
+
+    return result.rows.map((row: Row) => ({
+      business: mapBusiness(row),
+      verificationStatus: String(row.verification_status),
+      ownerName: row.owner_name == null ? null : String(row.owner_name),
+      ownerEmail: row.owner_email == null ? null : String(row.owner_email),
+    }));
+  }
+
   async listApplications(ctx: DataAccessContext, options?: { search?: string }) {
     assertAdmin(ctx);
     const params: unknown[] = [];
@@ -753,45 +824,19 @@ export class BusinessOnboardingRepository {
         if (!currentVerification || currentVerification.status === 'approved') {
           throw new Error('Aucun dossier de vérification à approuver');
         }
-        const nextStatus = operationalStatusAfterVerificationApproval(business.status);
-        let accessCode = business.accessCode;
-        if (!accessCode) {
-          for (let attempt = 0; attempt < 8; attempt++) {
-            const candidate = generateBusinessAccessCode();
-            const existing = await tx.query(
-              `SELECT id FROM businesses WHERE access_code = $1 LIMIT 1`,
-              [candidate],
-            );
-            if (!existing.rows[0]) {
-              accessCode = candidate;
-              break;
-            }
-          }
-          if (!accessCode) {
-            throw new Error('Impossible de générer un code d’accès entreprise unique');
-          }
-        }
-        const updatedResult = await tx.query(
-          `UPDATE businesses SET status = $1, access_code = $2, updated_at = NOW() WHERE id = $3 RETURNING *`,
-          [nextStatus, accessCode, businessId],
+        await tx.query(
+          `UPDATE business_verifications
+           SET status = 'approved', reviewer_id = $1, review_notes = $2, reviewed_at = NOW(), updated_at = NOW()
+           WHERE id = $3`,
+          [ctx.userId ?? null, input.reviewNotes, currentVerification.id],
         );
-        if (currentVerification) {
-          await tx.query(
-            `UPDATE business_verifications
-             SET status = 'approved', reviewer_id = $1, review_notes = $2, reviewed_at = NOW(), updated_at = NOW()
-             WHERE id = $3`,
-            [ctx.userId ?? null, input.reviewNotes, currentVerification.id],
-          );
-        }
         for (const check of input.checks ?? []) {
-          if (currentVerification) {
-            await tx.query(
-              `UPDATE verification_checks
-               SET status = $1, notes = $2, updated_at = NOW()
-               WHERE business_verification_id = $3 AND type = $4`,
-              [check.status, check.notes ?? null, currentVerification.id, check.type],
-            );
-          }
+          await tx.query(
+            `UPDATE verification_checks
+             SET status = $1, notes = $2, updated_at = NOW()
+             WHERE business_verification_id = $3 AND type = $4`,
+            [check.status, check.notes ?? null, currentVerification.id, check.type],
+          );
         }
         for (const feedback of input.documentsFeedback ?? []) {
           await tx.query(
@@ -801,42 +846,12 @@ export class BusinessOnboardingRepository {
             [feedback.status, feedback.notes ?? null, feedback.documentId],
           );
         }
-        for (const feature of ['CREATE_SHIPMENT', 'API_ACCESS', 'COD', 'MONTHLY_INVOICE']) {
-          await tx.query(
-            `INSERT INTO business_permissions (business_id, feature, status)
-             VALUES ($1, $2, 'ENABLED')
-             ON CONFLICT (business_id, feature) DO UPDATE
-             SET status = 'ENABLED', updated_at = NOW()`,
-            [businessId, feature],
-          );
-        }
-        await tx.query(
-          `INSERT INTO business_limits
-             (business_id, daily_shipments, monthly_shipments, max_package_value_usd, cod_daily_limit_usd)
-           VALUES ($1, 50, 1000, 500.0, 200.0)
-           ON CONFLICT (business_id) DO NOTHING`,
-          [businessId],
-        );
-        if (nextStatus !== business.status) {
-          await tx.query(
-            `INSERT INTO business_status_histories
-               (business_id, previous_status, new_status, changed_by, reason)
-             VALUES ($1, $2, $3, $4, $5)`,
-            [
-              businessId,
-              business.status,
-              nextStatus,
-              ctx.userId ?? 'ADMIN',
-              input.reviewNotes ?? "Dossier approuvé par l'équipe de vérification Eveider.",
-            ],
-          );
-        }
         await tx.query(
           `INSERT INTO notifications (user_id, channel, message)
            VALUES ($1, 'sms', $2)`,
           [ctx.userId ?? null, `Votre organisation "${business.name}" est maintenant vérifiée.`],
         );
-        return mapBusiness(requiredRow(updatedResult.rows, `Business ${businessId} not found`));
+        return business;
       }
 
       if (input.action === 'request_correction') {
@@ -875,43 +890,34 @@ export class BusinessOnboardingRepository {
         return business;
       }
 
-      if (input.action === 'block') {
-        const nextStatus = transitionBusiness(business.status, 'blocked');
-        const updatedResult = await tx.query(
-          `UPDATE businesses SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
-          [nextStatus, businessId],
-        );
-        if (currentVerification) {
-          await tx.query(
-            `UPDATE business_verifications
-             SET status = 'rejected', reviewer_id = $1, review_notes = $2,
-                 reviewed_at = NOW(), updated_at = NOW()
-             WHERE id = $3`,
-            [ctx.userId ?? null, input.reviewNotes, currentVerification.id],
-          );
-        }
-        for (const check of input.checks ?? []) {
-          if (currentVerification) {
-            await tx.query(
-              `UPDATE verification_checks
-               SET status = $1, notes = $2, updated_at = NOW()
-               WHERE business_verification_id = $3 AND type = $4`,
-              [check.status, check.notes ?? null, currentVerification.id, check.type],
-            );
-          }
+      if (input.action === 'reject') {
+        if (!currentVerification) {
+          throw new Error('Aucun dossier de vérification à refuser');
         }
         await tx.query(
-          `INSERT INTO business_status_histories
-             (business_id, previous_status, new_status, changed_by, reason)
-           VALUES ($1, $2, 'blocked', $3, $4)`,
-          [
-            businessId,
-            business.status,
-            ctx.userId ?? 'ADMIN',
-            input.reviewNotes ?? 'Compte bloqué suite au contrôle de conformité.',
-          ],
+          `UPDATE business_verifications
+           SET status = 'rejected', reviewer_id = $1, review_notes = $2,
+               reviewed_at = NOW(), updated_at = NOW()
+           WHERE id = $3`,
+          [ctx.userId ?? null, input.reviewNotes, currentVerification.id],
         );
-        return mapBusiness(requiredRow(updatedResult.rows, `Business ${businessId} not found`));
+        for (const check of input.checks ?? []) {
+          await tx.query(
+            `UPDATE verification_checks
+             SET status = $1, notes = $2, updated_at = NOW()
+             WHERE business_verification_id = $3 AND type = $4`,
+            [check.status, check.notes ?? null, currentVerification.id, check.type],
+          );
+        }
+        for (const feedback of input.documentsFeedback ?? []) {
+          await tx.query(
+            `UPDATE business_documents
+             SET status = $1, notes = $2, updated_at = NOW()
+             WHERE id = $3`,
+            [feedback.status, feedback.notes ?? null, feedback.documentId],
+          );
+        }
+        return business;
       }
 
       throw new Error('Action de revue admin inconnue');

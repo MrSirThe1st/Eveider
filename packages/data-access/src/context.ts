@@ -8,6 +8,7 @@ import {
   hasOrganizationPermission,
   isDriverRole,
   isOrganizationWebRole,
+  isSuperAdmin,
 } from '@eveider/domain';
 
 export type OrganizationMembershipRef = {
@@ -167,6 +168,12 @@ export function assertAdmin(ctx: DataAccessContext): void {
   }
 }
 
+export function assertSuperAdmin(ctx: DataAccessContext): void {
+  if (!isSuperAdmin(ctx.platformRole)) {
+    throw new AccessDeniedError('Super administrateur requis');
+  }
+}
+
 export function assertBusinessScope(ctx: DataAccessContext, businessId: string): void {
   if (isPlatformAdminContext(ctx)) return;
   if (ctx.organizationId === businessId) return;
@@ -219,6 +226,7 @@ export function assertDriverRole(ctx: DataAccessContext): void {
 }
 
 export function assertBusinessRole(ctx: DataAccessContext): void {
+  if (isPlatformAdminContext(ctx)) return;
   if (!ctx.userId || !ctx.organizationId || !isOrganizationWebRole(ctx.organizationRole)) {
     throw new AccessDeniedError('Organization role required');
   }

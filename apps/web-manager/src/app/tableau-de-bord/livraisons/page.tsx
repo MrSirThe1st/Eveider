@@ -6,7 +6,7 @@ export default function AdminDeliveriesPage() {
   return (
     <PageFrame
       title="Livraisons"
-      description="Gestion des livraisons et des retraits."
+      description="Livraisons en cours et retraits."
       layout="fluid"
     >
       <Suspense fallback={<TableSkeleton rows={8} />}>

@@ -1,7 +1,7 @@
 import { createSupabaseAdminClient } from '../supabase/server.js';
 import type { DataAccessContext } from '../context.js';
 import { AccessDeniedError } from '../context.js';
-import type { User } from '../db/types.js';
+import type { User, CourierDossier } from '../db/types.js';
 import { CourierDossierRepository } from '../repositories/courier-dossier.repository.js';
 import { DeliveryRepository } from '../repositories/delivery.repository.js';
 import { NotificationRepository } from '../repositories/notification.repository.js';
@@ -76,7 +76,18 @@ export class AccountService {
     if (dossier.status !== 'approved') {
       throw new Error('Le dossier doit être approuvé avant invitation');
     }
+    return this.completeInvite(dossier);
+  }
 
+  async inviteDossier(ctx: DataAccessContext, dossierId: string) {
+    const dossier = await this.dossiers.requireInScope(ctx, dossierId);
+    if (dossier.status === 'rejected' || dossier.status === 'deactivated') {
+      throw new Error('Ce chauffeur ne peut pas être invité');
+    }
+    return this.completeInvite(dossier);
+  }
+
+  private async completeInvite(dossier: CourierDossier) {
     const admin = createSupabaseAdminClient();
     const { data, error } = await admin.auth.admin.generateLink({
       type: 'magiclink',
@@ -110,7 +121,7 @@ export class AccountService {
       });
     }
 
-    const invited = await this.dossiers.markInvited(dossier.id, user.id);
+    const invited = await this.dossiers.attachInvite(dossier, user.id);
     console.info('[eveider:driver-invite:simulated]', {
       email: dossier.email,
       redirectTo: DRIVER_INVITE_REDIRECT,

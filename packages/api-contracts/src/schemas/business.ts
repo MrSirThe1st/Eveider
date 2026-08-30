@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { businessStatusSchema } from '../schemas.js';
 import { emailSchema, phoneSchema } from './auth.js';
+import { platformDefaultFeatureSchema } from './platform.js';
 
 export const updateBusinessStatusSchema = z.object({
   status: businessStatusSchema,
@@ -176,7 +177,7 @@ export const paymentSetupStepSchema = z.object({
 // Admin Review & Decision
 export const adminReviewDecisionSchema = z
   .object({
-    action: z.enum(['approve', 'request_correction', 'block']),
+    action: z.enum(['approve', 'request_correction', 'reject']),
     reviewNotes: z.string().optional(),
     checks: z
       .array(
@@ -265,6 +266,14 @@ export const verifyBusinessPhoneOtpResponseSchema = z.object({
   businessId: z.string().uuid(),
 });
 
+export const updateOrganizationOperatingAccessSchema = z.object({
+  enabledFeatures: z.array(platformDefaultFeatureSchema).min(1, 'Au moins une fonction'),
+  dailyShipments: z.number().int().positive('Plafond invalide').max(100_000),
+  monthlyShipments: z.number().int().positive('Plafond invalide').max(1_000_000),
+  maxPackageValueUsd: z.number().positive('Plafond invalide').max(100_000),
+  codDailyLimitUsd: z.number().positive('Plafond invalide').max(100_000),
+});
+
 export type RegisterBusinessAccountResponse = z.infer<typeof registerBusinessAccountResponseSchema>;
 export type VerifyBusinessPhoneOtpResponse = z.infer<typeof verifyBusinessPhoneOtpResponseSchema>;
 export type VerifyBusinessPhoneOtpInput = z.infer<typeof verifyBusinessPhoneOtpSchema>;
@@ -273,3 +282,6 @@ export type LegalVerificationStepInput = z.infer<typeof legalVerificationStepSch
 export type OperationsSetupStepInput = z.infer<typeof operationsSetupStepSchema>;
 export type PaymentSetupStepInput = z.infer<typeof paymentSetupStepSchema>;
 export type AdminReviewDecisionInput = z.infer<typeof adminReviewDecisionSchema>;
+export type UpdateOrganizationOperatingAccessInput = z.infer<
+  typeof updateOrganizationOperatingAccessSchema
+>;

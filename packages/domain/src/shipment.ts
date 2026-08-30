@@ -38,14 +38,14 @@ export const PACKAGE_CATEGORIES: readonly PackageCategory[] = [
 export const PACKAGE_SIZES: readonly PackageSize[] = ['small', 'medium', 'large'] as const;
 
 export const SHIPMENT_PICKUP_TYPE_LABELS: Record<ShipmentPickupType, string> = {
-  courier_pickup: 'Enlèvement coursier',
+  courier_pickup: 'Un chauffeur vient chercher',
   merchant_dropoff: 'Dépôt au point Eveider',
 };
 
 export const PAYMENT_RESPONSIBILITY_LABELS: Record<PaymentResponsibility, string> = {
-  sender_pays: 'Expéditeur paie',
-  receiver_pays: 'Destinataire paie',
-  cod: 'Paiement à la livraison (COD)',
+  sender_pays: 'L’expéditeur paie',
+  receiver_pays: 'Le destinataire paie',
+  cod: 'Paiement à la livraison',
 };
 
 export const PACKAGE_CATEGORY_LABELS: Record<PackageCategory, string> = {

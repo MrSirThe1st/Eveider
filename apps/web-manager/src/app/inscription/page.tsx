@@ -7,10 +7,10 @@ export const metadata: Metadata = {
 };
 
 type PageProps = {
-  searchParams: Promise<{ invite?: string }>;
+  searchParams: Promise<{ invite?: string; adminInvite?: string }>;
 };
 
 export default async function InscriptionPage({ searchParams }: PageProps) {
-  const { invite } = await searchParams;
-  return <SignupView inviteToken={invite} />;
+  const { invite, adminInvite } = await searchParams;
+  return <SignupView inviteToken={invite} adminInviteToken={adminInvite} />;
 }

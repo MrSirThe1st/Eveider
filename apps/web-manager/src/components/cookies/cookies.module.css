@@ -2,7 +2,7 @@
   position: fixed;
   z-index: 900;
   left: 1rem;
-  right: 1rem;
+  right: max(1rem, var(--support-widget-clearance, 96px));
   bottom: max(1rem, env(safe-area-inset-bottom));
   display: flex;
   align-items: flex-end;

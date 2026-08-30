@@ -6,6 +6,7 @@ import {
   deriveOrganizationVerificationStatus,
   isOrganizationVerificationPending,
   isOrganizationVerified,
+  normalizeAdminAccountStatus,
   operationalStatusAfterVerificationApproval,
   transitionBusiness,
 } from './business.js';
@@ -19,9 +20,9 @@ describe('business account lifecycle', () => {
   });
 
   it('rejects invalid transitions', () => {
-    expect(canTransitionBusiness('draft', 'suspended')).toBe(false);
-    expect(() => transitionBusiness('draft', 'suspended')).toThrow(
-      "Transition d'état entreprise invalide: draft → suspended",
+    expect(canTransitionBusiness('draft', 'suspended')).toBe(true);
+    expect(() => transitionBusiness('draft', 'onboarding')).toThrow(
+      "Transition d'état entreprise invalide: draft → onboarding",
     );
   });
 
@@ -40,6 +41,12 @@ describe('business account lifecycle', () => {
     expect(operationalStatusAfterVerificationApproval('active')).toBe('active');
     expect(operationalStatusAfterVerificationApproval('suspended')).toBe('suspended');
     expect(operationalStatusAfterVerificationApproval('blocked')).toBe('blocked');
+  });
+
+  it('maps legacy account rows to active in admin UI', () => {
+    expect(normalizeAdminAccountStatus('pending_review')).toBe('active');
+    expect(normalizeAdminAccountStatus('blocked')).toBe('suspended');
+    expect(normalizeAdminAccountStatus('suspended')).toBe('suspended');
   });
 });
 

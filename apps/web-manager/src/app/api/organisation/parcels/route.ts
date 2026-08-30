@@ -102,7 +102,7 @@ export async function POST(request: Request) {
     if (message.includes('cannot submit parcels')) {
       return NextResponse.json(
         fail(
-          "Votre compte entreprise n'est pas encore actif. La création d'expéditions sera disponible après vérification.",
+          "Votre compte n'est pas encore activé. Vous pourrez envoyer des colis dès qu'Eveider l'aura accepté.",
         ),
         { status: 403 },
       );

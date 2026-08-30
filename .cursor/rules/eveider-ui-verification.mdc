@@ -1,0 +1,15 @@
+---
+description: Verify web-manager UI with Cursor Browser or Playwright e2e
+alwaysApply: true
+---
+
+# UI verification
+
+When changing web-manager UI, navigation, or role-gated screens:
+
+1. Prefer **Cursor Browser** tools when available — exercise the flow end to end (not screenshot-only).
+2. If Browser tools are unavailable, run Playwright against local `pnpm dev` (port 3000):
+   - `pnpm --filter @eveider/web-manager test:e2e`
+   - Specs live in `apps/web-manager/e2e/`; auth helper uses seed accounts (`EveiderDemo2026!`).
+3. For large nav / settings / UX work, add or update a Playwright spec — do not rely only on unit tests.
+4. Full guidance: `docs/blueprint/ai/ui-verification.md`.
