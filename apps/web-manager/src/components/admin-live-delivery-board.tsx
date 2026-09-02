@@ -10,6 +10,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import { DeliveryStatusBadge } from '@/components/delivery-status-badge';
 import { FlashBanner } from '@/components/flash-banner';
 import { ListSearchField } from '@/components/list-search-field';
+import { ParcelExportMenu } from '@/components/parcel-export-menu';
 import { ParcelStatusBadge } from '@/components/parcel-status-badge';
 import {
   DELIVERIES_REFRESH_MS,
@@ -259,12 +260,35 @@ export function AdminLiveDeliveryBoard() {
         </div>
       ) : null}
 
-      <div style={{ marginBottom: '1rem' }}>
-        <ListSearchField
-          value={debouncedSearch}
-          onChange={setDebouncedSearch}
-          placeholder="Rechercher par numéro de suivi…"
-          ariaLabel="Rechercher une activité par numéro de suivi"
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '0.75rem',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '1rem',
+        }}
+      >
+        <div style={{ flex: '1 1 240px', minWidth: 200 }}>
+          <ListSearchField
+            value={debouncedSearch}
+            onChange={setDebouncedSearch}
+            placeholder="Rechercher par numéro de suivi…"
+            ariaLabel="Rechercher une activité par numéro de suivi"
+          />
+        </div>
+        <ParcelExportMenu
+          compact
+          exportPath="/api/deliveries/board/export"
+          filters={{
+            view: filters.view,
+            status: filters.status === 'all' ? undefined : filters.status,
+            courierId: filters.courierId || undefined,
+            lockerId: filters.lockerId || undefined,
+            businessId: filters.businessId || undefined,
+            search: debouncedSearch.trim() || undefined,
+          }}
         />
       </div>
 

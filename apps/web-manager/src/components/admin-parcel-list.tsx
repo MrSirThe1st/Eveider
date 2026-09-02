@@ -15,6 +15,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { DashboardParcelItem } from '@/components/admin-dashboard-types';
 import { ListSearchField } from '@/components/list-search-field';
+import { ParcelExportMenu } from '@/components/parcel-export-menu';
 import {
   ParcelStatusFilters,
   type ParcelStatusFilter,
@@ -203,12 +204,31 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
     <section>
       <ParcelStatusFilters value={statusFilter} onChange={setStatusFilter} />
 
-      <div style={{ marginBottom: spacing[4] }}>
-        <ListSearchField
-          value={searchQuery}
-          onChange={setSearchQuery}
-          placeholder="Rechercher par référence ou numéro de suivi…"
-          ariaLabel="Rechercher un colis par référence ou numéro de suivi"
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: spacing[3],
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: spacing[4],
+        }}
+      >
+        <div style={{ flex: '1 1 240px', minWidth: 200 }}>
+          <ListSearchField
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Rechercher par référence ou numéro de suivi…"
+            ariaLabel="Rechercher un colis par référence ou numéro de suivi"
+          />
+        </div>
+        <ParcelExportMenu
+          compact
+          exportPath="/api/parcels/export"
+          filters={{
+            status: statusFilter === 'all' ? undefined : statusFilter,
+            search: searchQuery.trim() || undefined,
+          }}
         />
       </div>
 

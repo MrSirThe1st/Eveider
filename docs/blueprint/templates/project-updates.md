@@ -20,6 +20,48 @@ Use this file as the first project memory source before searching the codebase.
 
 ## Entries
 
+## 2026-09-02
+- Change type: Frontend
+- Description: Paramètres → Mon compte → Préférences is live on org and admin (langue + apparence). Portal stays French-only. Appearance reuses `eveider_theme` (clair / sombre / automatique) and the cookie-consent gate. Header theme toggle still sets an explicit clair/sombre.
+- Impact: `AccountPreferencesPanel`; org/admin `preferences/page.tsx` + `loading.tsx`; `applyThemePreference`; cookies policy copy.
+- Tests: Playwright settings-sidebar visits Préférences; browser on Boutique Kenya Clair/Sombre.
+
+## 2026-09-02
+- Change type: DB | API | Frontend
+- Description: Organisation API + outbound software notifications. Bearer `eveider_live_…` keys (hashed at rest, plaintext once), gated by `API_ACCESS`. Public `POST/GET /api/v1/parcels` (UUID or tracking) and `GET /api/v1/points`. After selected parcel events, best-effort HTTPS POST signed HMAC-SHA256 (`X-Eveider-Signature`); logged, no retry worker. Org Paramètres → API replaces coming-soon (Clé d’accès, Adresse de notification, Envoyer un essai). Historique actor `api_key` = CLÉ API. Admin API page stays stub.
+- Impact: migration `026_*_organization_api.sql`; `OrganizationApiRepository`; `requireOrgApiKey`; notify after `appendParcelEvent` (skipped under Vitest); org settings APIs under `/api/organisation/api/*`.
+- Tests: secrets/notify/repo unit tests; Playwright Boutique Kenya Paramètres → API create key.
+
+## 2026-09-02
+- Change type: DB | API | Frontend | Mobile
+- Description: Return leg — second delivery on the same parcel (`deliveries.kind` outbound|return). Explicit **Créer un retour** on admin and org Colis detail assigns a locker→merchant delivery. Completing a return releases the compartment, invalidates the PIN, and does not change parcel status; Colis location becomes RETOUR EN COURS / RETOURNÉ. Admin assign path fixed to `/api/parcels/[id]/assign-courier`.
+- Impact: migration `025_*_delivery_kind.sql`; `canCreateReturnLeg`; `DeliveryRepository.assign(..., kind)` / `completeDropOff` return branch; assign APIs accept `kind`; business location derivation uses latest delivery kind.
+- Tests: domain + delivery repo unit tests; Playwright on seed `LSH-1001` Créer un retour.
+
+## 2026-09-02
+- Change type: API | Frontend
+- Description: Organisation Colis detail shows the same parcel-event Historique as admin (read-only timeline). Events load in `loadBusinessParcelDetail` (Server Component first paint); shared `ParcelEventTimeline` component. `listForParcel` allows owning business with `view_parcels`.
+- Impact: `BusinessParcelDetailView.events`; org `GET /api/organisation/parcels/[id]` includes events; `ParcelEventRepository.listForParcel` business scope.
+- Tests: parcel-event repo unit tests for business access; browser on org Colis detail Historique.
+
+## 2026-09-02
+- Change type: DB | API | Frontend
+- Description: Driver dossiers link to service areas. Optional `driver_dossiers.service_area_id` (backfilled from business address city / email heuristics). Create/detail can assign a zone; admin & org chauffeur lists filter by zone; Eveider Équipes shows zone + filter for drivers. No teams table — zone ≠ team.
+- Impact: migration `024_*_driver_service_areas.sql`; roster join; `updateServiceArea`; `PATCH /api/admin/driver-dossiers/[id]`; create schemas; driver/team UI.
+- Tests: courier-dossier repo unit tests; migrate + browser/e2e on chauffeur zone filter.
+
+## 2026-09-02
+- Change type: DB | API | Frontend
+- Description: Service areas (zones de service). New `service_areas` table (code, name, city, status) with optional `lockers.service_area_id`. Seeded KIN/LSH/KWZ and backfilled lockers by city. Admin Paramètres → Casiers → Zones CRUD; Points list filters by zone; create/detail can assign a zone (auto by city when omitted).
+- Impact: migration `023_*_service_areas.sql`; `ServiceAreaRepository`; `/api/service-areas`; locker create/update/list filters; `AdminServiceAreasPanel`; Points + locker detail UI.
+- Tests: service-area repo unit tests; migrate + browser on Zones + Points filter.
+
+## 2026-09-01
+- Change type: DB | API | Frontend
+- Description: Parcel operational event / audit spine. New `parcel_events` table records lifecycle transitions with actor (`user` / `system` / `api_key`). Emitted from parcel, delivery, issue, and WhatsApp mutation sites. Admin Colis detail shows a chronological Historique timeline.
+- Impact: migration `022_*_parcel_events.sql`; domain `ParcelEventType` / labels; `ParcelEventRepository`; `GET /api/parcels/[id]` returns `events`; `AdminParcelDetail` Historique section. Notifications remain the delivery channel; events are the audit log. No PIN plaintext or photo bytes in payload.
+- Tests: unit tests for append/list/actor + delivery mocks tolerate event inserts; browser verification of Historique deferred to manual/seed flow.
+
 ## 2026-08-30
 - Change type: API | Frontend
 - Description: Livraisons board silent refresh is cheaper — still 30s auto-refresh on the active view, but pauses when the tab is hidden, resumes (and refreshes once) on return, and silent ticks request `includeMeta=0` so businesses/lockers/drivers catalogs are not reloaded. Profile + memberships cached ~30s after `getUser()` so polls do not re-hit those tables every tick. No other pages use interval polling.

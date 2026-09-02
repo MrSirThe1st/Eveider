@@ -54,6 +54,7 @@ export type LockerSummary = Locker & {
   };
   occupyingCount: number;
   availableSlots: number;
+  serviceAreaName: string | null;
 };
 
 export type LockerWithCompartments = Locker & {
@@ -68,6 +69,7 @@ export type CreateLockerInput = {
   name: string;
   address: string;
   city?: string | null;
+  serviceAreaId?: string | null;
   latitude: number;
   longitude: number;
   rows?: number;
@@ -87,6 +89,7 @@ export type UpdateLockerInput = {
   name?: string;
   address?: string;
   city?: string | null;
+  serviceAreaId?: string | null;
   latitude?: number;
   longitude?: number;
   status?: LockerStatus;
@@ -339,13 +342,24 @@ export class LockerRepository {
       .map(({ distanceKm, ...locker }) => ({ ...locker, distanceKm }));
   }
 
-  async listAll(ctx: DataAccessContext, options?: { search?: string }): Promise<LockerSummary[]> {
+  async listAll(
+    ctx: DataAccessContext,
+    options?: { search?: string; serviceAreaId?: string; city?: string },
+  ): Promise<LockerSummary[]> {
     assertAdmin(ctx);
     const params: unknown[] = [];
     let where = `l.status <> 'archived'`;
     if (options?.search?.trim()) {
       params.push(`%${options.search.trim()}%`);
       where += ` AND (l.name ILIKE $${params.length} OR l.code ILIKE $${params.length})`;
+    }
+    if (options?.serviceAreaId) {
+      params.push(options.serviceAreaId);
+      where += ` AND l.service_area_id = $${params.length}`;
+    }
+    if (options?.city) {
+      params.push(options.city);
+      where += ` AND lower(l.city) = lower($${params.length})`;
     }
     return this.listSummaries(where, params);
   }
@@ -359,12 +373,14 @@ export class LockerRepository {
     const occupyingParamIndex = params.length + 1;
     const lockersResult = await this.db.query(
       `SELECT l.*,
+              sa.name AS service_area_name,
               COALESCE(c.available, 0)::int AS available_count,
               COALESCE(c.occupied, 0)::int AS occupied_count,
               COALESCE(c.reserved, 0)::int AS reserved_count,
               COALESCE(c.total, 0)::int AS compartment_total,
               COALESCE(o.occupying, 0)::int AS occupying_count
        FROM lockers l
+       LEFT JOIN service_areas sa ON sa.id = l.service_area_id
        LEFT JOIN (
          SELECT locker_id,
                 COUNT(*) FILTER (WHERE status = 'available')::int AS available,
@@ -396,6 +412,7 @@ export class LockerRepository {
       };
       return {
         ...locker,
+        serviceAreaName: row.service_area_name == null ? null : String(row.service_area_name),
         compartmentCounts,
         occupyingCount,
         availableSlots: availableSlots({
@@ -408,9 +425,19 @@ export class LockerRepository {
     });
   }
 
-  async findById(ctx: DataAccessContext, id: string): Promise<LockerWithCompartments | null> {
+  async findById(
+    ctx: DataAccessContext,
+    id: string,
+  ): Promise<(LockerWithCompartments & { serviceAreaName: string | null }) | null> {
     assertAdmin(ctx);
-    const lockerResult = await this.db.query(`SELECT * FROM lockers WHERE id = $1 LIMIT 1`, [id]);
+    const lockerResult = await this.db.query(
+      `SELECT l.*, sa.name AS service_area_name
+       FROM lockers l
+       LEFT JOIN service_areas sa ON sa.id = l.service_area_id
+       WHERE l.id = $1
+       LIMIT 1`,
+      [id],
+    );
     const lockerRow = lockerResult.rows[0];
     if (!lockerRow) return null;
 
@@ -424,6 +451,7 @@ export class LockerRepository {
 
     return {
       ...locker,
+      serviceAreaName: lockerRow.service_area_name == null ? null : String(lockerRow.service_area_name),
       compartments,
       occupyingCount,
       availableSlots: availableSlots({
@@ -446,10 +474,69 @@ export class LockerRepository {
     throw new Error('Impossible de générer un code point unique');
   }
 
+  /** Resolve point codes for parcel import — no admin gate. */
+  async findByCodes(
+    codes: string[],
+  ): Promise<Map<string, { id: string; code: string; name: string; type: string; status: string }>> {
+    const normalized = [...new Set(codes.map((code) => normalizePointCode(code)).filter(Boolean))];
+    const map = new Map<
+      string,
+      { id: string; code: string; name: string; type: string; status: string }
+    >();
+    if (normalized.length === 0) return map;
+
+    const result = await this.db.query(
+      `SELECT id, code, name, type, status FROM lockers WHERE code = ANY($1)`,
+      [normalized],
+    );
+
+    for (const row of result.rows) {
+      const code = String(row.code);
+      map.set(code, {
+        id: String(row.id),
+        code,
+        name: String(row.name),
+        type: String(row.type),
+        status: String(row.status),
+      });
+    }
+    return map;
+  }
+
+  private async resolveServiceAreaId(
+    serviceAreaId: string | null | undefined,
+    city: string | null,
+  ): Promise<string | null> {
+    if (serviceAreaId === null) return null;
+    if (serviceAreaId) {
+      const result = await this.db.query(
+        `SELECT id, status FROM service_areas WHERE id = $1 LIMIT 1`,
+        [serviceAreaId],
+      );
+      const row = result.rows[0];
+      if (!row) throw new Error('Zone de service introuvable');
+      if (String(row.status) !== 'active') {
+        throw new Error('Cette zone de service n’est plus active');
+      }
+      return String(row.id);
+    }
+    if (!city) return null;
+    const byCity = await this.db.query(
+      `SELECT id FROM service_areas
+       WHERE status = 'active' AND lower(city) = lower($1)
+       ORDER BY created_at ASC
+       LIMIT 1`,
+      [city],
+    );
+    return byCity.rows[0] ? String(byCity.rows[0].id) : null;
+  }
+
   async create(ctx: DataAccessContext, input: CreateLockerInput): Promise<LockerWithCompartments> {
     assertAdmin(ctx);
 
     const type = input.type ?? 'SMART_LOCKER';
+    const city = resolveLockerCity(input.name, input.address, input.city);
+    const serviceAreaId = await this.resolveServiceAreaId(input.serviceAreaId, city);
     let code = input.code?.trim()
       ? normalizePointCode(input.code)
       : (await this.suggestCode(input.address)).code;
@@ -484,14 +571,15 @@ export class LockerRepository {
       return withTransaction(async (tx) => {
         const lockerResult = await tx.query(
           `INSERT INTO lockers (
-             code, name, address, city, latitude, longitude, rows, columns, status, type
-           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+             code, name, address, city, service_area_id, latitude, longitude, rows, columns, status, type
+           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
            RETURNING *`,
           [
             code,
             input.name.trim(),
             input.address.trim(),
-            resolveLockerCity(input.name, input.address, input.city),
+            city,
+            serviceAreaId,
             input.latitude,
             input.longitude,
             rows,
@@ -536,16 +624,17 @@ export class LockerRepository {
 
     const lockerResult = await this.db.query(
       `INSERT INTO lockers (
-         code, name, address, city, latitude, longitude, rows, columns, status, type,
+         code, name, address, city, service_area_id, latitude, longitude, rows, columns, status, type,
          max_capacity, contact_phone, contact_name, notes,
          commission_type, commission_value, commission_currency
-       ) VALUES ($1, $2, $3, $4, $5, $6, 0, 0, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, 0, 0, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        RETURNING *`,
       [
         code,
         input.name.trim(),
         input.address.trim(),
-        resolveLockerCity(input.name, input.address, input.city),
+        city,
+        serviceAreaId,
         input.latitude,
         input.longitude,
         input.status,
@@ -589,30 +678,36 @@ export class LockerRepository {
       input.city !== undefined
         ? input.city?.trim() || null
         : resolveLockerCity(nextName, nextAddress) ?? locker.city;
+    const nextServiceAreaId =
+      input.serviceAreaId !== undefined
+        ? await this.resolveServiceAreaId(input.serviceAreaId, nextCity)
+        : locker.serviceAreaId;
 
     const result = await this.db.query(
       `UPDATE lockers SET
          name = COALESCE($1, name),
          address = COALESCE($2, address),
          city = $3,
-         latitude = COALESCE($4, latitude),
-         longitude = COALESCE($5, longitude),
-         status = $6,
-         archived_at = $7,
-         max_capacity = COALESCE($8, max_capacity),
-         contact_phone = COALESCE($9, contact_phone),
-         contact_name = CASE WHEN $10::boolean THEN $11 ELSE contact_name END,
-         notes = CASE WHEN $12::boolean THEN $13 ELSE notes END,
-         commission_type = CASE WHEN $14::boolean THEN $15::"CommissionType" ELSE commission_type END,
-         commission_value = CASE WHEN $16::boolean THEN $17 ELSE commission_value END,
-         commission_currency = CASE WHEN $18::boolean THEN $19 ELSE commission_currency END,
+         service_area_id = $4,
+         latitude = COALESCE($5, latitude),
+         longitude = COALESCE($6, longitude),
+         status = $7,
+         archived_at = $8,
+         max_capacity = COALESCE($9, max_capacity),
+         contact_phone = COALESCE($10, contact_phone),
+         contact_name = CASE WHEN $11::boolean THEN $12 ELSE contact_name END,
+         notes = CASE WHEN $13::boolean THEN $14 ELSE notes END,
+         commission_type = CASE WHEN $15::boolean THEN $16::"CommissionType" ELSE commission_type END,
+         commission_value = CASE WHEN $17::boolean THEN $18 ELSE commission_value END,
+         commission_currency = CASE WHEN $19::boolean THEN $20 ELSE commission_currency END,
          updated_at = NOW()
-       WHERE id = $20
+       WHERE id = $21
        RETURNING *`,
       [
         input.name?.trim() ?? null,
         input.address?.trim() ?? null,
         nextCity,
+        nextServiceAreaId,
         input.latitude ?? null,
         input.longitude ?? null,
         nextStatus,

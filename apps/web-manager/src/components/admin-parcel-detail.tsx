@@ -2,10 +2,12 @@
 
 import { colors, spacing, borderSubtle, webCardStyle, webInputStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
 import {
+  DELIVERY_KIND_LABELS,
   DELIVERY_STATUS_LABELS,
   PARCEL_STATUS_LABELS,
   PARCEL_STATUSES,
   canTransitionParcel,
+  type DeliveryKind,
   type DeliveryStatus,
   type ParcelStatus,
 } from '@eveider/domain';
@@ -13,11 +15,14 @@ import { CardListSkeleton } from '@eveider/ui';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { FlashBanner } from '@/components/flash-banner';
+import { ParcelEventTimeline } from '@/components/parcel-event-timeline';
 import { ParcelStatusBadge } from '@/components/parcel-status-badge';
+import type { AdminParcelEventDto } from '@/lib/parcel-presenter';
 
 type ActiveDelivery = {
   id: string;
   status: DeliveryStatus;
+  kind: DeliveryKind;
   courier: { id: string; fullName: string | null; email: string | null };
   createdAt: string;
 };
@@ -69,8 +74,10 @@ type AdminParcelDetailProps = {
 export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
   const [parcel, setParcel] = useState<ParcelDetailData | null>(null);
   const [activeDelivery, setActiveDelivery] = useState<ActiveDelivery | null>(null);
+  const [events, setEvents] = useState<AdminParcelEventDto[]>([]);
   const [couriers, setCouriers] = useState<CourierOption[]>([]);
   const [selectedCourierId, setSelectedCourierId] = useState('');
+  const [canCreateReturn, setCanCreateReturn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -97,14 +104,19 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
       if (!result.success) {
         setError(result.error ?? 'Colis introuvable');
         setParcel(null);
+        setCanCreateReturn(false);
         return;
       }
 
       setParcel(result.data.parcel);
       setActiveDelivery(result.data.activeDelivery ?? null);
+      setCanCreateReturn(Boolean(result.data.canCreateReturn));
+      setEvents(Array.isArray(result.data.events) ? result.data.events : []);
     } catch {
-      setError('Impossible de charger le colis.');
+        setError('Impossible de charger le colis.');
       setParcel(null);
+      setEvents([]);
+      setCanCreateReturn(false);
     } finally {
       setLoading(false);
     }
@@ -115,7 +127,7 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
     void loadCouriers();
   }, [parcelId]);
 
-  async function assignCourier() {
+  async function assignCourier(kind: DeliveryKind = 'outbound') {
     if (!selectedCourierId) return;
 
     setAssigning(true);
@@ -123,10 +135,10 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
     setSuccessMessage(null);
 
     try {
-      const response = await fetch(`/api/parcels/${parcelId}/assign-driver`, {
+      const response = await fetch(`/api/parcels/${parcelId}/assign-courier`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ courierId: selectedCourierId }),
+        body: JSON.stringify({ courierId: selectedCourierId, kind }),
       });
       const result = await response.json();
 
@@ -135,11 +147,13 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
         return;
       }
 
-      setSuccessMessage('Coursier assigné');
+      setSuccessMessage(kind === 'return' ? 'Retour créé' : 'Coursier assigné');
       setSelectedCourierId('');
       await loadParcel();
     } catch {
-      setActionError('Impossible d’assigner le coursier.');
+      setActionError(
+        kind === 'return' ? 'Impossible de créer le retour.' : 'Impossible d’assigner le coursier.',
+      );
     } finally {
       setAssigning(false);
     }
@@ -165,8 +179,8 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
         return;
       }
 
-      setParcel(result.data.parcel);
       setSuccessMessage(`Statut mis à jour : ${PARCEL_STATUS_LABELS[nextStatus]}`);
+      await loadParcel();
     } catch {
       setActionError('Impossible de mettre à jour le statut.');
     } finally {
@@ -300,6 +314,7 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
           </p>
           {activeDelivery ? (
             <p style={{ margin: 0, fontWeight: 500 }}>
+              {DELIVERY_KIND_LABELS[activeDelivery.kind]} ·{' '}
               {activeDelivery.courier.fullName ?? activeDelivery.courier.email ?? 'Coursier'} —{' '}
               {DELIVERY_STATUS_LABELS[activeDelivery.status]}
             </p>
@@ -325,7 +340,7 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
               <button
                 type="button"
                 disabled={assigning || !selectedCourierId}
-                onClick={() => void assignCourier()}
+                onClick={() => void assignCourier('outbound')}
                 style={{
                   ...webSecondaryButtonStyle,
                   height: spacing.buttonHeight,
@@ -336,6 +351,45 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
               >
                 Assigner
               </button>
+            </div>
+          ) : parcel.locker && canCreateReturn ? (
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
+              <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 500 }}>
+                Créer un retour vers le marchand (casier → entreprise).
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+                <select
+                  value={selectedCourierId}
+                  onChange={(event) => setSelectedCourierId(event.target.value)}
+                  style={{
+                    ...webInputStyle,
+                    minWidth: 220,
+                    height: spacing.buttonHeight,
+                    padding: '0 0.75rem',
+                  }}
+                >
+                  <option value="">Sélectionner un coursier</option>
+                  {couriers.map((courier) => (
+                    <option key={courier.id} value={courier.id}>
+                      {courier.fullName ?? courier.email ?? courier.phone ?? courier.id}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={assigning || !selectedCourierId}
+                  onClick={() => void assignCourier('return')}
+                  style={{
+                    ...webSecondaryButtonStyle,
+                    height: spacing.buttonHeight,
+                    padding: '0 1.25rem',
+                    fontSize: '0.75rem',
+                    cursor: assigning || !selectedCourierId ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  Créer un retour
+                </button>
+              </div>
             </div>
           ) : (
             <p style={{ margin: 0, fontWeight: 500, fontSize: '0.875rem' }}>
@@ -375,6 +429,8 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
           </p>
         )}
       </section>
+
+      <ParcelEventTimeline events={events} />
     </div>
   );
 }

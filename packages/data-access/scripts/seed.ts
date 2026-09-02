@@ -720,14 +720,33 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
   const courierLubum2 = profileIds.get('courier.lubum2@eveider.cd')!;
   const courierKolwezi = profileIds.get('courier.kolwezi@eveider.cd')!;
 
+  const serviceAreaIds = await db.query(
+    `SELECT code, id FROM service_areas WHERE code = ANY($1)`,
+    [['LSH', 'KWZ']],
+  );
+  const areaByCode = new Map(
+    serviceAreaIds.rows.map((row) => [String(row.code), String(row.id)]),
+  );
+  const lubumAreaId = areaByCode.get('LSH') ?? null;
+  const kolweziAreaId = areaByCode.get('KWZ') ?? null;
+
   await db.query(
     `INSERT INTO driver_dossiers (
-       contractor_type, business_id, user_id, full_name, email, phone, id_document_url, status
+       contractor_type, business_id, user_id, full_name, email, phone, id_document_url, status,
+       service_area_id
      ) VALUES
-       ('business', $4, $1, 'Jean-Pierre Tshibanda', 'courier.lubum1@eveider.cd', '+243820100001', 'https://files.eveider.cd/id/lubum1.jpg', 'active'),
-       ('business', $4, $2, 'Ruth Mbuyi', 'courier.lubum2@eveider.cd', '+243820100002', 'https://files.eveider.cd/id/lubum2.jpg', 'active'),
-       ('business', $5, $3, 'Michel Kabwe', 'courier.kolwezi@eveider.cd', '+243820200001', 'https://files.eveider.cd/id/kolwezi.jpg', 'active')`,
-    [courierLubum1, courierLubum2, courierKolwezi, lubumBusinessId, kolweziBusinessId],
+       ('business', $4, $1, 'Jean-Pierre Tshibanda', 'courier.lubum1@eveider.cd', '+243820100001', 'https://files.eveider.cd/id/lubum1.jpg', 'active', $6),
+       ('business', $4, $2, 'Ruth Mbuyi', 'courier.lubum2@eveider.cd', '+243820100002', 'https://files.eveider.cd/id/lubum2.jpg', 'active', $6),
+       ('business', $5, $3, 'Michel Kabwe', 'courier.kolwezi@eveider.cd', '+243820200001', 'https://files.eveider.cd/id/kolwezi.jpg', 'active', $7)`,
+    [
+      courierLubum1,
+      courierLubum2,
+      courierKolwezi,
+      lubumBusinessId,
+      kolweziBusinessId,
+      lubumAreaId,
+      kolweziAreaId,
+    ],
   );
 
   const customerAmina = profileIds.get('customer.amina@eveider.cd')!;

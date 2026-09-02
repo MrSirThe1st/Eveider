@@ -62,6 +62,7 @@
 
   /* Empty inset so the Tawk bubble does not cover last rows, menus, or toasts. */
   --support-widget-clearance: max(96px, calc(76px + env(safe-area-inset-bottom, 0px)));
+  --settings-workspace-height: calc(100dvh - 56px - 24px - var(--support-widget-clearance));
 
   /* Type & shadow */
   --font-family: Inter, system-ui, -apple-system, sans-serif;
@@ -812,6 +813,85 @@ button:focus-visible,
 }
 
 /* Workspace fills the pane beside the sidebar (PostHog-style), not a centered column. */
+.settings-secondary-nav {
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 220px;
+  box-sizing: border-box;
+  max-height: var(--settings-workspace-height);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.settings-layout-shell {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  width: 100%;
+  min-height: var(--settings-workspace-height);
+}
+
+.settings-layout-shell__content {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (min-width: 901px) {
+  .portal-content:has(.settings-layout-shell) {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .settings-layout-shell {
+    flex: 1;
+    min-height: 0;
+    max-height: var(--settings-workspace-height);
+  }
+
+  .settings-layout-shell__content {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    max-height: var(--settings-workspace-height);
+  }
+
+  .settings-secondary-nav {
+    position: static;
+    max-height: var(--settings-workspace-height);
+  }
+}
+
+@media (max-width: 900px) {
+  .settings-layout-shell {
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .settings-secondary-nav {
+    position: static;
+    max-width: none;
+    max-height: none;
+    overflow-y: visible;
+    padding-right: 0 !important;
+    border-bottom: 1px solid var(--color-border-subtle);
+    margin-bottom: 1rem;
+  }
+
+  .settings-secondary-nav ul {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 4px !important;
+  }
+
+  .settings-layout-shell__content {
+    overflow-y: visible;
+    max-height: none;
+  }
+}
+
 .portal-content {
   width: 100%;
   padding-bottom: var(--support-widget-clearance) !important;

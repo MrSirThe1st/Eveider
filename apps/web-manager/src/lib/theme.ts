@@ -8,6 +8,7 @@ import {
 } from '@/lib/consent';
 
 export type ThemeName = 'light' | 'dark';
+export type ThemePreference = ThemeName | 'system';
 
 export const THEME_INIT_SCRIPT = `(function(){
   try {
@@ -31,7 +32,20 @@ export function readTheme(): ThemeName {
   return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
 }
 
-function persistThemeCookie(theme: ThemeName) {
+export function readThemePreference(): ThemePreference {
+  if (typeof document === 'undefined') return 'system';
+  const stored = readBrowserCookie(THEME_COOKIE_NAME);
+  if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
+  return 'system';
+}
+
+function resolvedTheme(preference: ThemePreference): ThemeName {
+  if (preference === 'light' || preference === 'dark') return preference;
+  if (typeof window === 'undefined') return 'light';
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function persistThemeCookie(theme: ThemePreference) {
   writeBrowserCookie(THEME_COOKIE_NAME, theme);
   try {
     window.localStorage.removeItem('eveider.theme');
@@ -44,7 +58,7 @@ export function clearThemeCookie() {
   deleteBrowserCookie(THEME_COOKIE_NAME);
 }
 
-export function persistThemeIfAllowed(theme: ThemeName = readTheme()) {
+export function persistThemeIfAllowed(theme: ThemePreference = readTheme()) {
   if (preferencesAllowed(readBrowserConsent())) {
     persistThemeCookie(theme);
   } else {
@@ -53,9 +67,15 @@ export function persistThemeIfAllowed(theme: ThemeName = readTheme()) {
 }
 
 export function applyTheme(theme: ThemeName) {
+  applyThemePreference(theme);
+}
+
+export function applyThemePreference(preference: ThemePreference) {
+  const theme = resolvedTheme(preference);
   document.documentElement.setAttribute('data-theme', theme);
   document.documentElement.style.colorScheme = theme;
-  persistThemeIfAllowed(theme);
+  persistThemeIfAllowed(preference);
+  window.dispatchEvent(new Event('eveider:theme-preference'));
 }
 
 export function toggleTheme(): ThemeName {
@@ -70,7 +90,11 @@ export function subscribeTheme(onStoreChange: () => void): () => void {
     attributes: true,
     attributeFilter: ['data-theme'],
   });
-  return () => observer.disconnect();
+  window.addEventListener('eveider:theme-preference', onStoreChange);
+  return () => {
+    observer.disconnect();
+    window.removeEventListener('eveider:theme-preference', onStoreChange);
+  };
 }
 
 export function migrateLegacyThemeStorage() {

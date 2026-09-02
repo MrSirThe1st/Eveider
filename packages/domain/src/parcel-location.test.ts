@@ -14,11 +14,13 @@ function input(partial: {
   parcelStatus?: ParcelStatus;
   pickupType?: ShipmentPickupType;
   latestDeliveryStatus?: DeliveryStatus | null;
+  latestDeliveryKind?: 'outbound' | 'return' | null;
 }): BusinessParcelLocationInput {
   return {
     parcelStatus: partial.parcelStatus ?? 'created',
     pickupType: partial.pickupType ?? 'courier_pickup',
     latestDeliveryStatus: partial.latestDeliveryStatus ?? null,
+    latestDeliveryKind: partial.latestDeliveryKind ?? null,
   };
 }
 
@@ -31,6 +33,8 @@ describe('business parcel location', () => {
       'in_transit',
       'at_locker',
       'ready_for_pickup',
+      'return_in_progress',
+      'returned_to_business',
       'collected',
     ]);
   });
@@ -43,6 +47,8 @@ describe('business parcel location', () => {
       'in_transit',
       'at_locker',
       'ready_for_pickup',
+      'return_in_progress',
+      'returned_to_business',
       'collected',
     ]);
     expect(businessParcelProgression('merchant_dropoff')).toEqual([
@@ -51,6 +57,8 @@ describe('business parcel location', () => {
       'in_transit',
       'at_locker',
       'ready_for_pickup',
+      'return_in_progress',
+      'returned_to_business',
       'collected',
     ]);
   });
@@ -133,5 +141,26 @@ describe('business parcel location', () => {
     ).map((mark) => mark.step);
     expect(steps).not.toContain('courier_assigned');
     expect(steps).not.toContain('awaiting_courier');
+  });
+
+  it('surfaces return legs from the latest delivery kind', () => {
+    expect(
+      resolveBusinessParcelLocation(
+        input({
+          parcelStatus: 'ready_for_pickup',
+          latestDeliveryKind: 'return',
+          latestDeliveryStatus: 'assigned',
+        }),
+      ),
+    ).toBe('return_in_progress');
+    expect(
+      resolveBusinessParcelLocation(
+        input({
+          parcelStatus: 'ready_for_pickup',
+          latestDeliveryKind: 'return',
+          latestDeliveryStatus: 'completed',
+        }),
+      ),
+    ).toBe('returned_to_business');
   });
 });

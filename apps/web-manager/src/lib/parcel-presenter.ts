@@ -1,4 +1,15 @@
-import { formatDeliveryFeeFc, PARCEL_STATUS_LABELS, PACKAGE_SIZE_LABELS, type PackageSize, type ParcelStatus } from '@eveider/domain';
+import {
+  formatDeliveryFeeFc,
+  PACKAGE_SIZE_LABELS,
+  PARCEL_EVENT_ACTOR_TYPE_LABELS,
+  PARCEL_EVENT_TYPE_LABELS,
+  PARCEL_STATUS_LABELS,
+  type DeliveryStatus,
+  type PackageSize,
+  type ParcelEventActorType,
+  type ParcelEventType,
+  type ParcelStatus,
+} from '@eveider/domain';
 
 export type LockerSummaryDto = {
   id: string;
@@ -72,3 +83,77 @@ export function toAdminParcelDto(parcel: {
     updatedAt: parcel.updatedAt.toISOString(),
   };
 }
+
+export type AdminParcelEventDto = {
+  id: string;
+  eventType: ParcelEventType;
+  eventTypeLabel: string;
+  actorType: ParcelEventActorType;
+  actorLabel: string;
+  previousParcelStatus: ParcelStatus | null;
+  newParcelStatus: ParcelStatus | null;
+  previousDeliveryStatus: DeliveryStatus | null;
+  newDeliveryStatus: DeliveryStatus | null;
+  summary: string | null;
+  createdAt: string;
+};
+
+function eventSummary(payload: Record<string, unknown>): string | null {
+  const parts: string[] = [];
+  if (payload.kind === 'return') parts.push('Retour');
+  if (payload.hasProof === true) parts.push('Preuve photo enregistrée');
+  if (payload.issued === true) parts.push('Code émis');
+  if (payload.pinInvalidated === true) parts.push('Code invalidé');
+  if (typeof payload.channel === 'string') {
+    const channel = payload.channel === 'whatsapp' ? 'WhatsApp' : String(payload.channel);
+    parts.push(channel);
+  }
+  if (typeof payload.template === 'string') parts.push(String(payload.template));
+  if (typeof payload.type === 'string') parts.push(String(payload.type));
+  if (typeof payload.reason === 'string') parts.push(String(payload.reason));
+  if (typeof payload.compartmentLabel === 'string') {
+    parts.push(`Compartiment ${payload.compartmentLabel}`);
+  }
+  return parts.length > 0 ? parts.join(' · ') : null;
+}
+
+/** Shared DTO for admin and organisation Colis Historique timelines. */
+export type ParcelEventDto = AdminParcelEventDto;
+
+export function toParcelEventDto(event: {
+  id: string;
+  eventType: ParcelEventType;
+  actorType: ParcelEventActorType;
+  actorFullName: string | null;
+  actorEmail: string | null;
+  previousParcelStatus: ParcelStatus | null;
+  newParcelStatus: ParcelStatus | null;
+  previousDeliveryStatus: DeliveryStatus | null;
+  newDeliveryStatus: DeliveryStatus | null;
+  payload: Record<string, unknown>;
+  createdAt: Date;
+}): ParcelEventDto {
+  const actorLabel =
+    event.actorType === 'system'
+      ? PARCEL_EVENT_ACTOR_TYPE_LABELS.system
+      : event.actorFullName?.trim() ||
+        event.actorEmail?.trim() ||
+        PARCEL_EVENT_ACTOR_TYPE_LABELS[event.actorType];
+
+  return {
+    id: event.id,
+    eventType: event.eventType,
+    eventTypeLabel: PARCEL_EVENT_TYPE_LABELS[event.eventType],
+    actorType: event.actorType,
+    actorLabel,
+    previousParcelStatus: event.previousParcelStatus,
+    newParcelStatus: event.newParcelStatus,
+    previousDeliveryStatus: event.previousDeliveryStatus,
+    newDeliveryStatus: event.newDeliveryStatus,
+    summary: eventSummary(event.payload),
+    createdAt: event.createdAt.toISOString(),
+  };
+}
+
+/** @deprecated Use toParcelEventDto */
+export const toAdminParcelEventDto = toParcelEventDto;

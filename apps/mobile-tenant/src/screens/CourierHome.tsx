@@ -138,8 +138,22 @@ export function CourierHome() {
     setScreen({ name: 'list' });
   }
 
-  function showSuccessForStatus(status: DeliveryStatus) {
-    const message = SUCCESS_MESSAGES[status];
+  function showSuccessForStatus(next: CourierDelivery) {
+    if (next.kind === 'return') {
+      if (next.status === 'scanned') {
+        setSuccessMessage('COLIS SCANNÉ — RETOUR');
+        return;
+      }
+      if (next.status === 'drop_off_pending') {
+        setSuccessMessage('ARRIVÉ CHEZ LE MARCHAND');
+        return;
+      }
+      if (next.status === 'completed') {
+        setSuccessMessage('RETOUR CONFIRMÉ');
+        return;
+      }
+    }
+    const message = SUCCESS_MESSAGES[next.status];
     if (message) setSuccessMessage(message);
   }
 
@@ -166,7 +180,7 @@ export function CourierHome() {
       setActing(false);
       if (reconciled) {
         setDelivery(reconciled);
-        showSuccessForStatus(reconciled.status);
+        showSuccessForStatus(reconciled);
         setScreen({ name: 'detail', deliveryId: screen.deliveryId });
         return;
       }
@@ -176,7 +190,7 @@ export function CourierHome() {
 
     setActing(false);
     setDelivery(result.data.delivery);
-    showSuccessForStatus(result.data.delivery.status);
+    showSuccessForStatus(result.data.delivery);
     setScreen({ name: 'detail', deliveryId: screen.deliveryId });
   }
 
@@ -193,7 +207,7 @@ export function CourierHome() {
       setActing(false);
       if (reconciled) {
         setDelivery(reconciled);
-        showSuccessForStatus(reconciled.status);
+        showSuccessForStatus(reconciled);
         return;
       }
       setError(result.error);
@@ -202,7 +216,7 @@ export function CourierHome() {
 
     setActing(false);
     setDelivery(result.data.delivery);
-    showSuccessForStatus(result.data.delivery.status);
+    showSuccessForStatus(result.data.delivery);
   }
 
   async function handleCompleteDropOff() {
@@ -222,7 +236,7 @@ export function CourierHome() {
       if (reconciled) {
         setDelivery(reconciled);
         setProofPhoto(null);
-        showSuccessForStatus(reconciled.status);
+        showSuccessForStatus(reconciled);
         setScreen({ name: 'detail', deliveryId: delivery.id });
         return;
       }
@@ -233,7 +247,7 @@ export function CourierHome() {
     setActing(false);
     setDelivery(result.data.delivery);
     setProofPhoto(null);
-    showSuccessForStatus(result.data.delivery.status);
+    showSuccessForStatus(result.data.delivery);
     setScreen({ name: 'detail', deliveryId: delivery.id });
   }
 
@@ -567,8 +581,9 @@ export function CourierHome() {
   }
 
   const showScan = delivery.status === 'assigned';
+  const isReturn = delivery.kind === 'return';
   const lockerBlocked = Boolean(
-    delivery.parcel.locker && !delivery.parcel.locker.canAcceptDropOff,
+    !isReturn && delivery.parcel.locker && !delivery.parcel.locker.canAcceptDropOff,
   );
   const showDropOff = delivery.status === 'scanned' && !lockerBlocked;
   const showComplete = delivery.status === 'drop_off_pending' && !lockerBlocked;
@@ -599,6 +614,7 @@ export function CourierHome() {
           <Text style={styles.detailReference}>{delivery.parcel.trackingNumber ?? delivery.parcel.reference}</Text>
           <DeliveryStatusBadge status={delivery.status} />
         </View>
+        {isReturn ? <Text style={styles.detailMeta}>RETOUR VERS LE MARCHAND</Text> : null}
 
         <Text style={styles.detailMeta}>{delivery.parcel.businessName}</Text>
 
@@ -611,7 +627,9 @@ export function CourierHome() {
 
         {delivery.parcel.locker ? (
           <View style={styles.detailSection}>
-            <Text style={styles.sectionLabel}>CASIER DE DESTINATION</Text>
+            <Text style={styles.sectionLabel}>
+              {isReturn ? 'POINT D’ENLÈVEMENT' : 'CASIER DE DESTINATION'}
+            </Text>
             <Text style={styles.detailText}>{delivery.parcel.locker.name}</Text>
             <Text style={styles.detailSubtext}>{delivery.parcel.locker.address}</Text>
             {delivery.parcel.compartmentLabel ? (
@@ -671,7 +689,9 @@ export function CourierHome() {
 
         {delivery.status === 'completed' ? (
           <View style={styles.completedBanner}>
-            <Text style={styles.completedText}>LIVRAISON TERMINÉE</Text>
+            <Text style={styles.completedText}>
+              {isReturn ? 'RETOUR TERMINÉ' : 'LIVRAISON TERMINÉE'}
+            </Text>
           </View>
         ) : null}
 
@@ -708,7 +728,7 @@ export function CourierHome() {
           ) : null}
           {showDropOff ? (
             <PrimaryButton
-              label="ARRIVÉ AU CASIER"
+              label={isReturn ? 'ARRIVÉ CHEZ LE MARCHAND' : 'ARRIVÉ AU CASIER'}
               onPress={() => void handleStartDropOff()}
               loading={acting}
             />
@@ -716,9 +736,11 @@ export function CourierHome() {
           {showComplete ? (
             <PrimaryButton
               label={
-                delivery.parcel.compartmentLabel
-                  ? `PHOTOGRAPHIER LE DÉPÔT · ${delivery.parcel.compartmentLabel}`
-                  : 'PHOTOGRAPHIER LE DÉPÔT'
+                isReturn
+                  ? 'PHOTOGRAPHIER LA REMISE'
+                  : delivery.parcel.compartmentLabel
+                    ? `PHOTOGRAPHIER LE DÉPÔT · ${delivery.parcel.compartmentLabel}`
+                    : 'PHOTOGRAPHIER LE DÉPÔT'
               }
               onPress={() => {
                 setProofPhoto(null);

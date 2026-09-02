@@ -1,10 +1,13 @@
-import { SettingsComingSoon } from '@/components/settings-coming-soon';
+import { PageFrame } from '@eveider/ui';
+import { AccountPreferencesPanel } from '@/components/account-preferences-panel';
+import { requireWebRole } from '@/lib/require-web-role';
 
-export default function AdminPreferencesSettingsPage() {
+export default async function AdminPreferencesSettingsPage() {
+  await requireWebRole(['admin']);
+
   return (
-    <SettingsComingSoon
-      title="Préférences"
-      description="Langue et apparence."
-    />
+    <PageFrame title="Préférences" description="Langue et apparence." layout="standard">
+      <AccountPreferencesPanel />
+    </PageFrame>
   );
 }

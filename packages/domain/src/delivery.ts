@@ -5,6 +5,9 @@ export type DeliveryStatus =
   | 'completed'
   | 'failed';
 
+/** Direction of a delivery leg. One parcel may have many deliveries over time. */
+export type DeliveryKind = 'outbound' | 'return';
+
 export const DELIVERY_STATUSES: readonly DeliveryStatus[] = [
   'assigned',
   'scanned',
@@ -12,6 +15,8 @@ export const DELIVERY_STATUSES: readonly DeliveryStatus[] = [
   'completed',
   'failed',
 ] as const;
+
+export const DELIVERY_KINDS: readonly DeliveryKind[] = ['outbound', 'return'] as const;
 
 const DELIVERY_TRANSITIONS: Record<DeliveryStatus, readonly DeliveryStatus[]> = {
   assigned: ['scanned', 'failed'],
@@ -34,6 +39,28 @@ export function transitionDelivery(from: DeliveryStatus, to: DeliveryStatus): De
 
 export function isTerminalDeliveryStatus(status: DeliveryStatus): boolean {
   return status === 'completed' || status === 'failed';
+}
+
+export function isActiveDeliveryStatus(status: DeliveryStatus): boolean {
+  return status === 'assigned' || status === 'scanned' || status === 'drop_off_pending';
+}
+
+/**
+ * Return leg (locker → merchant) may start when the parcel is at the point,
+ * the prior outbound delivery is terminal, and nothing is still in movement.
+ */
+export function canCreateReturnLeg(input: {
+  parcelStatus: import('./parcel.js').ParcelStatus;
+  hasActiveDelivery: boolean;
+  hasCompletedOutbound: boolean;
+  hasCompletedReturn?: boolean;
+}): boolean {
+  if (input.hasActiveDelivery) return false;
+  if (!input.hasCompletedOutbound) return false;
+  if (input.hasCompletedReturn) return false;
+  return (
+    input.parcelStatus === 'delivered_to_locker' || input.parcelStatus === 'ready_for_pickup'
+  );
 }
 
 /** Courier-facing history window. Active deliveries are always included. */

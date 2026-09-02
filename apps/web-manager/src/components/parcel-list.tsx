@@ -10,6 +10,9 @@ import {
   type BusinessParcelLocationFilter,
 } from '@/components/business-parcel-location-filters';
 import { ListSearchField } from '@/components/list-search-field';
+import { ParcelExportMenu } from '@/components/parcel-export-menu';
+import { ParcelImportWizard } from '@/components/parcel-import-wizard';
+import { Button } from '@eveider/ui';
 import { WEB_ROUTES, businessParcelPath } from '@/lib/auth-routing';
 import { matchesListSearch } from '@/lib/list-search';
 import type { BusinessParcelListItem } from '@/server/parcels';
@@ -29,6 +32,7 @@ type ParcelListProps = {
 export function ParcelList({ parcels }: ParcelListProps) {
   const [locationFilter, setLocationFilter] = useState<BusinessParcelLocationFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [importOpen, setImportOpen] = useState(false);
 
   const filteredParcels = useMemo(() => {
     return parcels.filter((parcel) => {
@@ -124,13 +128,37 @@ export function ParcelList({ parcels }: ParcelListProps) {
     <section>
       <BusinessParcelLocationFilters value={locationFilter} onChange={setLocationFilter} />
 
-      <div style={{ marginBottom: spacing[4] }}>
-        <ListSearchField
-          value={searchQuery}
-          onChange={setSearchQuery}
-          placeholder="Rechercher par suivi, référence ou destinataire…"
-          ariaLabel="Rechercher un colis"
-        />
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: spacing[3],
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: spacing[4],
+        }}
+      >
+        <div style={{ flex: '1 1 240px', minWidth: 200 }}>
+          <ListSearchField
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Rechercher par suivi, référence ou destinataire…"
+            ariaLabel="Rechercher un colis"
+          />
+        </div>
+        <div style={{ display: 'flex', gap: spacing[2], flexWrap: 'wrap', alignItems: 'center' }}>
+          <Button variant="secondary" size="sm" onClick={() => setImportOpen(true)}>
+            Importer Excel
+          </Button>
+          <ParcelExportMenu
+            compact
+            exportPath="/api/organisation/parcels/export"
+            filters={{
+              location: locationFilter === 'all' ? undefined : locationFilter,
+              search: searchQuery.trim() || undefined,
+            }}
+          />
+        </div>
       </div>
 
       <DataTable
@@ -165,6 +193,8 @@ export function ParcelList({ parcels }: ParcelListProps) {
           },
         ]}
       />
+
+      <ParcelImportWizard open={importOpen} onClose={() => setImportOpen(false)} />
     </section>
   );
 }

@@ -1,7 +1,9 @@
 import {
   canAcceptDropOff,
+  DELIVERY_KIND_LABELS,
   DELIVERY_STATUS_LABELS,
   LOCKER_STATUS_LABELS,
+  type DeliveryKind,
   type DeliveryStatus,
   type LockerStatus,
 } from '@eveider/domain';
@@ -10,6 +12,8 @@ export type CourierDeliveryDto = {
   id: string;
   status: DeliveryStatus;
   statusLabel: string;
+  kind: DeliveryKind;
+  kindLabel: string;
   scannedAt: string | null;
   completedAt: string | null;
   createdAt: string;
@@ -40,6 +44,7 @@ export type CourierDeliveryDto = {
 export function toCourierDeliveryDto(delivery: {
   id: string;
   status: DeliveryStatus;
+  kind?: DeliveryKind;
   scannedAt: Date | null;
   completedAt: Date | null;
   createdAt: Date;
@@ -67,6 +72,8 @@ export function toCourierDeliveryDto(delivery: {
     id: delivery.id,
     status: delivery.status,
     statusLabel: DELIVERY_STATUS_LABELS[delivery.status],
+    kind: delivery.kind ?? 'outbound',
+    kindLabel: DELIVERY_KIND_LABELS[delivery.kind ?? 'outbound'],
     scannedAt: delivery.scannedAt?.toISOString() ?? null,
     completedAt: delivery.completedAt?.toISOString() ?? null,
     createdAt: delivery.createdAt.toISOString(),

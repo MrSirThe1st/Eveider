@@ -31,6 +31,12 @@ function resolveChrome(pathname: string): { title: string; description: string }
       description: 'Modèles de grille réutilisables pour créer des casiers standardisés.',
     };
   }
+  if (pathname.startsWith(`${CASIERS_ROOT}/zones`)) {
+    return {
+      title: 'Casiers',
+      description: 'Zones de service pour regrouper les points par ville d’exploitation.',
+    };
+  }
   return {
     title: 'Casiers',
     description: 'Règles réseau pour tailles, suggestions d’affectation et rétention.',

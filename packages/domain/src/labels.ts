@@ -1,9 +1,11 @@
 import type { AdminAccountStatus, BusinessStatus, OrganizationVerificationStatus } from './business.js';
 import type { CompartmentStatus, LockerStatus, LockerType } from './locker.js';
-import type { DeliveryStatus } from './delivery.js';
+import type { DeliveryKind, DeliveryStatus } from './delivery.js';
 import type { IssueStatus, IssueType } from './issue.js';
 import type { ParcelStatus } from './parcel.js';
+import type { ParcelEventActorType, ParcelEventType } from './parcel-event.js';
 import type { BusinessParcelLocation, BusinessParcelProgressionStep } from './parcel-location.js';
+import type { ServiceAreaStatus } from './service-area.js';
 
 /** French UI labels — ALL CAPS per design DNA. */
 export const PARCEL_STATUS_LABELS: Record<ParcelStatus, string> = {
@@ -22,6 +24,8 @@ export const BUSINESS_PARCEL_LOCATION_LABELS: Record<BusinessParcelLocation, str
   in_transit: 'EN TRANSIT',
   at_locker: 'ARRIVÉ AU POINT',
   ready_for_pickup: 'PRÊT POUR RETRAIT',
+  return_in_progress: 'RETOUR EN COURS',
+  returned_to_business: 'RETOURNÉ',
   collected: 'RETIRÉ',
 };
 
@@ -81,6 +85,11 @@ export const DELIVERY_STATUS_LABELS: Record<DeliveryStatus, string> = {
   failed: 'ÉCHOUÉ',
 };
 
+export const DELIVERY_KIND_LABELS: Record<DeliveryKind, string> = {
+  outbound: 'ALLER',
+  return: 'RETOUR',
+};
+
 export const ISSUE_TYPE_LABELS: Record<IssueType, string> = {
   failed_delivery: 'LIVRAISON ÉCHOUÉE',
   locker_unavailable: 'CASIER INDISPONIBLE',
@@ -92,4 +101,32 @@ export const ISSUE_STATUS_LABELS: Record<IssueStatus, string> = {
   open: 'OUVERT',
   in_progress: 'EN COURS',
   resolved: 'RÉSOLU',
+};
+
+export const PARCEL_EVENT_TYPE_LABELS: Record<ParcelEventType, string> = {
+  'parcel.created': 'COLIS CRÉÉ',
+  'parcel.status_changed': 'STATUT COLIS MODIFIÉ',
+  'delivery.assigned': 'LIVRAISON ASSIGNÉE',
+  'delivery.scanned': 'COLIS SCANNÉ',
+  'delivery.drop_off_pending': 'DÉPÔT EN ATTENTE',
+  'delivery.completed': 'DÉPÔT TERMINÉ',
+  'delivery.failed': 'LIVRAISON ÉCHOUÉE',
+  'compartment.reserved': 'COMPARTIMENT RÉSERVÉ',
+  'compartment.occupied': 'COMPARTIMENT OCCUPÉ',
+  'compartment.released': 'COMPARTIMENT LIBÉRÉ',
+  'pickup_pin.issued': 'CODE DE RETRAIT ÉMIS',
+  'notification.sent': 'NOTIFICATION ENVOYÉE',
+  'notification.failed': 'NOTIFICATION ÉCHOUÉE',
+  'issue.opened': 'INCIDENT OUVERT',
+};
+
+export const PARCEL_EVENT_ACTOR_TYPE_LABELS: Record<ParcelEventActorType, string> = {
+  user: 'UTILISATEUR',
+  system: 'SYSTÈME',
+  api_key: 'CLÉ API',
+};
+
+export const SERVICE_AREA_STATUS_LABELS: Record<ServiceAreaStatus, string> = {
+  active: 'ACTIVE',
+  archived: 'ARCHIVÉE',
 };

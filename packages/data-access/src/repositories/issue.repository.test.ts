@@ -3,6 +3,7 @@ import { createDataAccessContext } from '../context.js';
 import {
   createSqlMatchMock,
   issueRow,
+  parcelEventRow,
   sqlIncludes,
 } from '../test/query-mock.js';
 import { IssueRepository } from './issue.repository.js';
@@ -17,7 +18,16 @@ describe('IssueRepository', () => {
       values?: unknown[],
     ) => Record<string, unknown> | Record<string, unknown>[] | null,
   ) {
-    db = createSqlMatchMock(resolve);
+    db = createSqlMatchMock((sql, values) => {
+      if (sqlIncludes(sql, 'INSERT INTO parcel_events')) {
+        return parcelEventRow({
+          event_type: typeof values?.[4] === 'string' ? values[4] : 'issue.opened',
+          parcel_id: typeof values?.[0] === 'string' ? values[0] : 'parcel-1',
+          issue_id: values?.[2] == null ? null : String(values[2]),
+        });
+      }
+      return resolve(sql, values);
+    });
     repo = new IssueRepository(db);
   }
 

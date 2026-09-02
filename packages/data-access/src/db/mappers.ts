@@ -14,12 +14,17 @@ import type {
   Issue,
   Locker,
   Notification,
+  OrganizationApiKey,
+  OrganizationNotificationDelivery,
+  OrganizationNotificationEndpoint,
   Parcel,
+  ParcelEvent,
   ParcelInvite,
   BusinessTeamInvite,
   PlatformAdminInvite,
   ParcelPayment,
   PickupPin,
+  ServiceArea,
   SettlementAccount,
   User,
   VerificationCheck,
@@ -95,6 +100,7 @@ export function mapLocker(row: Record<string, unknown>): Locker {
     name: String(row.name),
     address: String(row.address),
     city: row.city == null || row.city === '' ? null : String(row.city),
+    serviceAreaId: row.service_area_id == null ? null : String(row.service_area_id),
     latitude: row.latitude == null ? null : Number(row.latitude),
     longitude: row.longitude == null ? null : Number(row.longitude),
     rows: Number(row.rows),
@@ -109,6 +115,19 @@ export function mapLocker(row: Record<string, unknown>): Locker {
     commissionCurrency: row.commission_currency == null ? null : String(row.commission_currency),
     status: row.status as Locker['status'],
     archivedAt: asDateOrNull(row.archived_at),
+    createdAt: asDate(row.created_at),
+    updatedAt: asDate(row.updated_at),
+  };
+}
+
+export function mapServiceArea(row: Record<string, unknown>): ServiceArea {
+  return {
+    id: String(row.id),
+    code: String(row.code),
+    name: String(row.name),
+    city: String(row.city),
+    status: row.status as ServiceArea['status'],
+    notes: row.notes == null ? null : String(row.notes),
     createdAt: asDate(row.created_at),
     updatedAt: asDate(row.updated_at),
   };
@@ -177,6 +196,7 @@ export function mapDelivery(row: Record<string, unknown>): Delivery {
     parcelId: String(row.parcel_id),
     driverId: String(row.driver_id),
     courierId: String(row.driver_id),
+    kind: row.kind === 'return' ? 'return' : 'outbound',
     status: row.status as Delivery['status'],
     scannedAt: asDateOrNull(row.scanned_at),
     completedAt: asDateOrNull(row.completed_at),
@@ -420,6 +440,7 @@ export function mapCourierDossier(row: Record<string, unknown>): CourierDossier 
     notes: row.notes == null ? null : String(row.notes),
     reviewNotes: row.review_notes == null ? null : String(row.review_notes),
     status: row.status as CourierDossier['status'],
+    serviceAreaId: row.service_area_id == null ? null : String(row.service_area_id),
     createdByUserId: row.created_by_user_id == null ? null : String(row.created_by_user_id),
     reviewedByUserId: row.reviewed_by_user_id == null ? null : String(row.reviewed_by_user_id),
     reviewedAt: asDateOrNull(row.reviewed_at),
@@ -427,5 +448,94 @@ export function mapCourierDossier(row: Record<string, unknown>): CourierDossier 
     deactivatedAt: asDateOrNull(row.deactivated_at),
     createdAt: asDate(row.created_at),
     updatedAt: asDate(row.updated_at),
+  };
+}
+
+function asPayload(value: unknown): Record<string, unknown> {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  if (typeof value === 'string') {
+    try {
+      const parsed: unknown = JSON.parse(value);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+export function mapParcelEvent(row: Record<string, unknown>): ParcelEvent {
+  return {
+    id: String(row.id),
+    parcelId: String(row.parcel_id),
+    deliveryId: row.delivery_id == null ? null : String(row.delivery_id),
+    issueId: row.issue_id == null ? null : String(row.issue_id),
+    compartmentId: row.compartment_id == null ? null : String(row.compartment_id),
+    eventType: row.event_type as ParcelEvent['eventType'],
+    actorType: row.actor_type as ParcelEvent['actorType'],
+    actorUserId: row.actor_user_id == null ? null : String(row.actor_user_id),
+    previousParcelStatus:
+      row.previous_parcel_status == null
+        ? null
+        : (row.previous_parcel_status as ParcelEvent['previousParcelStatus']),
+    newParcelStatus:
+      row.new_parcel_status == null ? null : (row.new_parcel_status as ParcelEvent['newParcelStatus']),
+    previousDeliveryStatus:
+      row.previous_delivery_status == null
+        ? null
+        : (row.previous_delivery_status as ParcelEvent['previousDeliveryStatus']),
+    newDeliveryStatus:
+      row.new_delivery_status == null
+        ? null
+        : (row.new_delivery_status as ParcelEvent['newDeliveryStatus']),
+    payload: asPayload(row.payload),
+    createdAt: asDate(row.created_at),
+  };
+}
+
+export function mapOrganizationApiKey(row: Record<string, unknown>): OrganizationApiKey {
+  return {
+    id: String(row.id),
+    businessId: String(row.business_id),
+    name: String(row.name),
+    keyPrefix: String(row.key_prefix),
+    secretHash: String(row.secret_hash),
+    lastUsedAt: asDateOrNull(row.last_used_at),
+    revokedAt: asDateOrNull(row.revoked_at),
+    createdAt: asDate(row.created_at),
+  };
+}
+
+export function mapOrganizationNotificationEndpoint(
+  row: Record<string, unknown>,
+): OrganizationNotificationEndpoint {
+  return {
+    id: String(row.id),
+    businessId: String(row.business_id),
+    url: row.url == null || String(row.url).trim() === '' ? null : String(row.url),
+    signingSecret: String(row.signing_secret),
+    status: row.status === 'disabled' ? 'disabled' : 'active',
+    createdAt: asDate(row.created_at),
+    updatedAt: asDate(row.updated_at),
+  };
+}
+
+export function mapOrganizationNotificationDelivery(
+  row: Record<string, unknown>,
+): OrganizationNotificationDelivery {
+  return {
+    id: String(row.id),
+    endpointId: String(row.endpoint_id),
+    parcelId: row.parcel_id == null ? null : String(row.parcel_id),
+    eventId: row.event_id == null ? null : String(row.event_id),
+    eventType: String(row.event_type),
+    status: row.status === 'sent' ? 'sent' : 'failed',
+    httpStatus: row.http_status == null ? null : Number(row.http_status),
+    error: row.error == null ? null : String(row.error),
+    createdAt: asDate(row.created_at),
   };
 }

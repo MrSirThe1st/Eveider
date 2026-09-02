@@ -8,6 +8,7 @@ import type {
   CommissionType,
   CompartmentSize,
   CompartmentStatus,
+  DeliveryKind,
   DeliveryStatus,
   DriverDossierStatus,
   IssueStatus,
@@ -17,9 +18,12 @@ import type {
   OrganizationRole,
   PackageCategory,
   PackageSize,
+  ParcelEventActorType,
+  ParcelEventType,
   ParcelStatus,
   PaymentResponsibility,
   PlatformRole,
+  ServiceAreaStatus,
   ShipmentPickupType,
 } from '@eveider/domain';
 export type PaymentStatus = 'pending' | 'processing' | 'completed' | 'failed';
@@ -139,6 +143,7 @@ export type Locker = {
   name: string;
   address: string;
   city: string | null;
+  serviceAreaId: string | null;
   latitude: number | null;
   longitude: number | null;
   rows: number;
@@ -153,6 +158,17 @@ export type Locker = {
   commissionCurrency: string | null;
   status: LockerStatus;
   archivedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type ServiceArea = {
+  id: string;
+  code: string;
+  name: string;
+  city: string;
+  status: ServiceAreaStatus;
+  notes: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -242,6 +258,7 @@ export type Delivery = {
   driverId: string;
   /** @deprecated alias of driverId */
   courierId: string;
+  kind: DeliveryKind;
   status: DeliveryStatus;
   scannedAt: Date | null;
   completedAt: Date | null;
@@ -403,6 +420,56 @@ export type BusinessStatusHistory = {
   createdAt: Date;
 };
 
+export type ParcelEvent = {
+  id: string;
+  parcelId: string;
+  deliveryId: string | null;
+  issueId: string | null;
+  compartmentId: string | null;
+  eventType: ParcelEventType;
+  actorType: ParcelEventActorType;
+  actorUserId: string | null;
+  previousParcelStatus: ParcelStatus | null;
+  newParcelStatus: ParcelStatus | null;
+  previousDeliveryStatus: DeliveryStatus | null;
+  newDeliveryStatus: DeliveryStatus | null;
+  payload: Record<string, unknown>;
+  createdAt: Date;
+};
+
+export type OrganizationApiKey = {
+  id: string;
+  businessId: string;
+  name: string;
+  keyPrefix: string;
+  secretHash: string;
+  lastUsedAt: Date | null;
+  revokedAt: Date | null;
+  createdAt: Date;
+};
+
+export type OrganizationNotificationEndpoint = {
+  id: string;
+  businessId: string;
+  url: string | null;
+  signingSecret: string;
+  status: 'active' | 'disabled';
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type OrganizationNotificationDelivery = {
+  id: string;
+  endpointId: string;
+  parcelId: string | null;
+  eventId: string | null;
+  eventType: string;
+  status: 'sent' | 'failed';
+  httpStatus: number | null;
+  error: string | null;
+  createdAt: Date;
+};
+
 export type BusinessVerification = {
   id: string;
   businessId: string;
@@ -440,6 +507,7 @@ export type DriverDossier = {
   notes: string | null;
   reviewNotes: string | null;
   status: DriverDossierStatus;
+  serviceAreaId: string | null;
   createdByUserId: string | null;
   reviewedByUserId: string | null;
   reviewedAt: Date | null;

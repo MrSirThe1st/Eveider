@@ -11,7 +11,7 @@ export type { LockerSummaryDto, BusinessLockerDto };
 
 export async function listLockers(
   ctx: DataAccessContext,
-  options?: { search?: string },
+  options?: { search?: string; serviceAreaId?: string; city?: string },
 ): Promise<LockerSummaryDto[]> {
   const { lockers } = createRepositories();
   const items = await lockers.listAll(ctx, options);

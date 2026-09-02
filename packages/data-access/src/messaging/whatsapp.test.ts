@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createSqlMatchMock,
+  parcelEventRow,
   parcelRow,
   sqlIncludes,
 } from '../test/query-mock.js';
@@ -137,6 +138,9 @@ describe('sendParcelStatusWhatsApp', () => {
         inserts.push(values ?? []);
         return null;
       }
+      if (sqlIncludes(sql, 'INSERT INTO parcel_events')) {
+        return parcelEventRow({ event_type: 'notification.sent' });
+      }
       throw new Error(`Unexpected SQL: ${sql}`);
     });
 
@@ -184,6 +188,9 @@ describe('sendParcelStatusWhatsApp', () => {
       }
       if (sqlIncludes(sql, 'INSERT INTO notifications')) {
         return null;
+      }
+      if (sqlIncludes(sql, 'INSERT INTO parcel_events')) {
+        return parcelEventRow({ event_type: 'notification.sent' });
       }
       throw new Error(`Unexpected SQL: ${sql}`);
     });

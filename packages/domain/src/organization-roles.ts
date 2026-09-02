@@ -21,7 +21,7 @@ export const ORGANIZATION_WEB_ROLES: readonly OrganizationRole[] = [
 export const ORGANIZATION_ROLE_LABELS: Record<OrganizationRole, string> = {
   account_owner: 'Propriétaire',
   admin: 'Administrateur',
-  dispatcher: 'Régulateur',
+  dispatcher: 'Dispatcher',
   driver: 'Chauffeur',
 };
 

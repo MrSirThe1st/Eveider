@@ -41,6 +41,7 @@ export async function POST(request: Request) {
       phone: body.data.phone,
       idDocumentUrl: body.data.idDocumentUrl,
       notes: body.data.notes,
+      serviceAreaId: body.data.serviceAreaId,
     });
     let invited = false;
     try {

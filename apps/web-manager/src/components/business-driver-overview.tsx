@@ -1,13 +1,17 @@
 import { colors, spacing, typography } from '@eveider/config-ui';
 import { Card, CardHeader } from '@eveider/ui';
 import type { ReactNode } from 'react';
+import { DriverServiceAreaField } from '@/components/driver-service-area-field';
 import { DriverStatusBadge } from '@/components/driver-status-badge';
+import type { ServiceAreaOptionDto } from '@/lib/service-area-presenter';
 import type { DriverDetail } from '@/server/drivers';
 
 type BusinessDriverOverviewProps = {
   driver: DriverDetail;
   /** Show organization / Eveider fleet on admin screens. */
   showOrganization?: boolean;
+  serviceAreas?: ServiceAreaOptionDto[];
+  serviceAreaApiPath?: string;
 };
 
 function dash(value: string | null | undefined): ReactNode {
@@ -46,6 +50,8 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 export function BusinessDriverOverview({
   driver,
   showOrganization = false,
+  serviceAreas = [],
+  serviceAreaApiPath,
 }: BusinessDriverOverviewProps) {
   return (
     <div style={{ display: 'grid', gap: spacing[5] }}>
@@ -84,7 +90,18 @@ export function BusinessDriverOverview({
           </Field>
           <Field label="Pièces">{driver.dossierStatusLabel}</Field>
           <Field label="Équipe">{dash(driver.team)}</Field>
-          <Field label="Zone">{dash(driver.serviceArea)}</Field>
+          <Field label="Zone de service">
+            {serviceAreaApiPath ? (
+              <DriverServiceAreaField
+                apiPath={serviceAreaApiPath}
+                serviceAreaId={driver.serviceAreaId}
+                serviceAreaName={driver.serviceArea}
+                serviceAreas={serviceAreas}
+              />
+            ) : (
+              dash(driver.serviceArea)
+            )}
+          </Field>
           <Field label="Véhicule">{dash(driver.vehicle)}</Field>
           <Field label="Position actuelle">{dash(driver.currentLocation)}</Field>
           <Field label="Livraison en cours">{dash(driver.currentDelivery)}</Field>

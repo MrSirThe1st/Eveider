@@ -1,4 +1,4 @@
-import { createLockerSchema, fail, ok } from '@eveider/api-contracts';
+import { createLockerSchema, fail, listLockersQuerySchema, ok } from '@eveider/api-contracts';
 import { createRepositories } from '@eveider/data-access';
 import { NextResponse } from 'next/server';
 import { toLockerDetailDto } from '@/lib/locker-presenter';
@@ -15,11 +15,21 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const search = searchParams.get('search') ?? undefined;
+  const parsed = listLockersQuerySchema.safeParse({
+    search: searchParams.get('search') ?? undefined,
+    serviceAreaId: searchParams.get('serviceAreaId') ?? undefined,
+    city: searchParams.get('city') ?? undefined,
+  });
+  if (!parsed.success) {
+    perf.flush(400);
+    return NextResponse.json(fail(parsed.error.errors[0]?.message ?? 'Paramètres invalides'), {
+      status: 400,
+    });
+  }
 
   try {
     const lockers = await perf.measure('db.lockers.list', () =>
-      listLockers(auth.session.ctx, { search }),
+      listLockers(auth.session.ctx, parsed.data),
     );
 
     perf.flush(200);

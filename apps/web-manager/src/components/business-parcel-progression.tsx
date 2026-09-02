@@ -76,6 +76,18 @@ export function locationStatusCopy(location: BusinessParcelLocation): {
   title: string;
   body: string;
 } {
+  if (location === 'returned_to_business') {
+    return {
+      title: 'Retourné',
+      body: 'Le colis a été ramené à votre entreprise. Le compartiment du point a été libéré.',
+    };
+  }
+  if (location === 'return_in_progress') {
+    return {
+      title: 'Retour en cours',
+      body: 'Un coursier ramène le colis du point vers votre entreprise.',
+    };
+  }
   if (location === 'collected') {
     return {
       title: 'Retiré',

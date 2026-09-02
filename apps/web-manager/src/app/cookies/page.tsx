@@ -60,9 +60,9 @@ export default function CookiesPage() {
           </p>
           <ul>
             <li>
-              <strong>eveider_theme</strong> — mémorise le thème clair ou sombre. Durée : 180 jours.
-              Sans ce cookie, le thème peut suivre les réglages de votre appareil le temps de la
-              visite, sans être conservé.
+              <strong>eveider_theme</strong> — mémorise l’affichage clair, sombre, ou automatique
+              (réglages de l’appareil). Durée : 180 jours. Sans ce cookie, le thème peut suivre
+              l’appareil le temps de la visite, sans être conservé.
             </li>
           </ul>
 

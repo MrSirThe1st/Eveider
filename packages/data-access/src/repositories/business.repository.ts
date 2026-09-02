@@ -9,7 +9,7 @@ import {
 } from '@eveider/domain';
 import type { Queryable } from '../db/index.js';
 import { mapBusiness, mapBusinessLimit, mapBusinessPermission } from '../db/mappers.js';
-import type { Business } from '../db/types.js';
+import type { Business, FeatureName } from '../db/types.js';
 import { assertAdmin, assertBusinessScope, type DataAccessContext } from '../context.js';
 import { PLATFORM_DEFAULT_FEATURES } from './platform-settings.repository.js';
 
@@ -285,6 +285,17 @@ export class BusinessRepository {
     if (!canSubmitParcelsAsBusiness(business.status)) {
       throw new Error(`Business ${businessId} cannot submit parcels (status: ${business.status})`);
     }
+  }
+
+  /** Explicit ENABLED row — does not fall back to platform defaults. */
+  async hasFeatureEnabled(businessId: string, feature: FeatureName): Promise<boolean> {
+    const result = await this.db.query(
+      `SELECT 1 FROM business_permissions
+       WHERE business_id = $1 AND feature = $2 AND status = 'ENABLED'
+       LIMIT 1`,
+      [businessId, feature],
+    );
+    return Boolean(result.rows[0]);
   }
 
   canTransition(from: BusinessStatus, to: BusinessStatus): boolean {

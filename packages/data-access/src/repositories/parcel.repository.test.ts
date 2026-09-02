@@ -1,14 +1,29 @@
 import type { ParcelStatus } from '@eveider/domain';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDataAccessContext } from '../context.js';
+import type { Queryable } from '../db/pool.js';
 import {
   businessRow,
   createSqlMatchMock,
   lockerRow,
+  parcelEventRow,
   parcelRow,
   sqlIncludes,
 } from '../test/query-mock.js';
 import { ParcelRepository } from './parcel.repository.js';
+
+const txDb: { current: Queryable | null } = { current: null };
+
+vi.mock('../db/pool.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../db/pool.js')>();
+  return {
+    ...actual,
+    withTransaction: vi.fn(async <T>(fn: (client: Queryable) => Promise<T>) => {
+      if (!txDb.current) throw new Error('Test db not set for withTransaction');
+      return fn(txDb.current);
+    }),
+  };
+});
 
 const shipmentInput = {
   businessId: 'biz-1',
@@ -39,7 +54,16 @@ describe('ParcelRepository', () => {
       values?: unknown[],
     ) => Record<string, unknown> | Record<string, unknown>[] | null,
   ) {
-    db = createSqlMatchMock(resolve);
+    db = createSqlMatchMock((sql, values) => {
+      if (sqlIncludes(sql, 'INSERT INTO parcel_events')) {
+        return parcelEventRow({
+          event_type: typeof values?.[4] === 'string' ? values[4] : 'parcel.created',
+          parcel_id: typeof values?.[0] === 'string' ? values[0] : 'parcel-1',
+        });
+      }
+      return resolve(sql, values);
+    });
+    txDb.current = db;
     repo = new ParcelRepository(
       db,
       { notifyParcelCreatedForCustomer, notifyParcelStatusChange } as never,
@@ -293,6 +317,7 @@ describe('ParcelRepository', () => {
         recipientPhone: '+243000000000',
         locker: { name: 'Gombe', address: 'Boulevard du 30 Juin' },
         latestDeliveryStatus: 'assigned',
+        latestDeliveryKind: null,
         createdAt: new Date('2026-01-15T12:00:00.000Z'),
       },
     ]);
@@ -316,7 +341,31 @@ describe('ParcelRepository', () => {
     const parcel = await repo.findForBusiness(ctx, 'biz-1', 'parcel-1');
 
     expect(parcel?.latestDeliveryStatus).toBe('assigned');
+    expect(parcel?.latestDeliveryKind).toBeNull();
     expect(parcel?.pickupType).toBe('courier_pickup');
     expect(parcel?.id).toBe('parcel-1');
+  });
+
+  it('looks up a business parcel by tracking number', async () => {
+    setup((sql) => {
+      if (sqlIncludes(sql, 'SELECT id FROM parcels WHERE tracking_number')) {
+        return { id: 'parcel-1' };
+      }
+      if (sqlIncludes(sql, 'latest_delivery_status') && sqlIncludes(sql, 'business_id = $2')) {
+        return {
+          ...parcelRow(),
+          locker_row: lockerRow(),
+          business_row: businessRow(),
+          compartment_json: null,
+          latest_delivery_status: null,
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const ctx = createDataAccessContext('business', { businessId: 'biz-1' });
+    const parcel = await repo.findForBusinessByIdOrTracking(ctx, 'biz-1', 'EVD26TEST0001A');
+    expect(parcel?.id).toBe('parcel-1');
+    expect(parcel?.trackingNumber).toBe('EVD26TEST0001A');
   });
 });

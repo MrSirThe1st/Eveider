@@ -36,6 +36,7 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
 export function AdminDriverList({ drivers }: AdminDriverListProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [orgFilter, setOrgFilter] = useState('all');
+  const [zoneFilter, setZoneFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   const orgOptions = useMemo(() => {
@@ -51,19 +52,40 @@ export function AdminDriverList({ drivers }: AdminDriverListProps) {
     ];
   }, [drivers]);
 
+  const zoneOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const driver of drivers) {
+      if (driver.serviceAreaId && driver.serviceAreaName) {
+        map.set(driver.serviceAreaId, driver.serviceAreaName);
+      }
+    }
+    return [
+      { value: 'all', label: 'Toutes' },
+      { value: 'none', label: 'Non assignée' },
+      ...[...map.entries()]
+        .sort((a, b) => a[1].localeCompare(b[1], 'fr'))
+        .map(([value, label]) => ({ value, label })),
+    ];
+  }, [drivers]);
+
   const filtered = useMemo(() => {
     return drivers.filter((driver) => {
       if (statusFilter !== 'all' && driver.status !== statusFilter) return false;
       if (orgFilter !== 'all' && driver.organizationKey !== orgFilter) return false;
+      if (zoneFilter === 'none' && driver.serviceAreaId) return false;
+      if (zoneFilter !== 'all' && zoneFilter !== 'none' && driver.serviceAreaId !== zoneFilter) {
+        return false;
+      }
       return matchesListSearch(
         searchQuery,
         driver.fullName,
         driver.email,
         driver.organizationLabel,
+        driver.serviceAreaName,
         driver.currentDelivery,
       );
     });
-  }, [drivers, searchQuery, statusFilter, orgFilter]);
+  }, [drivers, searchQuery, statusFilter, orgFilter, zoneFilter]);
 
   const columns = useMemo<DataTableColumn<DriverListItem>[]>(
     () => [
@@ -95,6 +117,19 @@ export function AdminDriverList({ drivers }: AdminDriverListProps) {
         sortable: true,
         sortValue: (row) => row.organizationLabel,
         cell: (row) => row.organizationLabel,
+      },
+      {
+        id: 'zone',
+        header: 'Zone',
+        sortable: true,
+        sortValue: (row) => row.serviceAreaName ?? '',
+        hideOnMobile: true,
+        cell: (row) =>
+          row.serviceAreaName ? (
+            row.serviceAreaName
+          ) : (
+            <span style={{ color: colors.textMuted }}>—</span>
+          ),
       },
       {
         id: 'status',
@@ -136,6 +171,7 @@ export function AdminDriverList({ drivers }: AdminDriverListProps) {
         onClearAll={() => {
           setStatusFilter('all');
           setOrgFilter('all');
+          setZoneFilter('all');
         }}
         filters={[
           {
@@ -153,6 +189,14 @@ export function AdminDriverList({ drivers }: AdminDriverListProps) {
             emptyValue: 'all',
             options: orgOptions,
             onChange: setOrgFilter,
+          },
+          {
+            id: 'driver-zone',
+            label: 'Zone',
+            value: zoneFilter,
+            emptyValue: 'all',
+            options: zoneOptions,
+            onChange: setZoneFilter,
           },
         ]}
       />

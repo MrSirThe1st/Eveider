@@ -1,8 +1,11 @@
 import { createParcelSchema, fail, listParcelsQuerySchema, ok } from '@eveider/api-contracts';
 import { createRepositories } from '@eveider/data-access';
 import { NextResponse } from 'next/server';
-import { buildDeliveryQuote } from '@/lib/delivery-quote';
 import { toParcelDto } from '@/lib/business-parcel-presenter';
+import {
+  createOrganisationParcel,
+  organisationParcelCreateStatus,
+} from '@/lib/create-organisation-parcel';
 import { requireBusinessSession } from '@/lib/session';
 
 export async function GET(request: Request) {
@@ -49,75 +52,22 @@ export async function POST(request: Request) {
   }
 
   try {
-    const quote = await buildDeliveryQuote({
-      businessId: auth.session.profile.businessId!,
-      lockerId: body.data.lockerId,
-      compartmentId: body.data.compartmentId,
-      packageSize: body.data.packageSize,
-      senderAddress: body.data.senderAddress,
-    });
-
-    const { parcels } = createRepositories();
-    const result = await parcels.create(auth.session.ctx, {
-      businessId: auth.session.profile.businessId!,
-      reference: body.data.reference,
-      pickupType: body.data.pickupType,
-      senderName: body.data.senderName,
-      senderPhone: body.data.senderPhone,
-      senderAddress: body.data.senderAddress,
-      recipientPhone: body.data.recipientPhone,
-      recipientName: body.data.recipientName,
-      recipientEmail: body.data.recipientEmail,
-      lockerId: body.data.lockerId,
-      compartmentId: body.data.compartmentId,
-      packageSize: body.data.packageSize,
-      packageLengthCm: body.data.packageLengthCm,
-      packageWidthCm: body.data.packageWidthCm,
-      packageHeightCm: body.data.packageHeightCm,
-      packageWeightKg: body.data.packageWeightKg,
-      packageCategory: body.data.packageCategory,
-      declaredValueCdf: body.data.declaredValueCdf,
-      declaredValueUsd: body.data.declaredValueUsd,
-      paymentResponsibility: body.data.paymentResponsibility,
-      codAmountCdf: body.data.codAmountCdf,
-      codAmountUsd: body.data.codAmountUsd,
-      deliveryFeeFc: quote.deliveryFeeFc,
-      deliveryDistanceKm: quote.deliveryDistanceKm,
-      pricingSizeUsed: quote.pricingSizeUsed,
-    });
+    const result = await createOrganisationParcel(
+      auth.session.ctx,
+      auth.session.profile.businessId!,
+      body.data,
+    );
 
     return NextResponse.json(
       ok({
-        parcel: toParcelDto(result.parcel),
+        parcel: result.parcel,
         recipientStatus: result.recipientStatus,
-        invite: result.invite ?? null,
+        invite: result.invite,
       }),
       { status: 201 },
     );
   } catch (err) {
-    if (typeof err === 'object' && err && 'code' in err && (err.code === 'P2002' || err.code === '23505')) {
-      return NextResponse.json(fail('Cette référence existe déjà'), { status: 409 });
-    }
-    const message = err instanceof Error ? err.message : 'Erreur serveur';
-    if (message.includes('cannot submit parcels')) {
-      return NextResponse.json(
-        fail(
-          "Votre compte n'est pas encore activé. Vous pourrez envoyer des colis dès qu'Eveider l'aura accepté.",
-        ),
-        { status: 403 },
-      );
-    }
-    let status = 500;
-    if (
-      message.includes('COD') ||
-      message.includes('Compartiment requis') ||
-      message.includes('Adresse expéditeur') ||
-      message.includes('Montant COD')
-    ) {
-      status = 400;
-    } else if (message.includes('indisponible') || message.includes('introuvable')) {
-      status = 409;
-    }
+    const { status, message } = organisationParcelCreateStatus(err);
     return NextResponse.json(fail(message), { status });
   }
 }

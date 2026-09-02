@@ -1,7 +1,15 @@
 'use client';
 
-import { colors, webCardStyle, webInputStyle } from '@eveider/config-ui';
-import { Button, ConfirmDialog, DataTable, InlineAlert, type DataTableColumn } from '@eveider/ui';
+import { colors, webInputStyle } from '@eveider/config-ui';
+import {
+  Button,
+  ConfirmDialog,
+  DataTable,
+  InlineAlert,
+  Modal,
+  type DataTableColumn,
+  type DropdownMenuItem,
+} from '@eveider/ui';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, type FormEvent } from 'react';
@@ -32,38 +40,99 @@ export function AdminEveiderTeamPanel({
   addDriverHref,
 }: AdminEveiderTeamPanelProps) {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [promoteOpen, setPromoteOpen] = useState(false);
+  const [promoteDriverId, setPromoteDriverId] = useState<string | null>(null);
+  const [promoteEmail, setPromoteEmail] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [removeId, setRemoveId] = useState<string | null>(null);
-  const [removing, setRemoving] = useState(false);
+  const [revokeId, setRevokeId] = useState<string | null>(null);
+  const [revoking, setRevoking] = useState(false);
+  const [driverZoneFilter, setDriverZoneFilter] = useState('all');
 
   async function refresh() {
     router.refresh();
   }
 
-  async function handleInvite(event: FormEvent) {
-    event.preventDefault();
+  function resetAlerts() {
     setError(null);
     setSuccess(null);
     setInviteUrl(null);
+  }
+
+  function openInviteModal() {
+    resetAlerts();
+    setInviteEmail('');
+    setInviteOpen(true);
+  }
+
+  function openPromoteModal(member?: EveiderTeamMemberView) {
+    resetAlerts();
+    setPromoteDriverId(member?.role === 'driver' ? member.id : null);
+    setPromoteEmail(member?.email ?? '');
+    setPromoteOpen(true);
+  }
+
+  async function handleInvite(event: FormEvent) {
+    event.preventDefault();
+    resetAlerts();
     setSaving(true);
     try {
       const response = await fetch('/api/admin/eveider-team/invites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: inviteEmail }),
       });
       const result = await response.json();
       if (!result.success) {
         setError(result.error ?? 'Impossible d’envoyer l’invitation');
         return;
       }
-      setEmail('');
+      setInviteOpen(false);
       setSuccess('Invitation envoyée par email.');
       setInviteUrl(result.data.invite.inviteUrl);
+      await refresh();
+    } catch {
+      setError('Erreur réseau. Veuillez réessayer.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handlePromoteByEmail(event: FormEvent) {
+    event.preventDefault();
+    resetAlerts();
+    setSaving(true);
+    try {
+      if (promoteDriverId) {
+        const response = await fetch(`/api/admin/eveider-team/members/${promoteDriverId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role: 'dispatcher' }),
+        });
+        const result = await response.json();
+        if (!result.success) {
+          setError(result.error ?? 'Impossible de promouvoir ce chauffeur');
+          return;
+        }
+      } else {
+        const response = await fetch('/api/admin/eveider-team/promote', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: promoteEmail }),
+        });
+        const result = await response.json();
+        if (!result.success) {
+          setError(result.error ?? 'Impossible de promouvoir ce compte');
+          return;
+        }
+      }
+      setPromoteOpen(false);
+      setPromoteDriverId(null);
+      setSuccess('Dispatcher ajouté.');
       await refresh();
     } catch {
       setError('Erreur réseau. Veuillez réessayer.');
@@ -96,24 +165,24 @@ export function AdminEveiderTeamPanel({
     await refresh();
   }
 
-  async function confirmRemove() {
-    if (!removeId) return;
-    setRemoving(true);
+  async function confirmRevoke() {
+    if (!revokeId) return;
+    setRevoking(true);
     setError(null);
     try {
-      const response = await fetch(`/api/admin/eveider-team/members/${removeId}`, {
+      const response = await fetch(`/api/admin/eveider-team/members/${revokeId}`, {
         method: 'DELETE',
       });
       const result = await response.json();
       if (!result.success) {
-        setError(result.error ?? 'Impossible de retirer ce régulateur');
+        setError(result.error ?? 'Impossible de retirer ce membre');
         return;
       }
-      setRemoveId(null);
-      setSuccess('Régulateur retiré.');
+      setRevokeId(null);
+      setSuccess('Membre retiré de l’équipe Eveider.');
       await refresh();
     } finally {
-      setRemoving(false);
+      setRevoking(false);
     }
   }
 
@@ -121,7 +190,7 @@ export function AdminEveiderTeamPanel({
     () => [
       {
         id: 'name',
-        header: 'Régulateur',
+        header: 'Dispatcher',
         sortable: true,
         sortValue: (row) => row.fullName ?? row.email ?? '',
         cell: (row) => (
@@ -136,24 +205,51 @@ export function AdminEveiderTeamPanel({
         header: 'Rôle',
         cell: (row) => row.roleLabel,
       },
-      {
-        id: 'actions',
-        header: '',
-        align: 'right',
-        cell: (row) =>
-          !canManage || row.isCurrentUser ? (
-            row.isCurrentUser ? (
-              <span style={{ color: colors.textMuted, fontSize: '0.75rem' }}>Vous</span>
-            ) : null
-          ) : (
-            <Button variant="ghost" size="sm" onClick={() => setRemoveId(row.id)}>
-              Retirer
-            </Button>
-          ),
-      },
     ],
+    [],
+  );
+
+  const dispatcherRowActions = useMemo(
+    () =>
+      canManage
+        ? (row: EveiderTeamMemberView): DropdownMenuItem[] => {
+            if (row.isCurrentUser) return [];
+            return [
+              {
+                id: 'revoke',
+                label: 'Révoquer',
+                tone: 'danger',
+                onClick: () => setRevokeId(row.id),
+              },
+            ];
+          }
+        : undefined,
     [canManage],
   );
+
+  const driverZoneOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const driver of drivers) {
+      if (driver.serviceAreaId && driver.serviceAreaName) {
+        map.set(driver.serviceAreaId, driver.serviceAreaName);
+      }
+    }
+    return [
+      { value: 'all', label: 'Toutes les zones' },
+      { value: 'none', label: 'Non assignée' },
+      ...[...map.entries()]
+        .sort((a, b) => a[1].localeCompare(b[1], 'fr'))
+        .map(([value, label]) => ({ value, label })),
+    ];
+  }, [drivers]);
+
+  const filteredDrivers = useMemo(() => {
+    return drivers.filter((driver) => {
+      if (driverZoneFilter === 'none') return !driver.serviceAreaId;
+      if (driverZoneFilter !== 'all' && driver.serviceAreaId !== driverZoneFilter) return false;
+      return true;
+    });
+  }, [drivers, driverZoneFilter]);
 
   const driverColumns = useMemo<DataTableColumn<EveiderTeamMemberView>[]>(
     () => [
@@ -176,6 +272,13 @@ export function AdminEveiderTeamPanel({
         ),
       },
       {
+        id: 'zone',
+        header: 'Zone',
+        sortable: true,
+        sortValue: (row) => row.serviceAreaName ?? '',
+        cell: (row) => row.serviceAreaName ?? '—',
+      },
+      {
         id: 'status',
         header: 'Statut',
         cell: (row) => row.driverStatusLabel ?? '—',
@@ -187,6 +290,36 @@ export function AdminEveiderTeamPanel({
       },
     ],
     [],
+  );
+
+  const driverRowActions = useMemo(
+    () =>
+      canManage
+        ? (row: EveiderTeamMemberView): DropdownMenuItem[] => {
+            const items: DropdownMenuItem[] = [
+              {
+                id: 'promote',
+                label: 'Promouvoir',
+                onClick: () => openPromoteModal(row),
+              },
+              {
+                id: 'revoke',
+                label: 'Révoquer',
+                tone: 'danger',
+                onClick: () => setRevokeId(row.id),
+              },
+            ];
+            if (row.driverProfileId) {
+              items.unshift({
+                id: 'profile',
+                label: 'Voir la fiche',
+                href: adminDriverPath(row.driverProfileId),
+              });
+            }
+            return items;
+          }
+        : undefined,
+    [canManage],
   );
 
   const inviteColumns = useMemo<DataTableColumn<EveiderTeamInviteView>[]>(
@@ -203,25 +336,34 @@ export function AdminEveiderTeamPanel({
         header: 'Expire le',
         cell: (row) => formatDate(row.expiresAt),
       },
-      {
-        id: 'actions',
-        header: '',
-        align: 'right',
-        cell: (row) =>
-          canManage ? (
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <Button variant="secondary" size="sm" onClick={() => void handleResend(row.id)}>
-                Renvoyer
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => void handleRevokeInvite(row.id)}>
-                Révoquer
-              </Button>
-            </div>
-          ) : null,
-      },
     ],
+    [],
+  );
+
+  const inviteRowActions = useMemo(
+    () =>
+      canManage
+        ? (row: EveiderTeamInviteView): DropdownMenuItem[] => [
+            {
+              id: 'resend',
+              label: 'Renvoyer',
+              onClick: () => void handleResend(row.id),
+            },
+            {
+              id: 'revoke',
+              label: 'Révoquer',
+              tone: 'danger',
+              onClick: () => void handleRevokeInvite(row.id),
+            },
+          ]
+        : undefined,
     [canManage],
   );
+
+  const promoteModalTitle = promoteDriverId ? 'Promouvoir en dispatcher' : 'Promouvoir un compte existant';
+  const promoteModalDescription = promoteDriverId
+    ? 'Ce chauffeur aura accès au tableau de bord Eveider en tant que dispatcher.'
+    : 'Accordez le rôle dispatcher à un compte Eveider existant.';
 
   return (
     <div style={{ display: 'grid', gap: '1.25rem' }}>
@@ -229,81 +371,150 @@ export function AdminEveiderTeamPanel({
       {success ? <InlineAlert message={success} variant="success" /> : null}
       {inviteUrl ? <InlineAlert message={`Lien : ${inviteUrl}`} variant="info" /> : null}
 
-      {canManage ? (
-        <section style={{ ...webCardStyle, padding: '1.5rem' }}>
-          <h2 style={{ margin: '0 0 1rem', fontSize: '1rem' }}>Inviter un régulateur</h2>
-          <form onSubmit={handleInvite} style={{ display: 'grid', gap: '0.75rem', maxWidth: 640 }}>
+      <DataTable
+        caption={`${dispatchers.length} dispatcher${dispatchers.length === 1 ? '' : 's'}`}
+        columns={dispatcherColumns}
+        rows={dispatchers}
+        getRowId={(row) => row.id}
+        rowActions={dispatcherRowActions}
+        toolbar={
+          canManage ? (
+            <Button type="button" size="sm" onClick={openInviteModal}>
+              Ajouter
+            </Button>
+          ) : undefined
+        }
+      />
+
+      <DataTable
+        caption={`${filteredDrivers.length} chauffeur${filteredDrivers.length === 1 ? '' : 's'}`}
+        columns={driverColumns}
+        rows={filteredDrivers}
+        getRowId={(row) => row.id}
+        rowActions={driverRowActions}
+        toolbar={
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            {driverZoneOptions.length > 2 ? (
+              <select
+                value={driverZoneFilter}
+                onChange={(event) => setDriverZoneFilter(event.target.value)}
+                aria-label="Filtrer les chauffeurs par zone de service"
+                style={{
+                  ...webInputStyle,
+                  height: 36,
+                  padding: '0 10px',
+                  minWidth: 180,
+                }}
+              >
+                {driverZoneOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+            {canManage ? (
+              <Link href={addDriverHref} className="nb-btn nb-btn-primary nb-btn--sm">
+                Ajouter
+              </Link>
+            ) : null}
+          </div>
+        }
+      />
+
+      {invites.length > 0 ? (
+        <DataTable
+          caption="Invitations en attente"
+          columns={inviteColumns}
+          rows={invites}
+          getRowId={(row) => row.id}
+          rowActions={inviteRowActions}
+        />
+      ) : null}
+
+      <Modal
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        title="Inviter par email"
+        description="Envoyez une invitation pour rejoindre l’équipe Eveider en tant que dispatcher."
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setInviteOpen(false)} disabled={saving}>
+              Annuler
+            </Button>
+            <Button type="submit" form="eveider-team-invite-form" disabled={saving}>
+              {saving ? 'Envoi…' : 'Inviter'}
+            </Button>
+          </>
+        }
+      >
+        <form id="eveider-team-invite-form" onSubmit={handleInvite} style={{ display: 'grid', gap: '0.75rem' }}>
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Email</span>
+            <input
+              type="email"
+              required
+              value={inviteEmail}
+              onChange={(event) => setInviteEmail(event.target.value)}
+              placeholder="sarah@eveider.cd"
+              style={webInputStyle}
+            />
+          </label>
+        </form>
+      </Modal>
+
+      <Modal
+        open={promoteOpen}
+        onClose={() => {
+          setPromoteOpen(false);
+          setPromoteDriverId(null);
+        }}
+        title={promoteModalTitle}
+        description={promoteModalDescription}
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setPromoteOpen(false);
+                setPromoteDriverId(null);
+              }}
+              disabled={saving}
+            >
+              Annuler
+            </Button>
+            <Button type="submit" form="eveider-team-promote-form" disabled={saving}>
+              {saving ? 'Enregistrement…' : 'Promouvoir'}
+            </Button>
+          </>
+        }
+      >
+        <form id="eveider-team-promote-form" onSubmit={handlePromoteByEmail} style={{ display: 'grid', gap: '0.75rem' }}>
+          {promoteDriverId ? null : (
             <label style={{ display: 'grid', gap: 6 }}>
-              <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Email</span>
+              <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Email du compte</span>
               <input
                 type="email"
                 required
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="sarah@eveider.cd"
+                value={promoteEmail}
+                onChange={(event) => setPromoteEmail(event.target.value)}
+                placeholder="david@eveider.cd"
                 style={webInputStyle}
               />
             </label>
-            <div>
-              <Button type="submit" disabled={saving}>
-                {saving ? 'Envoi…' : 'Inviter'}
-              </Button>
-            </div>
-          </form>
-        </section>
-      ) : null}
-
-      <section>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '1rem',
-            marginBottom: '0.75rem',
-          }}
-        >
-          <h2 style={{ margin: 0, fontSize: '1rem' }}>Régulateurs</h2>
-        </div>
-        <DataTable columns={dispatcherColumns} rows={dispatchers} getRowId={(row) => row.id} />
-      </section>
-
-      <section>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '1rem',
-            marginBottom: '0.75rem',
-          }}
-        >
-          <h2 style={{ margin: 0, fontSize: '1rem' }}>Chauffeurs</h2>
-          {canManage ? (
-            <Link href={addDriverHref} className="nb-btn nb-btn-secondary nb-btn--sm">
-              Ajouter un chauffeur
-            </Link>
-          ) : null}
-        </div>
-        <DataTable columns={driverColumns} rows={drivers} getRowId={(row) => row.id} />
-      </section>
-
-      {invites.length > 0 ? (
-        <section>
-          <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Invitations en attente</h2>
-          <DataTable columns={inviteColumns} rows={invites} getRowId={(row) => row.id} />
-        </section>
-      ) : null}
+          )}
+        </form>
+      </Modal>
 
       <ConfirmDialog
-        open={Boolean(removeId)}
-        onClose={() => setRemoveId(null)}
-        onConfirm={() => void confirmRemove()}
-        title="Retirer ce régulateur ?"
-        description="La personne n’aura plus accès au tableau de bord Eveider en tant que régulateur."
-        confirmLabel="Retirer"
+        open={Boolean(revokeId)}
+        onClose={() => setRevokeId(null)}
+        onConfirm={() => void confirmRevoke()}
+        title="Révoquer l’accès ?"
+        description="La personne sera retirée de l’équipe opérationnelle Eveider."
+        confirmLabel="Révoquer"
         tone="danger"
-        loading={removing}
+        loading={revoking}
       />
     </div>
   );

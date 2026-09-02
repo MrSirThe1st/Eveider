@@ -27,6 +27,9 @@ export type LockerSummaryDto = {
   code: string;
   name: string;
   address: string;
+  city: string | null;
+  serviceAreaId: string | null;
+  serviceAreaName: string | null;
   latitude: number | null;
   longitude: number | null;
   rows: number;
@@ -102,6 +105,9 @@ export type LockerDetailDto = {
   code: string;
   name: string;
   address: string;
+  city: string | null;
+  serviceAreaId: string | null;
+  serviceAreaName: string | null;
   latitude: number | null;
   longitude: number | null;
   rows: number;
@@ -208,6 +214,9 @@ export function toLockerSummaryDto(locker: {
   code: string;
   name: string;
   address: string;
+  city?: string | null;
+  serviceAreaId?: string | null;
+  serviceAreaName?: string | null;
   latitude: number | null;
   longitude: number | null;
   rows: number;
@@ -235,6 +244,9 @@ export function toLockerSummaryDto(locker: {
     code: locker.code,
     name: locker.name,
     address: locker.address,
+    city: locker.city ?? null,
+    serviceAreaId: locker.serviceAreaId ?? null,
+    serviceAreaName: locker.serviceAreaName ?? null,
     latitude: locker.latitude,
     longitude: locker.longitude,
     rows: locker.rows,
@@ -251,6 +263,9 @@ export function toLockerDetailDto(locker: {
   code: string;
   name: string;
   address: string;
+  city?: string | null;
+  serviceAreaId?: string | null;
+  serviceAreaName?: string | null;
   latitude: number | null;
   longitude: number | null;
   rows: number;
@@ -285,6 +300,9 @@ export function toLockerDetailDto(locker: {
     code: locker.code,
     name: locker.name,
     address: locker.address,
+    city: locker.city ?? null,
+    serviceAreaId: locker.serviceAreaId ?? null,
+    serviceAreaName: locker.serviceAreaName ?? null,
     latitude: locker.latitude,
     longitude: locker.longitude,
     rows: locker.rows,

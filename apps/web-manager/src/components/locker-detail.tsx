@@ -24,6 +24,7 @@ import {
   type LockerDetailData,
   useLockerDetailQuery,
 } from '@/hooks/queries/use-locker-detail-query';
+import type { ServiceAreaOptionDto } from '@/lib/service-area-presenter';
 
 function getNextLockerStatuses(current: LockerStatus): LockerStatus[] {
   return LOCKER_STATUSES.filter((status) => canTransitionLocker(current, status));
@@ -83,6 +84,39 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [updatingLocker, setUpdatingLocker] = useState(false);
   const [updatingCompartmentId, setUpdatingCompartmentId] = useState<string | null>(null);
+  const [serviceAreas, setServiceAreas] = useState<ServiceAreaOptionDto[]>([]);
+  const [savingArea, setSavingArea] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch('/api/service-areas', { cache: 'no-store' })
+      .then((response) => response.json())
+      .then((result) => {
+        if (cancelled || !result.success) return;
+        const options = (result.data.serviceAreas as Array<{
+          id: string;
+          code: string;
+          name: string;
+          city: string;
+          status: string;
+        }>)
+          .filter((area) => area.status === 'active')
+          .map((area) => ({
+            id: area.id,
+            code: area.code,
+            name: area.name,
+            city: area.city,
+            label: `${area.name} (${area.city})`,
+          }));
+        setServiceAreas(options);
+      })
+      .catch(() => {
+        /* optional enrichment */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const loading = isLoading && !locker;
   const error = isError
@@ -256,6 +290,72 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
             <p style={{ margin: '0.5rem 0 0', fontWeight: 500, fontSize: '0.9375rem', opacity: 0.8 }}>
               {locker.address}
             </p>
+            <p style={{ margin: '0.35rem 0 0', fontWeight: 500, fontSize: '0.8125rem', opacity: 0.7 }}>
+              Zone : {locker.serviceAreaName ?? 'Non assignée'}
+              {locker.city ? ` · Ville : ${locker.city}` : ''}
+            </p>
+            {serviceAreas.length > 0 ? (
+              <label
+                style={{
+                  display: 'block',
+                  marginTop: '0.75rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  maxWidth: 320,
+                }}
+              >
+                Zone de service
+                <select
+                  value={locker.serviceAreaId ?? ''}
+                  disabled={savingArea || updatingLocker}
+                  onChange={(event) => {
+                    const nextId = event.target.value || null;
+                    void (async () => {
+                      setSavingArea(true);
+                      setActionError(null);
+                      setSuccessMessage(null);
+                      try {
+                        const response = await fetch(`/api/lockers/${lockerId}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ serviceAreaId: nextId }),
+                        });
+                        const result = await response.json();
+                        if (!result.success) {
+                          setActionError(result.error ?? 'Mise à jour échouée');
+                          return;
+                        }
+                        updateLockerCache(result.data.locker);
+                        setSuccessMessage('Zone de service mise à jour.');
+                      } catch {
+                        setActionError('Impossible de mettre à jour la zone.');
+                      } finally {
+                        setSavingArea(false);
+                      }
+                    })();
+                  }}
+                  style={{
+                    display: 'block',
+                    marginTop: '0.35rem',
+                    width: '100%',
+                    height: 40,
+                    padding: '0 10px',
+                    borderRadius: radius.button,
+                    border: `1px solid ${colors.border}`,
+                    background: colors.surface,
+                    color: colors.secondary,
+                    fontWeight: 600,
+                  }}
+                >
+                  <option value="">Non assignée</option>
+                  {serviceAreas.map((area) => (
+                    <option key={area.id} value={area.id}>
+                      {area.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             <p
               style={{
                 margin: '0.5rem 0 0',

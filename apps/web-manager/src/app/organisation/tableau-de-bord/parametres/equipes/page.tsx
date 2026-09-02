@@ -6,7 +6,7 @@ export default async function OrganizationTeamsSettingsPage() {
   return (
     <SettingsComingSoon
       title="Équipes"
-      description="Regroupez les régulateurs et les chauffeurs."
+      description="Regroupez les dispatchers et les chauffeurs."
     />
   );
 }

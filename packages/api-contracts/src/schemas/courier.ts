@@ -8,9 +8,14 @@ export const createCourierDossierSchema = z.object({
   notes: z.string().max(2000).optional(),
   contractorType: z.enum(['eveider', 'business']).optional(),
   businessId: z.string().uuid().optional(),
+  serviceAreaId: z.string().uuid('Zone invalide').nullable().optional(),
 });
 
 export const updateCourierDossierSchema = createCourierDossierSchema.partial();
+
+export const updateDriverServiceAreaSchema = z.object({
+  serviceAreaId: z.string().uuid('Zone invalide').nullable(),
+});
 
 export const reviewCourierDossierSchema = z.object({
   status: z.enum(['approved', 'needs_correction', 'rejected']),

@@ -13,6 +13,8 @@ export type EveiderTeamMemberView = {
   isCurrentUser: boolean;
   driverProfileId: string | null;
   driverStatusLabel: string | null;
+  serviceAreaId: string | null;
+  serviceAreaName: string | null;
   currentDelivery: string | null;
 };
 
@@ -67,6 +69,8 @@ export async function loadEveiderTeamPage(ctx: DataAccessContext, currentUserId:
         isCurrentUser: false,
         driverProfileId: driver.id,
         driverStatusLabel: driver.statusLabel,
+        serviceAreaId: driver.serviceAreaId,
+        serviceAreaName: driver.serviceAreaName,
         currentDelivery: driver.currentDelivery,
       }),
     );
@@ -108,6 +112,8 @@ function toMemberView(
     isCurrentUser: member.user.id === currentUserId,
     driverProfileId: driver?.id ?? null,
     driverStatusLabel: driver?.statusLabel ?? null,
+    serviceAreaId: driver?.serviceAreaId ?? null,
+    serviceAreaName: driver?.serviceAreaName ?? null,
     currentDelivery: driver?.currentDelivery ?? null,
   };
 }

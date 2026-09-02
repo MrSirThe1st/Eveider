@@ -9,6 +9,7 @@ import {
 } from '@/components/business-parcel-progression';
 import { ParcelInvitePanel } from '@/components/parcel-invite-panel';
 import { BusinessAssignCourier } from '@/components/business-assign-courier';
+import { ParcelEventTimeline } from '@/components/parcel-event-timeline';
 import { ShippingLabel } from '@/components/shipping-label';
 import { WEB_ROUTES } from '@/lib/auth-routing';
 import type { AssignableCourierView } from '@/server/couriers';
@@ -218,8 +219,18 @@ export function BusinessParcelDetail({
         />
       </section>
 
-      {canAssignCouriers ? (
+      {canAssignCouriers && parcel.canAssignOutbound ? (
         <BusinessAssignCourier parcelId={parcel.id} couriers={assignableCouriers} />
+      ) : null}
+
+      {canAssignCouriers && parcel.canCreateReturn ? (
+        <BusinessAssignCourier
+          parcelId={parcel.id}
+          couriers={assignableCouriers}
+          kind="return"
+          title="Créer un retour"
+          buttonLabel="Créer le retour"
+        />
       ) : null}
 
       {canManageOperations ? <ParcelInvitePanel parcelId={parcel.id} /> : null}
@@ -235,6 +246,8 @@ export function BusinessParcelDetail({
         <BusinessReportIssue parcelId={parcel.id} />
       </section>
       ) : null}
+
+      <ParcelEventTimeline events={parcel.events} compact />
     </div>
   );
 }

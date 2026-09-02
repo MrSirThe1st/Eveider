@@ -89,6 +89,12 @@ export function AdminCasiersSettingsTabs() {
           isActive: (pathname: string) =>
             pathname.startsWith('/tableau-de-bord/parametres/casiers/modeles'),
         },
+        {
+          href: '/tableau-de-bord/parametres/casiers/zones',
+          label: 'Zones',
+          isActive: (pathname: string) =>
+            pathname.startsWith('/tableau-de-bord/parametres/casiers/zones'),
+        },
       ]}
     />
   );

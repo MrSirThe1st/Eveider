@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const assignCourierSchema = z.object({
   courierId: z.string().uuid('Coursier invalide'),
+  kind: z.enum(['outbound', 'return']).optional().default('outbound'),
 });
 
 export const scanDeliverySchema = z.object({

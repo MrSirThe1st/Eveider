@@ -41,4 +41,23 @@ describe('toBusinessParcelLocationView', () => {
       }).location,
     ).toBe('ready_for_pickup');
   });
+
+  it('derives return locations from the latest delivery kind', () => {
+    expect(
+      toBusinessParcelLocationView({
+        status: 'ready_for_pickup',
+        pickupType: 'courier_pickup',
+        latestDeliveryStatus: 'assigned',
+        latestDeliveryKind: 'return',
+      }).location,
+    ).toBe('return_in_progress');
+    expect(
+      toBusinessParcelLocationView({
+        status: 'ready_for_pickup',
+        pickupType: 'courier_pickup',
+        latestDeliveryStatus: 'completed',
+        latestDeliveryKind: 'return',
+      }).location,
+    ).toBe('returned_to_business');
+  });
 });

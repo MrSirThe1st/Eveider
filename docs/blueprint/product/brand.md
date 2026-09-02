@@ -124,6 +124,8 @@ Derived labels — do not persist these keys. See [ADR-002](../decisions/ADR-002
 | `in_transit` | EN TRANSIT |
 | `at_locker` | ARRIVÉ AU POINT |
 | `ready_for_pickup` | PRÊT POUR RETRAIT |
+| `return_in_progress` | RETOUR EN COURS |
+| `returned_to_business` | RETOURNÉ |
 | `collected` | RETIRÉ |
 
 ### Common actions

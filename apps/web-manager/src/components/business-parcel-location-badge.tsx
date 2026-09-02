@@ -44,6 +44,18 @@ const LOCATION_STYLES: Record<
     dot: '#09D40B',
     border: '#C0EAB7',
   },
+  return_in_progress: {
+    bg: '#E8F1FB',
+    color: '#175CD3',
+    dot: '#2E90FA',
+    border: '#B2DDFF',
+  },
+  returned_to_business: {
+    bg: '#F0F4EE',
+    color: '#475467',
+    dot: '#98A2B3',
+    border: '#E2E8E0',
+  },
   collected: {
     bg: '#F0F4EE',
     color: '#475467',

@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, spacing, typography } from '@eveider/config-ui';
+import { colors, spacing, typography, webInputStyle } from '@eveider/config-ui';
 import { DataTable, type DataTableColumn } from '@eveider/ui';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
@@ -21,14 +21,41 @@ function todayLabel(count: number): string {
 
 export function BusinessDriverList({ drivers }: BusinessDriverListProps) {
   const [statusFilter, setStatusFilter] = useState<DriverStatusFilter>('all');
+  const [zoneFilter, setZoneFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const zoneOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const driver of drivers) {
+      if (driver.serviceAreaId && driver.serviceAreaName) {
+        map.set(driver.serviceAreaId, driver.serviceAreaName);
+      }
+    }
+    return [
+      { value: 'all', label: 'Toutes les zones' },
+      { value: 'none', label: 'Non assignée' },
+      ...[...map.entries()]
+        .sort((a, b) => a[1].localeCompare(b[1], 'fr'))
+        .map(([value, label]) => ({ value, label })),
+    ];
+  }, [drivers]);
 
   const filtered = useMemo(() => {
     return drivers.filter((driver) => {
       if (statusFilter !== 'all' && driver.status !== statusFilter) return false;
-      return matchesListSearch(searchQuery, driver.fullName, driver.email, driver.currentDelivery);
+      if (zoneFilter === 'none' && driver.serviceAreaId) return false;
+      if (zoneFilter !== 'all' && zoneFilter !== 'none' && driver.serviceAreaId !== zoneFilter) {
+        return false;
+      }
+      return matchesListSearch(
+        searchQuery,
+        driver.fullName,
+        driver.email,
+        driver.serviceAreaName,
+        driver.currentDelivery,
+      );
     });
-  }, [drivers, searchQuery, statusFilter]);
+  }, [drivers, searchQuery, statusFilter, zoneFilter]);
 
   const columns = useMemo<DataTableColumn<DriverListItem>[]>(
     () => [
@@ -55,10 +82,17 @@ export function BusinessDriverList({ drivers }: BusinessDriverListProps) {
         ),
       },
       {
-        id: 'team',
-        header: 'Équipe',
+        id: 'zone',
+        header: 'Zone',
         hideOnMobile: true,
-        cell: () => <span style={{ color: colors.textMuted }}>—</span>,
+        sortable: true,
+        sortValue: (row) => row.serviceAreaName ?? '',
+        cell: (row) =>
+          row.serviceAreaName ? (
+            row.serviceAreaName
+          ) : (
+            <span style={{ color: colors.textMuted }}>—</span>
+          ),
       },
       {
         id: 'status',
@@ -98,13 +132,38 @@ export function BusinessDriverList({ drivers }: BusinessDriverListProps) {
     <section>
       <DriverStatusFilters value={statusFilter} onChange={setStatusFilter} />
 
-      <div style={{ marginBottom: spacing[4] }}>
+      <div
+        style={{
+          marginBottom: spacing[4],
+          display: 'grid',
+          gap: spacing[3],
+          gridTemplateColumns: zoneOptions.length > 2 ? 'minmax(0, 1fr) 220px' : '1fr',
+        }}
+      >
         <ListSearchField
           value={searchQuery}
           onChange={setSearchQuery}
           placeholder="Rechercher un chauffeur…"
           ariaLabel="Rechercher un chauffeur"
         />
+        {zoneOptions.length > 2 ? (
+          <select
+            value={zoneFilter}
+            onChange={(event) => setZoneFilter(event.target.value)}
+            aria-label="Filtrer par zone de service"
+            style={{
+              ...webInputStyle,
+              height: 42,
+              padding: '0 10px',
+            }}
+          >
+            {zoneOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        ) : null}
       </div>
 
       <DataTable

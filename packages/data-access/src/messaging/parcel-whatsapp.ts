@@ -1,6 +1,7 @@
 import type { ParcelStatus } from '@eveider/domain';
 import type { Queryable } from '../db/index.js';
 import { buildParcelPickupLink } from '../invitations/invite-links.js';
+import { appendParcelEventSafe } from '../repositories/parcel-event.repository.js';
 import { getWhatsAppConfig } from './whatsapp-config.js';
 import { sendWhatsAppTemplate } from './whatsapp-client.js';
 
@@ -85,6 +86,13 @@ export async function sendParcelStatusWhatsApp(
        VALUES ($1, $2, 'sms', $3, NULL)`,
       [parcelId, parcel.customer_id ?? null, `[whatsapp:${templateName}] FAILED ${result.error}`],
     );
+    await appendParcelEventSafe(db, {
+      parcelId,
+      eventType: 'notification.failed',
+      actor: { actorType: 'system', actorUserId: null },
+      newParcelStatus: newStatus,
+      payload: { channel: 'whatsapp', template: templateName },
+    });
     return;
   }
 
@@ -93,4 +101,11 @@ export async function sendParcelStatusWhatsApp(
      VALUES ($1, $2, 'sms', $3, NOW())`,
     [parcelId, parcel.customer_id ?? null, `[whatsapp:${templateName}] ${bodyParams.join(' · ')}`],
   );
+  await appendParcelEventSafe(db, {
+    parcelId,
+    eventType: 'notification.sent',
+    actor: { actorType: 'system', actorUserId: null },
+    newParcelStatus: newStatus,
+    payload: { channel: 'whatsapp', template: templateName },
+  });
 }

@@ -9,6 +9,7 @@ import { FlashBanner } from '@/components/flash-banner';
 import { LockerCreatePanel, type CreatePointPayload } from '@/components/locker-create-panel';
 import { LockerGoogleMap } from '@/components/locker-google-map';
 import type { LockerMapMarkerDto, LockerSummaryDto } from '@/lib/locker-presenter';
+import type { ServiceAreaOptionDto } from '@/lib/service-area-presenter';
 import {
   reverseGeocodeGoogle,
   searchGooglePlaces,
@@ -44,9 +45,13 @@ const inputStyle: React.CSSProperties = {
 
 type AdminLockerManagerProps = {
   lockers: LockerSummaryDto[];
+  serviceAreas?: ServiceAreaOptionDto[];
 };
 
-export function AdminLockerManager({ lockers }: AdminLockerManagerProps) {
+export function AdminLockerManager({
+  lockers,
+  serviceAreas = [],
+}: AdminLockerManagerProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [archiving, setArchiving] = useState(false);
@@ -422,6 +427,7 @@ export function AdminLockerManager({ lockers }: AdminLockerManagerProps) {
               onAddressChange={setAddress}
               placementConfirmed={placementConfirmed}
               saving={saving}
+              serviceAreas={serviceAreas}
               onCreate={(input) => void createLocker(input)}
             />
 

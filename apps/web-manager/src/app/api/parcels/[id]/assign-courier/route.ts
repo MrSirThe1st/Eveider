@@ -22,13 +22,19 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   try {
     const { deliveries } = createRepositories();
-    const delivery = await deliveries.assign(auth.session.ctx, id, body.data.courierId);
+    const delivery = await deliveries.assign(
+      auth.session.ctx,
+      id,
+      body.data.courierId,
+      body.data.kind,
+    );
 
     return NextResponse.json(
       ok({
         delivery: {
           id: delivery.id,
           status: delivery.status,
+          kind: delivery.kind,
           courierId: delivery.courierId,
           parcelId: delivery.parcelId,
           createdAt: delivery.createdAt.toISOString(),
@@ -37,7 +43,14 @@ export async function POST(request: Request, { params }: RouteParams) {
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur serveur';
-    const status = message.includes('déjà') || message.includes('doit') ? 400 : 500;
+    const status =
+      message.includes('déjà') ||
+      message.includes('doit') ||
+      message.includes('possible') ||
+      message.includes('stade') ||
+      message.includes('approuvé')
+        ? 400
+        : 500;
     return NextResponse.json(fail(message), { status });
   }
 }

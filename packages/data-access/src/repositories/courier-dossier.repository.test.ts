@@ -17,6 +17,7 @@ function dossierRow(overrides: Record<string, unknown> = {}) {
     notes: null,
     review_notes: null,
     status: 'pending_review',
+    service_area_id: null,
     created_by_user_id: 'admin-1',
     reviewed_by_user_id: null,
     reviewed_at: null,
@@ -67,6 +68,9 @@ describe('CourierDossierRepository', () => {
           contractor_type: 'business',
           business_id: 'biz-1',
           business_name: 'Boutique Lubum',
+          service_area_id: 'area-lsh',
+          service_area_name: 'Lubumbashi',
+          service_area_code: 'LSH',
           is_blocked: false,
           deactivated_at: null,
           current_tracking_number: 'EV12345',
@@ -88,6 +92,7 @@ describe('CourierDossierRepository', () => {
     expect(rows[0]?.currentTrackingNumber).toBe('EV12345');
     expect(rows[0]?.deliveriesToday).toBe(8);
     expect(rows[0]?.organizationName).toBe('Boutique Lubum');
+    expect(rows[0]?.serviceAreaName).toBe('Lubumbashi');
   });
 
   it('loads the admin driver roster snapshot across organizations', async () => {
@@ -108,6 +113,9 @@ describe('CourierDossierRepository', () => {
           contractor_type: 'business',
           business_id: 'biz-1',
           business_name: 'Boutique Kenya',
+          service_area_id: 'area-lsh',
+          service_area_name: 'Lubumbashi',
+          service_area_code: 'LSH',
           is_blocked: false,
           deactivated_at: null,
           current_tracking_number: 'EV12345',
@@ -125,5 +133,26 @@ describe('CourierDossierRepository', () => {
     expect(rows[0]?.contractorType).toBe('business');
     expect(rows[0]?.organizationName).toBe('Boutique Kenya');
     expect(rows[0]?.currentTrackingNumber).toBe('EV12345');
+    expect(rows[0]?.serviceAreaCode).toBe('LSH');
+  });
+
+  it('updates the service area on an in-scope dossier', async () => {
+    const db = createSqlMatchMock((sql) => {
+      if (sqlIncludes(sql, 'SELECT * FROM driver_dossiers WHERE id')) {
+        return dossierRow({ status: 'active', service_area_id: null });
+      }
+      if (sqlIncludes(sql, 'SELECT id, status FROM service_areas')) {
+        return { id: 'area-kwz', status: 'active' };
+      }
+      if (sqlIncludes(sql, 'UPDATE driver_dossiers') && sqlIncludes(sql, 'service_area_id')) {
+        return dossierRow({ status: 'active', service_area_id: 'area-kwz' });
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const repo = new CourierDossierRepository(db);
+    const ctx = createDataAccessContext('admin', { userId: 'admin-1' });
+
+    const updated = await repo.updateServiceArea(ctx, 'dossier-1', 'area-kwz');
+    expect(updated.serviceAreaId).toBe('area-kwz');
   });
 });

@@ -6,6 +6,7 @@ import {
   courierDeliveryJoin,
   createSqlMatchMock,
   deliveryRow,
+  parcelEventRow,
   parcelRow,
   sqlIncludes,
 } from '../test/query-mock.js';
@@ -54,7 +55,16 @@ describe('DeliveryRepository', () => {
       values?: unknown[],
     ) => Record<string, unknown> | Record<string, unknown>[] | null,
   ) {
-    db = createSqlMatchMock(resolve);
+    db = createSqlMatchMock((sql, values) => {
+      if (sqlIncludes(sql, 'INSERT INTO parcel_events')) {
+        return parcelEventRow({
+          event_type: typeof values?.[4] === 'string' ? values[4] : 'parcel.created',
+          parcel_id: typeof values?.[0] === 'string' ? values[0] : 'parcel-1',
+          delivery_id: values?.[1] == null ? null : String(values[1]),
+        });
+      }
+      return resolve(sql, values);
+    });
     txDb.current = db;
     repo = new DeliveryRepository(db, notifications as never);
   }
@@ -90,7 +100,7 @@ describe('DeliveryRepository', () => {
 
     expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO deliveries'),
-      ['parcel-1', 'courier-1'],
+      ['parcel-1', 'courier-1', 'outbound'],
     );
     expect(notifyCourierAssigned).toHaveBeenCalledWith(
       'courier-1',
@@ -133,7 +143,7 @@ describe('DeliveryRepository', () => {
     await repo.assign(businessCtx, 'parcel-1', 'courier-1');
     expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO deliveries'),
-      ['parcel-1', 'courier-1'],
+      ['parcel-1', 'courier-1', 'outbound'],
     );
   });
 
@@ -141,6 +151,9 @@ describe('DeliveryRepository', () => {
     setup((sql) => {
       if (sqlIncludes(sql, 'SELECT * FROM parcels')) {
         return parcelRow();
+      }
+      if (sqlIncludes(sql, 'FROM deliveries') && sqlIncludes(sql, 'status = ANY')) {
+        return null;
       }
       if (sqlIncludes(sql, 'SELECT * FROM users')) {
         return {
@@ -184,6 +197,9 @@ describe('DeliveryRepository', () => {
     setup((sql) => {
       if (sqlIncludes(sql, 'SELECT * FROM parcels')) {
         return parcelRow();
+      }
+      if (sqlIncludes(sql, 'FROM deliveries') && sqlIncludes(sql, 'status = ANY')) {
+        return null;
       }
       if (sqlIncludes(sql, 'SELECT * FROM users')) {
         return {
@@ -380,6 +396,85 @@ describe('DeliveryRepository', () => {
       expect.stringContaining('UPDATE parcels SET status'),
       expect.arrayContaining(['ready_for_pickup', 'comp-1', 'parcel-1']),
     );
+  });
+
+  it('assigns a return leg when the parcel is at the locker', async () => {
+    setup((sql) => {
+      if (sqlIncludes(sql, 'SELECT * FROM parcels')) {
+        return parcelRow({ status: 'ready_for_pickup', compartment_id: 'comp-1' });
+      }
+      if (sqlIncludes(sql, 'FROM deliveries') && sqlIncludes(sql, 'status = ANY')) {
+        return null;
+      }
+      if (sqlIncludes(sql, "kind = 'outbound'")) {
+        return { '?column?': 1 };
+      }
+      if (sqlIncludes(sql, "kind = 'return'")) {
+        return null;
+      }
+      if (sqlIncludes(sql, 'SELECT * FROM users')) {
+        return { id: 'courier-1', role: 'courier' };
+      }
+      if (sqlIncludes(sql, 'FROM driver_dossiers')) {
+        return { status: 'active', business_id: null };
+      }
+      if (sqlIncludes(sql, 'INSERT INTO deliveries')) {
+        return deliveryRow({ kind: 'return' });
+      }
+      if (sqlIncludes(sql, 'SELECT name FROM lockers')) {
+        return { name: 'EVEIDER GOMBE' };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    await repo.assign(adminCtx, 'parcel-1', 'courier-1', 'return');
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO deliveries'),
+      ['parcel-1', 'courier-1', 'return'],
+    );
+  });
+
+  it('completes a return drop-off by releasing the compartment', async () => {
+    let loadCount = 0;
+    const writes: string[] = [];
+
+    setup((sql) => {
+      if (sqlIncludes(sql, 'FROM deliveries d') && sqlIncludes(sql, 'JOIN parcels')) {
+        loadCount += 1;
+        if (loadCount === 1) {
+          return courierDeliveryJoin(
+            { status: 'drop_off_pending', kind: 'return' },
+            { status: 'ready_for_pickup', compartment_id: 'comp-1' },
+          );
+        }
+        return courierDeliveryJoin(
+          { status: 'completed', kind: 'return', completed_at: new Date() },
+          { status: 'ready_for_pickup', compartment_id: null },
+        );
+      }
+      if (sqlIncludes(sql, 'UPDATE deliveries SET status')) {
+        writes.push('delivery');
+        return null;
+      }
+      if (sqlIncludes(sql, 'UPDATE compartments SET status')) {
+        writes.push('compartment');
+        return null;
+      }
+      if (sqlIncludes(sql, 'UPDATE parcels SET compartment_id')) {
+        writes.push('parcel');
+        return null;
+      }
+      if (sqlIncludes(sql, 'DELETE FROM pickup_pins')) {
+        writes.push('pin');
+        return null;
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    await repo.completeDropOff(courierCtx, 'delivery-1', undefined, jpegPhoto);
+
+    expect(writes).toEqual(['delivery', 'compartment', 'parcel', 'pin']);
+    expect(notifyParcelStatusChange).not.toHaveBeenCalled();
   });
 
   it('marks an in-progress delivery as failed', async () => {

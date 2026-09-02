@@ -1,8 +1,16 @@
 'use client';
 
-import { colors, webCardStyle, webInputStyle } from '@eveider/config-ui';
+import { colors, webInputStyle } from '@eveider/config-ui';
 import { PLATFORM_ROLES, PLATFORM_ROLE_LABELS, type PlatformRole } from '@eveider/domain';
-import { Button, ConfirmDialog, DataTable, InlineAlert, type DataTableColumn } from '@eveider/ui';
+import {
+  Button,
+  ConfirmDialog,
+  DataTable,
+  InlineAlert,
+  Modal,
+  type DataTableColumn,
+  type DropdownMenuItem,
+} from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, type FormEvent } from 'react';
 import type { PlatformStaffInviteView, PlatformStaffMemberView } from '@/server/platform-staff';
@@ -27,10 +35,11 @@ export function AdminPlatformStaffPanel({
   canManage,
 }: AdminPlatformStaffPanelProps) {
   const router = useRouter();
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [promoteMember, setPromoteMember] = useState<PlatformStaffMemberView | null>(null);
+  const [promoteRole, setPromoteRole] = useState<PlatformRole>('admin');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<PlatformRole>('admin');
-  const [promoteEmail, setPromoteEmail] = useState('');
-  const [promoteRole, setPromoteRole] = useState<PlatformRole>('admin');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
@@ -42,11 +51,28 @@ export function AdminPlatformStaffPanel({
     router.refresh();
   }
 
-  async function handleInvite(event: FormEvent) {
-    event.preventDefault();
+  function resetAlerts() {
     setError(null);
     setSuccess(null);
     setInviteUrl(null);
+  }
+
+  function openInviteModal() {
+    resetAlerts();
+    setInviteEmail('');
+    setInviteRole('admin');
+    setInviteOpen(true);
+  }
+
+  function openPromoteModal(member: PlatformStaffMemberView) {
+    resetAlerts();
+    setPromoteMember(member);
+    setPromoteRole(member.platformRole);
+  }
+
+  async function handleInvite(event: FormEvent) {
+    event.preventDefault();
+    resetAlerts();
     setSaving(true);
     try {
       const response = await fetch('/api/admin/platform-staff/invites', {
@@ -59,7 +85,7 @@ export function AdminPlatformStaffPanel({
         setError(result.error ?? 'Impossible d’envoyer l’invitation');
         return;
       }
-      setInviteEmail('');
+      setInviteOpen(false);
       setSuccess('Invitation envoyée par email.');
       setInviteUrl(result.data.invite.inviteUrl);
       await refresh();
@@ -70,45 +96,29 @@ export function AdminPlatformStaffPanel({
     }
   }
 
-  async function handlePromote(event: FormEvent) {
-    event.preventDefault();
-    setError(null);
-    setSuccess(null);
+  async function handlePromoteConfirm() {
+    if (!promoteMember) return;
+    resetAlerts();
     setSaving(true);
     try {
-      const response = await fetch('/api/admin/platform-staff/promote', {
-        method: 'POST',
+      const response = await fetch(`/api/admin/platform-staff/members/${promoteMember.id}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: promoteEmail, role: promoteRole }),
+        body: JSON.stringify({ role: promoteRole }),
       });
       const result = await response.json();
       if (!result.success) {
-        setError(result.error ?? 'Impossible de promouvoir ce compte');
+        setError(result.error ?? 'Impossible de modifier le rôle');
         return;
       }
-      setPromoteEmail('');
-      setSuccess('Accès administrateur accordé.');
+      setPromoteMember(null);
+      setSuccess('Rôle mis à jour.');
       await refresh();
     } catch {
       setError('Erreur réseau. Veuillez réessayer.');
     } finally {
       setSaving(false);
     }
-  }
-
-  async function handleRoleChange(memberId: string, nextRole: PlatformRole) {
-    setError(null);
-    const response = await fetch(`/api/admin/platform-staff/members/${memberId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: nextRole }),
-    });
-    const result = await response.json();
-    if (!result.success) {
-      setError(result.error ?? 'Impossible de modifier le rôle');
-      return;
-    }
-    await refresh();
   }
 
   async function handleResend(inviteId: string) {
@@ -178,38 +188,32 @@ export function AdminPlatformStaffPanel({
       {
         id: 'role',
         header: 'Rôle plateforme',
-        cell: (row) =>
-          canManage && !row.isCurrentUser ? (
-            <select
-              aria-label={`Rôle de ${row.fullName ?? row.email ?? 'administrateur'}`}
-              value={row.platformRole}
-              onChange={(event) => void handleRoleChange(row.id, event.target.value as PlatformRole)}
-              style={{ ...webInputStyle, height: 36, minWidth: 200 }}
-            >
-              {PLATFORM_ROLES.map((value) => (
-                <option key={value} value={value}>
-                  {PLATFORM_ROLE_LABELS[value]}
-                </option>
-              ))}
-            </select>
-          ) : (
-            row.platformRoleLabel
-          ),
-      },
-      {
-        id: 'actions',
-        header: '',
-        align: 'right',
-        cell: (row) =>
-          !canManage ? null : row.isCurrentUser ? (
-            <span style={{ color: colors.textMuted, fontSize: '0.75rem' }}>Vous</span>
-          ) : (
-            <Button variant="ghost" size="sm" onClick={() => setRevokeId(row.id)}>
-              Révoquer
-            </Button>
-          ),
+        cell: (row) => row.platformRoleLabel,
       },
     ],
+    [],
+  );
+
+  const rowActions = useMemo(
+    () =>
+      canManage
+        ? (row: PlatformStaffMemberView): DropdownMenuItem[] => {
+            if (row.isCurrentUser) return [];
+            return [
+              {
+                id: 'promote',
+                label: 'Promouvoir',
+                onClick: () => openPromoteModal(row),
+              },
+              {
+                id: 'revoke',
+                label: 'Révoquer',
+                tone: 'danger',
+                onClick: () => setRevokeId(row.id),
+              },
+            ];
+          }
+        : undefined,
     [canManage],
   );
 
@@ -232,23 +236,27 @@ export function AdminPlatformStaffPanel({
         header: 'Expire le',
         cell: (row) => formatDate(row.expiresAt),
       },
-      {
-        id: 'actions',
-        header: '',
-        align: 'right',
-        cell: (row) =>
-          canManage ? (
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <Button variant="secondary" size="sm" onClick={() => void handleResend(row.id)}>
-                Renvoyer
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => void handleRevokeInvite(row.id)}>
-                Révoquer
-              </Button>
-            </div>
-          ) : null,
-      },
     ],
+    [],
+  );
+
+  const inviteRowActions = useMemo(
+    () =>
+      canManage
+        ? (row: PlatformStaffInviteView): DropdownMenuItem[] => [
+            {
+              id: 'resend',
+              label: 'Renvoyer',
+              onClick: () => void handleResend(row.id),
+            },
+            {
+              id: 'revoke',
+              label: 'Révoquer',
+              tone: 'danger',
+              onClick: () => void handleRevokeInvite(row.id),
+            },
+          ]
+        : undefined,
     [canManage],
   );
 
@@ -265,93 +273,111 @@ export function AdminPlatformStaffPanel({
         />
       ) : null}
 
-      {canManage ? (
-        <>
-          <section style={{ ...webCardStyle, padding: '1.5rem' }}>
-            <h2 style={{ margin: '0 0 1rem', fontSize: '1rem' }}>Inviter par email</h2>
-            <form onSubmit={handleInvite} style={{ display: 'grid', gap: '0.75rem', maxWidth: 640 }}>
-              <label style={{ display: 'grid', gap: 6 }}>
-                <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Email</span>
-                <input
-                  type="email"
-                  required
-                  value={inviteEmail}
-                  onChange={(event) => setInviteEmail(event.target.value)}
-                  placeholder="marie@eveider.cd"
-                  style={webInputStyle}
-                />
-              </label>
-              <label style={{ display: 'grid', gap: 6 }}>
-                <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Rôle</span>
-                <select
-                  value={inviteRole}
-                  onChange={(event) => setInviteRole(event.target.value as PlatformRole)}
-                  style={{ ...webInputStyle, height: 44 }}
-                >
-                  {PLATFORM_ROLES.map((value) => (
-                    <option key={value} value={value}>
-                      {PLATFORM_ROLE_LABELS[value]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div>
-                <Button type="submit" disabled={saving}>
-                  {saving ? 'Envoi…' : 'Inviter'}
-                </Button>
-              </div>
-            </form>
-          </section>
-
-          <section style={{ ...webCardStyle, padding: '1.5rem' }}>
-            <h2 style={{ margin: '0 0 1rem', fontSize: '1rem' }}>Promouvoir un compte existant</h2>
-            <form onSubmit={handlePromote} style={{ display: 'grid', gap: '0.75rem', maxWidth: 640 }}>
-              <label style={{ display: 'grid', gap: 6 }}>
-                <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Email du compte</span>
-                <input
-                  type="email"
-                  required
-                  value={promoteEmail}
-                  onChange={(event) => setPromoteEmail(event.target.value)}
-                  placeholder="david@eveider.cd"
-                  style={webInputStyle}
-                />
-              </label>
-              <label style={{ display: 'grid', gap: 6 }}>
-                <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Rôle</span>
-                <select
-                  value={promoteRole}
-                  onChange={(event) => setPromoteRole(event.target.value as PlatformRole)}
-                  style={{ ...webInputStyle, height: 44 }}
-                >
-                  {PLATFORM_ROLES.map((value) => (
-                    <option key={value} value={value}>
-                      {PLATFORM_ROLE_LABELS[value]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div>
-                <Button type="submit" variant="secondary" disabled={saving}>
-                  {saving ? 'Traitement…' : 'Accorder l’accès'}
-                </Button>
-              </div>
-            </form>
-          </section>
-        </>
-      ) : null}
-
-      <section>
-        <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Administrateurs plateforme</h2>
-        <DataTable columns={memberColumns} rows={members} getRowId={(row) => row.id} />
-      </section>
+      <DataTable
+        caption={`${members.length} administrateur${members.length === 1 ? '' : 's'}`}
+        columns={memberColumns}
+        rows={members}
+        getRowId={(row) => row.id}
+        rowActions={rowActions}
+        toolbar={
+          canManage ? (
+            <Button type="button" size="sm" onClick={openInviteModal}>
+              Ajouter
+            </Button>
+          ) : undefined
+        }
+      />
 
       {invites.length > 0 ? (
-        <section>
-          <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Invitations en attente</h2>
-          <DataTable columns={inviteColumns} rows={invites} getRowId={(row) => row.id} />
-        </section>
+        <DataTable
+          caption="Invitations en attente"
+          columns={inviteColumns}
+          rows={invites}
+          getRowId={(row) => row.id}
+          rowActions={inviteRowActions}
+        />
       ) : null}
+
+      <Modal
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        title="Inviter par email"
+        description="Envoyez une invitation pour rejoindre l’administration plateforme Eveider."
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setInviteOpen(false)} disabled={saving}>
+              Annuler
+            </Button>
+            <Button type="submit" form="platform-staff-invite-form" disabled={saving}>
+              {saving ? 'Envoi…' : 'Inviter'}
+            </Button>
+          </>
+        }
+      >
+        <form id="platform-staff-invite-form" onSubmit={handleInvite} style={{ display: 'grid', gap: '0.75rem' }}>
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Email</span>
+            <input
+              type="email"
+              required
+              value={inviteEmail}
+              onChange={(event) => setInviteEmail(event.target.value)}
+              placeholder="marie@eveider.cd"
+              style={webInputStyle}
+            />
+          </label>
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Rôle</span>
+            <select
+              value={inviteRole}
+              onChange={(event) => setInviteRole(event.target.value as PlatformRole)}
+              style={{ ...webInputStyle, height: 44 }}
+            >
+              {PLATFORM_ROLES.map((value) => (
+                <option key={value} value={value}>
+                  {PLATFORM_ROLE_LABELS[value]}
+                </option>
+              ))}
+            </select>
+          </label>
+        </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(promoteMember)}
+        onClose={() => setPromoteMember(null)}
+        title="Promouvoir"
+        description={
+          promoteMember
+            ? `Modifier le rôle plateforme de ${promoteMember.fullName ?? promoteMember.email ?? 'cet administrateur'}.`
+            : undefined
+        }
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setPromoteMember(null)} disabled={saving}>
+              Annuler
+            </Button>
+            <Button onClick={() => void handlePromoteConfirm()} disabled={saving}>
+              {saving ? 'Enregistrement…' : 'Enregistrer'}
+            </Button>
+          </>
+        }
+      >
+        <label style={{ display: 'grid', gap: 6 }}>
+          <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Rôle plateforme</span>
+          <select
+            value={promoteRole}
+            onChange={(event) => setPromoteRole(event.target.value as PlatformRole)}
+            style={{ ...webInputStyle, height: 44 }}
+          >
+            {PLATFORM_ROLES.map((value) => (
+              <option key={value} value={value}>
+                {PLATFORM_ROLE_LABELS[value]}
+              </option>
+            ))}
+          </select>
+        </label>
+      </Modal>
 
       <ConfirmDialog
         open={Boolean(revokeId)}

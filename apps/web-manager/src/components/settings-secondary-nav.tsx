@@ -23,13 +23,9 @@ export function SettingsSecondaryNav({ groups }: SettingsSecondaryNavProps) {
       aria-label="Sections des paramètres"
       className="settings-secondary-nav"
       style={{
-        width: '100%',
-        maxWidth: 220,
-        flexShrink: 0,
-        paddingTop: spacing[1],
-        paddingBottom: spacing[4],
-        paddingRight: spacing[3],
-        boxSizing: 'border-box',
+        paddingTop: 0,
+        paddingBottom: 24,
+        paddingRight: 12,
       }}
     >
       <div style={{ display: 'grid', gap: spacing[4] }}>
@@ -79,21 +75,6 @@ export function SettingsSecondaryNav({ groups }: SettingsSecondaryNavProps) {
           </div>
         ))}
       </div>
-      <style>{`
-        @media (max-width: 900px) {
-          .settings-secondary-nav {
-            max-width: none !important;
-            padding-right: 0 !important;
-            border-bottom: 1px solid ${colors.borderSubtle};
-            margin-bottom: ${spacing[4]}px;
-          }
-          .settings-secondary-nav ul {
-            display: flex !important;
-            flex-wrap: wrap;
-            gap: 4px !important;
-          }
-        }
-      `}</style>
     </nav>
   );
 }

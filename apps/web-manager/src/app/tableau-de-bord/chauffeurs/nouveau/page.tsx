@@ -2,10 +2,12 @@ import { PageFrame } from '@eveider/ui';
 import Link from 'next/link';
 import { AddDriverForm } from '@/components/add-driver-form';
 import { WEB_ROUTES } from '@/lib/auth-routing';
+import { listServiceAreaOptions } from '@/server/service-areas';
 import { getAdminSession } from '@/server/session';
 
 export default async function AdminNewDriverPage() {
-  await getAdminSession();
+  const session = await getAdminSession();
+  const serviceAreas = await listServiceAreaOptions(session.ctx);
 
   return (
     <PageFrame
@@ -26,6 +28,7 @@ export default async function AdminNewDriverPage() {
         apiPath="/api/admin/driver-dossiers"
         detailBasePath={WEB_ROUTES.adminDrivers}
         emailHint="Chauffeur Eveider uniquement. L’invitation part tout de suite. Il ne pourra pas livrer tant que ses pièces n’ont pas été contrôlées."
+        serviceAreas={serviceAreas}
       />
     </PageFrame>
   );

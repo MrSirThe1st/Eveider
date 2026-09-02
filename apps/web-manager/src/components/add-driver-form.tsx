@@ -1,9 +1,10 @@
 'use client';
 
-import { spacing } from '@eveider/config-ui';
+import { spacing, webInputStyle } from '@eveider/config-ui';
 import { Button, Card, InlineAlert, TextField } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
+import type { ServiceAreaOptionDto } from '@/lib/service-area-presenter';
 
 type AddDriverFormProps = {
   apiPath: string;
@@ -12,6 +13,7 @@ type AddDriverFormProps = {
   submitLabel?: string;
   emailHint?: string;
   bodyExtras?: Record<string, unknown>;
+  serviceAreas?: ServiceAreaOptionDto[];
 };
 
 export function AddDriverForm({
@@ -20,12 +22,14 @@ export function AddDriverForm({
   submitLabel = 'Ajouter et inviter',
   emailHint = 'L’invitation part tout de suite sur le téléphone. Il ne pourra pas livrer tant qu’Eveider n’a pas contrôlé ses pièces.',
   bodyExtras,
+  serviceAreas = [],
 }: AddDriverFormProps) {
   const router = useRouter();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [idDocumentUrl, setIdDocumentUrl] = useState('');
+  const [serviceAreaId, setServiceAreaId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -42,6 +46,7 @@ export function AddDriverForm({
           email,
           phone: phone.trim() || undefined,
           idDocumentUrl,
+          ...(serviceAreaId ? { serviceAreaId } : {}),
           ...bodyExtras,
         }),
       });
@@ -102,6 +107,29 @@ export function AddDriverForm({
           required
           hint="Lien vers le recto de la pièce d’identité."
         />
+        {serviceAreas.length > 0 ? (
+          <label style={{ display: 'grid', gap: 6, fontSize: '0.875rem', fontWeight: 600 }}>
+            Zone de service
+            <select
+              value={serviceAreaId}
+              onChange={(event) => setServiceAreaId(event.target.value)}
+              aria-label="Zone de service"
+              style={{
+                ...webInputStyle,
+                height: 42,
+                padding: '0 10px',
+                fontWeight: 500,
+              }}
+            >
+              <option value="">Non assignée</option>
+              {serviceAreas.map((area) => (
+                <option key={area.id} value={area.id}>
+                  {area.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         <div>
           <Button type="submit" loading={saving}>
             {saving ? 'Envoi…' : submitLabel}

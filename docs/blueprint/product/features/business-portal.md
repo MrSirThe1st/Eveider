@@ -65,9 +65,10 @@ Bulk import (CSV) is **out of MVP** unless added in a later phase.
 - List of all parcels belonging to the business
 - Filter by status, date, locker, reference
 - Detail view: lifecycle timeline, locker assignment, collection status
-- **Current location** is derived (`resolveBusinessParcelLocation`) from parcel status + pickup type + latest delivery — not a second stored status. See [ADR-002](../../decisions/ADR-002.md) and [glossary](../glossary.md).
+- **Current location** is derived (`resolveBusinessParcelLocation`) from parcel status + pickup type + latest delivery status/kind — not a second stored status. See [ADR-002](../../decisions/ADR-002.md) and [glossary](../glossary.md).
 - Pickup wording differs: courier pickup includes awaiting courier / courier assigned; merchant drop-off uses awaiting drop-off and skips courier assigned.
 - **Keep arrived at point vs ready for pickup distinct** on the timeline.
+- **Return to merchant** is a second delivery (`kind = return`) created from Colis detail (**Créer un retour**), not a parcel status. While in movement the location is `return_in_progress`; after courier confirmation it is `returned_to_business`.
 - **No pickup PIN display** — PIN is customer-only; business sees collection status only
 - **No courier name or phone** — “courier assigned” is a location, not an ops contact
 - **No business Livraisons nav** — movement stays an admin concept; relevant delivery facts appear on parcel detail only
@@ -122,7 +123,13 @@ Customer checkout → Locker selection → Parcel created by business system →
 2. Parcel submission (single parcel form)
 3. Business-scoped parcel list and detail
 4. Admin business approval / activate / block
-5. Checkout / API integration (deferred)
+5. Organisation API (`POST/GET /api/v1/parcels`, `GET /api/v1/points`) + outbound software notifications — gated by **Connecter un logiciel** (`API_ACCESS`). Settings: Paramètres → API.
+
+## Organisation API
+
+- Auth: `Authorization: Bearer eveider_live_…` (hashed at rest).
+- Create/read parcels for the owning business only — never guest track (PIN leak).
+- Notifications after `parcel.created`, `parcel.status_changed`, `delivery.assigned`, `delivery.completed`, `delivery.failed`, `issue.opened`. No outbox/retry in v1.
 
 ## Related Docs
 

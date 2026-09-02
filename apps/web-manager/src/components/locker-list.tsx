@@ -1,27 +1,38 @@
 'use client';
 
-import { colors, webCardStyle } from '@eveider/config-ui';
+import { colors, webCardStyle, webInputStyle } from '@eveider/config-ui';
 import { usesCompartmentGrid } from '@eveider/domain';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { LockerStatusBadge } from '@/components/locker-status-badge';
 import { ListSearchField } from '@/components/list-search-field';
 import type { LockerSummaryDto } from '@/lib/locker-presenter';
+import type { ServiceAreaOptionDto } from '@/lib/service-area-presenter';
 import { matchesListSearch } from '@/lib/list-search';
 
 type LockerListProps = {
   lockers: LockerSummaryDto[];
+  serviceAreas?: ServiceAreaOptionDto[];
 };
 
-export function LockerList({ lockers }: LockerListProps) {
+export function LockerList({ lockers, serviceAreas = [] }: LockerListProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [serviceAreaId, setServiceAreaId] = useState('');
 
   const filteredLockers = useMemo(
     () =>
-      lockers.filter((locker) =>
-        matchesListSearch(searchQuery, locker.name, locker.code, locker.address),
-      ),
-    [lockers, searchQuery],
+      lockers.filter((locker) => {
+        if (serviceAreaId && locker.serviceAreaId !== serviceAreaId) return false;
+        return matchesListSearch(
+          searchQuery,
+          locker.name,
+          locker.code,
+          locker.address,
+          locker.city,
+          locker.serviceAreaName,
+        );
+      }),
+    [lockers, searchQuery, serviceAreaId],
   );
 
   if (lockers.length === 0) {
@@ -44,16 +55,42 @@ export function LockerList({ lockers }: LockerListProps) {
 
   return (
     <div>
-      <div style={{ marginBottom: '1rem' }}>
+      <div
+        style={{
+          marginBottom: '1rem',
+          display: 'grid',
+          gap: '0.75rem',
+          gridTemplateColumns: serviceAreas.length > 0 ? 'minmax(0, 1fr) 220px' : '1fr',
+        }}
+      >
         <ListSearchField
           value={searchQuery}
           onChange={setSearchQuery}
           placeholder="Rechercher un point par code ou nom…"
           ariaLabel="Rechercher un point Eveider"
         />
+        {serviceAreas.length > 0 ? (
+          <select
+            value={serviceAreaId}
+            onChange={(event) => setServiceAreaId(event.target.value)}
+            aria-label="Filtrer par zone de service"
+            style={{
+              ...webInputStyle,
+              height: 42,
+              padding: '0 10px',
+            }}
+          >
+            <option value="">Toutes les zones</option>
+            {serviceAreas.map((area) => (
+              <option key={area.id} value={area.id}>
+                {area.label}
+              </option>
+            ))}
+          </select>
+        ) : null}
       </div>
       <p style={{ margin: '0 0 1rem', fontWeight: 600, fontSize: '0.8125rem' }}>
-        {searchQuery.trim()
+        {searchQuery.trim() || serviceAreaId
           ? `${filteredLockers.length} point${filteredLockers.length > 1 ? 's' : ''} sur ${lockers.length}`
           : `${lockers.length} points`}
       </p>
@@ -97,6 +134,8 @@ export function LockerList({ lockers }: LockerListProps) {
                 <p style={{ margin: 0, fontWeight: 700 }}>{locker.name}</p>
                 <p style={{ margin: '0.35rem 0 0', fontWeight: 500, fontSize: '0.8125rem' }}>
                   {locker.typeLabel} · {locker.code}
+                  {locker.serviceAreaName ? ` · ${locker.serviceAreaName}` : ''}
+                  {locker.city && locker.city !== locker.serviceAreaName ? ` · ${locker.city}` : ''}
                 </p>
                 <p style={{ margin: '0.35rem 0 0', fontWeight: 500, fontSize: '0.875rem' }}>
                   {locker.address}

@@ -22,7 +22,7 @@ test.describe('Settings secondary sidebar', () => {
       'href',
       '/organisation/tableau-de-bord/parametres/mon-compte/profil',
     );
-    await expect(page.getByRole('heading', { name: 'Entreprise' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Entreprise', level: 1 })).toBeVisible();
 
     // Primary nav: Facturation / Équipe removed; Paramètres remains
     await expect(page.locator('.nb-side-nav__link', { hasText: 'Paramètres' })).toBeVisible();
@@ -41,7 +41,16 @@ test.describe('Settings secondary sidebar', () => {
     // Click navigation still works (stub section)
     await nav.getByRole('link', { name: 'API' }).click();
     await expect(page).toHaveURL(/\/parametres\/api$/);
-    await expect(page.getByText('Bientôt disponible')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'API', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Clé d.accès/ })).toBeVisible();
+
+    await nav.getByRole('link', { name: 'Préférences' }).click();
+    await expect(page).toHaveURL(/\/mon-compte\/preferences$/);
+    await expect(page.getByRole('heading', { name: 'Préférences', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Langue' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Apparence' })).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'Clair' })).toBeVisible();
+    await expect(page.getByText('Français', { exact: true })).toBeVisible();
   });
 
   test('dispatcher only sees Mon compte items', async ({ page }) => {
@@ -57,6 +66,11 @@ test.describe('Settings secondary sidebar', () => {
     await expect(nav.getByRole('link', { name: 'Membres' })).toHaveCount(0);
     await expect(nav.getByRole('link', { name: 'Facturation' })).toHaveCount(0);
 
+    await nav.getByRole('link', { name: 'Préférences' }).click();
+    await expect(page).toHaveURL(/\/mon-compte\/preferences$/);
+    await expect(page.getByRole('heading', { name: 'Préférences', level: 1 })).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'Automatique' })).toBeVisible();
+
     await page.goto('/organisation/tableau-de-bord/parametres/organisation');
     await expect(page).not.toHaveURL(/\/parametres\/organisation$/);
   });
@@ -68,6 +82,13 @@ test.describe('Settings secondary sidebar', () => {
     await expect(page).toHaveURL(/\/parametres\/mon-compte\/profil$/);
 
     const nav = page.getByRole('navigation', { name: 'Sections des paramètres' });
+    await nav.getByRole('link', { name: 'Préférences' }).click();
+    await expect(page).toHaveURL(/\/parametres\/mon-compte\/preferences$/);
+    await expect(page.getByRole('heading', { name: 'Préférences', level: 1 })).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'Sombre' })).toBeVisible();
+
+    await page.goto('/tableau-de-bord/parametres/mon-compte/profil');
+    await expect(page.getByRole('heading', { name: 'Profil', level: 1 })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Plateforme' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Casiers' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Facturation' })).toBeVisible();
@@ -93,6 +114,7 @@ test.describe('Settings secondary sidebar', () => {
     const casiersTabs = page.getByRole('navigation', { name: 'Paramètres casiers' });
     await expect(casiersTabs.getByRole('link', { name: 'Configuration' })).toBeVisible();
     await expect(casiersTabs.getByRole('link', { name: 'Modèles' })).toBeVisible();
+    await expect(casiersTabs.getByRole('link', { name: 'Zones' })).toBeVisible();
 
     await casiersTabs.getByRole('link', { name: 'Modèles' }).click();
     await expect(page).toHaveURL(/\/parametres\/casiers\/modeles$/);
@@ -100,6 +122,13 @@ test.describe('Settings secondary sidebar', () => {
     await expect(casiersTabs.getByRole('link', { name: 'Configuration' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Casiers', level: 1 })).toBeVisible();
     await expect(nav).toBeVisible();
+
+    await casiersTabs.getByRole('link', { name: 'Zones' }).click();
+    await expect(page).toHaveURL(/\/parametres\/casiers\/zones$/);
+    await expect(page.getByRole('heading', { name: 'Nouvelle zone' })).toBeVisible();
+    await expect(page.getByText('Kinshasa (KIN)')).toBeVisible();
+    await expect(page.getByText('Lubumbashi (LSH)')).toBeVisible();
+    await expect(page.getByText('Kolwezi (KWZ)')).toBeVisible();
   });
 });
 

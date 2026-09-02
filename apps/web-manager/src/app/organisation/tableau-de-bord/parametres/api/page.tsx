@@ -1,12 +1,23 @@
-import { SettingsComingSoon } from '@/components/settings-coming-soon';
+import { PageFrame } from '@eveider/ui';
+import { OrganizationApiSettingsPanel } from '@/components/organization-api-settings-panel';
 import { requireBusinessPermission } from '@/server/business';
+import { loadOrganizationApiSettings } from '@/server/organization-api';
 
 export default async function OrganizationApiSettingsPage() {
-  await requireBusinessPermission('settings');
+  const { profile } = await requireBusinessPermission('settings');
+  const settings = await loadOrganizationApiSettings(profile.businessId);
+
   return (
-    <SettingsComingSoon
+    <PageFrame
       title="API"
-      description="Pour relier Eveider à un autre logiciel."
-    />
+      description="Reliez Eveider à votre logiciel : clé d’accès et adresse de notification."
+      layout="standard"
+    >
+      <OrganizationApiSettingsPanel
+        apiAccessEnabled={settings.apiAccessEnabled}
+        keys={settings.keys}
+        endpoint={settings.endpoint}
+      />
+    </PageFrame>
   );
 }

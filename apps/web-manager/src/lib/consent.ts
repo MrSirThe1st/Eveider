@@ -39,8 +39,8 @@ export function preferencesAllowed(consent: CookieConsent | null): boolean {
   return consent?.preferences === true;
 }
 
-export function parseTheme(raw: string | undefined | null): 'light' | 'dark' | null {
-  return raw === 'light' || raw === 'dark' ? raw : null;
+export function parseTheme(raw: string | undefined | null): 'light' | 'dark' | 'system' | null {
+  return raw === 'light' || raw === 'dark' || raw === 'system' ? raw : null;
 }
 
 export function cookieAttributeString(maxAge = COOKIE_MAX_AGE_SECONDS): string {

@@ -125,6 +125,7 @@ export function lockerRow(
     name: 'EVEIDER GOMBE',
     address: 'Gombe',
     city: null,
+    service_area_id: null,
     latitude: null,
     longitude: null,
     rows: 5,
@@ -159,11 +160,34 @@ export function deliveryRow(
     id: 'delivery-1',
     parcel_id: 'parcel-1',
     driver_id: 'courier-1',
+    kind: 'outbound',
     status: 'assigned',
     scanned_at: null,
     completed_at: null,
     created_at: now,
     updated_at: now,
+    ...overrides,
+  };
+}
+
+export function parcelEventRow(
+  overrides: Partial<Record<string, unknown>> = {},
+): Record<string, unknown> {
+  return {
+    id: 'event-1',
+    parcel_id: 'parcel-1',
+    delivery_id: null,
+    issue_id: null,
+    compartment_id: null,
+    event_type: 'parcel.created',
+    actor_type: 'user',
+    actor_user_id: 'admin-1',
+    previous_parcel_status: null,
+    new_parcel_status: 'created',
+    previous_delivery_status: null,
+    new_delivery_status: null,
+    payload: {},
+    created_at: now,
     ...overrides,
   };
 }

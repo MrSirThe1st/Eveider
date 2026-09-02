@@ -27,13 +27,13 @@ describe('team invite email', () => {
     const email = buildTeamInviteEmail({
       to: 'regie@shop.cd',
       organizationName: 'Boutique Kenya',
-      roleLabel: 'Régulateur',
+      roleLabel: 'Dispatcher',
       inviteUrl: 'http://localhost:3000/invite/equipe/abc',
       expiresAt: new Date('2026-09-10T12:00:00.000Z'),
     });
 
     expect(email.subject).toContain('Boutique Kenya');
-    expect(email.text).toContain('Régulateur');
+    expect(email.text).toContain('Dispatcher');
     expect(email.text).toContain('http://localhost:3000/invite/equipe/abc');
     expect(email.html).toContain('Créer mon compte');
   });
@@ -43,7 +43,7 @@ describe('team invite email', () => {
       sendTeamInviteEmail({
         to: 'regie@shop.cd',
         organizationName: 'Boutique Kenya',
-        roleLabel: 'Régulateur',
+        roleLabel: 'Dispatcher',
         inviteUrl: 'http://localhost:3000/invite/equipe/abc',
         expiresAt: new Date('2026-09-10T12:00:00.000Z'),
       }),

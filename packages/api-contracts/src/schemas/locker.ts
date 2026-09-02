@@ -50,6 +50,7 @@ const createLockerBaseSchema = z.object({
     .regex(/^[A-Z]{3}$/, 'Devise invalide (ex. CDF)')
     .nullable()
     .optional(),
+  serviceAreaId: z.string().uuid('Zone invalide').nullable().optional(),
 });
 
 export const createLockerSchema = createLockerBaseSchema.superRefine((value, ctx) => {
@@ -109,6 +110,13 @@ export const updateLockerSchema = z.object({
     .regex(/^[A-Z]{3}$/, 'Devise invalide (ex. CDF)')
     .nullable()
     .optional(),
+  serviceAreaId: z.string().uuid('Zone invalide').nullable().optional(),
+});
+
+export const listLockersQuerySchema = z.object({
+  search: z.string().trim().max(120).optional(),
+  serviceAreaId: z.string().uuid('Zone invalide').optional(),
+  city: zodEnum(DRC_CITIES).optional(),
 });
 
 export const nearestLockersQuerySchema = z.object({
@@ -139,6 +147,7 @@ export const updateCompartmentStatusSchema = z.object({
 
 export type CreateLockerInput = z.infer<typeof createLockerSchema>;
 export type UpdateLockerInput = z.infer<typeof updateLockerSchema>;
+export type ListLockersQuery = z.infer<typeof listLockersQuerySchema>;
 export type NearestLockersQuery = z.infer<typeof nearestLockersQuerySchema>;
 export type LockersByCityQuery = z.infer<typeof lockersByCityQuerySchema>;
 export type SelectParcelLockerInput = z.infer<typeof selectParcelLockerSchema>;

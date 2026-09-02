@@ -10,10 +10,14 @@ Domain terms, entities, and status definitions for Eveider. Use these names in c
 | **Business** | Registered company that submits parcels for delivery through Eveider |
 | **Parcel** | An item being delivered through the locker network; belongs to a business and a recipient customer. The business’s primary object. |
 | **Locker** | A physical locker installation at a location |
+| **ServiceArea** | Operational geography Eveider serves (city-scoped zone). Lockers and driver dossiers optionally belong to one active service area. Used for filtering points/drivers and, later, pricing. Not the same as a team (membership roster). |
 | **Compartment** | A single slot within a locker; holds one parcel at a time |
-| **Delivery** | Courier assignment linking a parcel to a route action (scan, drop-off). Operational movement — not the business’s primary view. One parcel may have multiple deliveries over time (retries / returns, when those rules exist). |
+| **Delivery** | Courier assignment linking a parcel to a route action (scan, drop-off). Operational movement — not the business’s primary view. One parcel may have multiple deliveries over time. Each delivery has a **kind**: `outbound` (merchant → locker) or `return` (locker → merchant). |
 | **PickupPIN** | Short-lived code the customer uses to open the compartment |
-| **Notification** | SMS or in-app message tied to parcel or account events |
+| **Notification** | SMS or in-app message tied to parcel or account events (delivery channel, not the audit log) |
+| **ParcelEvent** | Operational audit spine for a parcel. Records each lifecycle step (create, assign, scan, deposit, PIN, notify, collect, fail, issue) with actor attribution. Answers *how* a parcel reached its current status. Shown as Historique on admin and organisation Colis detail. |
+| **OrganizationApiKey** | Business-scoped access key (`eveider_live_…`) for the public organisation API. Hashed at rest; plaintext shown once. Actor on parcel events is `api_key` (UI: CLÉ API). Gated by `business_permissions.API_ACCESS`. |
+| **OrganizationNotificationEndpoint** | HTTPS address Eveider calls after selected parcel events. Signed with HMAC-SHA256 (`X-Eveider-Signature`). Best-effort in v1 — no retry worker. |
 | **Issue** | Support ticket or operational exception (failed delivery, damaged parcel, offline locker) |
 | **Recipient (destinataire)** | Not a stored CRM entity. When a Destinataires view exists, it is derived from that business’s parcels, keyed by `recipient_phone`. |
 
@@ -40,11 +44,11 @@ ready_for_pickup → collected
 
 Failed delivery and admin overrides may introduce exception paths — document each in `project-updates.md` and an ADR when implemented.
 
-`returned` is **not** a parcel status until the operational trigger is defined (candidate: uncollected after the allowed period → return to merchant). Prefer recording the reverse movement as another delivery on the same parcel.
+`returned` is **not** a parcel status. Reverse movement is another delivery (`kind = return`) on the same parcel. Business Colis shows derived locations `return_in_progress` / `returned_to_business`.
 
 ## Business parcel location (derived)
 
-What the company sees on **Colis**. Computed by `resolveBusinessParcelLocation` — **never persisted**. Inputs: `ParcelStatus` + pickup type + latest `DeliveryStatus`. Courier identity is not part of this view.
+What the company sees on **Colis**. Computed by `resolveBusinessParcelLocation` — **never persisted**. Inputs: `ParcelStatus` + pickup type + latest `DeliveryStatus` + latest `DeliveryKind`. Courier identity is not part of this view.
 
 | Location | Meaning | Typical source |
 |----------|---------|----------------|
@@ -61,13 +65,13 @@ What the company sees on **Colis**. Computed by `resolveBusinessParcelLocation` 
 Courier pickup:
 
 ```
-submitted → awaiting_courier → courier_assigned → in_transit → at_locker → ready_for_pickup → collected
+submitted → awaiting_courier → courier_assigned → in_transit → at_locker → ready_for_pickup → return_in_progress → returned_to_business → collected
 ```
 
 Merchant drop-off (no courier-assigned step):
 
 ```
-submitted → awaiting_dropoff → in_transit → at_locker → ready_for_pickup → collected
+submitted → awaiting_dropoff → in_transit → at_locker → ready_for_pickup → return_in_progress → returned_to_business → collected
 ```
 
 `submitted` is the origin of the timeline, not a current location.
@@ -103,8 +107,10 @@ Operational labels for courier UI and admin monitoring — align with parcel sta
 | Assigned | Courier owns the delivery task |
 | Scanned | Parcel scanned at warehouse / hub |
 | Drop-off pending | En route or at locker, not yet confirmed |
-| Completed | Drop-off confirmed |
+| Completed | Drop-off confirmed (outbound occupies a compartment; return releases it) |
 | Failed | Exception raised; requires resolution |
+
+Kind: **Aller** (`outbound`) or **Retour** (`return`). A return starts from Colis detail (**Créer un retour**) when the parcel is at the point after a completed outbound, with no active delivery.
 
 ## Issue Types
 

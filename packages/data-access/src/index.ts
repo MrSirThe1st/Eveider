@@ -65,19 +65,29 @@ export {
   sendTeamInviteEmail,
 } from './messaging/index.js';
 export {
-  PaymentRepository,
-  getPawaPayConfig,
-  listPawaPayDepositProviders,
-  DRC_DEPOSIT_PROVIDERS,
-  type PickupPaymentSummary,
-} from './payments/index.js';
+  hashOrganizationApiKey,
+  generateOrganizationApiKey,
+  generateNotificationSigningSecret,
+  signNotificationBody,
+  notificationSignatureHeader,
+  apiKeyLooksValid,
+} from './org-api/secrets.js';
+export {
+  isAllowedNotificationUrl,
+  buildOrganizationNotificationPayload,
+  deliverSignedNotification,
+  notifyOrganizationOfParcelEvent,
+} from './org-api/notify.js';
 
 import { db } from './db/index.js';
 import { BusinessRepository } from './repositories/business.repository.js';
 import { BusinessOnboardingRepository } from './repositories/business-onboarding.repository.js';
 import { DeliveryRepository } from './repositories/delivery.repository.js';
 import { LockerRepository } from './repositories/locker.repository.js';
+import { ServiceAreaRepository } from './repositories/service-area.repository.js';
 import { ParcelRepository } from './repositories/parcel.repository.js';
+import { ParcelEventRepository } from './repositories/parcel-event.repository.js';
+import { OrganizationApiRepository } from './repositories/organization-api.repository.js';
 import { IssueRepository } from './repositories/issue.repository.js';
 import { NotificationRepository } from './repositories/notification.repository.js';
 import { StatsRepository } from './repositories/stats.repository.js';
@@ -109,6 +119,9 @@ export function createRepositories() {
   const platformSettings = new PlatformSettingsRepository(db);
   const platformStaff = new PlatformStaffRepository(db, users);
   const deliveries = new DeliveryRepository(db, notifications);
+  const parcelEvents = new ParcelEventRepository(db);
+  const organizationApi = new OrganizationApiRepository(db);
+  const serviceAreas = new ServiceAreaRepository(db);
 
   return {
     users,
@@ -116,8 +129,11 @@ export function createRepositories() {
     memberships,
     businessOnboarding,
     parcels: new ParcelRepository(db, notifications, invites, users),
+    parcelEvents,
+    organizationApi,
     deliveries,
     lockers: new LockerRepository(db, notifications),
+    serviceAreas,
     lockerSettings,
     platformSettings,
     platformStaff,

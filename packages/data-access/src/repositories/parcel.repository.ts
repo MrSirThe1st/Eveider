@@ -1,4 +1,5 @@
 import {
+  DELIVERY_KINDS,
   DELIVERY_STATUSES,
   generatePickupPinCode,
   generateTrackingNumber,
@@ -7,6 +8,7 @@ import {
   requiresSenderAddress,
   transitionParcel,
   usesCompartmentGrid,
+  type DeliveryKind,
   type DeliveryStatus,
   type PackageCategory,
   type PackageSize,
@@ -35,6 +37,10 @@ import { phonesMatch } from '../tracking/guest-track.js';
 import { BusinessRepository } from './business.repository.js';
 import { LockerRepository } from './locker.repository.js';
 import { NotificationRepository } from './notification.repository.js';
+import {
+  appendParcelEvent,
+  resolveEventActor,
+} from './parcel-event.repository.js';
 import { ParcelInviteRepository } from './parcel-invite.repository.js';
 import { UserRepository } from './user.repository.js';
 
@@ -71,15 +77,27 @@ export type BusinessColisListRow = {
   recipientPhone: string;
   locker: { name: string; address: string } | null;
   latestDeliveryStatus: DeliveryStatus | null;
+  latestDeliveryKind: DeliveryKind | null;
   createdAt: Date;
 };
 
 export type BusinessParcelDetailRecord = ParcelWithLocker & {
   latestDeliveryStatus: DeliveryStatus | null;
+  latestDeliveryKind: DeliveryKind | null;
 };
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const LATEST_DELIVERY_STATUS_SQL = `(
   SELECT d.status FROM deliveries d
+  WHERE d.parcel_id = p.id
+  ORDER BY d.created_at DESC
+  LIMIT 1
+)`;
+
+const LATEST_DELIVERY_KIND_SQL = `(
+  SELECT d.kind FROM deliveries d
   WHERE d.parcel_id = p.id
   ORDER BY d.created_at DESC
   LIMIT 1
@@ -90,6 +108,11 @@ function parseDeliveryStatus(value: unknown): DeliveryStatus | null {
   return (DELIVERY_STATUSES as readonly string[]).includes(value)
     ? (value as DeliveryStatus)
     : null;
+}
+
+function parseDeliveryKind(value: unknown): DeliveryKind | null {
+  if (typeof value !== 'string') return null;
+  return (DELIVERY_KINDS as readonly string[]).includes(value) ? (value as DeliveryKind) : null;
 }
 
 const ACTIVE_PIN_PARCEL_STATUSES: ParcelStatus[] = [
@@ -279,6 +302,7 @@ export class ParcelRepository {
         throw new Error('Compartiment indisponible');
       }
 
+      const actor = resolveEventActor(ctx);
       const parcel = await withTransaction(async (tx) => {
         await tx.query(
           `UPDATE compartments SET status = 'reserved', updated_at = NOW() WHERE id = $1`,
@@ -294,24 +318,60 @@ export class ParcelRepository {
            RETURNING *`,
           [...shipmentValues, compartment.id],
         );
-        return mapParcel(created.rows[0]!);
+        const mapped = mapParcel(created.rows[0]!);
+        await appendParcelEvent(tx, {
+          parcelId: mapped.id,
+          eventType: 'parcel.created',
+          actor,
+          newParcelStatus: 'created',
+          compartmentId: compartment.id,
+          payload: {
+            trackingNumber: mapped.trackingNumber,
+            lockerId: mapped.lockerId,
+            pickupType: mapped.pickupType,
+          },
+        });
+        await appendParcelEvent(tx, {
+          parcelId: mapped.id,
+          eventType: 'compartment.reserved',
+          actor,
+          compartmentId: compartment.id,
+          payload: { lockerId: mapped.lockerId },
+        });
+        return mapped;
       });
 
       return this.finalizeCreate(parcel, input);
     }
 
-    const created = await this.db.query(
-      `INSERT INTO parcels (
-         ${insertColumns}
-       ) VALUES (
-         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-         $17, $18, $19, $20, $21, $22, $23, $24, $25, 'created'
-       )
-       RETURNING *`,
-      shipmentValues,
-    );
+    const actor = resolveEventActor(ctx);
+    const created = await withTransaction(async (tx) => {
+      const result = await tx.query(
+        `INSERT INTO parcels (
+           ${insertColumns}
+         ) VALUES (
+           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+           $17, $18, $19, $20, $21, $22, $23, $24, $25, 'created'
+         )
+         RETURNING *`,
+        shipmentValues,
+      );
+      const mapped = mapParcel(result.rows[0]!);
+      await appendParcelEvent(tx, {
+        parcelId: mapped.id,
+        eventType: 'parcel.created',
+        actor,
+        newParcelStatus: 'created',
+        payload: {
+          trackingNumber: mapped.trackingNumber,
+          lockerId: mapped.lockerId,
+          pickupType: mapped.pickupType,
+        },
+      });
+      return mapped;
+    });
 
-    return this.finalizeCreate(mapParcel(created.rows[0]!), input);
+    return this.finalizeCreate(created, input);
   }
 
   async linkParcelsForUser(userId: string, phone: string): Promise<void> {
@@ -498,7 +558,8 @@ export class ParcelRepository {
               p.created_at,
               l.name AS locker_name,
               l.address AS locker_address,
-              ${LATEST_DELIVERY_STATUS_SQL} AS latest_delivery_status
+              ${LATEST_DELIVERY_STATUS_SQL} AS latest_delivery_status,
+              ${LATEST_DELIVERY_KIND_SQL} AS latest_delivery_kind
        FROM parcels p
        LEFT JOIN lockers l ON l.id = p.locker_id
        WHERE p.business_id = $1
@@ -520,6 +581,7 @@ export class ParcelRepository {
           ? null
           : { name: String(row.locker_name), address: String(row.locker_address ?? '') },
       latestDeliveryStatus: parseDeliveryStatus(row.latest_delivery_status),
+      latestDeliveryKind: parseDeliveryKind(row.latest_delivery_kind),
       createdAt:
         row.created_at instanceof Date ? row.created_at : new Date(String(row.created_at)),
     }));
@@ -538,7 +600,8 @@ export class ParcelRepository {
               CASE WHEN c.id IS NULL THEN NULL
                    ELSE json_build_object('id', c.id, 'label', c.label, 'size', c.size)
               END AS compartment_json,
-              ${LATEST_DELIVERY_STATUS_SQL} AS latest_delivery_status
+              ${LATEST_DELIVERY_STATUS_SQL} AS latest_delivery_status,
+              ${LATEST_DELIVERY_KIND_SQL} AS latest_delivery_kind
        FROM parcels p
        LEFT JOIN lockers l ON l.id = p.locker_id
        JOIN businesses b ON b.id = p.business_id
@@ -552,7 +615,27 @@ export class ParcelRepository {
     return {
       ...this.mapParcelWithRelations(row),
       latestDeliveryStatus: parseDeliveryStatus(row.latest_delivery_status),
+      latestDeliveryKind: parseDeliveryKind(row.latest_delivery_kind),
     };
+  }
+
+  async findForBusinessByIdOrTracking(
+    ctx: DataAccessContext,
+    businessId: string,
+    idOrTracking: string,
+  ): Promise<BusinessParcelDetailRecord | null> {
+    const trimmed = idOrTracking.trim();
+    if (UUID_RE.test(trimmed)) {
+      return this.findForBusiness(ctx, businessId, trimmed);
+    }
+    assertBusinessScope(ctx, businessId);
+    const lookup = await this.db.query(
+      `SELECT id FROM parcels WHERE tracking_number = $1 AND business_id = $2 LIMIT 1`,
+      [trimmed, businessId],
+    );
+    const id = lookup.rows[0]?.id;
+    if (!id) return null;
+    return this.findForBusiness(ctx, businessId, String(id));
   }
 
   async countForBusiness(
@@ -659,18 +742,43 @@ export class ParcelRepository {
     const parcel = mapParcel(row);
     this.assertWriteAccess(ctx, parcel);
     const status = transitionParcel(parcel.status, nextStatus);
-    const updated = await this.db.query(
-      `UPDATE parcels SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
-      [status, id],
-    );
+    const actor = resolveEventActor(ctx);
+    const isAdminOverride = ctx.role === 'admin';
 
-    if (nextStatus === 'ready_for_pickup') {
-      await this.ensurePickupPin(id);
-    }
+    const updated = await withTransaction(async (tx) => {
+      const result = await tx.query(
+        `UPDATE parcels SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+        [status, id],
+      );
+      const mapped = mapParcel(result.rows[0]!);
+      await appendParcelEvent(tx, {
+        parcelId: id,
+        eventType: 'parcel.status_changed',
+        actor,
+        previousParcelStatus: parcel.status,
+        newParcelStatus: status,
+        payload: isAdminOverride ? { reason: 'admin_override' } : {},
+      });
+
+      if (nextStatus === 'ready_for_pickup') {
+        const pinIssued = await this.ensurePickupPin(id, tx);
+        if (pinIssued) {
+          await appendParcelEvent(tx, {
+            parcelId: id,
+            eventType: 'pickup_pin.issued',
+            actor,
+            newParcelStatus: status,
+            payload: { issued: true },
+          });
+        }
+      }
+
+      return mapped;
+    });
 
     await this.notifications.notifyParcelStatusChange(id, nextStatus);
 
-    return mapParcel(updated.rows[0]!);
+    return updated;
   }
 
   async assignLockerByCustomer(
@@ -722,17 +830,36 @@ export class ParcelRepository {
     }
 
     const status = transitionParcel(parcel.status, 'collected');
-    await this.db.query(`UPDATE parcels SET status = $1, updated_at = NOW() WHERE id = $2`, [
-      status,
-      parcelId,
-    ]);
+    const actor = resolveEventActor(ctx);
 
-    if (parcel.compartment?.id) {
-      await this.db.query(
-        `UPDATE compartments SET status = 'available', updated_at = NOW() WHERE id = $1`,
-        [parcel.compartment.id],
-      );
-    }
+    await withTransaction(async (tx) => {
+      await tx.query(`UPDATE parcels SET status = $1, updated_at = NOW() WHERE id = $2`, [
+        status,
+        parcelId,
+      ]);
+      await appendParcelEvent(tx, {
+        parcelId,
+        eventType: 'parcel.status_changed',
+        actor,
+        previousParcelStatus: parcel.status,
+        newParcelStatus: status,
+      });
+
+      if (parcel.compartment?.id) {
+        await tx.query(
+          `UPDATE compartments SET status = 'available', updated_at = NOW() WHERE id = $1`,
+          [parcel.compartment.id],
+        );
+        await appendParcelEvent(tx, {
+          parcelId,
+          eventType: 'compartment.released',
+          actor,
+          compartmentId: parcel.compartment.id,
+          previousParcelStatus: parcel.status,
+          newParcelStatus: status,
+        });
+      }
+    });
 
     await this.notifications.notifyParcelStatusChange(parcelId, status);
 
@@ -893,25 +1020,27 @@ export class ParcelRepository {
     await this.linkParcelsForUser(ctx.userId, ctx.phone);
   }
 
-  private async ensurePickupPin(parcelId: string): Promise<void> {
-    const existing = await this.db.query(
+  /** Returns true when a new PIN row was inserted. */
+  private async ensurePickupPin(parcelId: string, db: Queryable = this.db): Promise<boolean> {
+    const existing = await db.query(
       `SELECT id FROM pickup_pins WHERE parcel_id = $1 LIMIT 1`,
       [parcelId],
     );
-    if (existing.rows[0]) return;
+    if (existing.rows[0]) return false;
 
-    const parcelResult = await this.db.query(
+    const parcelResult = await db.query(
       `SELECT locker_id FROM parcels WHERE id = $1 LIMIT 1`,
       [parcelId],
     );
     const lockerId =
       parcelResult.rows[0]?.locker_id == null ? null : String(parcelResult.rows[0].locker_id);
-    const code = await allocatePickupPin(this.db, lockerId);
+    const code = await allocatePickupPin(db, lockerId);
 
-    await this.db.query(
+    await db.query(
       `INSERT INTO pickup_pins (parcel_id, code) VALUES ($1, $2)`,
       [parcelId, code],
     );
+    return true;
   }
 
   private assertReadAccess(

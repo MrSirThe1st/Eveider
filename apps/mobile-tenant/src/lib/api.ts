@@ -1,4 +1,4 @@
-import { matchDrcCity, type DeliveryStatus, type IssueStatus, type IssueType, type ParcelStatus, type UserRole } from '@eveider/domain';
+import { matchDrcCity, type DeliveryKind, type DeliveryStatus, type IssueStatus, type IssueType, type ParcelStatus, type UserRole } from '@eveider/domain';
 import { apiFetch } from './api-fetch';
 import { supabase } from './supabase';
 
@@ -48,6 +48,8 @@ export type CourierDelivery = {
   id: string;
   status: DeliveryStatus;
   statusLabel: string;
+  kind?: DeliveryKind;
+  kindLabel?: string;
   scannedAt: string | null;
   completedAt: string | null;
   createdAt: string;

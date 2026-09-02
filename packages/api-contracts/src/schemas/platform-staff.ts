@@ -21,6 +21,14 @@ export const inviteEveiderDispatcherSchema = z.object({
   email: emailSchema,
 });
 
+export const promoteEveiderDispatcherSchema = z.object({
+  email: emailSchema,
+});
+
+export const updateEveiderTeamMemberRoleSchema = z.object({
+  role: z.enum(['dispatcher']),
+});
+
 export const registerPlatformAdminSchema = z.object({
   firstName: z.string().min(2, 'Prénom requis'),
   lastName: z.string().min(2, 'Nom requis'),
@@ -38,5 +46,7 @@ export type InvitePlatformStaffInput = z.infer<typeof invitePlatformStaffSchema>
 export type PromotePlatformStaffInput = z.infer<typeof promotePlatformStaffSchema>;
 export type UpdatePlatformStaffRoleInput = z.infer<typeof updatePlatformStaffRoleSchema>;
 export type InviteEveiderDispatcherInput = z.infer<typeof inviteEveiderDispatcherSchema>;
+export type PromoteEveiderDispatcherInput = z.infer<typeof promoteEveiderDispatcherSchema>;
+export type UpdateEveiderTeamMemberRoleInput = z.infer<typeof updateEveiderTeamMemberRoleSchema>;
 export type RegisterPlatformAdminInput = z.infer<typeof registerPlatformAdminSchema>;
 export type AcceptPlatformAdminInviteInput = z.infer<typeof acceptPlatformAdminInviteSchema>;

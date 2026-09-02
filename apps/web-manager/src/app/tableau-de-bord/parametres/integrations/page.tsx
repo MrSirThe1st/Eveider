@@ -1,10 +1,12 @@
-import { SettingsComingSoon } from '@/components/settings-coming-soon';
+import { ExcelIntegrationsPanel } from '@/components/excel-integrations-panel';
 
 export default function AdminIntegrationsSettingsPage() {
   return (
-    <SettingsComingSoon
-      title="Intégrations"
-      description="Reliez des outils comme Excel, Gmail ou Drive."
-    />
+    <div>
+      <p style={{ marginTop: 0, marginBottom: '1.5rem', opacity: 0.75 }}>
+        Exports Excel pour les colis, livraisons et analytics plateforme.
+      </p>
+      <ExcelIntegrationsPanel variant="admin" />
+    </div>
   );
 }

@@ -44,7 +44,9 @@ Failed scan → surface error; do not advance status without confirmation.
 - Confirm drop-off completion with that photo
 - Triggers parcel transition toward `delivered_to_locker` / `ready_for_pickup` per business rules
 
-Courier must not drop off to offline or full lockers — block with clear message and issue reporting path. Recipient signature is **out of scope** — Eveider is locker-first.
+On a **return** delivery (`kind = return`), the same scan → arrive → photo sequence remits the parcel to the merchant: compartment released, PIN invalidated, parcel status unchanged.
+
+Courier must not drop off to offline or full lockers — block with clear message and issue reporting path. Recipient signature is **out of scope** — Eveider is locker-first. Return remittance is not blocked by locker fullness.
 
 ### Issue Reporting
 

@@ -3,9 +3,11 @@ import Link from 'next/link';
 import { AddDriverForm } from '@/components/add-driver-form';
 import { WEB_ROUTES } from '@/lib/auth-routing';
 import { requireBusinessPermission } from '@/server/business';
+import { listServiceAreaOptions } from '@/server/service-areas';
 
 export default async function NewDriverPage() {
-  await requireBusinessPermission('manage_couriers');
+  const { ctx } = await requireBusinessPermission('manage_couriers');
+  const serviceAreas = await listServiceAreaOptions(ctx);
 
   return (
     <PageFrame
@@ -25,6 +27,7 @@ export default async function NewDriverPage() {
       <AddDriverForm
         apiPath="/api/organisation/drivers"
         detailBasePath={WEB_ROUTES.businessCouriers}
+        serviceAreas={serviceAreas}
       />
     </PageFrame>
   );

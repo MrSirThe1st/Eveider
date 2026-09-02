@@ -7,6 +7,7 @@ import {
   type BusinessParcelProgressionItem,
   type ParcelDto,
 } from '@/lib/business-parcel-presenter';
+import { toParcelEventDto, type ParcelEventDto } from '@/lib/parcel-presenter';
 
 export type BusinessParcelListItem = {
   id: string;
@@ -23,6 +24,9 @@ export type BusinessParcelDetailView = ParcelDto & {
   location: BusinessParcelLocation;
   locationLabel: string;
   progression: BusinessParcelProgressionItem[];
+  events: ParcelEventDto[];
+  canCreateReturn: boolean;
+  canAssignOutbound: boolean;
 };
 
 export async function listBusinessParcels(
@@ -36,6 +40,7 @@ export async function listBusinessParcels(
       status: parcel.status,
       pickupType: parcel.pickupType,
       latestDeliveryStatus: parcel.latestDeliveryStatus,
+      latestDeliveryKind: parcel.latestDeliveryKind,
     });
     return {
       id: parcel.id,
@@ -55,7 +60,7 @@ export async function loadBusinessParcelDetail(
   businessId: string,
   parcelId: string,
 ): Promise<BusinessParcelDetailView | null> {
-  const { parcels } = createRepositories();
+  const { parcels, parcelEvents, deliveries } = createRepositories();
   const parcel = await parcels.findForBusiness(ctx, businessId, parcelId);
   if (!parcel) return null;
 
@@ -63,12 +68,20 @@ export async function loadBusinessParcelDetail(
     status: parcel.status,
     pickupType: parcel.pickupType,
     latestDeliveryStatus: parcel.latestDeliveryStatus,
+    latestDeliveryKind: parcel.latestDeliveryKind,
   });
+  const [events, canCreateReturn] = await Promise.all([
+    parcelEvents.listForParcel(ctx, parcelId),
+    deliveries.canCreateReturn(ctx, parcelId),
+  ]);
 
   return {
     ...toParcelDto(parcel),
     location: location.location,
     locationLabel: location.locationLabel,
     progression: location.progression,
+    events: events.map(toParcelEventDto),
+    canCreateReturn,
+    canAssignOutbound: parcel.status === 'created' || parcel.status === 'in_transit',
   };
 }

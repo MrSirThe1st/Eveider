@@ -15,6 +15,7 @@ import {
   issueTypeColors,
   parcelStatusColors,
 } from '@/lib/admin-chart-theme';
+import { ParcelExportMenu } from '@/components/parcel-export-menu';
 
 type AdminAnalyticsPanelProps = {
   analytics: AnalyticsReport;
@@ -163,6 +164,13 @@ export function AdminAnalyticsPanel({ analytics, days }: AdminAnalyticsPanelProp
 
   return (
     <section style={{ marginBottom: '2.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+        <ParcelExportMenu
+          compact
+          exportPath="/api/analytics/export"
+          filters={{ days: String(days) }}
+        />
+      </div>
       <div
         style={{
           display: 'grid',

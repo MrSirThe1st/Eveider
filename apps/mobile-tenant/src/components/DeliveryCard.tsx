@@ -37,11 +37,17 @@ export function DeliveryCard({ delivery, highlight }: DeliveryCardProps) {
       </Text>
       {needsAction ? (
         <Text style={styles.actionHint}>
-          {delivery.status === 'assigned'
-            ? 'SCAN REQUIS'
-            : delivery.status === 'scanned'
-              ? 'EN ROUTE VERS LE CASIER'
-              : 'CONFIRMER LE DÉPÔT'}
+          {delivery.kind === 'return'
+            ? delivery.status === 'assigned'
+              ? 'SCAN REQUIS — RETOUR'
+              : delivery.status === 'scanned'
+                ? 'EN ROUTE VERS LE MARCHAND'
+                : 'CONFIRMER LA REMISE'
+            : delivery.status === 'assigned'
+              ? 'SCAN REQUIS'
+              : delivery.status === 'scanned'
+                ? 'EN ROUTE VERS LE CASIER'
+                : 'CONFIRMER LE DÉPÔT'}
         </Text>
       ) : null}
     </View>

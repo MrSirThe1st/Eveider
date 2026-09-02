@@ -12,6 +12,7 @@ import {
   SHIPMENT_PICKUP_TYPE_LABELS,
   type BusinessParcelLocation,
   type BusinessParcelProgressionStep,
+  type DeliveryKind,
   type DeliveryStatus,
   type PackageCategory,
   type PackageSize,
@@ -178,11 +179,13 @@ export function toBusinessParcelLocationView(input: {
   status: ParcelStatus;
   pickupType: ShipmentPickupType;
   latestDeliveryStatus: DeliveryStatus | null;
+  latestDeliveryKind?: DeliveryKind | null;
 }): BusinessParcelLocationView {
   const resolved = {
     parcelStatus: input.status,
     pickupType: input.pickupType,
     latestDeliveryStatus: input.latestDeliveryStatus,
+    latestDeliveryKind: input.latestDeliveryKind ?? null,
   };
   const location = resolveBusinessParcelLocation(resolved);
   return {

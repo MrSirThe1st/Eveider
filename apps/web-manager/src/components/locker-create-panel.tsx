@@ -50,6 +50,7 @@ export type CreatePointPayload = {
   name: string;
   address: string;
   status: 'active' | 'offline';
+  serviceAreaId?: string | null;
   rows?: number;
   columns?: number;
   compartments?: CompartmentCell[];
@@ -62,11 +63,18 @@ export type CreatePointPayload = {
   commissionCurrency?: string | null;
 };
 
+type ServiceAreaOption = {
+  id: string;
+  label: string;
+  city: string;
+};
+
 type LockerCreatePanelProps = {
   address: string;
   onAddressChange: (value: string) => void;
   placementConfirmed: boolean;
   saving: boolean;
+  serviceAreas?: ServiceAreaOption[];
   onCreate: (input: CreatePointPayload) => void;
 };
 
@@ -81,6 +89,7 @@ export function LockerCreatePanel({
   onAddressChange,
   placementConfirmed,
   saving,
+  serviceAreas = [],
   onCreate,
 }: LockerCreatePanelProps) {
   const [type, setType] = useState<LockerType>('SMART_LOCKER');
@@ -98,6 +107,7 @@ export function LockerCreatePanel({
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [status, setStatus] = useState<CreateStatus>('active');
+  const [serviceAreaId, setServiceAreaId] = useState('');
   const [suggesting, setSuggesting] = useState(false);
   const [maxCapacity, setMaxCapacity] = useState('20');
   const [contactPhone, setContactPhone] = useState('');
@@ -272,6 +282,7 @@ export function LockerCreatePanel({
       name: name.trim(),
       address: address.trim(),
       status,
+      ...(serviceAreaId ? { serviceAreaId } : {}),
     };
 
     if (smartLocker) {
@@ -360,6 +371,24 @@ export function LockerCreatePanel({
         <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>ADRESSE</span>
         <input value={address} onChange={(e) => onAddressChange(e.target.value)} style={inputStyle} />
       </label>
+
+      {serviceAreas.length > 0 ? (
+        <label style={{ display: 'block', marginBottom: '1rem' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>ZONE DE SERVICE</span>
+          <select
+            value={serviceAreaId}
+            onChange={(e) => setServiceAreaId(e.target.value)}
+            style={inputStyle}
+          >
+            <option value="">Automatique (selon la ville)</option>
+            {serviceAreas.map((area) => (
+              <option key={area.id} value={area.id}>
+                {area.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
 
       {smartLocker ? (
         <>

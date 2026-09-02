@@ -21,12 +21,18 @@ export async function POST(request: Request, { params }: RouteParams) {
   const { id } = await params;
   try {
     const { deliveries } = createRepositories();
-    const delivery = await deliveries.assign(auth.session.ctx, id, body.data.courierId);
+    const delivery = await deliveries.assign(
+      auth.session.ctx,
+      id,
+      body.data.courierId,
+      body.data.kind,
+    );
     return NextResponse.json(
       ok({
         delivery: {
           id: delivery.id,
           status: delivery.status,
+          kind: delivery.kind,
           courierId: delivery.courierId,
         },
       }),

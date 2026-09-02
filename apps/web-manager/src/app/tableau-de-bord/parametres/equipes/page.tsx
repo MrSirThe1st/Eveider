@@ -10,7 +10,7 @@ export default async function AdminTeamsSettingsPage() {
   return (
     <PageFrame
       title="Équipes"
-      description="Effectif opérationnel Eveider — régulateurs et chauffeurs."
+      description="Effectif opérationnel Eveider — dispatchers et chauffeurs."
       layout="wide"
     >
       <AdminEveiderTeamPanel

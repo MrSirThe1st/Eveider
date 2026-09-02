@@ -20,6 +20,8 @@ export type DriverListItem = {
   organizationKey: string;
   organizationLabel: string;
   team: string | null;
+  serviceAreaId: string | null;
+  serviceAreaName: string | null;
   status: DriverOperationalStatus;
   statusLabel: string;
   currentDelivery: string | null;
@@ -40,6 +42,7 @@ export type DriverDetail = {
   organizationKey: string;
   organizationLabel: string;
   team: string | null;
+  serviceAreaId: string | null;
   serviceArea: string | null;
   vehicle: string | null;
   currentLocation: string | null;
@@ -124,6 +127,8 @@ function toListItem(row: DriverRosterRecord): DriverListItem {
     organizationKey: organization.organizationKey,
     organizationLabel: organization.organizationLabel,
     team: null,
+    serviceAreaId: row.serviceAreaId,
+    serviceAreaName: row.serviceAreaName,
     status: operational.status,
     statusLabel: operational.statusLabel,
     currentDelivery: operational.currentDelivery,
@@ -145,7 +150,8 @@ function toDetail(row: DriverRosterRecord): DriverDetail {
     organizationKey: organization.organizationKey,
     organizationLabel: organization.organizationLabel,
     team: null,
-    serviceArea: null,
+    serviceAreaId: row.serviceAreaId,
+    serviceArea: row.serviceAreaName,
     vehicle: null,
     currentLocation: null,
     status: operational.status,

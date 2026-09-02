@@ -24,6 +24,8 @@ export type DataAccessContext = {
   organizationId?: string;
   organizationRole?: OrganizationRole | null;
   memberships: OrganizationMembershipRef[];
+  /** Present when the request is authenticated with an organisation API key. */
+  apiKeyId?: string;
   /** @deprecated alias of organizationId for existing repository SQL */
   businessId?: string;
   /**
@@ -41,6 +43,7 @@ type ContextOptions = {
   organizationId?: string;
   organizationRole?: OrganizationRole | null;
   memberships?: OrganizationMembershipRef[];
+  apiKeyId?: string;
   businessId?: string;
   businessUserRole?: OrganizationRole | string | null;
 };
@@ -127,6 +130,7 @@ function fromOptions(options?: ContextOptions): DataAccessContext {
     organizationId,
     organizationRole,
     memberships,
+    apiKeyId: options?.apiKeyId,
     businessId: organizationId,
   };
 

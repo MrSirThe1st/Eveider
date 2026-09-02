@@ -12,6 +12,10 @@ import {
   assertCustomerRole,
   type DataAccessContext,
 } from '../context.js';
+import {
+  appendParcelEvent,
+  resolveEventActor,
+} from './parcel-event.repository.js';
 
 const CUSTOMER_ISSUE_TYPES: IssueType[] = [
   'parcel_problem',
@@ -177,7 +181,17 @@ export class IssueRepository {
     }
 
     const created = await this.db.query(`INSERT INTO issues (type, description, parcel_id, locker_id, reporter_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`, [input.type, input.description, input.parcelId ?? null, lockerId ?? null, ctx.userId!]);
-    return (await this.loadWithRelations('i.id = $1', [created.rows[0]!.id]))[0]!;
+    const issueId = String(created.rows[0]!.id);
+    if (input.parcelId) {
+      await appendParcelEvent(this.db, {
+        parcelId: input.parcelId,
+        issueId,
+        eventType: 'issue.opened',
+        actor: resolveEventActor(ctx),
+        payload: { type: input.type },
+      });
+    }
+    return (await this.loadWithRelations('i.id = $1', [issueId]))[0]!;
   }
 
   private async createForCourier(
@@ -208,22 +222,45 @@ export class IssueRepository {
       if (!locker.rows[0]) throw new Error(`Locker ${lockerId} not found`);
     }
 
+    const actor = resolveEventActor(ctx);
     const created = await this.db.query(
       `INSERT INTO issues (type, description, parcel_id, locker_id, reporter_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
       [input.type, input.description, input.parcelId, lockerId ?? null, ctx.userId!],
     );
+    const issueId = String(created.rows[0]!.id);
+    const deliveryId = String(delivery.rows[0].id);
+
+    await appendParcelEvent(this.db, {
+      parcelId: input.parcelId,
+      deliveryId,
+      issueId,
+      eventType: 'issue.opened',
+      actor,
+      payload: { type: input.type },
+    });
 
     if (COURIER_FAIL_ISSUE_TYPES.includes(input.type)) {
       const currentStatus = delivery.rows[0].status as DeliveryStatus;
       if (canTransitionDelivery(currentStatus, 'failed')) {
+        const failedStatus = transitionDelivery(currentStatus, 'failed');
         await this.db.query(`UPDATE deliveries SET status = $1, updated_at = NOW() WHERE id = $2`, [
-          transitionDelivery(currentStatus, 'failed'),
-          String(delivery.rows[0].id),
+          failedStatus,
+          deliveryId,
         ]);
+        await appendParcelEvent(this.db, {
+          parcelId: input.parcelId,
+          deliveryId,
+          issueId,
+          eventType: 'delivery.failed',
+          actor,
+          previousDeliveryStatus: currentStatus,
+          newDeliveryStatus: failedStatus,
+          payload: { reason: input.type },
+        });
       }
     }
 
-    return (await this.loadWithRelations('i.id = $1', [created.rows[0]!.id]))[0]!;
+    return (await this.loadWithRelations('i.id = $1', [issueId]))[0]!;
   }
 
   private async createForBusiness(
@@ -260,7 +297,15 @@ export class IssueRepository {
       `INSERT INTO issues (type, description, parcel_id, locker_id, reporter_id) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
       [input.type, input.description, input.parcelId, lockerId ?? null, ctx.userId!],
     );
-    return (await this.loadWithRelations('i.id = $1', [created.rows[0]!.id]))[0]!;
+    const issueId = String(created.rows[0]!.id);
+    await appendParcelEvent(this.db, {
+      parcelId: input.parcelId,
+      issueId,
+      eventType: 'issue.opened',
+      actor: resolveEventActor(ctx),
+      payload: { type: input.type },
+    });
+    return (await this.loadWithRelations('i.id = $1', [issueId]))[0]!;
   }
 
   private assertAllowedType(type: IssueType, allowed: IssueType[]): void {

@@ -50,11 +50,13 @@ Postgres is remote (Supabase pooler). Each round trip is expensive (~200–300ms
 | Onboarding wizard / admin dossier | `getOnboardingSummary` (`loadSummary`) | — this is the only full-graph reader. Optional KYC lives at `/organisation/tableau-de-bord/verification`. |
 | Locker map / Points / parcel destination with capacity | `listActiveWithAvailability` / `listNetworkDirectory` | — |
 | Business Colis list (location) | `listBusinessColis` → pickup type + latest delivery, then `resolveBusinessParcelLocation` | `listForBusiness` full graph |
-| Business Colis detail | `findForBusiness` + derived location/progression | `useEffect` + `GET /api/entreprise/parcels/:id` for first paint |
+| Business Colis detail | `findForBusiness` + `parcelEvents.listForParcel` + derived location/progression | `useEffect` + `GET /api/entreprise/parcels/:id` for first paint |
 | Dropoff `<select>` of name+address | `listActivePickerOptions` | availability aggregates |
 | Organization Drivers list | `loadBusinessDriverRoster` → `listRosterForBusiness` (dossier + current delivery + today’s count) | `getOnboardingSummary`, full delivery history |
 | Organization Driver detail (overview / documents) | `loadBusinessDriverDetail` (`React.cache` on businessId + dossier id) | deliveries except the Livraisons tab |
 | Organization Driver deliveries tab | `loadBusinessDriverDeliveries` → `listForBusinessDriver` | roster columns already on the chrome |
+| Organisation API settings | `loadOrganizationApiSettings` → keys + notification endpoint (`hasFeatureEnabled` API_ACCESS) | `getOnboardingSummary`, guest track loaders |
+| Account Préférences | Client `eveider_theme` cookie + French language (no DB) | `getOnboardingSummary` |
 | Admin Drivers list | `loadAdminDriverRoster` → `listRosterForAdmin` (same snapshot + organization / Eveider fleet) | `listForAdmin`, `getOnboardingSummary` |
 | Admin Driver detail (overview / documents) | `loadAdminDriverDetail` (`React.cache` on ctx + dossier id) | deliveries except the Livraisons tab |
 | Admin Driver deliveries tab | `loadAdminDriverDeliveries` → `listForAdminDriver` | KYC actions (those stay on Documents) |

@@ -23,6 +23,7 @@ export type CreateCourierDossierInput = {
   phone?: string | null;
   idDocumentUrl: string;
   notes?: string | null;
+  serviceAreaId?: string | null;
 };
 
 export type ReviewCourierDossierInput = {
@@ -42,6 +43,9 @@ export type DriverRosterRecord = {
   businessId: string | null;
   organizationName: string | null;
   dossierStatus: DriverDossierStatus;
+  serviceAreaId: string | null;
+  serviceAreaName: string | null;
+  serviceAreaCode: string | null;
   idDocumentUrl: string;
   notes: string | null;
   reviewNotes: string | null;
@@ -65,6 +69,9 @@ const ROSTER_SELECT = `
     d.business_id,
     b.name AS business_name,
     d.status,
+    d.service_area_id,
+    sa.name AS service_area_name,
+    sa.code AS service_area_code,
     d.id_document_url,
     d.notes,
     d.review_notes,
@@ -78,6 +85,7 @@ const ROSTER_SELECT = `
   FROM driver_dossiers d
   LEFT JOIN users u ON u.id = d.user_id
   LEFT JOIN businesses b ON b.id = d.business_id
+  LEFT JOIN service_areas sa ON sa.id = d.service_area_id
   LEFT JOIN LATERAL (
     SELECT p.tracking_number, l.name AS locker_name
     FROM deliveries del
@@ -111,6 +119,9 @@ function mapRosterRow(row: Record<string, unknown>): DriverRosterRecord {
     businessId: row.business_id == null ? null : String(row.business_id),
     organizationName: row.business_name == null ? null : String(row.business_name),
     dossierStatus: row.status as DriverDossierStatus,
+    serviceAreaId: row.service_area_id == null ? null : String(row.service_area_id),
+    serviceAreaName: row.service_area_name == null ? null : String(row.service_area_name),
+    serviceAreaCode: row.service_area_code == null ? null : String(row.service_area_code),
     idDocumentUrl: String(row.id_document_url),
     notes: row.notes == null ? null : String(row.notes),
     reviewNotes: row.review_notes == null ? null : String(row.review_notes),
@@ -262,10 +273,13 @@ export class CourierDossierRepository {
       throw new Error('Un dossier coursier existe déjà pour cette adresse e-mail');
     }
 
+    const serviceAreaId = await this.resolveServiceAreaId(input.serviceAreaId);
+
     const result = await this.db.query(
       `INSERT INTO driver_dossiers (
-         contractor_type, business_id, full_name, email, phone, id_document_url, notes, created_by_user_id
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         contractor_type, business_id, full_name, email, phone, id_document_url, notes,
+         service_area_id, created_by_user_id
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
       [
         input.contractorType,
@@ -275,8 +289,26 @@ export class CourierDossierRepository {
         input.phone?.trim() || null,
         input.idDocumentUrl.trim(),
         input.notes?.trim() || null,
+        serviceAreaId,
         ctx.userId ?? null,
       ],
+    );
+    return mapCourierDossier(result.rows[0]!);
+  }
+
+  async updateServiceArea(
+    ctx: DataAccessContext,
+    id: string,
+    serviceAreaId: string | null,
+  ): Promise<CourierDossier> {
+    await this.requireInScope(ctx, id);
+    const nextServiceAreaId = await this.resolveServiceAreaId(serviceAreaId);
+    const result = await this.db.query(
+      `UPDATE driver_dossiers
+       SET service_area_id = $2, updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [id, nextServiceAreaId],
     );
     return mapCourierDossier(result.rows[0]!);
   }
@@ -430,5 +462,23 @@ export class CourierDossierRepository {
     const dossier = await this.findById(id);
     if (!dossier) throw new Error('Dossier coursier introuvable');
     return dossier;
+  }
+
+  private async resolveServiceAreaId(
+    serviceAreaId: string | null | undefined,
+  ): Promise<string | null> {
+    if (serviceAreaId === null || serviceAreaId === undefined || serviceAreaId === '') {
+      return null;
+    }
+    const result = await this.db.query(
+      `SELECT id, status FROM service_areas WHERE id = $1 LIMIT 1`,
+      [serviceAreaId],
+    );
+    const row = result.rows[0];
+    if (!row) throw new Error('Zone de service introuvable');
+    if (String(row.status) !== 'active') {
+      throw new Error('Cette zone de service n’est plus active');
+    }
+    return String(row.id);
   }
 }

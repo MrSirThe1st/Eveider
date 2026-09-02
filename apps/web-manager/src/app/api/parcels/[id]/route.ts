@@ -1,7 +1,7 @@
 import { fail, ok } from '@eveider/api-contracts';
 import { createRepositories } from '@eveider/data-access';
 import { NextResponse } from 'next/server';
-import { toAdminParcelDto } from '@/lib/parcel-presenter';
+import { toAdminParcelDto, toAdminParcelEventDto } from '@/lib/parcel-presenter';
 import { requireAdminSession } from '@/lib/session';
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -15,26 +15,33 @@ export async function GET(_request: Request, { params }: RouteParams) {
   const { id } = await params;
 
   try {
-    const { parcels, deliveries } = createRepositories();
+    const { parcels, deliveries, parcelEvents } = createRepositories();
     const parcel = await parcels.findById(auth.session.ctx, id);
 
     if (!parcel) {
       return NextResponse.json(fail('Colis introuvable'), { status: 404 });
     }
 
-    const activeDelivery = await deliveries.findActiveForParcel(auth.session.ctx, id);
+    const [activeDelivery, events, canCreateReturn] = await Promise.all([
+      deliveries.findActiveForParcel(auth.session.ctx, id),
+      parcelEvents.listForParcel(auth.session.ctx, id),
+      deliveries.canCreateReturn(auth.session.ctx, id),
+    ]);
 
     return NextResponse.json(
       ok({
         parcel: toAdminParcelDto(parcel),
+        canCreateReturn,
         activeDelivery: activeDelivery
           ? {
               id: activeDelivery.id,
               status: activeDelivery.status,
+              kind: activeDelivery.kind,
               courier: activeDelivery.courier,
               createdAt: activeDelivery.createdAt.toISOString(),
             }
           : null,
+        events: events.map(toAdminParcelEventDto),
       }),
     );
   } catch (err) {
