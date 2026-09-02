@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, spacing, typography, webCardStyle } from '@eveider/config-ui';
+import { colors, spacing, typography } from '@eveider/config-ui';
 import { Button, Card, CardHeader, InlineAlert, useToast } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';

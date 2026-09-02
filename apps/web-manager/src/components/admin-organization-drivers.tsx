@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, typography } from '@eveider/config-ui';
+import { colors } from '@eveider/config-ui';
 import { DataTable, type DataTableColumn } from '@eveider/ui';
 import Link from 'next/link';
 import { useMemo } from 'react';

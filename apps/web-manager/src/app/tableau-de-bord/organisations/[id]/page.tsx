@@ -1,5 +1,4 @@
 import { notFound } from 'next/navigation';
-import { AdminOrganizationOperatingAccess } from '@/components/admin-organization-operating-access';
 import { AdminOrganizationOverview } from '@/components/admin-organization-overview';
 import { getAdminSession } from '@/server/session';
 import {
