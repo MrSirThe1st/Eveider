@@ -162,7 +162,8 @@ export function LoadingSpinner({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'rgba(247, 248, 250, 0.88)',
+        background: 'color-mix(in srgb, var(--color-background) 88%, transparent)',
+        backdropFilter: 'blur(2px)',
       }}
     >
       <Spinner size={size} />

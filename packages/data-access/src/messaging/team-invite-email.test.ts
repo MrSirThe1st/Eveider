@@ -28,14 +28,17 @@ describe('team invite email', () => {
       to: 'regie@shop.cd',
       organizationName: 'Boutique Kenya',
       roleLabel: 'Dispatcher',
-      inviteUrl: 'http://localhost:3000/invite/equipe/abc',
+      inviteUrl: 'https://www.eveider.com/invite/equipe/abc',
       expiresAt: new Date('2026-09-10T12:00:00.000Z'),
     });
 
     expect(email.subject).toContain('Boutique Kenya');
     expect(email.text).toContain('Dispatcher');
-    expect(email.text).toContain('http://localhost:3000/invite/equipe/abc');
+    expect(email.text).toContain('https://www.eveider.com/invite/equipe/abc');
     expect(email.html).toContain('Créer mon compte');
+    expect(email.html).toContain('Invitation à rejoindre Boutique Kenya');
+    expect(email.html).toContain('cid:eveider-logo');
+    expect(email.html).toContain('alt="Eveider"');
   });
 
   it('refuses to send without RESEND_API_KEY', async () => {
@@ -44,7 +47,7 @@ describe('team invite email', () => {
         to: 'regie@shop.cd',
         organizationName: 'Boutique Kenya',
         roleLabel: 'Dispatcher',
-        inviteUrl: 'http://localhost:3000/invite/equipe/abc',
+        inviteUrl: 'https://www.eveider.com/invite/equipe/abc',
         expiresAt: new Date('2026-09-10T12:00:00.000Z'),
       }),
     ).rejects.toThrow('RESEND_API_KEY');
@@ -70,6 +73,13 @@ describe('team invite email', () => {
         from: 'Eveider <noreply@eveider.com>',
         to: 'admin@shop.cd',
         subject: expect.stringContaining('Boutique Kenya'),
+        attachments: [
+          expect.objectContaining({
+            filename: 'eveider_logo.png',
+            contentId: 'eveider-logo',
+            contentType: 'image/png',
+          }),
+        ],
       }),
     );
   });

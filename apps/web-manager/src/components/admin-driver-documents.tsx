@@ -86,6 +86,8 @@ export function AdminDriverDocuments({ driver }: AdminDriverDocumentsProps) {
     }
   }
 
+  const isBusinessDriver = driver.contractorType === 'business';
+
   return (
     <div style={{ display: 'grid', gap: spacing[5] }}>
       {error ? <InlineAlert message={error} variant="error" /> : null}
@@ -93,8 +95,12 @@ export function AdminDriverDocuments({ driver }: AdminDriverDocumentsProps) {
 
       <Card>
         <CardHeader
-          title="Contrôle des pièces"
-          description="Vérifiez la pièce avant d’attribuer des livraisons."
+          title={isBusinessDriver ? 'Dossier chauffeur' : 'Contrôle des pièces'}
+          description={
+            isBusinessDriver
+              ? 'Pièces transmises par l’entreprise — consultables ici. Pas de validation requise avant livraison.'
+              : 'Vérifiez la pièce avant d’attribuer des livraisons.'
+          }
         />
         <Row label="Entreprise">{driver.organizationLabel}</Row>
         <Row label="Statut">{driver.dossierStatusLabel}</Row>
@@ -103,7 +109,7 @@ export function AdminDriverDocuments({ driver }: AdminDriverDocumentsProps) {
         {driver.reviewNotes ? <Row label="Notes">{driver.reviewNotes}</Row> : null}
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[4] }}>
-          {driver.dossierStatus === 'pending_review' ? (
+          {!isBusinessDriver && driver.dossierStatus === 'pending_review' ? (
             <>
               <Button
                 size="sm"
@@ -149,7 +155,7 @@ export function AdminDriverDocuments({ driver }: AdminDriverDocumentsProps) {
             </>
           ) : null}
           {driver.dossierStatus === 'approved' ||
-          (driver.dossierStatus === 'pending_review' && !driver.invitedAt) ? (
+          (!isBusinessDriver && driver.dossierStatus === 'pending_review' && !driver.invitedAt) ? (
             <Button
               size="sm"
               disabled={busy}

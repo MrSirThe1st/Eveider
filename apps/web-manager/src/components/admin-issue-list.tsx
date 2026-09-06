@@ -3,7 +3,7 @@
 import { colors, webCardStyle } from '@eveider/config-ui';
 import type { IssueStatus } from '@eveider/domain';
 import { ISSUE_STATUS_LABELS } from '@eveider/domain';
-import { Button, FilterToolbar } from '@eveider/ui';
+import { Button, EmptyState, FilterToolbar, IconAlert } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { FlashBanner } from '@/components/flash-banner';
@@ -93,7 +93,12 @@ export function AdminIssueList({ issues }: AdminIssueListProps) {
       {actionError ? <FlashBanner message={actionError} variant="error" /> : null}
 
       {filtered.length === 0 ? (
-        <p style={{ fontWeight: 500, color: colors.secondary }}>Aucun incident pour ce filtre.</p>
+        <EmptyState
+          compact
+          title="Aucun incident pour ce filtre"
+          description="Changez de statut ou attendez de nouveaux signalements."
+          icon={<IconAlert />}
+        />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {filtered.map((issue) => {

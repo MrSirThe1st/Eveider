@@ -12,7 +12,7 @@ export default async function NewDriverPage() {
   return (
     <PageFrame
       title="Ajouter un chauffeur"
-      description="Ajoutez un chauffeur et envoyez-lui l’invitation sur le téléphone. Il ne pourra pas livrer tant qu’Eveider n’a pas contrôlé ses pièces."
+      description="Ajoutez un chauffeur et envoyez-lui l’invitation sur le téléphone. Ses pièces sont enregistrées chez Eveider."
       layout="standard"
       breadcrumbs={[
         { label: 'Chauffeurs', href: WEB_ROUTES.businessCouriers },

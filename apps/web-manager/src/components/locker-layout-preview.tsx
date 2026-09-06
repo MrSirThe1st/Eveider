@@ -20,11 +20,21 @@ type LockerLayoutPreviewProps = {
   onCellClick?: (label: string) => void;
 };
 
-const SIZE_COLORS: Record<CompartmentSize, string> = {
-  small: '#E8F5E9',
-  medium: '#FFFFFF',
-  large: '#FFF8E1',
+const SIZE_STYLE: Record<CompartmentSize, { background: string; color: string }> = {
+  small: {
+    background: colors.successMuted,
+    color: colors.successFg,
+  },
+  medium: {
+    background: colors.surfaceMuted,
+    color: colors.secondary,
+  },
+  large: {
+    background: colors.warningMuted,
+    color: colors.warningFg,
+  },
 };
+
 
 export function LockerLayoutPreview({
   layout,
@@ -62,18 +72,18 @@ export function LockerLayoutPreview({
               height: cellSize,
               border: borderSubtle(),
               borderRadius: 6,
-              background: SIZE_COLORS[cell.size],
+              background: SIZE_STYLE[cell.size].background,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: compact ? 9 : 10,
               fontWeight: 700,
-              color: colors.secondary,
+              color: SIZE_STYLE[cell.size].color,
               padding: 0,
               cursor: interactive ? 'pointer' : 'default',
             }}
           >
-            {interactive || cell.size !== 'medium' ? compartmentSizeLabel(cell.size) : ''}
+            {compartmentSizeLabel(cell.size)}
           </button>
         ))}
       </div>

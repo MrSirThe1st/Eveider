@@ -5,6 +5,7 @@ import {
   registerBusinessAccountResponseSchema,
 } from '@eveider/api-contracts';
 import { NextResponse } from 'next/server';
+import { ZodError } from 'zod';
 import { registerBusinessAccount } from '@/server/auth';
 import { createClient } from '@/lib/supabase/server';
 
@@ -39,13 +40,38 @@ export async function POST(request: Request) {
     }
 
     const result = await registerBusinessAccount(authData.user.id, parsed.data);
+    const joinedExistingCompany =
+      result.joinedExistingCompany || Boolean(parsed.data.inviteToken);
+
     const response = registerBusinessAccountResponseSchema.parse({
-      user: result.user,
-      business: result.business,
+      user: {
+        id: result.user.id,
+        authId: result.user.authId,
+        email: result.user.email,
+        phone: result.user.phone,
+        fullName: result.user.fullName,
+        isBlocked: Boolean(result.user.isBlocked),
+        createdAt: result.user.createdAt,
+        updatedAt: result.user.updatedAt,
+      },
+      business: {
+        id: result.business.id,
+        name: result.business.name,
+        status: result.business.status,
+        contactPhone: result.business.contactPhone,
+        isPhoneVerified: Boolean(result.business.isPhoneVerified),
+      },
+      joinedExistingCompany,
     });
 
     return NextResponse.json(ok(response));
   } catch (err) {
+    if (err instanceof ZodError) {
+      return NextResponse.json(
+        fail(err.errors[0]?.message ?? 'Réponse serveur invalide'),
+        { status: 500 },
+      );
+    }
     const message = err instanceof Error ? err.message : 'Erreur serveur';
     return NextResponse.json(fail(message), { status: 500 });
   }

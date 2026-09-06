@@ -106,6 +106,7 @@ function driverCode(id: string): string {
 function toOperational(row: DriverRosterRecord) {
   const status = deriveDriverOperationalStatus({
     dossierStatus: row.dossierStatus,
+    contractorType: row.contractorType,
     isBlocked: row.isBlocked,
     deactivated: row.deactivated,
     hasActiveDelivery: Boolean(row.currentTrackingNumber),

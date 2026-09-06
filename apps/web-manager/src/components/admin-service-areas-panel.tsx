@@ -8,6 +8,7 @@ import {
   webSecondaryButtonStyle,
 } from '@eveider/config-ui';
 import { DRC_CITIES } from '@eveider/domain';
+import { EmptyState, IconMapPin } from '@eveider/ui';
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FlashBanner } from '@/components/flash-banner';
@@ -262,7 +263,12 @@ export function AdminServiceAreasPanel({ initialAreas }: AdminServiceAreasPanelP
         </div>
 
         {visibleAreas.length === 0 ? (
-          <p style={{ margin: 0, opacity: 0.8 }}>Aucune zone pour le moment.</p>
+          <EmptyState
+            compact
+            title="Aucune zone pour le moment"
+            description="Créez une zone de service pour regrouper les points par ville d’exploitation."
+            icon={<IconMapPin />}
+          />
         ) : (
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             {visibleAreas.map((area) => (

@@ -214,7 +214,11 @@ export function MerchantDashboard({
           </p>
         </div>
       ) : (
-        <OrganizationVerificationBanner status={verificationStatus} reviewNotes={verificationNotes} />
+        <OrganizationVerificationBanner
+          status={verificationStatus}
+          reviewNotes={verificationNotes}
+          dismissible
+        />
       )}
 
       <div style={{ marginBottom: spacing[6] }}>

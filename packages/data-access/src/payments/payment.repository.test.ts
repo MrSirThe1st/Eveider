@@ -31,6 +31,9 @@ describe('PaymentRepository', () => {
 
   it('returns pickup payment summary with configured fee', async () => {
     setup((sql) => {
+      if (sqlIncludes(sql, 'FROM platform_settings')) {
+        return { pickup_fee_amount: 5, pickup_fee_currency: 'USD' };
+      }
       if (sqlIncludes(sql, 'SELECT payment_responsibility FROM parcels')) {
         return { payment_responsibility: 'receiver_pays' };
       }
@@ -52,6 +55,9 @@ describe('PaymentRepository', () => {
 
   it('skips pickup fee when sender pays', async () => {
     setup((sql) => {
+      if (sqlIncludes(sql, 'FROM platform_settings')) {
+        return { pickup_fee_amount: 5, pickup_fee_currency: 'USD' };
+      }
       if (sqlIncludes(sql, 'SELECT payment_responsibility FROM parcels')) {
         return { payment_responsibility: 'sender_pays' };
       }
@@ -73,6 +79,9 @@ describe('PaymentRepository', () => {
     });
 
     setup((sql) => {
+      if (sqlIncludes(sql, 'FROM platform_settings')) {
+        return { pickup_fee_amount: 5, pickup_fee_currency: 'USD' };
+      }
       if (sqlIncludes(sql, 'FROM parcels')) {
         return {
           id: 'parcel-1',

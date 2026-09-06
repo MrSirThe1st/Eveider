@@ -42,7 +42,6 @@ export function AdminPlatformStaffPanel({
   const [inviteRole, setInviteRole] = useState<PlatformRole>('admin');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [revokeId, setRevokeId] = useState<string | null>(null);
   const [revoking, setRevoking] = useState(false);
@@ -54,7 +53,6 @@ export function AdminPlatformStaffPanel({
   function resetAlerts() {
     setError(null);
     setSuccess(null);
-    setInviteUrl(null);
   }
 
   function openInviteModal() {
@@ -87,7 +85,6 @@ export function AdminPlatformStaffPanel({
       }
       setInviteOpen(false);
       setSuccess('Invitation envoyée par email.');
-      setInviteUrl(result.data.invite.inviteUrl);
       await refresh();
     } catch {
       setError('Erreur réseau. Veuillez réessayer.');
@@ -129,7 +126,6 @@ export function AdminPlatformStaffPanel({
       setError(result.error ?? 'Impossible de renvoyer l’invitation');
       return;
     }
-    setInviteUrl(result.data.invite.inviteUrl);
     setSuccess('Invitation renvoyée par email.');
     await refresh();
   }
@@ -264,7 +260,6 @@ export function AdminPlatformStaffPanel({
     <div style={{ display: 'grid', gap: '1.25rem' }}>
       {error ? <InlineAlert message={error} variant="error" /> : null}
       {success ? <InlineAlert message={success} variant="success" /> : null}
-      {inviteUrl ? <InlineAlert message={`Lien : ${inviteUrl}`} variant="info" /> : null}
 
       {!canManage ? (
         <InlineAlert

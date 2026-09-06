@@ -30,8 +30,8 @@ import type { LockerOption } from '@/components/locker-card';
 const STEPS: WizardStep[] = [
   {
     id: 'pickup',
-    title: 'Enlèvement',
-    description: 'Mode d’enlèvement et coordonnées de l’expéditeur.',
+    title: 'Collecte',
+    description: 'Mode de collecte et coordonnées de l’expéditeur.',
   },
   {
     id: 'recipient',
@@ -96,6 +96,7 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
   const [packageSize, setPackageSize] = useState<PackageSize>('medium');
   const [sizeManuallySet, setSizeManuallySet] = useState(false);
   const [deliveryQuoteLabel, setDeliveryQuoteLabel] = useState<string | null>(null);
+  const [feeChargedOnDeposit, setFeeChargedOnDeposit] = useState(false);
   const [packageCategory, setPackageCategory] = useState<PackageCategory>('other');
   const [packageLengthCm, setPackageLengthCm] = useState('');
   const [packageWidthCm, setPackageWidthCm] = useState('');
@@ -234,7 +235,7 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
       setDeliveryQuoteLabel(null);
       return;
     }
-    const params = new URLSearchParams({ lockerId, packageSize });
+    const params = new URLSearchParams({ lockerId, packageSize, pickupType });
     if (compartmentId) params.set('compartmentId', compartmentId);
     if (senderAddress.trim()) params.set('senderAddress', senderAddress.trim());
 
@@ -244,15 +245,19 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
       .then((json) => {
         if (!cancelled && json.success) {
           setDeliveryQuoteLabel(json.data.deliveryFeeLabel as string);
+          setFeeChargedOnDeposit(Boolean(json.data.feeChargedOnDeposit));
         }
       })
       .catch(() => {
-        if (!cancelled) setDeliveryQuoteLabel(null);
+        if (!cancelled) {
+          setDeliveryQuoteLabel(null);
+          setFeeChargedOnDeposit(false);
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [compartmentId, lockerId, packageSize, senderAddress]);
+  }, [compartmentId, lockerId, packageSize, pickupType, senderAddress]);
 
   function validatePickup(): boolean {
     if (senderName.trim().length < 2) {
@@ -264,7 +269,7 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
       return false;
     }
     if (pickupType === 'courier_pickup' && senderAddress.trim().length < 5) {
-      setError('Adresse expéditeur requise pour un enlèvement coursier.');
+      setError('Adresse expéditeur requise pour une collecte par chauffeur.');
       return false;
     }
     if (pickupType === 'merchant_dropoff' && !lockerId) {
@@ -431,7 +436,8 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
                   border:
                     pickupType === type ? `2px solid ${colors.primary}` : borderSubtle(),
                   borderRadius: 8,
-                  background: pickupType === type ? '#F0FDF4' : colors.surface,
+                  background: pickupType === type ? colors.primaryMuted : colors.surface,
+                  color: colors.secondary,
                   fontWeight: 700,
                   cursor: 'pointer',
                   textAlign: 'left',
@@ -459,7 +465,7 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
           />
           {pickupType === 'courier_pickup' ? (
             <TextField
-              label="Adresse d’enlèvement"
+              label="Adresse de collecte"
               name="senderAddress"
               value={senderAddress}
               onChange={(e) => setSenderAddress(e.target.value)}
@@ -720,7 +726,10 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
                         : borderSubtle(),
                     borderRadius: 8,
                     background:
-                      paymentResponsibility === mode ? '#F0FDF4' : colors.surface,
+                      paymentResponsibility === mode
+                        ? colors.primaryMuted
+                        : colors.surface,
+                    color: colors.secondary,
                     opacity: mode === 'cod' && !codAllowed ? 0.5 : 1,
                     cursor: disabledMode ? 'not-allowed' : 'pointer',
                     fontWeight: 600,
@@ -770,7 +779,7 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
           >
             <strong>Revue</strong>
             <span>
-              Enlèvement : {SHIPMENT_PICKUP_TYPE_LABELS[pickupType]} · {senderName}
+              Collecte : {SHIPMENT_PICKUP_TYPE_LABELS[pickupType]} · {senderName}
             </span>
             <span>
               Destinataire : {recipientName} · {recipientPhone}
@@ -785,7 +794,11 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
             </span>
             <span>Paiement : {PAYMENT_RESPONSIBILITY_LABELS[paymentResponsibility]}</span>
             {deliveryQuoteLabel ? (
-              <span>Frais de livraison (estimés, verrouillés à la création) : {deliveryQuoteLabel}</span>
+              <span>
+                {feeChargedOnDeposit
+                  ? `Frais de dépôt (facturés à la confirmation du dépôt) : ${deliveryQuoteLabel}`
+                  : `Frais de livraison (estimés, verrouillés à la création) : ${deliveryQuoteLabel}`}
+              </span>
             ) : null}
             <span style={{ fontSize: '0.8125rem', color: colors.textMuted }}>
               Les frais de retrait client (pickup) restent distincts et s’appliquent au destinataire si

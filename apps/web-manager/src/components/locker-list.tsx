@@ -2,6 +2,7 @@
 
 import { colors, webCardStyle, webInputStyle } from '@eveider/config-ui';
 import { usesCompartmentGrid } from '@eveider/domain';
+import { EmptyState, IconMapPin, IconSearch } from '@eveider/ui';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { LockerStatusBadge } from '@/components/locker-status-badge';
@@ -37,19 +38,11 @@ export function LockerList({ lockers, serviceAreas = [] }: LockerListProps) {
 
   if (lockers.length === 0) {
     return (
-      <section
-        style={{
-          ...webCardStyle,
-          padding: '2.5rem',
-          textAlign: 'center',
-        }}
-      >
-        <p style={{ margin: 0, fontWeight: 600 }}>Aucun point Eveider</p>
-        <p style={{ margin: '0.75rem 0 0', fontWeight: 500, fontSize: '0.875rem' }}>
-          Placez un repère sur la carte pour créer le premier point, ou exécutez{' '}
-          <code>pnpm db:seed</code>.
-        </p>
-      </section>
+      <EmptyState
+        title="Aucun point Eveider"
+        description="Placez un repère sur la carte pour créer le premier point, ou exécutez pnpm db:seed."
+        icon={<IconMapPin />}
+      />
     );
   }
 
@@ -95,62 +88,56 @@ export function LockerList({ lockers, serviceAreas = [] }: LockerListProps) {
           : `${lockers.length} points`}
       </p>
       {filteredLockers.length === 0 ? (
-        <section
-          style={{
-            ...webCardStyle,
-            padding: '2rem',
-            textAlign: 'center',
-          }}
-        >
-          <p style={{ margin: 0, fontWeight: 600 }}>Aucun point pour cette recherche</p>
-          <p style={{ margin: '0.75rem 0 0', fontWeight: 500, fontSize: '0.875rem' }}>
-            Essayez un autre code EVP ou nom de point.
-          </p>
-        </section>
+        <EmptyState
+          compact
+          title="Aucun point pour cette recherche"
+          description="Essayez un autre code EVP ou nom de point."
+          icon={<IconSearch />}
+        />
       ) : (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        {filteredLockers.map((locker) => (
-          <Link
-            key={locker.id}
-            href={`/tableau-de-bord/points/${locker.id}`}
-            style={{
-              display: 'block',
-              ...webCardStyle,
-              padding: '1.25rem 1.5rem',
-              textDecoration: 'none',
-              color: colors.secondary,
-            }}
-          >
-            <div
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {filteredLockers.map((locker) => (
+            <Link
+              key={locker.id}
+              href={`/tableau-de-bord/points/${locker.id}`}
               style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                gap: '1rem',
-                flexWrap: 'wrap',
+                display: 'block',
+                ...webCardStyle,
+                padding: '1.25rem 1.5rem',
+                textDecoration: 'none',
+                color: colors.secondary,
               }}
             >
-              <div>
-                <p style={{ margin: 0, fontWeight: 700 }}>{locker.name}</p>
-                <p style={{ margin: '0.35rem 0 0', fontWeight: 500, fontSize: '0.8125rem' }}>
-                  {locker.typeLabel} · {locker.code}
-                  {locker.serviceAreaName ? ` · ${locker.serviceAreaName}` : ''}
-                  {locker.city && locker.city !== locker.serviceAreaName ? ` · ${locker.city}` : ''}
-                </p>
-                <p style={{ margin: '0.35rem 0 0', fontWeight: 500, fontSize: '0.875rem' }}>
-                  {locker.address}
-                </p>
-                <p style={{ margin: '0.35rem 0 0', fontWeight: 500, fontSize: '0.8125rem' }}>
-                  {usesCompartmentGrid(locker.type)
-                    ? `${locker.compartmentCounts.available} dispo · ${locker.compartmentCounts.occupied} occupé · ${locker.compartmentCounts.reserved} réservé`
-                    : `${locker.availableSlots} places libres / ${locker.maxCapacity ?? '—'} max`}
-                </p>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  gap: '1rem',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div>
+                  <p style={{ margin: 0, fontWeight: 700 }}>{locker.name}</p>
+                  <p style={{ margin: '0.35rem 0 0', fontWeight: 500, fontSize: '0.8125rem' }}>
+                    {locker.typeLabel} · {locker.code}
+                    {locker.serviceAreaName ? ` · ${locker.serviceAreaName}` : ''}
+                    {locker.city && locker.city !== locker.serviceAreaName ? ` · ${locker.city}` : ''}
+                  </p>
+                  <p style={{ margin: '0.35rem 0 0', fontWeight: 500, fontSize: '0.875rem' }}>
+                    {locker.address}
+                  </p>
+                  <p style={{ margin: '0.35rem 0 0', fontWeight: 500, fontSize: '0.8125rem' }}>
+                    {usesCompartmentGrid(locker.type)
+                      ? `${locker.compartmentCounts.available} dispo · ${locker.compartmentCounts.occupied} occupé · ${locker.compartmentCounts.reserved} réservé`
+                      : `${locker.availableSlots} places libres / ${locker.maxCapacity ?? '—'} max`}
+                  </p>
+                </div>
+                <LockerStatusBadge status={locker.status} />
               </div>
-              <LockerStatusBadge status={locker.status} />
-            </div>
-          </Link>
-        ))}
-      </div>
+            </Link>
+          ))}
+        </div>
       )}
     </div>
   );

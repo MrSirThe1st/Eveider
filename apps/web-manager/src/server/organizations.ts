@@ -63,10 +63,10 @@ export type OrganizationOperatingAccessDto = {
   enabledFeatures: Array<
     'CREATE_SHIPMENT' | 'API_ACCESS' | 'COD' | 'MONTHLY_INVOICE'
   >;
-  dailyShipments: number;
-  monthlyShipments: number;
-  maxPackageValueUsd: number;
-  codDailyLimitUsd: number;
+  dailyShipments: number | null;
+  monthlyShipments: number | null;
+  maxPackageValueUsd: number | null;
+  codDailyLimitUsd: number | null;
 };
 
 export type AdminOrganizationDeliveryItem = {

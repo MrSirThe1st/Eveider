@@ -74,16 +74,6 @@ export function ExcelIntegrationsPanel({ variant }: ExcelIntegrationsPanelProps)
           Ouvrir les livraisons
         </Link>
       </div>
-
-      <div style={{ ...webCardStyle, padding: spacing[5], display: 'grid', gap: spacing[3] }}>
-        <div>
-          <h2 style={{ margin: 0, ...typography.sectionTitle }}>Export analytics</h2>
-          <p style={{ margin: `${spacing[2]}px 0 0`, color: colors.textMuted }}>
-            Rapport Excel des indicateurs du tableau de bord (7 jours par défaut).
-          </p>
-        </div>
-        <ParcelExportMenu exportPath="/api/analytics/export" filters={{ days: '7' }} />
-      </div>
     </section>
   );
 }

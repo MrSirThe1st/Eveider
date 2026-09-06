@@ -1,7 +1,7 @@
 'use client';
 
 import { colors, radius, spacing, typography } from '@eveider/config-ui';
-import type { CSSProperties, ReactNode } from 'react';
+import type { CSSProperties } from 'react';
 
 export type InlineAlertVariant = 'success' | 'error' | 'info';
 
@@ -80,16 +80,24 @@ export function InlineAlert({
           onClick={onDismiss}
           aria-label="Fermer"
           style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            width: 28,
+            height: 28,
             background: 'none',
             border: 'none',
+            borderRadius: radius.sm,
+            fontSize: 18,
             fontWeight: typography.weights.semibold,
             cursor: 'pointer',
-            color: colors.secondary,
-            padding: spacing[1],
+            color: colors.textMuted,
+            padding: 0,
             lineHeight: 1,
           }}
         >
-          ✕
+          ×
         </button>
       ) : null}
     </div>

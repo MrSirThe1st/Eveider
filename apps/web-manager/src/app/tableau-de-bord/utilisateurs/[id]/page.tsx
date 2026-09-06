@@ -1,24 +1,18 @@
-import { PageFrame } from '@eveider/ui';
-import { CourierProfileDetail } from '@/components/courier-profile-detail';
+import { notFound, redirect } from 'next/navigation';
+import { createRepositories } from '@eveider/data-access';
+import { adminDriverPath } from '@/lib/auth-routing';
+import { getAdminSession } from '@/server/session';
 
 type PageProps = {
   params: Promise<{ id: string }>;
 };
 
-export default async function CourierDetailPage({ params }: PageProps) {
-  const { id } = await params;
-
-  return (
-    <PageFrame
-      title="Profil coursier"
-      description="Identité, statut et historique des livraisons."
-      layout="standard"
-      breadcrumbs={[
-        { label: 'Utilisateurs', href: '/tableau-de-bord/utilisateurs' },
-        { label: 'Coursier' },
-      ]}
-    >
-      <CourierProfileDetail courierId={id} />
-    </PageFrame>
-  );
+/** Legacy coursier profile URL — drivers live under Chauffeurs. */
+export default async function LegacyCourierProfileRedirect({ params }: PageProps) {
+  await getAdminSession();
+  const { id: userId } = await params;
+  const { courierDossiers } = createRepositories();
+  const dossier = await courierDossiers.findByUserId(userId);
+  if (!dossier) notFound();
+  redirect(adminDriverPath(dossier.id));
 }

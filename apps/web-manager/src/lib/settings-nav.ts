@@ -6,6 +6,8 @@ export type SettingsNavItem = {
   id: string;
   label: string;
   href: string;
+  /** Short plain-language hint under the link (what it does / for whom). */
+  description?: string;
   /** Org-only: hide unless the user has this permission. */
   permission?: BusinessPermission;
   /** Match nested routes (e.g. casiers/configuration). */
@@ -30,8 +32,6 @@ export const ORG_SETTINGS_ROUTES = {
   organisation: `${ORG_BASE}/organisation`,
   members: `${ORG_BASE}/membres`,
   roles: `${ORG_BASE}/roles`,
-  teams: `${ORG_BASE}/equipes`,
-  lockers: `${ORG_BASE}/casiers`,
   billing: `${ORG_BASE}/facturation`,
   api: `${ORG_BASE}/api`,
   integrations: `${ORG_BASE}/integrations`,
@@ -58,10 +58,30 @@ export const ORGANIZATION_SETTINGS_NAV: SettingsNavGroup[] = [
     id: 'mon-compte',
     label: 'Mon compte',
     items: [
-      { id: 'profil', label: 'Profil', href: ORG_SETTINGS_ROUTES.profile },
-      { id: 'securite', label: 'Sécurité', href: ORG_SETTINGS_ROUTES.security },
-      { id: 'notifications', label: 'Notifications', href: ORG_SETTINGS_ROUTES.notifications },
-      { id: 'preferences', label: 'Préférences', href: ORG_SETTINGS_ROUTES.preferences },
+      {
+        id: 'profil',
+        label: 'Profil',
+        href: ORG_SETTINGS_ROUTES.profile,
+        description: 'Votre nom et e-mail',
+      },
+      {
+        id: 'securite',
+        label: 'Sécurité',
+        href: ORG_SETTINGS_ROUTES.security,
+        description: 'Mot de passe du compte',
+      },
+      {
+        id: 'notifications',
+        label: 'Notifications',
+        href: ORG_SETTINGS_ROUTES.notifications,
+        description: 'Comment on vous prévient',
+      },
+      {
+        id: 'preferences',
+        label: 'Préférences',
+        href: ORG_SETTINGS_ROUTES.preferences,
+        description: 'Langue et apparence',
+      },
     ],
   },
   {
@@ -72,42 +92,34 @@ export const ORGANIZATION_SETTINGS_NAV: SettingsNavGroup[] = [
         id: 'organisation-details',
         label: 'Entreprise',
         href: ORG_SETTINGS_ROUTES.organisation,
+        description: 'Infos de votre boutique',
         permission: 'settings',
       },
       {
         id: 'membres',
         label: 'Membres',
         href: ORG_SETTINGS_ROUTES.members,
+        description: 'Personnes de votre équipe',
         permission: 'manage_team',
       },
       {
         id: 'roles',
         label: 'Droits d’accès',
         href: ORG_SETTINGS_ROUTES.roles,
-        permission: 'settings',
-      },
-      {
-        id: 'equipes',
-        label: 'Équipes',
-        href: ORG_SETTINGS_ROUTES.teams,
-        permission: 'settings',
-      },
-      {
-        id: 'casiers',
-        label: 'Casiers',
-        href: ORG_SETTINGS_ROUTES.lockers,
+        description: 'Qui peut faire quoi',
         permission: 'settings',
       },
     ],
   },
   {
     id: 'facturation',
-    label: 'Facturation',
+    label: 'Paiement',
     items: [
       {
         id: 'plans',
-        label: 'Facturation',
+        label: 'Paiement & limites',
         href: ORG_SETTINGS_ROUTES.billing,
+        description: 'Qui paie et comment vous êtes payé',
         permission: 'billing',
       },
     ],
@@ -120,18 +132,20 @@ export const ORGANIZATION_SETTINGS_NAV: SettingsNavGroup[] = [
         id: 'api',
         label: 'API',
         href: ORG_SETTINGS_ROUTES.api,
+        description: 'Relier un autre logiciel',
         permission: 'settings',
       },
     ],
   },
   {
     id: 'integrations',
-    label: 'Intégrations',
+    label: 'Fichiers',
     items: [
       {
         id: 'external',
-        label: 'Intégrations',
+        label: 'Excel',
         href: ORG_SETTINGS_ROUTES.integrations,
+        description: 'Importer / exporter des colis',
         permission: 'settings',
       },
     ],
@@ -143,29 +157,97 @@ export const ADMIN_SETTINGS_NAV: SettingsNavGroup[] = [
     id: 'mon-compte',
     label: 'Mon compte',
     items: [
-      { id: 'profil', label: 'Profil', href: ADMIN_SETTINGS_ROUTES.profile },
-      { id: 'securite', label: 'Sécurité', href: ADMIN_SETTINGS_ROUTES.security },
-      { id: 'notifications', label: 'Notifications', href: ADMIN_SETTINGS_ROUTES.notifications },
-      { id: 'preferences', label: 'Préférences', href: ADMIN_SETTINGS_ROUTES.preferences },
+      {
+        id: 'profil',
+        label: 'Profil',
+        href: ADMIN_SETTINGS_ROUTES.profile,
+        description: 'Votre nom et e-mail',
+      },
+      {
+        id: 'securite',
+        label: 'Sécurité',
+        href: ADMIN_SETTINGS_ROUTES.security,
+        description: 'Mot de passe du compte',
+      },
+      {
+        id: 'notifications',
+        label: 'Notifications',
+        href: ADMIN_SETTINGS_ROUTES.notifications,
+        description: 'Comment on vous prévient',
+      },
+      {
+        id: 'preferences',
+        label: 'Préférences',
+        href: ADMIN_SETTINGS_ROUTES.preferences,
+        description: 'Langue et apparence',
+      },
     ],
   },
   {
-    id: 'eveider',
-    label: 'Eveider',
+    id: 'fonctionnement',
+    label: 'Fonctionnement',
     items: [
-      { id: 'plateforme', label: 'Plateforme', href: ADMIN_SETTINGS_ROUTES.platform },
-      { id: 'administrateurs', label: 'Administrateurs', href: ADMIN_SETTINGS_ROUTES.admins },
-      { id: 'roles', label: 'Droits d’accès', href: ADMIN_SETTINGS_ROUTES.roles },
-      { id: 'equipes', label: 'Équipes', href: ADMIN_SETTINGS_ROUTES.teams },
+      {
+        id: 'plateforme',
+        label: 'Règles générales',
+        href: ADMIN_SETTINGS_ROUTES.platform,
+        description: 'Frais au casier et défauts pour les nouvelles entreprises',
+      },
+      {
+        id: 'facturation',
+        label: 'Tarifs de livraison',
+        href: ADMIN_SETTINGS_ROUTES.billing,
+        description: 'Prix selon distance et taille — pour tous les colis',
+      },
       {
         id: 'casiers',
         label: 'Casiers',
         href: ADMIN_SETTINGS_ROUTES.lockers,
+        description: 'Réseau, modèles et zones de service',
         matchPrefix: true,
       },
-      { id: 'facturation', label: 'Facturation', href: ADMIN_SETTINGS_ROUTES.billing },
-      { id: 'api', label: 'API', href: ADMIN_SETTINGS_ROUTES.api },
-      { id: 'integrations', label: 'Intégrations', href: ADMIN_SETTINGS_ROUTES.integrations },
+    ],
+  },
+  {
+    id: 'equipe',
+    label: 'Équipe Eveider',
+    items: [
+      {
+        id: 'administrateurs',
+        label: 'Administrateurs',
+        href: ADMIN_SETTINGS_ROUTES.admins,
+        description: 'Qui gère la plateforme Eveider',
+      },
+      {
+        id: 'roles',
+        label: 'Droits d’accès',
+        href: ADMIN_SETTINGS_ROUTES.roles,
+        description: 'Qui peut voir ou modifier quoi',
+      },
+      {
+        id: 'equipes',
+        label: 'Dispatchers & chauffeurs',
+        href: ADMIN_SETTINGS_ROUTES.teams,
+        description: 'Personnel terrain Eveider',
+      },
+    ],
+  },
+  {
+    id: 'outils',
+    label: 'Outils',
+    items: [
+      {
+        id: 'api',
+        label: 'API',
+        href: ADMIN_SETTINGS_ROUTES.api,
+        description: 'Relier Eveider à un autre logiciel',
+      },
+      {
+        id: 'integrations',
+        label: 'Exports Excel',
+        href: ADMIN_SETTINGS_ROUTES.integrations,
+        description: 'Télécharger colis et livraisons',
+      },
     ],
   },
 ];

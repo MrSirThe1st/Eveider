@@ -39,7 +39,7 @@ export const ASSIGNMENT_STRATEGY_LABELS: Record<AssignmentStrategy, string> = {
 export const DEFAULT_LOCKER_NETWORK_SETTINGS: LockerNetworkSettings = {
   sizeMatchingMode: 'exact_or_larger',
   assignmentStrategy: 'smallest_fit',
-  pickupHoldHours: 48,
+  pickupHoldHours: 72,
   pickupReminderHours: 24,
 };
 

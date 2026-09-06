@@ -35,5 +35,6 @@ describe('courier dossier status machine', () => {
     expect(isAssignableCourierDossier('approved')).toBe(true);
     expect(isAssignableCourierDossier('pending_review')).toBe(false);
     expect(isAssignableCourierDossier('deactivated')).toBe(false);
+    expect(isAssignableCourierDossier('pending_review', 'business')).toBe(true);
   });
 });

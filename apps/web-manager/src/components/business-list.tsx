@@ -1,7 +1,7 @@
 'use client';
 
 import { colors, typography } from '@eveider/config-ui';
-import { DataTable, type DataTableColumn } from '@eveider/ui';
+import { DataTable, IconBuilding, IconSearch, type DataTableColumn } from '@eveider/ui';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { ListSearchField } from '@/components/list-search-field';
@@ -116,6 +116,7 @@ export function BusinessList({ businesses }: BusinessListProps) {
             ? 'Essayez un autre nom ou contact.'
             : 'Les comptes partenaires vérifiés apparaîtront ici une fois activés.'
         }
+        emptyIcon={searchQuery.trim() ? <IconSearch /> : <IconBuilding />}
         initialSortId="createdAt"
         initialSortDirection="desc"
         rowActions={(row) => [

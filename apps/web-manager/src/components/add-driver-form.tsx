@@ -20,7 +20,7 @@ export function AddDriverForm({
   apiPath,
   detailBasePath,
   submitLabel = 'Ajouter et inviter',
-  emailHint = 'L’invitation part tout de suite sur le téléphone. Il ne pourra pas livrer tant qu’Eveider n’a pas contrôlé ses pièces.',
+  emailHint = 'L’invitation part tout de suite sur le téléphone. Ses pièces sont enregistrées chez Eveider.',
   bodyExtras,
   serviceAreas = [],
 }: AddDriverFormProps) {

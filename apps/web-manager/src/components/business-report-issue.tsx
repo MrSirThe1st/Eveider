@@ -3,7 +3,8 @@
 import { colors, spacing, typography } from '@eveider/config-ui';
 import { ISSUE_TYPE_LABELS, type IssueType } from '@eveider/domain';
 import { Button, InlineAlert, TextField } from '@eveider/ui';
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
+import type { IssueItem } from '@/server/issues';
 
 const BUSINESS_ISSUE_TYPES: IssueType[] = [
   'parcel_problem',
@@ -11,16 +12,11 @@ const BUSINESS_ISSUE_TYPES: IssueType[] = [
   'locker_system',
 ];
 
-type IssueItem = {
-  id: string;
-  typeLabel: string;
-  statusLabel: string;
-  description: string;
-  createdAt: string;
-};
+type IssueListItem = Pick<IssueItem, 'id' | 'typeLabel' | 'statusLabel' | 'description' | 'createdAt'>;
 
 type BusinessReportIssueProps = {
   parcelId: string;
+  initialIssues: IssueListItem[];
 };
 
 function formatDate(iso: string) {
@@ -32,25 +28,13 @@ function formatDate(iso: string) {
   }).format(new Date(iso));
 }
 
-export function BusinessReportIssue({ parcelId }: BusinessReportIssueProps) {
-  const [issues, setIssues] = useState<IssueItem[]>([]);
+export function BusinessReportIssue({ parcelId, initialIssues }: BusinessReportIssueProps) {
+  const [issues, setIssues] = useState<IssueListItem[]>(initialIssues);
   const [type, setType] = useState<IssueType>('parcel_problem');
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  const load = useCallback(async () => {
-    const response = await fetch(`/api/organisation/issues?parcelId=${parcelId}`, { cache: 'no-store' });
-    const result = await response.json();
-    if (result.success) {
-      setIssues(result.data.issues as IssueItem[]);
-    }
-  }, [parcelId]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -68,9 +52,19 @@ export function BusinessReportIssue({ parcelId }: BusinessReportIssueProps) {
         setError(result.error ?? 'Impossible d’envoyer l’incident');
         return;
       }
+      const created = result.data.issue as IssueItem;
+      setIssues((prev) => [
+        {
+          id: created.id,
+          typeLabel: created.typeLabel,
+          statusLabel: created.statusLabel,
+          description: created.description,
+          createdAt: created.createdAt,
+        },
+        ...prev,
+      ]);
       setDescription('');
       setSuccess('Incident transmis à Eveider.');
-      await load();
     } catch {
       setError('Impossible d’envoyer l’incident.');
     } finally {

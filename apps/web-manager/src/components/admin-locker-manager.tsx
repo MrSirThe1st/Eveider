@@ -54,7 +54,6 @@ export function AdminLockerManager({
 }: AdminLockerManagerProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
-  const [archiving, setArchiving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [selectedLockerId, setSelectedLockerId] = useState<string>('');
@@ -227,34 +226,6 @@ export function AdminLockerManager({
     }
   }
 
-  async function archiveSelectedLocker() {
-    if (!selectedLockerId) return;
-
-    setArchiving(true);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      const response = await fetch(`/api/lockers/${selectedLockerId}/archive`, {
-        method: 'POST',
-      });
-      const result = await response.json();
-
-      if (!result.success) {
-        setError(result.error ?? 'Archivage échoué');
-        return;
-      }
-
-      setSuccess('Point archivé.');
-      setSelectedLockerId('');
-      router.refresh();
-    } catch {
-      setError('Impossible d’archiver le point.');
-    } finally {
-      setArchiving(false);
-    }
-  }
-
   const placementHint = !draft
     ? 'Zoomez sur la zone, saisissez une adresse (suggestions en direct), ou cliquez sur la carte.'
     : !placementConfirmed
@@ -265,9 +236,7 @@ export function AdminLockerManager({
     <div style={{ display: 'grid', gap: '1.5rem' }}>
       {error ? <FlashBanner message={error} variant="error" /> : null}
       {success ? <FlashBanner message={success} /> : null}
-      {(saving || archiving) ? (
-        <LoadingSpinner label={saving ? 'Création du point…' : 'Archivage…'} />
-      ) : null}
+      {saving ? <LoadingSpinner label="Création du point…" /> : null}
 
       <div style={{ display: 'grid', gap: '1.25rem' }}>
         <div style={{ width: '100%' }}>
@@ -281,7 +250,7 @@ export function AdminLockerManager({
             mapFocus={mapFocus}
             onViewportChange={setMapViewport}
             onMapClick={(coords) => void handleMapPlacement(coords)}
-            height={580}
+            height={520}
           />
           <p style={{ margin: '0.75rem 0 0', fontSize: '0.8125rem', fontWeight: 600, color: colors.secondary }}>
             {placementHint}
@@ -315,7 +284,7 @@ export function AdminLockerManager({
                   onClick={confirmPendingAddress}
                   style={{ ...webSecondaryButtonStyle, height: 36, flex: 1 }}
                 >
-                  OUI, REMPLIR
+                  Oui, remplir
                 </button>
                 <button
                   type="button"
@@ -327,169 +296,177 @@ export function AdminLockerManager({
                     background: colors.surface,
                   }}
                 >
-                  IGNORER
+                  Ignorer
                 </button>
               </div>
             </div>
           ) : null}
         </div>
 
-        <div
+        <section
           style={{
             ...webCardStyle,
-            padding: '1.25rem',
+            padding: '1rem 1.25rem',
+            position: 'relative',
+            zIndex: 2,
           }}
         >
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: '1.5rem',
-              alignItems: 'start',
-            }}
-          >
-            <div>
-              <p style={{ margin: '0 0 0.5rem', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>
-                1. RECHERCHER UN LIEU
-              </p>
-              <p style={{ margin: '0 0 0.75rem', fontSize: '0.75rem', color: colors.secondary, opacity: 0.75 }}>
-                Suggestions Google Places (RDC, français), priorisées autour de la carte. Certaines rues visibles peuvent ne pas être indexées.
-              </p>
-
-              <label style={{ display: 'block', marginBottom: '0.75rem' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>ADRESSE OU LIEU</span>
-                <input
-                  value={locationSearch}
-                  onChange={(e) => setLocationSearch(e.target.value)}
-                  placeholder="Avenue, bâtiment, quartier, ville…"
-                  style={inputStyle}
-                  autoComplete="off"
-                />
-              </label>
-              {searching ? (
-                <p style={{ margin: '0 0 0.75rem', fontSize: '0.75rem', color: colors.textMuted }}>
-                  Recherche…
-                </p>
-              ) : null}
-
-              {searchResults.length > 0 ? (
-                <div>
-                  <p style={{ margin: '0 0 0.5rem', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>
-                    2. CHOISIR UN RÉSULTAT
-                  </p>
-                  <div
+          <label style={{ display: 'block' }}>
+            <span
+              style={{
+                display: 'block',
+                marginBottom: '0.35rem',
+                fontSize: '0.6875rem',
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                color: colors.textMuted,
+              }}
+            >
+              RECHERCHER UN LIEU
+            </span>
+            <input
+              value={locationSearch}
+              onChange={(e) => setLocationSearch(e.target.value)}
+              placeholder="Avenue, bâtiment, quartier, ville…"
+              style={{ ...inputStyle, marginTop: 0, width: '100%' }}
+              autoComplete="off"
+              aria-label="Rechercher un lieu"
+            />
+          </label>
+          <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: colors.textMuted }}>
+            Suggestions Google Places, priorisées autour de la carte. Ou cliquez / glissez un repère sur la carte.
+          </p>
+          {searching ? (
+            <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: colors.textMuted }}>
+              Recherche…
+            </p>
+          ) : null}
+          {searchResults.length > 0 ? (
+            <div
+              style={{
+                marginTop: '0.75rem',
+                border: borderSubtle(),
+                borderRadius: radius.button,
+                overflow: 'hidden',
+                maxHeight: 280,
+                overflowY: 'auto',
+              }}
+            >
+              {searchResults.map((place, index) => {
+                const isSelected = place.id === selectedResultId;
+                return (
+                  <button
+                    key={place.id}
+                    type="button"
+                    onClick={() => selectSearchResult(place)}
                     style={{
-                      border: borderSubtle(),
-                      borderRadius: radius.button,
-                      overflow: 'hidden',
+                      display: 'block',
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '0.75rem 1rem',
+                      border: 'none',
+                      borderBottom:
+                        index < searchResults.length - 1 ? borderSubtle() : 'none',
+                      background: isSelected ? colors.successMuted : colors.surface,
+                      color: isSelected ? colors.successFg : colors.secondary,
+                      fontWeight: isSelected ? 600 : 500,
+                      fontSize: '0.8125rem',
+                      cursor: 'pointer',
                     }}
                   >
-                    {searchResults.map((place, index) => {
-                      const isSelected = place.id === selectedResultId;
-                      return (
-                        <button
-                          key={place.id}
-                          type="button"
-                          onClick={() => selectSearchResult(place)}
-                          style={{
-                            display: 'block',
-                            width: '100%',
-                            textAlign: 'left',
-                            padding: '0.75rem',
-                            border: 'none',
-                            borderBottom:
-                              index < searchResults.length - 1
-                                ? borderSubtle()
-                                : 'none',
-                            background: isSelected ? '#E8FCE8' : colors.surface,
-                            color: colors.secondary,
-                            fontWeight: isSelected ? 600 : 500,
-                            fontSize: '0.8125rem',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <span style={{ fontWeight: 700, marginRight: 6 }}>{index + 1}.</span>
-                          {place.label}
-                          <span style={{ display: 'block', marginTop: 2, fontSize: '0.6875rem', opacity: 0.7 }}>
-                            {place.placeTypeLabel}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
+                    <span style={{ fontWeight: 700, marginRight: 6 }}>{index + 1}.</span>
+                    {place.label}
+                    <span
+                      style={{
+                        display: 'block',
+                        marginTop: 2,
+                        fontSize: '0.6875rem',
+                        color: colors.textMuted,
+                      }}
+                    >
+                      {place.placeTypeLabel}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
+          ) : null}
+        </section>
 
-            <div>
-            <LockerCreatePanel
-              address={address}
-              onAddressChange={setAddress}
-              placementConfirmed={placementConfirmed}
-              saving={saving}
-              serviceAreas={serviceAreas}
-              onCreate={(input) => void createLocker(input)}
-            />
-
-            {selectedLockerId ? (
-              <button
-                type="button"
-                disabled={archiving}
-                onClick={() => void archiveSelectedLocker()}
-                style={{
-                  marginTop: '0.75rem',
-                  width: '100%',
-                  height: 42,
-                  background: colors.surface,
-                  color: colors.danger,
-                  border: `1px solid ${colors.danger}`,
-                  borderRadius: radius.button,
-                  fontWeight: 700,
-                  cursor: archiving ? 'wait' : 'pointer',
-                }}
-              >
-                {archiving ? 'ARCHIVAGE…' : 'ARCHIVER LE POINT SÉLECTIONNÉ'}
-              </button>
-            ) : null}
-            </div>
-          </div>
-        </div>
+        <section style={{ ...webCardStyle, padding: '1.25rem' }}>
+          <LockerCreatePanel
+            address={address}
+            onAddressChange={setAddress}
+            placementConfirmed={placementConfirmed}
+            saving={saving}
+            serviceAreas={serviceAreas}
+            onCreate={(input) => void createLocker(input)}
+          />
+        </section>
       </div>
 
       {lockers.length > 0 ? (
-        <div className="nb-data-table">
-        <div className="nb-data-table__scroll">
-          <table>
-            <thead>
-              <tr>
-                {['Code', 'Point', 'Type', 'Statut', 'Capacité', ''].map((heading) => (
-                  <th key={heading || 'link'}>{heading}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {lockers.map((locker) => (
-                <tr key={locker.id} className="nb-data-table__row">
-                  <td style={{ fontWeight: 600 }}>{locker.code}</td>
-                  <td>{locker.name}</td>
-                  <td style={{ color: 'var(--color-text-muted)' }}>{locker.typeLabel}</td>
-                  <td>{locker.statusLabel}</td>
-                  <td>
-                    {usesCompartmentGrid(locker.type)
-                      ? `${locker.availableSlots} / ${locker.compartmentCounts.total}`
-                      : `${locker.availableSlots} / ${locker.maxCapacity ?? '—'}`}
-                  </td>
-                  <td className="nb-data-table__actions">
-                    <a href={`/tableau-de-bord/points/${locker.id}`} className="nb-data-table__link">
-                      Détail
-                    </a>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        </div>
+        <section>
+          <p
+            style={{
+              margin: '0 0 0.75rem',
+              fontSize: '0.6875rem',
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              color: colors.textMuted,
+            }}
+          >
+            POINTS EXISTANTS ({lockers.length})
+          </p>
+          <div className="nb-data-table">
+            <div className="nb-data-table__scroll">
+              <table>
+                <thead>
+                  <tr>
+                    {['Code', 'Point', 'Type', 'Statut', 'Capacité', ''].map((heading) => (
+                      <th key={heading || 'link'}>{heading}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {lockers.map((locker) => (
+                    <tr
+                      key={locker.id}
+                      className={[
+                        'nb-data-table__row',
+                        'is-interactive',
+                        selectedLockerId === locker.id ? 'is-selected' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      onClick={() => setSelectedLockerId(locker.id)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <td style={{ fontWeight: 600 }}>{locker.code}</td>
+                      <td>{locker.name}</td>
+                      <td style={{ color: 'var(--color-text-muted)' }}>{locker.typeLabel}</td>
+                      <td>{locker.statusLabel}</td>
+                      <td>
+                        {usesCompartmentGrid(locker.type)
+                          ? `${locker.availableSlots} / ${locker.compartmentCounts.total}`
+                          : `${locker.availableSlots} / ${locker.maxCapacity ?? '—'}`}
+                      </td>
+                      <td className="nb-data-table__actions">
+                        <a
+                          href={`/tableau-de-bord/points/${locker.id}`}
+                          className="nb-data-table__link"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          Détail
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
       ) : null}
     </div>
   );

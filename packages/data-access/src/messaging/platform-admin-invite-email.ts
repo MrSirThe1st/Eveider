@@ -1,4 +1,11 @@
 import { Resend } from 'resend';
+import {
+  buildBrandedEmailHtml,
+  buildBrandedEmailText,
+  escapeHtml,
+  formatEmailDate,
+  getEveiderLogoAttachment,
+} from './email-brand.js';
 import { getResendConfig } from './resend-config.js';
 
 export type SendPlatformAdminInviteEmailInput = {
@@ -10,40 +17,43 @@ export type SendPlatformAdminInviteEmailInput = {
 
 export type SendPlatformAdminInviteEmailResult = { ok: true; id: string };
 
-function formatExpiry(date: Date): string {
-  return new Intl.DateTimeFormat('fr-CD', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(date);
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
 export function buildPlatformAdminInviteEmail(
   input: SendPlatformAdminInviteEmailInput,
 ): { subject: string; text: string; html: string } {
-  const expiry = formatExpiry(input.expiresAt);
-  const subject = 'Invitation administrateur Eveider';
-  const text =
-    `Vous êtes invité(e) à rejoindre l’équipe d’administration Eveider en tant que ${input.roleLabel}.\n\n` +
-    `Acceptez l’invitation : ${input.inviteUrl}\n\n` +
-    `Ce lien expire le ${expiry}.`;
-  const html = `<!DOCTYPE html>
-<html lang="fr">
-<body style="font-family: Inter, system-ui, sans-serif; color: #121212; line-height: 1.5;">
-  <p>Vous êtes invité(e) à rejoindre l’équipe d’administration Eveider en tant que <strong>${escapeHtml(input.roleLabel)}</strong>.</p>
-  <p><a href="${escapeHtml(input.inviteUrl)}" style="display:inline-block;background:#09D40B;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:8px;">Accepter l’invitation</a></p>
-  <p style="color:#64748B;font-size:13px;">Ou ouvrez ce lien : ${escapeHtml(input.inviteUrl)}</p>
-  <p style="color:#64748B;font-size:13px;">Ce lien expire le ${escapeHtml(expiry)}.</p>
-</body>
-</html>`;
+  const expiry = formatEmailDate(input.expiresAt);
+  const subject = 'Invitation à administrer Eveider';
+
+  const text = buildBrandedEmailText({
+    greeting: 'Bonjour,',
+    paragraphs: [
+      `Vous êtes invité(e) à rejoindre l’équipe d’administration Eveider en tant que ${input.roleLabel}.`,
+      'Acceptez l’invitation pour accéder au tableau de bord plateforme.',
+      `Ce lien est personnel et expire le ${expiry}.`,
+      'Si vous n’attendiez pas cet email, vous pouvez l’ignorer.',
+    ],
+    ctaLabel: 'Accepter l’invitation',
+    ctaUrl: input.inviteUrl,
+  });
+
+  const html = buildBrandedEmailHtml({
+    preheader: `Invitation administrateur Eveider — rôle ${input.roleLabel}.`,
+    heading: 'Invitation administrateur',
+    bodyHtml: `
+              <p style="margin:0 0 12px;font-size:15px;color:#334155;">
+                Bonjour,<br /><br />
+                Vous êtes invité(e) à rejoindre l’équipe d’administration Eveider
+                en tant que <strong>${escapeHtml(input.roleLabel)}</strong>.
+              </p>
+              <p style="margin:0;font-size:15px;color:#334155;">
+                Acceptez l’invitation pour accéder au tableau de bord plateforme.
+              </p>`,
+    ctaLabel: 'Accepter l’invitation',
+    ctaUrl: input.inviteUrl,
+    footnoteHtml: `<p style="margin:16px 0 0;font-size:13px;color:#64748B;">
+                Ce lien est personnel et expire le <strong style="color:#334155;">${escapeHtml(expiry)}</strong>.
+              </p>`,
+  });
+
   return { subject, text, html };
 }
 
@@ -57,12 +67,14 @@ export async function sendPlatformAdminInviteEmail(
 
   const { subject, text, html } = buildPlatformAdminInviteEmail(input);
   const resend = new Resend(config.apiKey);
+  const logo = getEveiderLogoAttachment();
   const { data, error } = await resend.emails.send({
     from: config.from,
     to: input.to,
     subject,
     text,
     html,
+    attachments: [logo],
   });
 
   if (error) {

@@ -10,6 +10,7 @@ import {
   type DeliveryKind,
   type DeliveryStatus,
   type DriverDossierStatus,
+  type LockerType,
   type ParcelStatus,
 } from '@eveider/domain';
 import { normalizeDropOffPhoto } from '../deliveries/drop-off-photo.js';
@@ -36,6 +37,7 @@ import {
   appendParcelEvent,
   resolveEventActor,
 } from './parcel-event.repository.js';
+import { syncParcelLockerRental } from './parcel-rental.js';
 import { ParcelRepository } from './parcel.repository.js';
 
 export type CourierDelivery = Delivery & {
@@ -227,20 +229,25 @@ export class DeliveryRepository {
          LIMIT 1`,
         [parcelId],
       );
+      const atLocker =
+        parcel.status === 'delivered_to_locker' || parcel.status === 'ready_for_pickup';
       if (
         !canCreateReturnLeg({
           parcelStatus: parcel.status,
           hasActiveDelivery: false,
           hasCompletedOutbound: Boolean(completedOutbound.rows[0]),
           hasCompletedReturn: Boolean(completedReturn.rows[0]),
+          merchantDropoffArrived: parcel.pickupType === 'merchant_dropoff' && atLocker,
         })
       ) {
         throw new Error(
-          'Un retour n’est possible que pour un colis au point, après une livraison aller terminée',
+          'Un retour n’est possible que pour un colis au point, après dépôt ou livraison aller terminée',
         );
       }
     } else if (parcel.status !== 'created' && parcel.status !== 'in_transit') {
       throw new Error('Le colis ne peut pas recevoir de livraison à ce stade');
+    } else if (parcel.pickupType === 'merchant_dropoff') {
+      throw new Error('Assignation coursier indisponible pour un dépôt marchand');
     }
 
     const courierResult = await this.db.query(`SELECT * FROM users WHERE id = $1 LIMIT 1`, [
@@ -272,15 +279,24 @@ export class DeliveryRepository {
     }
 
     const dossierResult = await this.db.query(
-      `SELECT status, business_id FROM driver_dossiers
+      `SELECT status, business_id, contractor_type FROM driver_dossiers
        WHERE user_id = $1 AND status <> 'rejected'
        ORDER BY created_at DESC
        LIMIT 1`,
       [courierId],
     );
     const dossierRow = dossierResult.rows[0];
-    if (!dossierRow || !isAssignableDriverDossier(dossierRow.status as DriverDossierStatus)) {
-      throw new Error('Ce chauffeur n’est pas encore approuvé');
+    const contractorType =
+      dossierRow?.contractor_type === 'business' ? 'business' : 'eveider';
+    if (
+      !dossierRow ||
+      !isAssignableDriverDossier(dossierRow.status as DriverDossierStatus, contractorType)
+    ) {
+      throw new Error(
+        contractorType === 'business'
+          ? 'Ce chauffeur n’est pas disponible'
+          : 'Ce chauffeur n’est pas encore approuvé',
+      );
     }
     if (ctx.role === 'business' && ctx.businessId) {
       const dossierBusinessId = dossierRow.business_id == null ? null : String(dossierRow.business_id);
@@ -335,7 +351,7 @@ export class DeliveryRepository {
     }
 
     const parcelResult = await this.db.query(
-      `SELECT id, status, business_id FROM parcels WHERE id = $1 LIMIT 1`,
+      `SELECT id, status, business_id, pickup_type FROM parcels WHERE id = $1 LIMIT 1`,
       [parcelId],
     );
     const parcelRow = parcelResult.rows[0];
@@ -365,11 +381,16 @@ export class DeliveryRepository {
       ),
     ]);
 
+    const pickupType = String(parcelRow.pickup_type);
+    const atLocker =
+      parcelRow.status === 'delivered_to_locker' || parcelRow.status === 'ready_for_pickup';
+
     return canCreateReturnLeg({
       parcelStatus: parcelRow.status as ParcelStatus,
       hasActiveDelivery: Boolean(active.rows[0]),
       hasCompletedOutbound: Boolean(completedOutbound.rows[0]),
       hasCompletedReturn: Boolean(completedReturn.rows[0]),
+      merchantDropoffArrived: pickupType === 'merchant_dropoff' && atLocker,
     });
   }
 
@@ -707,7 +728,15 @@ export class DeliveryRepository {
         [compartment.id],
       );
       await tx.query(
-        `UPDATE parcels SET status = $1, compartment_id = $2, updated_at = NOW() WHERE id = $3`,
+        `UPDATE parcels
+         SET status = $1,
+             compartment_id = $2,
+             ready_for_pickup_at = CASE
+               WHEN $1 = 'ready_for_pickup' AND ready_for_pickup_at IS NULL THEN NOW()
+               ELSE ready_for_pickup_at
+             END,
+             updated_at = NOW()
+         WHERE id = $3`,
         [parcelStatus, compartment.id, parcel.id],
       );
 
@@ -798,6 +827,17 @@ export class DeliveryRepository {
     const deliveryStatus = transitionDelivery(delivery.status, 'completed');
     const actor = resolveEventActor(ctx);
     const compartmentId = parcel.compartmentId;
+    const removedAt = new Date();
+
+    // Load ready_for_pickup_at for rental finalization
+    const readyResult = await this.db.query(
+      `SELECT ready_for_pickup_at FROM parcels WHERE id = $1 LIMIT 1`,
+      [parcel.id],
+    );
+    const readyForPickupAt =
+      readyResult.rows[0]?.ready_for_pickup_at == null
+        ? null
+        : new Date(String(readyResult.rows[0].ready_for_pickup_at));
 
     await withTransaction(async (tx) => {
       await tx.query(
@@ -838,6 +878,16 @@ export class DeliveryRepository {
         previousParcelStatus: parcel.status,
         newParcelStatus: parcel.status,
         payload: { hasProof: true, kind: 'return', lockerId: parcel.lockerId, pinInvalidated: true },
+      });
+
+      await syncParcelLockerRental(tx, {
+        parcelId: parcel.id,
+        businessId: parcel.business.id,
+        readyForPickupAt,
+        endAt: removedAt,
+        lockerType: (parcel.locker?.type as LockerType | undefined) ?? null,
+        compartmentId,
+        finalize: true,
       });
     });
 

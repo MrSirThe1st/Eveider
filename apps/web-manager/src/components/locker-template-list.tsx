@@ -1,5 +1,6 @@
 'use client';
 
+import { EmptyState, IconLayout } from '@eveider/ui';
 import { colors, webCardStyle } from '@eveider/config-ui';
 import Link from 'next/link';
 import { LockerLayoutPreview } from '@/components/locker-layout-preview';
@@ -12,9 +13,11 @@ type LockerTemplateListProps = {
 export function LockerTemplateList({ templates }: LockerTemplateListProps) {
   if (templates.length === 0) {
     return (
-      <p style={{ margin: 0, color: colors.secondary, opacity: 0.8 }}>
-        Aucun modèle. Créez-en un pour accélérer la création de casiers.
-      </p>
+      <EmptyState
+        title="Aucun modèle"
+        description="Créez un modèle de grille pour accélérer la création de casiers."
+        icon={<IconLayout />}
+      />
     );
   }
 

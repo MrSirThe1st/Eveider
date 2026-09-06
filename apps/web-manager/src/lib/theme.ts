@@ -18,7 +18,7 @@ export const THEME_INIT_SCRIPT = `(function(){
       el.style.colorScheme = existing;
       return;
     }
-    var match = document.cookie.split('; ').find(function(part){ return part.indexOf('${THEME_COOKIE_NAME}=') === 0; });
+    var match = document.cookie.split(';').map(function(part){ return part.trim(); }).find(function(part){ return part.indexOf('${THEME_COOKIE_NAME}=') === 0; });
     var stored = match ? decodeURIComponent(match.slice(${THEME_COOKIE_NAME.length + 1})) : '';
     var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     var theme = stored === 'light' || stored === 'dark' ? stored : (prefersDark ? 'dark' : 'light');

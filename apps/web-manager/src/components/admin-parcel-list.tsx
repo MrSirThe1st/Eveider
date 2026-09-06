@@ -7,6 +7,8 @@ import {
   type DataTableColumn,
   Drawer,
   ErrorState,
+  IconPackage,
+  IconSearch,
   LoadingSpinner,
   TableSkeleton,
   useToast,
@@ -282,6 +284,9 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
             searchQuery.trim()
               ? 'Essayez une autre référence ou un autre numéro de suivi.'
               : "Les nouveaux envois apparaîtront ici dès qu'ils seront créés."
+          }
+          emptyIcon={
+            searchQuery.trim() || statusFilter !== 'all' ? <IconSearch /> : <IconPackage />
           }
           initialSortId="createdAt"
           initialSortDirection="desc"

@@ -1,14 +1,17 @@
 import {
-  formatDeliveryFeeFc,
+  formatDeliveryFee,
   PACKAGE_SIZE_LABELS,
   PARCEL_EVENT_ACTOR_TYPE_LABELS,
   PARCEL_EVENT_TYPE_LABELS,
   PARCEL_STATUS_LABELS,
+  SHIPMENT_PICKUP_TYPE_LABELS,
+  type DeliveryPricingCurrency,
   type DeliveryStatus,
   type PackageSize,
   type ParcelEventActorType,
   type ParcelEventType,
   type ParcelStatus,
+  type ShipmentPickupType,
 } from '@eveider/domain';
 
 export type LockerSummaryDto = {
@@ -33,7 +36,10 @@ export type AdminParcelDto = {
   lockerId: string | null;
   locker: LockerSummaryDto | null;
   business: BusinessSummaryDto;
-  deliveryFeeFc: number | null;
+  pickupType: ShipmentPickupType;
+  pickupTypeLabel: string;
+  deliveryFeeAmount: number | null;
+  deliveryFeeCurrency: DeliveryPricingCurrency;
   deliveryFeeLabel: string | null;
   deliveryDistanceKm: number | null;
   pricingSizeUsed: PackageSize | null;
@@ -50,14 +56,18 @@ export function toAdminParcelDto(parcel: {
   recipientName: string | null;
   recipientPhone: string;
   lockerId: string | null;
+  pickupType?: ShipmentPickupType;
   createdAt: Date;
   updatedAt: Date;
   locker?: { id: string; name: string; address: string } | null;
   business: { id: string; name: string };
-  deliveryFeeFc?: number | null;
+  deliveryFeeAmount?: number | null;
+  deliveryFeeCurrency?: DeliveryPricingCurrency | null;
   deliveryDistanceKm?: number | null;
   pricingSizeUsed?: PackageSize | null;
 }): AdminParcelDto {
+  const currency = parcel.deliveryFeeCurrency === 'USD' ? 'USD' : 'CDF';
+  const pickupType = parcel.pickupType ?? 'courier_pickup';
   return {
     id: parcel.id,
     trackingNumber: parcel.trackingNumber,
@@ -71,9 +81,14 @@ export function toAdminParcelDto(parcel: {
       ? { id: parcel.locker.id, name: parcel.locker.name, address: parcel.locker.address }
       : null,
     business: { id: parcel.business.id, name: parcel.business.name },
-    deliveryFeeFc: parcel.deliveryFeeFc ?? null,
+    pickupType,
+    pickupTypeLabel: SHIPMENT_PICKUP_TYPE_LABELS[pickupType],
+    deliveryFeeAmount: parcel.deliveryFeeAmount ?? null,
+    deliveryFeeCurrency: currency,
     deliveryFeeLabel:
-      parcel.deliveryFeeFc != null ? formatDeliveryFeeFc(parcel.deliveryFeeFc) : null,
+      parcel.deliveryFeeAmount != null
+        ? formatDeliveryFee(parcel.deliveryFeeAmount, currency)
+        : null,
     deliveryDistanceKm: parcel.deliveryDistanceKm ?? null,
     pricingSizeUsed: parcel.pricingSizeUsed ?? null,
     pricingSizeLabel: parcel.pricingSizeUsed

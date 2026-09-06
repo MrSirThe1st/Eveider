@@ -2,8 +2,7 @@
 
 import { colors, radius, webSecondaryButtonStyle } from '@eveider/config-ui';
 import { DELIVERY_STATUS_LABELS } from '@eveider/domain';
-import { FilterToolbar, LoadingSpinner, TableSkeleton } from '@eveider/ui';
-import { AdminLivraisonsTabs } from '@/components/admin-module-tabs';
+import { EmptyState, FilterToolbar, IconTruck, LoadingSpinner, TableSkeleton } from '@eveider/ui';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Fragment, useEffect, useMemo, useState } from 'react';
@@ -13,7 +12,6 @@ import { ListSearchField } from '@/components/list-search-field';
 import { ParcelExportMenu } from '@/components/parcel-export-menu';
 import { ParcelStatusBadge } from '@/components/parcel-status-badge';
 import {
-  DELIVERIES_REFRESH_MS,
   type DeliveryBoardView,
   type DeliveryFilters,
   type DeliveryStatusFilter,
@@ -138,8 +136,6 @@ export function AdminLiveDeliveryBoard() {
       ? boardQuery.error.message
       : 'Impossible de charger les livraisons.';
 
-  const lastRefresh = boardQuery.dataUpdatedAt ? new Date(boardQuery.dataUpdatedAt) : null;
-
   const summaryCards = useMemo(
     () => [
       { key: 'assigned' as const, label: DELIVERY_STATUS_LABELS.assigned, value: summary?.assigned ?? 0 },
@@ -186,7 +182,6 @@ export function AdminLiveDeliveryBoard() {
 
   return (
     <div>
-      <AdminLivraisonsTabs />
       {filters.view === 'active' ? (
         <div
           style={{
@@ -344,16 +339,11 @@ export function AdminLiveDeliveryBoard() {
         ]}
       />
 
-      <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', alignItems: 'center' }}>
-        {boardQuery.isFetching && items.length > 0 ? (
+      {boardQuery.isFetching && items.length > 0 ? (
+        <div style={{ marginBottom: '1.5rem' }}>
           <LoadingSpinner compact size="sm" label="Mise à jour…" />
-        ) : null}
-        {lastRefresh && filters.view === 'active' ? (
-          <span style={{ fontSize: '0.75rem', color: colors.textMuted }}>
-            Actualisé à {formatDateTime(lastRefresh.toISOString())} · auto {DELIVERIES_REFRESH_MS / 1000}s
-          </span>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       {showInitialLoader ? <TableSkeleton rows={8} /> : null}
       {showFatalError ? (
@@ -369,9 +359,12 @@ export function AdminLiveDeliveryBoard() {
       ) : null}
 
       {!showInitialLoader && !showFatalError && items.length === 0 ? (
-        <p style={{ fontWeight: 500, color: colors.secondary, opacity: 0.8 }}>
-          Aucun élément pour ces filtres.
-        </p>
+        <EmptyState
+          compact
+          title="Aucun élément pour ces filtres"
+          description="Modifiez les filtres ou changez d’onglet pour voir d’autres livraisons."
+          icon={<IconTruck />}
+        />
       ) : null}
 
       {!showInitialLoader && !showFatalError && items.length > 0 ? (
@@ -411,7 +404,7 @@ export function AdminLiveDeliveryBoard() {
                         href={`/tableau-de-bord/utilisateurs/${item.courier.id}`}
                         className="nb-data-table__link"
                       >
-                        {item.courier.fullName ?? item.courier.email ?? 'Coursier'}
+                        {item.courier.fullName ?? item.courier.email ?? 'Chauffeur'}
                       </Link>
                     ) : (
                       '—'

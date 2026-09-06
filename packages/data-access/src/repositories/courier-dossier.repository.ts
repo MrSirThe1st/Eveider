@@ -274,12 +274,14 @@ export class CourierDossierRepository {
     }
 
     const serviceAreaId = await this.resolveServiceAreaId(input.serviceAreaId);
+    // Business drivers are operational without platform KYC; Eveider fleet still starts in review.
+    const initialStatus = input.contractorType === 'business' ? 'approved' : 'pending_review';
 
     const result = await this.db.query(
       `INSERT INTO driver_dossiers (
          contractor_type, business_id, full_name, email, phone, id_document_url, notes,
-         service_area_id, created_by_user_id
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         service_area_id, created_by_user_id, status
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
       [
         input.contractorType,
@@ -291,6 +293,7 @@ export class CourierDossierRepository {
         input.notes?.trim() || null,
         serviceAreaId,
         ctx.userId ?? null,
+        initialStatus,
       ],
     );
     return mapCourierDossier(result.rows[0]!);
@@ -386,17 +389,25 @@ export class CourierDossierRepository {
 
   /**
    * Links an Auth user after a mobile invite.
-   * KYC status stays pending_review until Eveider approves; only `approved` promotes to `invited`.
+   * Eveider fleet: KYC stays pending until approved; only `approved` promotes to `invited`.
+   * Business drivers: already operational — invite promotes approved (or legacy on-file review) to `invited`.
    */
   async attachInvite(current: CourierDossier, userId: string): Promise<CourierDossier> {
     if (current.status === 'rejected' || current.status === 'deactivated') {
       throw new Error('Ce chauffeur ne peut pas être invité');
     }
+
+    const isBusinessDriver =
+      current.contractorType === 'business' || current.contractorType === 'organization';
+    let nextStatus = current.status;
     if (current.status === 'approved') {
       assertCourierDossierTransition(current.status, 'invited');
+      nextStatus = 'invited';
+    } else if (isBusinessDriver && current.status === 'pending_review') {
+      // Legacy business rows created before operational-without-KYC; skip review gate.
+      nextStatus = 'invited';
     }
 
-    const nextStatus = current.status === 'approved' ? 'invited' : current.status;
     const result = await this.db.query(
       `UPDATE driver_dossiers
        SET user_id = $2, invited_at = COALESCE(invited_at, NOW()),

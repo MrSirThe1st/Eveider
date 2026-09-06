@@ -1,8 +1,8 @@
+import { nativeRadius as radius, borders, type ColorTokens } from '@eveider/config-ui';
 import type { DeliveryStatus } from '@eveider/domain';
 import { DELIVERY_STATUS_LABELS } from '@eveider/domain';
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { radius, type ColorTokens } from '@eveider/config-ui';
 import { useColors } from '../theme';
 
 type DeliveryStatusBadgeProps = {
@@ -12,17 +12,29 @@ type DeliveryStatusBadgeProps = {
 export function DeliveryStatusBadge({ status }: DeliveryStatusBadgeProps) {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const statusColors: Record<DeliveryStatus, string> = {
-    assigned: colors.border,
-    scanned: colors.info,
-    drop_off_pending: colors.warning,
-    completed: colors.primary,
-    failed: colors.danger,
-  };
+  const active = status === 'scanned' || status === 'drop_off_pending';
+  const done = status === 'completed';
+  const failed = status === 'failed';
 
   return (
-    <View style={[styles.badge, { backgroundColor: statusColors[status] }]}>
-      <Text style={styles.label}>{DELIVERY_STATUS_LABELS[status]}</Text>
+    <View
+      style={[
+        styles.badge,
+        active && styles.badgeActive,
+        done && styles.badgeDone,
+        failed && styles.badgeFailed,
+      ]}
+    >
+      <Text
+        style={[
+          styles.text,
+          active && styles.textActive,
+          done && styles.textDone,
+          failed && styles.textFailed,
+        ]}
+      >
+        {DELIVERY_STATUS_LABELS[status]}
+      </Text>
     </View>
   );
 }
@@ -30,15 +42,38 @@ export function DeliveryStatusBadge({ status }: DeliveryStatusBadgeProps) {
 function createStyles(colors: ColorTokens) {
   return StyleSheet.create({
     badge: {
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: radius.button,
+      borderWidth: borders.width,
+      borderColor: colors.border,
+      borderRadius: radius.badge,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      backgroundColor: colors.background,
     },
-    label: {
-      fontSize: 10,
-      fontWeight: '700',
-      letterSpacing: 0.5,
-      color: colors.onPrimary,
+    badgeActive: {
+      borderColor: colors.primary,
+      backgroundColor: colors.successMuted,
+    },
+    badgeDone: {
+      borderColor: colors.primary,
+      backgroundColor: colors.successMuted,
+    },
+    badgeFailed: {
+      borderColor: colors.danger,
+      backgroundColor: colors.dangerMuted,
+    },
+    text: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: colors.secondary,
+    },
+    textActive: {
+      color: colors.successFg,
+    },
+    textDone: {
+      color: colors.successFg,
+    },
+    textFailed: {
+      color: colors.dangerFg,
     },
   });
 }

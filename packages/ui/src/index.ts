@@ -75,9 +75,12 @@ export {
   IconPackage,
   IconPlus,
   IconReceipt,
+  IconSearch,
   IconTruck,
   IconUser,
+  IconUsers,
   IconX,
+  IconInbox,
 } from './icons.js';
 export { PasswordInput, type PasswordInputProps } from './password-input.js';
 export {

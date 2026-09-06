@@ -14,6 +14,16 @@ describe('driver operational status', () => {
     ).toBe('pending_approval');
   });
 
+  it('treats business drivers in review as available (docs on file only)', () => {
+    expect(
+      deriveDriverOperationalStatus({
+        dossierStatus: 'pending_review',
+        contractorType: 'business',
+        hasActiveDelivery: false,
+      }),
+    ).toBe('available');
+  });
+
   it('treats blocked or deactivated drivers as suspended', () => {
     expect(
       deriveDriverOperationalStatus({
@@ -50,7 +60,7 @@ describe('driver operational status', () => {
 });
 
 describe('assignable driver dossiers', () => {
-  it('allows assignment after KYC approval, not during review', () => {
+  it('allows assignment after KYC approval for Eveider fleet, not during review', () => {
     expect(isAssignableDriverDossier('pending_review')).toBe(false);
     expect(isAssignableDriverDossier('needs_correction')).toBe(false);
     expect(isAssignableDriverDossier('rejected')).toBe(false);
@@ -58,5 +68,15 @@ describe('assignable driver dossiers', () => {
     expect(isAssignableDriverDossier('invited')).toBe(true);
     expect(isAssignableDriverDossier('active')).toBe(true);
     expect(isAssignableDriverDossier('deactivated')).toBe(false);
+  });
+
+  it('allows business drivers to operate without Eveider KYC approval', () => {
+    expect(isAssignableDriverDossier('pending_review', 'business')).toBe(true);
+    expect(isAssignableDriverDossier('needs_correction', 'business')).toBe(true);
+    expect(isAssignableDriverDossier('approved', 'business')).toBe(true);
+    expect(isAssignableDriverDossier('invited', 'business')).toBe(true);
+    expect(isAssignableDriverDossier('active', 'business')).toBe(true);
+    expect(isAssignableDriverDossier('rejected', 'business')).toBe(false);
+    expect(isAssignableDriverDossier('deactivated', 'business')).toBe(false);
   });
 });

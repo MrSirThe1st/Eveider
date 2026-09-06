@@ -1,8 +1,10 @@
-import { radius, spacing, borders, type ColorTokens } from '@eveider/config-ui';
+import { borders, spacing, type ColorTokens } from '@eveider/config-ui';
 import { orderLockerStops, type DeliveryStatus } from '@eveider/domain';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Image,
+  ImageBackground,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -11,19 +13,21 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { ActionRow } from '../components/ActionRow';
 import { AppSpinner } from '../components/AppSpinner';
+import { BarcodeScannerCard } from '../components/BarcodeScannerCard';
 import { DeliveryCard } from '../components/DeliveryCard';
 import { DeliveryStatusBadge } from '../components/DeliveryStatusBadge';
 import { DeliveryStepIndicator } from '../components/DeliveryStepIndicator';
-import { BarcodeScannerCard } from '../components/BarcodeScannerCard';
 import { DispatcherContactButton } from '../components/DispatcherContactButton';
 import { DropOffProofCard } from '../components/DropOffProofCard';
 import { EmptyState } from '../components/EmptyState';
+import { LockerMapView, getCurrentCoordinates, openDirections } from '../components/LockerMapView';
 import { PrimaryButton } from '../components/PrimaryButton';
-import { ScreenHeader } from '../components/ScreenHeader';
-import { useHideTabBar } from '../navigation/useHideTabBar';
 import { ReportIssueForm } from '../components/ReportIssueForm';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { SuccessBanner } from '../components/SuccessBanner';
+import { useHideTabBar } from '../navigation/useHideTabBar';
 import {
   completeCourierDropOff,
   fetchCourierDeliveries,
@@ -35,8 +39,10 @@ import {
   type CourierDelivery,
   type CourierHistorySummary,
 } from '../lib/api';
-import { LockerMapView, getCurrentCoordinates, openDirections } from '../components/LockerMapView';
+import { openDispatcherWhatsApp } from '../lib/support';
 import { useColors } from '../theme';
+
+const HOME_HERO = require('../assets/delivery.jpeg');
 
 type CourierScreen =
   | { name: 'list' }
@@ -60,6 +66,7 @@ const SUCCESS_MESSAGES: Partial<Record<DeliveryStatus, string>> = {
 };
 
 export function CourierHome() {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [screen, setScreen] = useState<CourierScreen>({ name: 'list' });
@@ -257,29 +264,24 @@ export function CourierHome() {
   );
   const completedDeliveries = deliveries.filter((d) => d.status === 'completed');
   const failedDeliveries = deliveries.filter((d) => d.status === 'failed');
-  const routeStops = buildRouteStops(activeDeliveries, origin);
 
   useHideTabBar(screen.name !== 'list');
 
   if (screen.name === 'list') {
     return (
-      <View style={styles.container}>
-        <ScreenHeader mode="COURSIER" title="LIVRAISONS" />
-
-        {loading && !refreshing ? (
-          <AppSpinner />
-        ) : null}
-
+      <View style={styles.screen}>
+        <ScreenHeader mode="COURSIER" title={t('tabs.home')} />
+        {loading && !refreshing ? <AppSpinner /> : null}
         {!loading && error ? (
-          <View style={styles.feedback}>
+          <View style={styles.body}>
             <Text style={styles.error}>{error}</Text>
-            <PrimaryButton label="RÉESSAYER" onPress={() => void loadList()} />
+            <PrimaryButton label={t('common.retry')} onPress={() => void loadList()} />
           </View>
         ) : null}
-
         {!loading && !error ? (
           <ScrollView
-            contentContainerStyle={styles.listContent}
+            style={styles.container}
+            contentContainerStyle={styles.content}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -288,113 +290,120 @@ export function CourierHome() {
                   void loadList(true);
                 }}
                 tintColor={colors.secondary}
+                colors={[colors.primary]}
+                progressBackgroundColor={colors.surface}
               />
             }
           >
-            {activeDeliveries.length === 0 && completedDeliveries.length === 0 && failedDeliveries.length === 0 ? (
-              <EmptyState
-                title="AUCUNE LIVRAISON"
-                message="Les colis assignés par l'administration apparaîtront ici."
-              />
-            ) : null}
-
-            <Pressable onPress={() => setScreen({ name: 'history' })} style={styles.summaryCard}>
-              <Text style={styles.sectionTitle}>BILAN {summary.days} JOURS</Text>
-              <Text style={styles.summaryText}>
-                {summary.completed} terminée{summary.completed === 1 ? '' : 's'} · {summary.failed} incident
-                {summary.failed === 1 ? '' : 's'} · {summary.successRate}% succès
+            <ImageBackground source={HOME_HERO} style={styles.hero} imageStyle={styles.heroImage}>
+              <View style={styles.heroScrim} />
+              <Text style={styles.hello}>
+                {t('courier.greeting')}{' '}
+                <Text style={styles.helloName}>{t('roles.courier')}</Text>
               </Text>
-            </Pressable>
-
-            <DispatcherContactButton />
-
-            {routeStops.length > 0 ? (
-              <View style={styles.routeCard}>
-                <Text style={styles.sectionTitle}>ITINÉRAIRE SUGGÉRÉ</Text>
-                {routeStops.map((stop, index) => (
-                  <View key={stop.id} style={styles.routeStop}>
-                    <Text style={styles.routeIndex}>{index + 1}</Text>
-                    <View style={styles.routeStopText}>
-                      <Text style={styles.detailText}>{stop.name}</Text>
-                      <Text style={styles.detailSubtext}>
-                        {stop.parcelCount} colis{stop.address ? ` · ${stop.address}` : ''}
-                      </Text>
-                    </View>
-                    {stop.latitude != null && stop.longitude != null ? (
-                      <Pressable
-                        onPress={() => openDirections(stop.latitude!, stop.longitude!, stop.name)}
-                        style={styles.routeMaps}
-                      >
-                        <Text style={styles.routeMapsText}>MAPS</Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
-                ))}
+              <View style={styles.heroBox}>
+                <Text style={styles.heroTitle}>{t('courier.heroTitle')}</Text>
+                <Text style={styles.heroStat}>
+                  {activeDeliveries.length === 0
+                    ? t('courier.heroIdle')
+                    : t('courier.heroActive', { count: activeDeliveries.length })}
+                </Text>
+                <Text style={styles.heroSub}>
+                  {t('courier.summaryText', {
+                    completed: summary.completed,
+                    failed: summary.failed,
+                    rate: summary.successRate,
+                  })}
+                </Text>
               </View>
-            ) : null}
+            </ImageBackground>
 
-            {activeDeliveries.length > 0 ? (
-              <>
-                <Text style={styles.sectionTitle}>EN COURS ({activeDeliveries.length})</Text>
-                {activeDeliveries.map((item) => (
+            <View style={styles.body}>
+              <ActionRow
+                icon="message-circle"
+                label={t('courier.contactDispatch')}
+                onPress={() => openDispatcherWhatsApp()}
+              />
+              <ActionRow
+                icon="clock"
+                label={t('courier.viewHistory')}
+                onPress={() => setScreen({ name: 'history' })}
+                last
+              />
+
+              {activeDeliveries.length === 0 &&
+              completedDeliveries.length === 0 &&
+              failedDeliveries.length === 0 ? (
+                <EmptyState title={t('courier.emptyTitle')} message={t('courier.emptyMessage')} />
+              ) : null}
+
+              {activeDeliveries.length > 0 ? (
+                <>
+                  <Text style={styles.section}>
+                    {t('courier.activeTitle')} ({activeDeliveries.length})
+                  </Text>
+                  {activeDeliveries.map((item) => (
+                    <Pressable
+                      key={item.id}
+                      onPress={() => setScreen({ name: 'detail', deliveryId: item.id })}
+                      style={styles.rowWrap}
+                    >
+                      <DeliveryCard delivery={item} />
+                    </Pressable>
+                  ))}
+                </>
+              ) : null}
+
+              {failedDeliveries.length > 0 ? (
+                <>
                   <Pressable
-                    key={item.id}
-                    onPress={() => setScreen({ name: 'detail', deliveryId: item.id })}
-                    style={styles.cardWrap}
+                    onPress={() => setShowFailed((value) => !value)}
+                    style={styles.sectionToggle}
                   >
-                    <DeliveryCard delivery={item} />
+                    <Text style={styles.section}>
+                      {t('courier.incidentsTitle')} ({failedDeliveries.length}){' '}
+                      {showFailed ? '▲' : '▼'}
+                    </Text>
                   </Pressable>
-                ))}
-              </>
-            ) : null}
+                  {showFailed
+                    ? failedDeliveries.map((item) => (
+                        <Pressable
+                          key={item.id}
+                          onPress={() => setScreen({ name: 'detail', deliveryId: item.id })}
+                          style={styles.rowWrap}
+                        >
+                          <DeliveryCard delivery={item} highlight={false} />
+                        </Pressable>
+                      ))
+                    : null}
+                </>
+              ) : null}
 
-            {failedDeliveries.length > 0 ? (
-              <>
-                <Pressable
-                  onPress={() => setShowFailed((value) => !value)}
-                  style={styles.completedToggle}
-                >
-                  <Text style={styles.sectionTitle}>
-                    INCIDENTS ({failedDeliveries.length}) {showFailed ? '▲' : '▼'}
-                  </Text>
-                </Pressable>
-                {showFailed
-                  ? failedDeliveries.map((item) => (
-                      <Pressable
-                        key={item.id}
-                        onPress={() => setScreen({ name: 'detail', deliveryId: item.id })}
-                        style={styles.cardWrap}
-                      >
-                        <DeliveryCard delivery={item} highlight={false} />
-                      </Pressable>
-                    ))
-                  : null}
-              </>
-            ) : null}
-
-            {completedDeliveries.length > 0 ? (
-              <>
-                <Pressable
-                  onPress={() => setShowCompleted((value) => !value)}
-                  style={styles.completedToggle}
-                >
-                  <Text style={styles.sectionTitle}>
-                    TERMINÉES ({completedDeliveries.length}) {showCompleted ? '▲' : '▼'}
-                  </Text>
-                </Pressable>
-                {showCompleted
-                  ? completedDeliveries.map((item) => (
-                      <Pressable
-                        key={item.id}
-                        onPress={() => setScreen({ name: 'detail', deliveryId: item.id })}
-                        style={styles.cardWrap}
-                      >
-                        <DeliveryCard delivery={item} highlight={false} />
-                      </Pressable>
-                    ))
-                  : null}
-              </>
-            ) : null}
+              {completedDeliveries.length > 0 ? (
+                <>
+                  <Pressable
+                    onPress={() => setShowCompleted((value) => !value)}
+                    style={styles.sectionToggle}
+                  >
+                    <Text style={styles.section}>
+                      {t('courier.completedTitle')} ({completedDeliveries.length}){' '}
+                      {showCompleted ? '▲' : '▼'}
+                    </Text>
+                  </Pressable>
+                  {showCompleted
+                    ? completedDeliveries.map((item) => (
+                        <Pressable
+                          key={item.id}
+                          onPress={() => setScreen({ name: 'detail', deliveryId: item.id })}
+                          style={styles.rowWrap}
+                        >
+                          <DeliveryCard delivery={item} highlight={false} />
+                        </Pressable>
+                      ))
+                    : null}
+                </>
+              ) : null}
+            </View>
           </ScrollView>
         ) : null}
       </View>
@@ -403,12 +412,11 @@ export function CourierHome() {
 
   if (screen.name === 'scan') {
     return (
-      <View style={styles.container}>
-        <ScreenHeader mode="COURSIER" title="SCANNER" onBack={goBack} />
-
-        <View style={styles.scanCard}>
+      <View style={styles.screen}>
+        <ScreenHeader mode="COURSIER" title="Scanner" onBack={goBack} />
+        <View style={styles.panel}>
           <BarcodeScannerCard onScan={setScanReference} />
-          <Text style={styles.scanHint}>
+          <Text style={styles.hint}>
             Scannez le colis ou saisissez la référence pour confirmer la prise en charge.
           </Text>
           <TextInput
@@ -416,14 +424,14 @@ export function CourierHome() {
             value={scanReference}
             onChangeText={setScanReference}
             placeholder="Référence colis"
-            placeholderTextColor={colors.border}
+            placeholderTextColor={colors.textMuted}
             autoCapitalize="characters"
             autoCorrect={false}
             autoFocus
           />
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <PrimaryButton
-            label="CONFIRMER LE SCAN"
+            label="Confirmer le scan"
             onPress={() => void handleScan()}
             disabled={!scanReference.trim()}
             loading={acting}
@@ -435,10 +443,10 @@ export function CourierHome() {
 
   if (screen.name === 'proof') {
     return (
-      <View style={styles.container}>
-        <ScreenHeader mode="COURSIER" title="PREUVE DE DÉPÔT" onBack={goBack} />
-        <ScrollView contentContainerStyle={styles.proofContent}>
-          <Text style={styles.scanHint}>
+      <View style={styles.screen}>
+        <ScreenHeader mode="COURSIER" title="Preuve de dépôt" onBack={goBack} />
+        <ScrollView contentContainerStyle={styles.panelScroll}>
+          <Text style={styles.hint}>
             Photographiez le colis dans le compartiment avant de confirmer le dépôt.
           </Text>
           <DropOffProofCard
@@ -450,8 +458,8 @@ export function CourierHome() {
           <PrimaryButton
             label={
               delivery?.parcel.compartmentLabel
-                ? `CONFIRMER LE DÉPÔT · ${delivery.parcel.compartmentLabel}`
-                : 'CONFIRMER LE DÉPÔT'
+                ? `Confirmer le dépôt · ${delivery.parcel.compartmentLabel}`
+                : 'Confirmer le dépôt'
             }
             onPress={() => void handleCompleteDropOff()}
             disabled={!proofPhoto}
@@ -463,6 +471,7 @@ export function CourierHome() {
               lockerName: delivery?.parcel.locker?.name,
               statusLabel: delivery?.statusLabel,
             }}
+            last
           />
         </ScrollView>
       </View>
@@ -471,19 +480,24 @@ export function CourierHome() {
 
   if (screen.name === 'history') {
     return (
-      <View style={styles.container}>
-        <ScreenHeader mode="COURSIER" title="HISTORIQUE 90 J" onBack={goBack} />
-        <ScrollView contentContainerStyle={styles.listContent}>
+      <View style={styles.screen}>
+        <ScreenHeader mode="COURSIER" title={t('courier.viewHistory')} onBack={goBack} />
+        <ScrollView contentContainerStyle={styles.panelScroll}>
           <View style={styles.summaryCard}>
-            <Text style={styles.sectionTitle}>PERFORMANCE</Text>
+            <Text style={styles.summaryLabel}>
+              {t('courier.summaryLabel', { days: summary.days })}
+            </Text>
             <Text style={styles.summaryText}>
-              {summary.completed} terminée{summary.completed === 1 ? '' : 's'} · {summary.failed}{' '}
-              incident{summary.failed === 1 ? '' : 's'} · {summary.successRate}% succès
+              {t('courier.summaryText', {
+                completed: summary.completed,
+                failed: summary.failed,
+                rate: summary.successRate,
+              })}
             </Text>
           </View>
           {completedDeliveries.length === 0 && failedDeliveries.length === 0 ? (
             <EmptyState
-              title="AUCUN HISTORIQUE"
+              title={t('courier.emptyTitle')}
               message="Les dépôts des 90 derniers jours apparaîtront ici."
             />
           ) : null}
@@ -491,7 +505,7 @@ export function CourierHome() {
             <Pressable
               key={item.id}
               onPress={() => setScreen({ name: 'detail', deliveryId: item.id })}
-              style={styles.cardWrap}
+              style={styles.rowWrap}
             >
               <DeliveryCard delivery={item} highlight={false} />
             </Pressable>
@@ -500,7 +514,7 @@ export function CourierHome() {
             <Pressable
               key={item.id}
               onPress={() => setScreen({ name: 'detail', deliveryId: item.id })}
-              style={styles.cardWrap}
+              style={styles.rowWrap}
             >
               <DeliveryCard delivery={item} highlight={false} />
             </Pressable>
@@ -514,16 +528,16 @@ export function CourierHome() {
     if (!delivery || delivery.id !== screen.deliveryId) {
       if (!loading) void loadDelivery(screen.deliveryId);
       return (
-        <View style={styles.container}>
-          <ScreenHeader mode="COURSIER" title="SIGNALER UN INCIDENT" onBack={goBack} />
+        <View style={styles.screen}>
+          <ScreenHeader mode="COURSIER" title={t('courier.reportIssue')} onBack={goBack} />
           <AppSpinner />
         </View>
       );
     }
 
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.detailContent}>
-        <ScreenHeader mode="COURSIER" title="SIGNALER UN INCIDENT" onBack={goBack} />
+      <ScrollView style={styles.screen} contentContainerStyle={styles.panelScroll}>
+        <ScreenHeader mode="COURSIER" title={t('courier.reportIssue')} onBack={goBack} />
         <ReportIssueForm
           allowedTypes={['failed_delivery', 'locker_unavailable', 'parcel_problem']}
           parcelId={delivery.parcel.id}
@@ -537,7 +551,7 @@ export function CourierHome() {
             return result.success ? null : result.error;
           }}
           onSuccess={() => {
-            setIssueSuccess('Incident signalé — l\'équipe opérations a été notifiée.');
+            setIssueSuccess("Incident signalé — l'équipe opérations a été notifiée.");
             setScreen({ name: 'detail', deliveryId: delivery.id });
           }}
           onCancel={goBack}
@@ -548,6 +562,7 @@ export function CourierHome() {
             lockerName: delivery.parcel.locker?.name,
             statusLabel: delivery.statusLabel,
           }}
+          last
         />
       </ScrollView>
     );
@@ -555,8 +570,8 @@ export function CourierHome() {
 
   if (loading && !delivery) {
     return (
-      <View style={styles.container}>
-        <ScreenHeader mode="COURSIER" title="LIVRAISON" onBack={goBack} />
+      <View style={styles.screen}>
+        <ScreenHeader mode="COURSIER" title={t('tabs.deliveries')} onBack={goBack} />
         <AppSpinner />
       </View>
     );
@@ -564,18 +579,18 @@ export function CourierHome() {
 
   if (error && !delivery) {
     return (
-      <View style={styles.container}>
-        <ScreenHeader mode="COURSIER" title="LIVRAISON" onBack={goBack} />
-        <Text style={styles.error}>{error}</Text>
+      <View style={styles.screen}>
+        <ScreenHeader mode="COURSIER" title={t('tabs.deliveries')} onBack={goBack} />
+        <Text style={[styles.error, styles.body]}>{error}</Text>
       </View>
     );
   }
 
   if (!delivery) {
     return (
-      <View style={styles.container}>
-        <ScreenHeader mode="COURSIER" title="LIVRAISON" onBack={goBack} />
-        <Text style={styles.error}>Livraison introuvable</Text>
+      <View style={styles.screen}>
+        <ScreenHeader mode="COURSIER" title={t('tabs.deliveries')} onBack={goBack} />
+        <Text style={[styles.error, styles.body]}>Livraison introuvable</Text>
       </View>
     );
   }
@@ -598,7 +613,7 @@ export function CourierHome() {
           hasAction && styles.detailContentWithAction,
         ]}
       >
-        <ScreenHeader mode="COURSIER" title="LIVRAISON" onBack={goBack} />
+        <ScreenHeader mode="COURSIER" title={t('tabs.deliveries')} onBack={goBack} />
 
         {successMessage ? (
           <SuccessBanner message={successMessage} onDismiss={() => setSuccessMessage(null)} />
@@ -608,127 +623,129 @@ export function CourierHome() {
           <SuccessBanner message={issueSuccess} onDismiss={() => setIssueSuccess(null)} />
         ) : null}
 
-        <DeliveryStepIndicator status={delivery.status} />
+        <View style={styles.detailBody}>
+          <DeliveryStepIndicator status={delivery.status} />
 
-        <View style={styles.detailHeader}>
-          <Text style={styles.detailReference}>{delivery.parcel.trackingNumber ?? delivery.parcel.reference}</Text>
-          <DeliveryStatusBadge status={delivery.status} />
-        </View>
-        {isReturn ? <Text style={styles.detailMeta}>RETOUR VERS LE MARCHAND</Text> : null}
-
-        <Text style={styles.detailMeta}>{delivery.parcel.businessName}</Text>
-
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        <View style={styles.detailSection}>
-          <Text style={styles.sectionLabel}>DESTINATAIRE</Text>
-          <Text style={styles.detailText}>{delivery.parcel.recipientName ?? '—'}</Text>
-        </View>
-
-        {delivery.parcel.locker ? (
-          <View style={styles.detailSection}>
-            <Text style={styles.sectionLabel}>
-              {isReturn ? 'POINT D’ENLÈVEMENT' : 'CASIER DE DESTINATION'}
+          <View style={styles.detailHeader}>
+            <Text style={styles.detailReference}>
+              {delivery.parcel.trackingNumber ?? delivery.parcel.reference}
             </Text>
-            <Text style={styles.detailText}>{delivery.parcel.locker.name}</Text>
-            <Text style={styles.detailSubtext}>{delivery.parcel.locker.address}</Text>
-            {delivery.parcel.compartmentLabel ? (
-              <Text style={styles.detailSubtext}>
-                Compartiment {delivery.parcel.compartmentLabel}
+            <DeliveryStatusBadge status={delivery.status} />
+          </View>
+          {isReturn ? <Text style={styles.detailMeta}>Retour vers le marchand</Text> : null}
+          <Text style={styles.detailMeta}>{delivery.parcel.businessName}</Text>
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          <View style={styles.detailSection}>
+            <Text style={styles.sectionLabel}>Destinataire</Text>
+            <Text style={styles.detailText}>{delivery.parcel.recipientName ?? '—'}</Text>
+          </View>
+
+          {delivery.parcel.locker ? (
+            <View style={styles.detailSection}>
+              <Text style={styles.sectionLabel}>
+                {isReturn ? "Point d'enlèvement" : 'Casier de destination'}
               </Text>
-            ) : null}
-            {delivery.parcel.locker.statusLabel ? (
-              <Text style={styles.detailSubtext}>
-                Statut casier : {delivery.parcel.locker.statusLabel}
-              </Text>
-            ) : null}
-            {delivery.parcel.locker.latitude != null &&
-            delivery.parcel.locker.longitude != null ? (
-              <>
-                <View style={{ marginTop: 12 }}>
-                  <LockerMapView
-                    lockers={[
-                      {
-                        id: delivery.parcel.locker.id,
-                        name: delivery.parcel.locker.name,
-                        address: delivery.parcel.locker.address,
-                        latitude: delivery.parcel.locker.latitude,
-                        longitude: delivery.parcel.locker.longitude,
-                        availableCompartments: 0,
-                      },
-                    ]}
-                    highlightLockerId={delivery.parcel.locker.id}
-                    height={200}
+              <Text style={styles.detailText}>{delivery.parcel.locker.name}</Text>
+              <Text style={styles.detailSubtext}>{delivery.parcel.locker.address}</Text>
+              {delivery.parcel.compartmentLabel ? (
+                <Text style={styles.detailSubtext}>
+                  Compartiment {delivery.parcel.compartmentLabel}
+                </Text>
+              ) : null}
+              {delivery.parcel.locker.statusLabel ? (
+                <Text style={styles.detailSubtext}>
+                  Statut casier : {delivery.parcel.locker.statusLabel}
+                </Text>
+              ) : null}
+              {delivery.parcel.locker.latitude != null &&
+              delivery.parcel.locker.longitude != null ? (
+                <>
+                  <View style={styles.mapWrap}>
+                    <LockerMapView
+                      lockers={[
+                        {
+                          id: delivery.parcel.locker.id,
+                          name: delivery.parcel.locker.name,
+                          address: delivery.parcel.locker.address,
+                          latitude: delivery.parcel.locker.latitude,
+                          longitude: delivery.parcel.locker.longitude,
+                          availableCompartments: 0,
+                        },
+                      ]}
+                      highlightLockerId={delivery.parcel.locker.id}
+                      height={200}
+                    />
+                  </View>
+                  <ActionRow
+                    icon="navigation"
+                    label={t('courier.openMaps')}
+                    onPress={() =>
+                      openDirections(
+                        delivery.parcel.locker!.latitude!,
+                        delivery.parcel.locker!.longitude!,
+                        delivery.parcel.locker!.name,
+                      )
+                    }
+                    last
                   />
-                </View>
-                <Pressable
-                  onPress={() =>
-                    openDirections(
-                      delivery.parcel.locker!.latitude!,
-                      delivery.parcel.locker!.longitude!,
-                      delivery.parcel.locker!.name,
-                    )
-                  }
-                  style={styles.directionsButton}
-                >
-                  <Text style={styles.directionsButtonText}>OUVRIR DANS MAPS</Text>
-                </Pressable>
-              </>
-            ) : null}
-          </View>
-        ) : null}
+                </>
+              ) : null}
+            </View>
+          ) : null}
 
-        {lockerBlocked ? (
-          <View style={styles.blockedBanner}>
-            <Text style={styles.blockedText}>
-              Casier {delivery.parcel.locker?.statusLabel?.toLowerCase() ?? 'indisponible'} — dépôt
-              impossible. Signalez l’incident pour notifier les opérations.
-            </Text>
-          </View>
-        ) : null}
+          {lockerBlocked ? (
+            <View style={styles.blockedBanner}>
+              <Text style={styles.blockedText}>
+                Casier {delivery.parcel.locker?.statusLabel?.toLowerCase() ?? 'indisponible'} — dépôt
+                impossible. Signalez l’incident pour notifier les opérations.
+              </Text>
+            </View>
+          ) : null}
 
-        {delivery.status === 'completed' ? (
-          <View style={styles.completedBanner}>
-            <Text style={styles.completedText}>
-              {isReturn ? 'RETOUR TERMINÉ' : 'LIVRAISON TERMINÉE'}
-            </Text>
-          </View>
-        ) : null}
+          {delivery.status === 'completed' ? (
+            <View style={styles.completedBanner}>
+              <Text style={styles.completedText}>
+                {isReturn ? 'Retour terminé' : 'Livraison terminée'}
+              </Text>
+            </View>
+          ) : null}
 
-        {delivery.status === 'completed' && proofPreview ? (
-          <View style={styles.detailSection}>
-            <Text style={styles.sectionLabel}>PREUVE DE DÉPÔT</Text>
-            <Image source={{ uri: proofPreview }} style={styles.proofImage} />
-          </View>
-        ) : null}
+          {delivery.status === 'completed' && proofPreview ? (
+            <View style={styles.detailSection}>
+              <Text style={styles.sectionLabel}>Preuve de dépôt</Text>
+              <Image source={{ uri: proofPreview }} style={styles.proofImage} />
+            </View>
+          ) : null}
 
-        <DispatcherContactButton
-          context={{
-            trackingNumber: delivery.parcel.trackingNumber ?? delivery.parcel.reference,
-            lockerName: delivery.parcel.locker?.name,
-            statusLabel: delivery.statusLabel,
-          }}
-        />
-
-        <Pressable
-          onPress={() => setScreen({ name: 'report', deliveryId: delivery.id })}
-          style={styles.reportButton}
-        >
-          <Text style={styles.reportButtonText}>SIGNALER UN INCIDENT</Text>
-        </Pressable>
+          <DispatcherContactButton
+            context={{
+              trackingNumber: delivery.parcel.trackingNumber ?? delivery.parcel.reference,
+              lockerName: delivery.parcel.locker?.name,
+              statusLabel: delivery.statusLabel,
+            }}
+          />
+          <ActionRow
+            icon="alert-triangle"
+            label={t('courier.reportIssue')}
+            onPress={() => setScreen({ name: 'report', deliveryId: delivery.id })}
+            last
+          />
+        </View>
       </ScrollView>
 
       {hasAction ? (
         <View style={styles.actionBar}>
           {showScan ? (
             <PrimaryButton
-              label="SCANNER LE COLIS"
+              label="Scanner le colis"
               onPress={() => setScreen({ name: 'scan', deliveryId: delivery.id })}
             />
           ) : null}
           {showDropOff ? (
             <PrimaryButton
-              label={isReturn ? 'ARRIVÉ CHEZ LE MARCHAND' : 'ARRIVÉ AU CASIER'}
+              label={isReturn ? 'Arrivé chez le marchand' : 'Arrivé au casier'}
               onPress={() => void handleStartDropOff()}
               loading={acting}
             />
@@ -737,10 +754,10 @@ export function CourierHome() {
             <PrimaryButton
               label={
                 isReturn
-                  ? 'PHOTOGRAPHIER LA REMISE'
+                  ? 'Photographier la remise'
                   : delivery.parcel.compartmentLabel
-                    ? `PHOTOGRAPHIER LE DÉPÔT · ${delivery.parcel.compartmentLabel}`
-                    : 'PHOTOGRAPHIER LE DÉPÔT'
+                    ? `Photographier le dépôt · ${delivery.parcel.compartmentLabel}`
+                    : 'Photographier le dépôt'
               }
               onPress={() => {
                 setProofPhoto(null);
@@ -753,15 +770,6 @@ export function CourierHome() {
     </View>
   );
 }
-
-type RouteStop = {
-  id: string;
-  name: string;
-  address: string;
-  latitude: number | null;
-  longitude: number | null;
-  parcelCount: number;
-};
 
 function sortDeliveriesByRoute(
   items: CourierDelivery[],
@@ -792,284 +800,242 @@ function sortDeliveriesByRoute(
   });
 }
 
-function buildRouteStops(
-  items: CourierDelivery[],
-  origin: { latitude: number; longitude: number } | null,
-): RouteStop[] {
-  const byLocker = new Map<string, RouteStop>();
-  for (const item of items) {
-    const locker = item.parcel.locker;
-    if (!locker) continue;
-    const existing = byLocker.get(locker.id);
-    if (existing) {
-      existing.parcelCount += 1;
-      continue;
-    }
-    byLocker.set(locker.id, {
-      id: locker.id,
-      name: locker.name,
-      address: locker.address,
-      latitude: locker.latitude,
-      longitude: locker.longitude,
-      parcelCount: 1,
-    });
-  }
-
-  const stops = [...byLocker.values()];
-  if (!origin) return stops;
-  const ordered = orderLockerStops(origin, stops);
-  return ordered;
-}
-
 function createStyles(colors: ColorTokens) {
   return StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 24,
-    paddingTop: 0,
-    backgroundColor: colors.background,
-  },
-  detailContainer: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  detailScroll: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 0,
-  },
-  detailContent: {
-    paddingBottom: 24,
-  },
-  detailContentWithAction: {
-    paddingBottom: 100,
-  },
-  loader: {
-    marginTop: 24,
-  },
-  listContent: {
-    gap: 12,
-    paddingBottom: 24,
-  },
-  cardWrap: {
-    marginBottom: 0,
-  },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-    color: colors.secondary,
-    marginTop: 4,
-    marginBottom: 4,
-  },
-  completedToggle: {
-    marginTop: 8,
-  },
-  feedback: {
-    gap: 12,
-  },
-  error: {
-    color: colors.danger,
-    fontWeight: '500',
-    marginBottom: 12,
-  },
-  detailHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 8,
-  },
-  detailReference: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.secondary,
-  },
-  detailMeta: {
-    fontWeight: '500',
-    marginBottom: 24,
-    color: colors.secondary,
-  },
-  detailSection: {
-    marginBottom: 24,
-    backgroundColor: colors.surface,
-    borderWidth: borders.width,
-    borderColor: colors.border,
-    borderRadius: radius.card,
-    padding: 16,
-  },
-  sectionLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1,
-    marginBottom: 12,
-    color: colors.secondary,
-  },
-  detailText: {
-    fontWeight: '600',
-    color: colors.secondary,
-  },
-  detailSubtext: {
-    marginTop: 4,
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.secondary,
-  },
-  scanCard: {
-    backgroundColor: colors.surface,
-    borderWidth: borders.width,
-    borderColor: colors.border,
-    borderRadius: radius.card,
-    padding: 24,
-    gap: 16,
-  },
-  scanHint: {
-    fontWeight: '500',
-    color: colors.secondary,
-    fontSize: 13,
-  },
-  scanInput: {
-    height: spacing.buttonHeight,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: radius.button,
-    paddingHorizontal: 16,
-    fontWeight: '600',
-    fontSize: 18,
-    color: colors.secondary,
-    letterSpacing: 1,
-  },
-  actionBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 24,
-    paddingBottom: 32,
-    backgroundColor: colors.background,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  completedBanner: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.card,
-    padding: 16,
-    alignItems: 'center',
-  },
-  completedText: {
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    color: colors.secondary,
-  },
-  reportButton: {
-    marginTop: 16,
-    borderWidth: borders.width,
-    borderColor: colors.border,
-    borderRadius: radius.button,
-    paddingVertical: 14,
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-  },
-  reportButtonText: {
-    fontWeight: '600',
-    fontSize: 12,
-    letterSpacing: 0.5,
-    color: colors.secondary,
-  },
-  directionsButton: {
-    marginTop: 12,
-    borderWidth: borders.width,
-    borderColor: colors.primary,
-    borderRadius: radius.button,
-    paddingVertical: 12,
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-  },
-  directionsButtonText: {
-    fontWeight: '700',
-    fontSize: 12,
-    letterSpacing: 0.5,
-    color: colors.primary,
-  },
-  blockedBanner: {
-    backgroundColor: colors.surface,
-    borderWidth: borders.width,
-    borderColor: colors.danger,
-    borderRadius: radius.card,
-    padding: 16,
-    marginBottom: 16,
-  },
-  blockedText: {
-    fontWeight: '600',
-    fontSize: 13,
-    lineHeight: 20,
-    color: colors.danger,
-  },
-  summaryCard: {
-    backgroundColor: colors.surface,
-    borderWidth: borders.width,
-    borderColor: colors.border,
-    borderRadius: radius.card,
-    padding: 16,
-    marginBottom: 8,
-  },
-  summaryText: {
-    marginTop: 6,
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.secondary,
-  },
-  routeCard: {
-    backgroundColor: colors.surface,
-    borderWidth: borders.width,
-    borderColor: colors.border,
-    borderRadius: radius.card,
-    padding: 16,
-    gap: 12,
-    marginBottom: 8,
-  },
-  routeStop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  routeIndex: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
-    color: colors.onPrimary,
-    textAlign: 'center',
-    overflow: 'hidden',
-    fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 24,
-  },
-  routeStopText: {
-    flex: 1,
-  },
-  routeMaps: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderWidth: borders.width,
-    borderColor: colors.primary,
-    borderRadius: radius.button,
-  },
-  routeMapsText: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.4,
-    color: colors.primary,
-  },
-  proofContent: {
-    gap: 16,
-    paddingBottom: 32,
-  },
-  proofImage: {
-    height: 200,
-    borderRadius: radius.card,
-    marginTop: 8,
-    backgroundColor: colors.secondary,
-  },
+    screen: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    container: {
+      flex: 1,
+    },
+    content: {
+      flexGrow: 1,
+      paddingBottom: 40,
+    },
+    hero: {
+      minHeight: 280,
+      justifyContent: 'flex-end',
+      paddingHorizontal: 20,
+      paddingTop: 24,
+      paddingBottom: 20,
+    },
+    heroImage: {
+      resizeMode: 'cover',
+    },
+    heroScrim: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.42)',
+    },
+    hello: {
+      fontSize: 28,
+      fontWeight: '400',
+      color: '#FFFFFF',
+      marginBottom: 16,
+    },
+    helloName: {
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    heroBox: {
+      backgroundColor: 'rgba(18,18,18,0.72)',
+      padding: 14,
+      gap: 6,
+    },
+    heroTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: '#FFFFFF',
+    },
+    heroStat: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+    heroSub: {
+      fontSize: 13,
+      fontWeight: '400',
+      color: 'rgba(255,255,255,0.72)',
+    },
+    body: {
+      paddingHorizontal: 20,
+      paddingTop: 20,
+    },
+    section: {
+      marginTop: 24,
+      marginBottom: 10,
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.secondary,
+    },
+    sectionToggle: {
+      marginTop: 8,
+    },
+    rowWrap: {
+      marginBottom: 8,
+    },
+    error: {
+      color: colors.danger,
+      fontWeight: '500',
+      marginBottom: 12,
+    },
+    panel: {
+      margin: 20,
+      borderWidth: borders.width,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      padding: 16,
+      gap: 16,
+    },
+    panelScroll: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 40,
+      gap: 12,
+    },
+    hint: {
+      fontWeight: '400',
+      color: colors.textMuted,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    scanInput: {
+      height: spacing.buttonHeight,
+      borderWidth: borders.width,
+      borderColor: colors.border,
+      paddingHorizontal: 14,
+      fontWeight: '600',
+      fontSize: 16,
+      color: colors.secondary,
+      backgroundColor: colors.background,
+    },
+    summaryCard: {
+      borderWidth: borders.width,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      padding: 14,
+      marginBottom: 8,
+    },
+    summaryLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.secondary,
+    },
+    summaryText: {
+      marginTop: 6,
+      fontSize: 13,
+      fontWeight: '400',
+      color: colors.textMuted,
+    },
+    detailContainer: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    detailScroll: {
+      flex: 1,
+    },
+    detailContent: {
+      paddingBottom: 24,
+    },
+    detailContentWithAction: {
+      paddingBottom: 100,
+    },
+    detailBody: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+    },
+    detailHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 8,
+    },
+    detailReference: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.secondary,
+      fontVariant: ['tabular-nums'],
+      flex: 1,
+    },
+    detailMeta: {
+      fontWeight: '400',
+      marginBottom: 8,
+      color: colors.textMuted,
+      fontSize: 14,
+    },
+    detailSection: {
+      marginTop: 12,
+      marginBottom: 12,
+      backgroundColor: colors.surface,
+      borderWidth: borders.width,
+      borderColor: colors.border,
+      padding: 14,
+    },
+    sectionLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      marginBottom: 8,
+      color: colors.textMuted,
+    },
+    detailText: {
+      fontWeight: '600',
+      fontSize: 15,
+      color: colors.secondary,
+    },
+    detailSubtext: {
+      marginTop: 4,
+      fontSize: 13,
+      fontWeight: '400',
+      color: colors.textMuted,
+    },
+    mapWrap: {
+      marginTop: 12,
+      marginBottom: 8,
+      borderWidth: borders.width,
+      borderColor: colors.border,
+      overflow: 'hidden',
+    },
+    actionBar: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      padding: 20,
+      paddingBottom: 28,
+      backgroundColor: colors.background,
+      borderTopWidth: borders.width,
+      borderTopColor: colors.border,
+    },
+    completedBanner: {
+      backgroundColor: colors.successMuted,
+      borderWidth: borders.width,
+      borderColor: colors.primary,
+      padding: 14,
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    completedText: {
+      fontWeight: '600',
+      color: colors.successFg,
+    },
+    blockedBanner: {
+      backgroundColor: colors.dangerMuted,
+      borderWidth: borders.width,
+      borderColor: colors.danger,
+      padding: 14,
+      marginBottom: 12,
+    },
+    blockedText: {
+      fontWeight: '500',
+      fontSize: 13,
+      lineHeight: 20,
+      color: colors.dangerFg,
+    },
+    proofImage: {
+      height: 200,
+      marginTop: 8,
+      backgroundColor: colors.secondary,
+    },
   });
 }

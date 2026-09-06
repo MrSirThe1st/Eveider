@@ -127,7 +127,10 @@ export class UserRepository {
          ON m.user_id = u.id AND m.business_id = $1 AND m.role = 'driver'
        JOIN driver_dossiers d
          ON d.user_id = u.id AND d.business_id = $1
-        AND d.status IN ('approved', 'invited', 'active')
+        AND d.contractor_type = 'business'
+        AND d.status IN (
+          'pending_review', 'needs_correction', 'approved', 'invited', 'active'
+        )
        WHERE u.is_blocked = false
          AND u.deactivated_at IS NULL
          AND u.deleted_at IS NULL

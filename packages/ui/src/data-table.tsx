@@ -41,6 +41,7 @@ export type DataTableProps<T> = {
   emptyTitle?: string;
   emptyDescription?: string;
   emptyAction?: ReactNode;
+  emptyIcon?: ReactNode;
   /** Caption above the table (e.g. "12 colis"). */
   caption?: string;
   /** Controls aligned with the caption, typically a search field. */
@@ -109,6 +110,7 @@ export function DataTable<T>({
   emptyTitle = 'Aucun élément',
   emptyDescription,
   emptyAction,
+  emptyIcon,
   caption,
   toolbar,
   className,
@@ -196,6 +198,7 @@ export function DataTable<T>({
           title={emptyTitle}
           description={emptyDescription}
           action={emptyAction}
+          icon={emptyIcon}
           compact
         />
       </div>

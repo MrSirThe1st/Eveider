@@ -77,7 +77,7 @@ export default function CookiesPage() {
           <h2>Comment modifier votre consentement</h2>
           <p>
             Vous pouvez changer d’avis à tout moment via <ManageCookiesButton variant="inline" /> ou
-            le lien « Gérer les cookies » en bas de page. « Tout refuser » n’empêche pas l’usage du
+            le lien « Gérer les cookies » en bas de page. « Refuser » n’empêche pas l’usage du
             service : seuls les cookies nécessaires restent actifs, et le cookie de thème est alors
             supprimé.
           </p>

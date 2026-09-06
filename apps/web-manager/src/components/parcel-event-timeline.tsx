@@ -1,5 +1,6 @@
 import { colors, webCardStyle } from '@eveider/config-ui';
 import { DELIVERY_STATUS_LABELS, PARCEL_STATUS_LABELS } from '@eveider/domain';
+import { EmptyState, IconInbox } from '@eveider/ui';
 import type { AdminParcelEventDto } from '@/lib/parcel-presenter';
 
 function formatDateTime(iso: string) {
@@ -33,9 +34,12 @@ export function ParcelEventTimeline({ events, compact = false }: ParcelEventTime
       </p>
 
       {events.length === 0 ? (
-        <p style={{ margin: '1.5rem 0 0', fontWeight: 500, fontSize: '0.875rem' }}>
-          Aucun événement enregistré pour ce colis.
-        </p>
+        <EmptyState
+          compact
+          title="Aucun événement enregistré pour ce colis"
+          description="L’historique s’affichera au fur et à mesure des étapes."
+          icon={<IconInbox />}
+        />
       ) : (
         <ol
           style={{

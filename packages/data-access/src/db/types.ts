@@ -209,9 +209,11 @@ export type Parcel = {
   paymentResponsibility: PaymentResponsibility;
   codAmountCdf: number | null;
   codAmountUsd: number | null;
-  deliveryFeeFc: number | null;
+  deliveryFeeAmount: number | null;
+  deliveryFeeCurrency: 'USD' | 'CDF';
   deliveryDistanceKm: number | null;
   pricingSizeUsed: PackageSize | null;
+  readyForPickupAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -219,13 +221,33 @@ export type Parcel = {
 export type DeliveryPricingRuleRow = {
   id: string;
   distanceThresholdKm: number;
-  belowThresholdAmountFc: number;
-  aboveThresholdAmountFc: number;
+  belowThresholdAmount: number;
+  aboveThresholdAmount: number;
+  currency: 'USD' | 'CDF';
   smallCoefficient: number;
   mediumCoefficient: number;
   largeCoefficient: number;
+  dropOffFeeAmount: number;
+  lockerRentalRateAmount: number;
   updatedAt: Date;
   updatedBy: string | null;
+};
+
+export type ParcelCharge = {
+  id: string;
+  parcelId: string;
+  businessId: string;
+  kind: 'delivery_fee' | 'drop_off_fee' | 'locker_rental';
+  status: 'pending' | 'owed' | 'void';
+  amount: number;
+  currency: 'USD' | 'CDF';
+  unitRate: number | null;
+  quantity: number | null;
+  periodStartedAt: Date | null;
+  periodEndedAt: Date | null;
+  lockedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 export type LockerNetworkSettingsRow = {
@@ -402,10 +424,10 @@ export type BusinessPermission = {
 export type BusinessLimit = {
   id: string;
   businessId: string;
-  dailyShipments: number;
-  monthlyShipments: number;
-  maxPackageValueUsd: number;
-  codDailyLimitUsd: number;
+  dailyShipments: number | null;
+  monthlyShipments: number | null;
+  maxPackageValueUsd: number | null;
+  codDailyLimitUsd: number | null;
   createdAt: Date;
   updatedAt: Date;
 };

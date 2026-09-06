@@ -51,7 +51,8 @@ export async function createParcelsFromImport(
         paymentResponsibility: row.data.paymentResponsibility,
         codAmountCdf: row.data.codAmountCdf,
         codAmountUsd: row.data.codAmountUsd,
-        deliveryFeeFc: quote.deliveryFeeFc,
+        deliveryFeeAmount: quote.deliveryFeeAmount,
+        deliveryFeeCurrency: quote.deliveryFeeCurrency,
         deliveryDistanceKm: quote.deliveryDistanceKm,
         pricingSizeUsed: quote.pricingSizeUsed,
       });

@@ -121,11 +121,11 @@ export function locationStatusCopy(location: BusinessParcelLocation): {
   if (location === 'awaiting_dropoff') {
     return {
       title: 'En attente de dépôt',
-      body: 'Déposez le colis au point Eveider pour lancer la livraison.',
+      body: 'Déposez le colis au point Eveider, puis confirmez le dépôt sur cette page.',
     };
   }
   return {
     title: 'En attente du coursier',
-    body: 'Le colis est enregistré. Eveider assignera un enlèvement.',
+    body: 'Le colis est enregistré. Eveider assignera une collecte.',
   };
 }

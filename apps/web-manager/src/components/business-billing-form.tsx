@@ -143,25 +143,23 @@ export function BusinessBillingForm({
         </div>
       </section>
 
-      {dailyShipments != null || codDailyLimitUsd != null ? (
-        <section style={{ ...webCardStyle, padding: '1.5rem' }}>
-          <h3 style={{ margin: '0 0 1rem', fontSize: '0.875rem', fontWeight: 700 }}>Limites Eveider</h3>
-          <dl style={{ margin: 0, display: 'grid', gap: '0.75rem', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
-            {dailyShipments != null ? (
-              <div>
-                <dt style={{ fontSize: '0.6875rem', fontWeight: 600, color: colors.textMuted }}>COLIS PAR JOUR</dt>
-                <dd style={{ margin: '0.25rem 0 0', fontWeight: 600 }}>{dailyShipments} colis / jour</dd>
-              </div>
-            ) : null}
-            {codDailyLimitUsd != null ? (
-              <div>
-                <dt style={{ fontSize: '0.6875rem', fontWeight: 600, color: colors.textMuted }}>PAIEMENT À LA LIVRAISON — MAX / JOUR</dt>
-                <dd style={{ margin: '0.25rem 0 0', fontWeight: 600 }}>${codDailyLimitUsd} / jour</dd>
-              </div>
-            ) : null}
-          </dl>
-        </section>
-      ) : null}
+      <section style={{ ...webCardStyle, padding: '1.5rem' }}>
+        <h3 style={{ margin: '0 0 1rem', fontSize: '0.875rem', fontWeight: 700 }}>Limites Eveider</h3>
+        <dl style={{ margin: 0, display: 'grid', gap: '0.75rem', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+          <div>
+            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, color: colors.textMuted }}>COLIS PAR JOUR</dt>
+            <dd style={{ margin: '0.25rem 0 0', fontWeight: 600 }}>
+              {dailyShipments == null ? 'Illimité' : `${dailyShipments} colis / jour`}
+            </dd>
+          </div>
+          <div>
+            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, color: colors.textMuted }}>PAIEMENT À LA LIVRAISON — MAX / JOUR</dt>
+            <dd style={{ margin: '0.25rem 0 0', fontWeight: 600 }}>
+              {codDailyLimitUsd == null ? 'Illimité' : `$${codDailyLimitUsd} / jour`}
+            </dd>
+          </div>
+        </dl>
+      </section>
 
       {error ? <InlineAlert message={error} variant="error" /> : null}
       {success ? <InlineAlert message={success} variant="success" /> : null}

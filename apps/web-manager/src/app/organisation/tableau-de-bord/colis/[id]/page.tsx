@@ -5,7 +5,10 @@ import { WEB_ROUTES } from '@/lib/auth-routing';
 import { hasBusinessPermission } from '@eveider/domain';
 import { requireBusinessPermission } from '@/server/business';
 import { loadAssignableBusinessCouriers } from '@/server/couriers';
-import { loadBusinessParcelDetail } from '@/server/parcels';
+import {
+  loadBusinessParcelDetail,
+  loadBusinessParcelOperations,
+} from '@/server/parcels';
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -17,14 +20,20 @@ export default async function BusinessParcelDetailPage({ params, searchParams }:
   const query = await searchParams;
   const { profile, ctx } = await requireBusinessPermission('view_parcels');
   const parcel = await loadBusinessParcelDetail(ctx, profile.businessId, id);
-  const canAssignCouriers = hasBusinessPermission(profile.userRole, 'manage_couriers');
-  const assignableCouriers = canAssignCouriers
-    ? await loadAssignableBusinessCouriers(profile.businessId)
-    : [];
 
   if (!parcel) {
     notFound();
   }
+
+  const canAssignCouriers = hasBusinessPermission(profile.userRole, 'manage_couriers');
+  const canManageOperations = hasBusinessPermission(profile.userRole, 'manage_operations');
+
+  const [assignableCouriers, operations] = await Promise.all([
+    canAssignCouriers ? loadAssignableBusinessCouriers(profile.businessId) : Promise.resolve([]),
+    canManageOperations
+      ? loadBusinessParcelOperations(ctx, id)
+      : Promise.resolve({ invite: null, issues: [] }),
+  ]);
 
   return (
     <PageFrame
@@ -39,9 +48,11 @@ export default async function BusinessParcelDetailPage({ params, searchParams }:
       <BusinessParcelDetail
         parcel={parcel}
         justCreated={query.created === '1'}
-        canManageOperations={hasBusinessPermission(profile.userRole, 'manage_operations')}
+        canManageOperations={canManageOperations}
         canAssignCouriers={canAssignCouriers}
         assignableCouriers={assignableCouriers}
+        invite={operations.invite}
+        issues={operations.issues}
       />
     </PageFrame>
   );

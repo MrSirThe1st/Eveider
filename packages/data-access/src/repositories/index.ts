@@ -13,6 +13,7 @@ export * from './team-invite.repository.js';
 export * from './organization-membership.repository.js';
 export * from './courier-dossier.repository.js';
 export * from './pricing.repository.js';
+export * from './parcel-charge.repository.js';
 export * from './locker-settings.repository.js';
 export * from './platform-settings.repository.js';
 export * from './platform-staff.repository.js';

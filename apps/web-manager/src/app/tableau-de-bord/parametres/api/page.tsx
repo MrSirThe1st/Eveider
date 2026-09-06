@@ -4,7 +4,7 @@ export default function AdminApiSettingsPage() {
   return (
     <SettingsComingSoon
       title="API"
-      description="Pour relier Eveider à un autre logiciel."
+      description="Pour relier Eveider à un autre logiciel (clé d’accès, webhooks)."
     />
   );
 }

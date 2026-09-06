@@ -1,4 +1,4 @@
-import { EmptyState, PageFrame } from '@eveider/ui';
+import { EmptyState, IconSettings, PageFrame } from '@eveider/ui';
 
 type SettingsComingSoonProps = {
   title: string;
@@ -11,7 +11,7 @@ export function SettingsComingSoon({
 }: SettingsComingSoonProps) {
   return (
     <PageFrame title={title} description={description} layout="standard">
-      <EmptyState title="Bientôt disponible" description={description} />
+      <EmptyState title="Bientôt disponible" description={description} icon={<IconSettings />} />
     </PageFrame>
   );
 }

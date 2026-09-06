@@ -1,7 +1,7 @@
 'use client';
 
 import { colors, typography } from '@eveider/config-ui';
-import { DataTable, type DataTableColumn } from '@eveider/ui';
+import { DataTable, IconUsers, type DataTableColumn } from '@eveider/ui';
 import { useMemo } from 'react';
 import { ORGANIZATION_ROLE_LABELS, type OrganizationRole } from '@eveider/domain';
 import type { AdminOrganizationMember } from '@/server/organizations';
@@ -52,6 +52,8 @@ export function AdminOrganizationMembers({ members }: AdminOrganizationMembersPr
       rows={members}
       getRowId={(row) => row.id}
       emptyTitle="Aucun membre"
+      emptyDescription="Les membres de cette organisation apparaîtront ici."
+      emptyIcon={<IconUsers />}
     />
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { colors } from '@eveider/config-ui';
-import { DataTable, type DataTableColumn } from '@eveider/ui';
+import { DataTable, IconTruck, type DataTableColumn } from '@eveider/ui';
 import Link from 'next/link';
 import { useMemo } from 'react';
 import { DriverStatusBadge } from '@/components/driver-status-badge';
@@ -56,6 +56,8 @@ export function AdminOrganizationDrivers({ drivers }: AdminOrganizationDriversPr
       rows={drivers}
       getRowId={(row) => row.id}
       emptyTitle="Aucun chauffeur pour cette organisation"
+      emptyDescription="Aucun chauffeur rattaché à cette organisation pour le moment."
+      emptyIcon={<IconTruck />}
       rowActions={(row) => [
         {
           id: 'view',

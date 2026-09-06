@@ -65,16 +65,16 @@ export const ORGANIZATION_VERIFICATION_LABELS: Record<OrganizationVerificationSt
 };
 
 export const LOCKER_STATUS_LABELS: Record<LockerStatus, string> = {
-  active: 'ACTIF',
-  offline: 'INACTIF',
-  full: 'COMPLET',
-  archived: 'ARCHIVÉ',
+  active: 'Actif',
+  offline: 'Inactif',
+  full: 'Complet',
+  archived: 'Archivé',
 };
 
 export const COMPARTMENT_STATUS_LABELS: Record<CompartmentStatus, string> = {
-  available: 'DISPONIBLE',
-  occupied: 'OCCUPÉ',
-  reserved: 'RÉSERVÉ',
+  available: 'Disponible',
+  occupied: 'Occupé',
+  reserved: 'Réservé',
 };
 
 export const DELIVERY_STATUS_LABELS: Record<DeliveryStatus, string> = {

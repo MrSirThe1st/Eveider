@@ -1,7 +1,7 @@
 'use client';
 
 import { colors, typography } from '@eveider/config-ui';
-import { DataTable, type DataTableColumn, EmptyState } from '@eveider/ui';
+import { DataTable, type DataTableColumn, EmptyState, IconAlert } from '@eveider/ui';
 import Link from 'next/link';
 import { useMemo } from 'react';
 import { businessParcelPath } from '@/lib/auth-routing';
@@ -75,6 +75,7 @@ export function BusinessIssueList({ issues }: BusinessIssueListProps) {
       <EmptyState
         title="Aucun incident"
         description="Signalez un problème depuis la fiche d’un colis. Les opérations Eveider le traitent ensuite."
+        icon={<IconAlert />}
       />
     );
   }
@@ -86,6 +87,7 @@ export function BusinessIssueList({ issues }: BusinessIssueListProps) {
       getRowId={(row) => row.id}
       caption={`${issues.length} incident${issues.length > 1 ? 's' : ''}`}
       emptyTitle="Aucun incident"
+      emptyIcon={<IconAlert />}
       initialSortId="createdAt"
       initialSortDirection="desc"
     />

@@ -15,6 +15,7 @@ export async function GET(request: Request) {
     compartmentId: searchParams.get('compartmentId') ?? undefined,
     packageSize: searchParams.get('packageSize') ?? undefined,
     senderAddress: searchParams.get('senderAddress') ?? undefined,
+    pickupType: searchParams.get('pickupType') ?? undefined,
   });
 
   if (!query.success) {
@@ -30,6 +31,7 @@ export async function GET(request: Request) {
       compartmentId: query.data.compartmentId,
       packageSize: query.data.packageSize,
       senderAddress: query.data.senderAddress,
+      pickupType: query.data.pickupType,
     });
     return NextResponse.json(ok(quote));
   } catch (err) {

@@ -6,10 +6,10 @@ export type PlatformSettingsDto = {
   pickupFeeAmount: number;
   pickupFeeCurrency: string;
   requireOrgApproval: boolean;
-  defaultDailyShipments: number;
-  defaultMonthlyShipments: number;
-  defaultMaxPackageValueUsd: number;
-  defaultCodDailyLimitUsd: number;
+  defaultDailyShipments: number | null;
+  defaultMonthlyShipments: number | null;
+  defaultMaxPackageValueUsd: number | null;
+  defaultCodDailyLimitUsd: number | null;
   defaultEnabledFeatures: PlatformDefaultFeature[];
   supportPhone: string | null;
   dispatcherWhatsapp: string | null;

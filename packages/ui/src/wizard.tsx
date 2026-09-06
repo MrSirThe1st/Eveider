@@ -233,9 +233,9 @@ export function WizardStepper({
                       ? colors.successMuted
                       : colors.surfaceMuted,
                   color: isCurrent
-                    ? '#FFFFFF'
+                    ? colors.background
                     : isComplete
-                      ? colors.secondary
+                      ? colors.successFg
                       : colors.textMuted,
                   cursor: canSelect ? 'pointer' : 'default',
                   fontFamily: typography.fontFamily,

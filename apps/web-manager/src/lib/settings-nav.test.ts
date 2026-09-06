@@ -44,6 +44,8 @@ describe('filterOrganizationSettingsNav', () => {
     expect(ids).toContain('membres');
     expect(ids).toContain('plans');
     expect(ids).toContain('api');
+    expect(ids).not.toContain('equipes');
+    expect(ids).not.toContain('casiers');
   });
 });
 

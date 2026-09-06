@@ -9,6 +9,12 @@ export const PLATFORM_DEFAULT_FEATURES = [
 
 export const platformDefaultFeatureSchema = z.enum(PLATFORM_DEFAULT_FEATURES);
 
+const nullablePositiveInt = (max: number) =>
+  z.number().int().positive('Plafond invalide').max(max).nullable();
+
+const nullablePositiveAmount = (max: number) =>
+  z.number().positive('Plafond invalide').max(max).nullable();
+
 export const updatePlatformSettingsSchema = z.object({
   pickupFeeAmount: z.number().positive('Montant invalide').max(10_000),
   pickupFeeCurrency: z
@@ -17,10 +23,10 @@ export const updatePlatformSettingsSchema = z.object({
     .length(3, 'Devise invalide (3 lettres)')
     .transform((value) => value.toUpperCase()),
   requireOrgApproval: z.boolean(),
-  defaultDailyShipments: z.number().int().positive('Plafond invalide').max(100_000),
-  defaultMonthlyShipments: z.number().int().positive('Plafond invalide').max(1_000_000),
-  defaultMaxPackageValueUsd: z.number().positive('Plafond invalide').max(100_000),
-  defaultCodDailyLimitUsd: z.number().positive('Plafond invalide').max(100_000),
+  defaultDailyShipments: nullablePositiveInt(100_000),
+  defaultMonthlyShipments: nullablePositiveInt(1_000_000),
+  defaultMaxPackageValueUsd: nullablePositiveAmount(100_000),
+  defaultCodDailyLimitUsd: nullablePositiveAmount(100_000),
   defaultEnabledFeatures: z.array(platformDefaultFeatureSchema).min(1, 'Au moins une fonction'),
   supportPhone: z.string().trim().max(32).optional(),
   dispatcherWhatsapp: z.string().trim().max(32).optional(),

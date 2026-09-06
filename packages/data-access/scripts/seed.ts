@@ -450,9 +450,9 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
 
   await db.query(
     `INSERT INTO delivery_pricing_rules (
-       distance_threshold_km, below_threshold_amount_fc, above_threshold_amount_fc,
+       distance_threshold_km, below_threshold_amount, above_threshold_amount, currency,
        small_coefficient, medium_coefficient, large_coefficient, updated_by
-     ) VALUES (10, 1500, 3000, 1.0, 1.5, 2.0, $1)`,
+     ) VALUES (10, 1500, 3000, 'CDF', 1.0, 1.5, 2.0, $1)`,
     [adminId],
   );
 
@@ -901,10 +901,11 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
          recipient_phone, recipient_name, locker_id, compartment_id,
          pickup_type, sender_name, sender_phone, sender_address,
          package_size, package_category, payment_responsibility,
-         declared_value_usd, delivery_fee_fc, delivery_distance_km, pricing_size_used
+         declared_value_usd, delivery_fee_amount, delivery_fee_currency,
+         delivery_distance_km, pricing_size_used
        ) VALUES (
          $1, $2, $3, $4, $5, $6, $7, $8, $9,
-         $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
+         $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21
        ) RETURNING id`,
       [
         generateTrackingNumber(),
@@ -929,6 +930,7 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
         parcel.payment ?? 'receiver_pays',
         45,
         parcel.size === 'large' ? 3000 : 1500,
+        'CDF',
         4.2,
         parcel.size ?? 'medium',
       ],

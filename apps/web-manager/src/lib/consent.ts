@@ -1,11 +1,14 @@
 export const CONSENT_COOKIE_NAME = 'eveider_cookie_consent';
+export const CONSENT_STORAGE_KEY = 'eveider.cookie_consent';
 export const THEME_COOKIE_NAME = 'eveider_theme';
 export const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 180;
 export const CONSENT_VERSION = 1;
+/** Re-opens the Accept / Refuse banner (footer “Gérer les cookies”). */
 export const COOKIE_SETTINGS_EVENT = 'eveider:open-cookie-settings';
 
 export type CookieConsent = {
   v: number;
+  /** true = accepted preference cookies; false = refused them. */
   preferences: boolean;
   updatedAt: string;
 };
@@ -45,14 +48,23 @@ export function parseTheme(raw: string | undefined | null): 'light' | 'dark' | '
 
 export function cookieAttributeString(maxAge = COOKIE_MAX_AGE_SECONDS): string {
   const secure = typeof location !== 'undefined' && location.protocol === 'https:' ? '; Secure' : '';
-  return `Path=/; Max-Age=${maxAge}; SameSite=Lax${secure}`;
+  const expires = new Date(Date.now() + maxAge * 1000).toUTCString();
+  return `Path=/; Max-Age=${maxAge}; Expires=${expires}; SameSite=Lax${secure}`;
 }
 
 export function readBrowserCookie(name: string): string | null {
   if (typeof document === 'undefined') return null;
   const prefix = `${name}=`;
-  const match = document.cookie.split('; ').find((part) => part.startsWith(prefix));
-  return match ? decodeURIComponent(match.slice(prefix.length)) : null;
+  const match = document.cookie
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(prefix));
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match.slice(prefix.length));
+  } catch {
+    return match.slice(prefix.length);
+  }
 }
 
 export function writeBrowserCookie(name: string, value: string, maxAge = COOKIE_MAX_AGE_SECONDS) {
@@ -62,15 +74,47 @@ export function writeBrowserCookie(name: string, value: string, maxAge = COOKIE_
 
 export function deleteBrowserCookie(name: string) {
   if (typeof document === 'undefined') return;
-  document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax`;
+  document.cookie = `${name}=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
 }
 
+function readStorageConsent(): CookieConsent | null {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    return parseConsent(localStorage.getItem(CONSENT_STORAGE_KEY));
+  } catch {
+    return null;
+  }
+}
+
+function writeStorageConsent(consent: CookieConsent) {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(CONSENT_STORAGE_KEY, serializeConsent(consent));
+  } catch {
+    /* private mode / quota */
+  }
+}
+
+/**
+ * Read persisted consent. Cookie is primary; localStorage is a backup so the
+ * decision survives if the browser drops the first-party cookie.
+ * Only re-writes the cookie when recovering from storage (never on a normal hit).
+ */
 export function readBrowserConsent(): CookieConsent | null {
-  return parseConsent(readBrowserCookie(CONSENT_COOKIE_NAME));
+  const fromCookie = parseConsent(readBrowserCookie(CONSENT_COOKIE_NAME));
+  if (fromCookie) return fromCookie;
+
+  const fromStorage = readStorageConsent();
+  if (fromStorage) {
+    writeBrowserCookie(CONSENT_COOKIE_NAME, serializeConsent(fromStorage));
+    return fromStorage;
+  }
+  return null;
 }
 
 export function writeBrowserConsent(consent: CookieConsent) {
   writeBrowserCookie(CONSENT_COOKIE_NAME, serializeConsent(consent));
+  writeStorageConsent(consent);
 }
 
 export function openCookieSettings() {

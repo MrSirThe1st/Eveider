@@ -1,7 +1,7 @@
 'use client';
 
 import { colors, spacing, typography, webInputStyle } from '@eveider/config-ui';
-import { DataTable, type DataTableColumn } from '@eveider/ui';
+import { DataTable, IconSearch, IconTruck, type DataTableColumn } from '@eveider/ui';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { DriverStatusBadge } from '@/components/driver-status-badge';
@@ -181,7 +181,10 @@ export function BusinessDriverList({ drivers }: BusinessDriverListProps) {
         emptyDescription={
           searchQuery.trim()
             ? 'Essayez un autre nom ou e-mail.'
-            : 'Ajoutez un chauffeur pour l’app. Il ne pourra pas livrer tant qu’Eveider n’a pas contrôlé ses pièces.'
+            : 'Ajoutez un chauffeur pour l’app mobile. Ses pièces sont enregistrées chez Eveider.'
+        }
+        emptyIcon={
+          searchQuery.trim() || statusFilter !== 'all' ? <IconSearch /> : <IconTruck />
         }
         emptyAction={
           <Link href={WEB_ROUTES.businessNewDriver} className="nb-btn nb-btn-primary nb-btn--sm">

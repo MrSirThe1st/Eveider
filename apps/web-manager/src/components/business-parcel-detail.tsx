@@ -1,19 +1,22 @@
+'use client';
+
 import { colors, webCardStyle } from '@eveider/config-ui';
-import Link from 'next/link';
+import { Button, InlineAlert } from '@eveider/ui';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { FlashBanner } from '@/components/flash-banner';
 import { BusinessReportIssue } from '@/components/business-report-issue';
 import { BusinessParcelLocationBadge } from '@/components/business-parcel-location-badge';
 import {
   BusinessParcelProgression,
-  locationStatusCopy,
 } from '@/components/business-parcel-progression';
 import { ParcelInvitePanel } from '@/components/parcel-invite-panel';
 import { BusinessAssignCourier } from '@/components/business-assign-courier';
 import { ParcelEventTimeline } from '@/components/parcel-event-timeline';
 import { ShippingLabel } from '@/components/shipping-label';
-import { WEB_ROUTES } from '@/lib/auth-routing';
 import type { AssignableCourierView } from '@/server/couriers';
-import type { BusinessParcelDetailView } from '@/server/parcels';
+import type { IssueItem } from '@/server/issues';
+import type { BusinessParcelDetailView, ParcelInviteView } from '@/server/parcels';
 
 function formatDateTime(iso: string) {
   return new Intl.DateTimeFormat('fr-CD', {
@@ -31,6 +34,8 @@ type ParcelDetailProps = {
   canManageOperations?: boolean;
   canAssignCouriers?: boolean;
   assignableCouriers?: AssignableCourierView[];
+  invite?: ParcelInviteView | null;
+  issues?: IssueItem[];
 };
 
 export function BusinessParcelDetail({
@@ -39,28 +44,42 @@ export function BusinessParcelDetail({
   canManageOperations = false,
   canAssignCouriers = false,
   assignableCouriers = [],
+  invite = null,
+  issues = [],
 }: ParcelDetailProps) {
-  const collection = locationStatusCopy(parcel.location);
+  const router = useRouter();
+  const [depositError, setDepositError] = useState<string | null>(null);
+  const [depositing, setDepositing] = useState(false);
+
+  async function confirmDeposit() {
+    setDepositing(true);
+    setDepositError(null);
+    try {
+      const response = await fetch(`/api/organisation/parcels/${parcel.id}/confirm-deposit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          compartmentId: parcel.compartment?.id,
+        }),
+      });
+      const result = await response.json();
+      if (!result.success) {
+        setDepositError(result.error ?? 'Dépôt impossible');
+        return;
+      }
+      router.refresh();
+    } catch {
+      setDepositError('Erreur réseau');
+    } finally {
+      setDepositing(false);
+    }
+  }
 
   return (
     <div style={{ width: '100%' }}>
       {justCreated ? (
         <FlashBanner message={`Colis ${parcel.trackingNumber} créé avec succès.`} />
       ) : null}
-      <Link
-        href={WEB_ROUTES.businessParcels}
-        style={{
-          display: 'inline-block',
-          marginBottom: '1.5rem',
-          fontWeight: 600,
-          fontSize: '0.8125rem',
-          letterSpacing: '0.04em',
-          color: colors.secondary,
-          textDecoration: 'none',
-        }}
-      >
-        ← Retour aux colis
-      </Link>
 
       <section
         style={{
@@ -86,7 +105,7 @@ export function BusinessParcelDetail({
             </div>
           ) : null}
           <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>Enlèvement</dt>
+            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>Collecte</dt>
             <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>{parcel.pickupTypeLabel}</dd>
           </div>
           <div>
@@ -109,7 +128,7 @@ export function BusinessParcelDetail({
           </div>
           <div>
             <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
-              Point de destination
+              Point de retrait
             </dt>
             <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
               {parcel.locker ? (
@@ -117,88 +136,86 @@ export function BusinessParcelDetail({
                   {parcel.locker.name}
                   <br />
                   <span style={{ fontSize: '0.875rem' }}>{parcel.locker.address}</span>
+                  {parcel.compartment ? (
+                    <>
+                      <br />
+                      <span style={{ fontSize: '0.875rem' }}>
+                        Compartiment {parcel.compartment.label}
+                      </span>
+                    </>
+                  ) : null}
                 </>
               ) : (
-                'Non assigné'
+                '—'
               )}
-            </dd>
-          </div>
-          {parcel.compartment ? (
-            <div>
-              <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
-                Compartiment réservé
-              </dt>
-              <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
-                {parcel.compartment.label} — {parcel.compartment.sizeLabel}
-              </dd>
-            </div>
-          ) : null}
-          <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>Colis</dt>
-            <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
-              {parcel.packageSizeLabel} · {parcel.packageCategoryLabel}
-            </dd>
-          </div>
-          <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>Paiement</dt>
-            <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
-              {parcel.paymentResponsibilityLabel}
             </dd>
           </div>
           {parcel.deliveryFeeLabel ? (
             <div>
               <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
-                Frais de livraison
+                {parcel.pickupType === 'merchant_dropoff' ? 'Frais de dépôt' : 'Frais de livraison'}
               </dt>
-              <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
-                {parcel.deliveryFeeLabel}
-                {parcel.deliveryDistanceKm != null ? (
-                  <>
-                    <br />
-                    <span style={{ fontSize: '0.875rem', opacity: 0.85 }}>
-                      {parcel.deliveryDistanceKm.toLocaleString('fr-CD')} km
-                      {parcel.pricingSizeLabel ? ` · ${parcel.pricingSizeLabel}` : ''}
-                    </span>
-                  </>
-                ) : null}
+              <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>{parcel.deliveryFeeLabel}</dd>
+            </div>
+          ) : parcel.pickupType === 'merchant_dropoff' && parcel.status === 'created' ? (
+            <div>
+              <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
+                Frais de dépôt
+              </dt>
+              <dd style={{ margin: '0.35rem 0 0', fontWeight: 500, color: colors.textMuted }}>
+                Facturés à la confirmation du dépôt
               </dd>
             </div>
           ) : null}
-          <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>Créé le</dt>
-            <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
-              {formatDateTime(parcel.createdAt)}
-            </dd>
-          </div>
         </dl>
       </section>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: '1.25rem',
-          marginBottom: '1.25rem',
-        }}
-      >
-        <section style={{ ...webCardStyle, padding: '1.5rem' }}>
-          <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700 }}>Progression</h3>
-          <BusinessParcelProgression steps={parcel.progression} />
-        </section>
-        <section style={{ ...webCardStyle, padding: '1.5rem' }}>
-          <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem', fontWeight: 700 }}>
-            {collection.title}
-          </h3>
-          <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 500, color: colors.textMuted }}>
-            {collection.body}
-          </p>
-        </section>
-      </div>
+      <BusinessParcelProgression steps={parcel.progression} />
 
-      <section style={{ ...webCardStyle, padding: '1.5rem', marginBottom: '1.25rem' }}>
-        <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700 }}>
-          QR & étiquette
-        </h3>
+      {canManageOperations && parcel.canConfirmDeposit ? (
+        <section style={{ ...webCardStyle, padding: '1.25rem', marginTop: '1.25rem' }}>
+          <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.95rem' }}>Confirmer le dépôt</h3>
+          <p style={{ margin: '0 0 0.75rem', fontSize: 14, color: colors.textMuted }}>
+            Le colis est au point Eveider. La confirmation le rend prêt au retrait et facture le
+            frais de dépôt.
+          </p>
+          {depositError ? <InlineAlert message={depositError} variant="error" /> : null}
+          <Button disabled={depositing} onClick={() => void confirmDeposit()}>
+            {depositing ? 'Confirmation…' : 'Confirmer le dépôt au point'}
+          </Button>
+        </section>
+      ) : null}
+
+      {parcel.charges.length > 0 ? (
+        <section style={{ ...webCardStyle, padding: '1.25rem', marginTop: '1.25rem' }}>
+          <h3 style={{ margin: '0 0 0.75rem', fontSize: '0.95rem' }}>Frais entreprise</h3>
+          <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: '0.75rem' }}>
+            {parcel.charges.map((charge) => (
+              <li
+                key={charge.id}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: '1rem',
+                  fontSize: 14,
+                }}
+              >
+                <span>
+                  {charge.kindLabel}
+                  {charge.kind === 'locker_rental' && charge.quantity != null
+                    ? ` · ${charge.quantity} × 24 h`
+                    : ''}
+                  {charge.status === 'pending' ? ' (en cours)' : ''}
+                </span>
+                <strong>{charge.amountLabel}</strong>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <section style={{ ...webCardStyle, padding: '1.5rem', marginTop: '1.25rem' }}>
+        <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700 }}>Étiquette</h3>
         <ShippingLabel
           data={{
             trackingNumber: parcel.trackingNumber,
@@ -233,19 +250,27 @@ export function BusinessParcelDetail({
         />
       ) : null}
 
-      {canManageOperations ? <ParcelInvitePanel parcelId={parcel.id} /> : null}
+      {canManageOperations ? (
+        <ParcelInvitePanel parcelId={parcel.id} initialInvite={invite} />
+      ) : null}
 
       {canManageOperations ? (
-      <section style={{ ...webCardStyle, padding: '1.5rem', marginTop: '1.25rem' }}>
-        <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700 }}>
-          Signalement
-        </h3>
-        <p style={{ margin: '0 0 1rem', fontSize: '0.875rem', color: colors.textMuted }}>
-          Un incident est visible par les opérations Eveider. Le code PIN client n’est jamais affiché ici.
-        </p>
-        <BusinessReportIssue parcelId={parcel.id} />
-      </section>
+        <section style={{ ...webCardStyle, padding: '1.5rem', marginTop: '1.25rem' }}>
+          <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700 }}>Signalement</h3>
+          <p style={{ margin: '0 0 1rem', fontSize: '0.875rem', color: colors.textMuted }}>
+            Un incident est visible par les opérations Eveider. Le code PIN client n’est jamais
+            affiché ici.
+          </p>
+          <BusinessReportIssue parcelId={parcel.id} initialIssues={issues} />
+        </section>
       ) : null}
+
+      <p style={{ margin: '1rem 0 0', fontSize: '0.75rem', color: colors.textMuted }}>
+        Mis à jour le {formatDateTime(parcel.updatedAt)}
+        {parcel.readyForPickupAt
+          ? ` · Prêt depuis le ${formatDateTime(parcel.readyForPickupAt)}`
+          : ''}
+      </p>
 
       <ParcelEventTimeline events={parcel.events} compact />
     </div>

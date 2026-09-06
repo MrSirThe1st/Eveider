@@ -1,7 +1,7 @@
 'use client';
 
 import { colors, spacing, typography, webCardStyle } from '@eveider/config-ui';
-import { Button, ConfirmDialog, InlineAlert, TextField } from '@eveider/ui';
+import { Button, ConfirmDialog, EmptyState, IconLock, InlineAlert, TextField } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type {
@@ -209,7 +209,12 @@ export function OrganizationApiSettingsPanel({
         </div>
 
         {activeKeys.length === 0 && !revealedKey ? (
-          <p style={{ margin: 0, color: colors.textMuted }}>Aucune clé active.</p>
+          <EmptyState
+            compact
+            title="Aucune clé active"
+            description="Créez une clé API pour connecter vos systèmes à Eveider."
+            icon={<IconLock />}
+          />
         ) : (
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: spacing[2] }}>
             {activeKeys.map((key) => (

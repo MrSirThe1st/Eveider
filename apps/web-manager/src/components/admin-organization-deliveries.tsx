@@ -1,7 +1,7 @@
 'use client';
 
 import { colors, typography } from '@eveider/config-ui';
-import { DataTable, type DataTableColumn } from '@eveider/ui';
+import { DataTable, IconTruck, type DataTableColumn } from '@eveider/ui';
 import { useMemo } from 'react';
 import type { AdminOrganizationDeliveryItem } from '@/server/organizations';
 
@@ -68,6 +68,8 @@ export function AdminOrganizationDeliveries({ deliveries }: AdminOrganizationDel
       rows={deliveries}
       getRowId={(row) => row.id}
       emptyTitle="Aucune livraison pour cette organisation"
+      emptyDescription="Les livraisons de cette organisation apparaîtront ici."
+      emptyIcon={<IconTruck />}
     />
   );
 }

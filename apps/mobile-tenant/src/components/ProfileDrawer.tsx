@@ -24,9 +24,10 @@ const CLOSE_EASE = Easing.bezier(0.4, 0, 1, 1);
 type ProfileDrawerProps = {
   isGuest: boolean;
   open: boolean;
+  mode?: 'CLIENT' | 'COURSIER';
 };
 
-export function ProfileDrawer({ isGuest, open }: ProfileDrawerProps) {
+export function ProfileDrawer({ isGuest, open, mode = 'CLIENT' }: ProfileDrawerProps) {
   const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -133,34 +134,41 @@ export function ProfileDrawer({ isGuest, open }: ProfileDrawerProps) {
             <Feather name="x" size={22} color={colors.secondary} />
           </Pressable>
         </View>
-        <DrawerBody isGuest={isGuest} />
+        <DrawerBody isGuest={isGuest} mode={mode} />
       </Animated.View>
     </View>
   );
 }
 
-const DrawerBody = memo(function DrawerBody({ isGuest }: { isGuest: boolean }) {
+const DrawerBody = memo(function DrawerBody({
+  isGuest,
+  mode,
+}: {
+  isGuest: boolean;
+  mode: 'CLIENT' | 'COURSIER';
+}) {
   const {
     requestAuth,
     openSettings,
     goToReceive,
+    goToHome,
   } = useCustomerShell();
 
   return (
     <ProfileScreen
-      mode="CLIENT"
+      mode={mode}
       isGuest={isGuest}
       hideHeader
       onRequestAuth={() => requestAuth('login')}
       onOpenNotifications={() => openSettings('Notifications')}
-      onOpenMyParcels={() => goToReceive()}
+      onOpenMyParcels={mode === 'CLIENT' ? () => goToReceive() : () => goToHome()}
       onOpenPersonalInfo={() => openSettings('PersonalInfo')}
       onOpenNotificationPreferences={() => openSettings('NotificationPreferences')}
       onOpenLanguage={() => openSettings('Language')}
       onOpenCountry={() => openSettings('Country')}
       onOpenAppearance={() => openSettings('Appearance')}
       onOpenHelp={() => openSettings('Help')}
-      onOpenHowItWorks={() => openSettings('HowItWorks')}
+      onOpenHowItWorks={mode === 'CLIENT' ? () => openSettings('HowItWorks') : undefined}
       onOpenTerms={() => openSettings('Terms')}
       onOpenPrivacy={() => openSettings('Privacy')}
       onOpenAbout={() => openSettings('About')}

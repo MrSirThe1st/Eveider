@@ -53,5 +53,22 @@ describe('delivery helpers', () => {
         hasCompletedReturn: true,
       }),
     ).toBe(false);
+    expect(
+      canCreateReturnLeg({
+        parcelStatus: 'ready_for_pickup',
+        hasActiveDelivery: false,
+        hasCompletedOutbound: false,
+        merchantDropoffArrived: true,
+      }),
+    ).toBe(true);
+    expect(
+      canCreateReturnLeg({
+        parcelStatus: 'ready_for_pickup',
+        hasActiveDelivery: false,
+        hasCompletedOutbound: false,
+        merchantDropoffArrived: true,
+        hasCompletedReturn: true,
+      }),
+    ).toBe(false);
   });
 });

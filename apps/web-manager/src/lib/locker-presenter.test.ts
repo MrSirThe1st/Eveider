@@ -45,7 +45,7 @@ describe('toBusinessLockerDto', () => {
     });
 
     expect(dto.operatingStatus).toBe('full');
-    expect(dto.operatingStatusLabel).toBe('COMPLET');
+    expect(dto.operatingStatusLabel).toBe('Complet');
     expect(dto.selectable).toBe(false);
   });
 });

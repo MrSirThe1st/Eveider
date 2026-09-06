@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  changePasswordSchema,
   onboardUserSchema,
   registerMobileAccountSchema,
   signInSchema,
@@ -12,6 +13,30 @@ describe('auth schemas', () => {
       signInSchema.safeParse({ email: 'contact@eveider.cd', password: 'secret123' }).success,
     ).toBe(true);
     expect(signInSchema.safeParse({ email: 'bad', password: 'short' }).success).toBe(false);
+  });
+
+  it('validates password change payloads', () => {
+    expect(
+      changePasswordSchema.safeParse({
+        currentPassword: 'secret123',
+        newPassword: 'secret456',
+        confirmPassword: 'secret456',
+      }).success,
+    ).toBe(true);
+    expect(
+      changePasswordSchema.safeParse({
+        currentPassword: 'secret123',
+        newPassword: 'secret456',
+        confirmPassword: 'other',
+      }).success,
+    ).toBe(false);
+    expect(
+      changePasswordSchema.safeParse({
+        currentPassword: 'secret123',
+        newPassword: 'secret123',
+        confirmPassword: 'secret123',
+      }).success,
+    ).toBe(false);
   });
 
   it('validates phone OTP token length for mobile', () => {

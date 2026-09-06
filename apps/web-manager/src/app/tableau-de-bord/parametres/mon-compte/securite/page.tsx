@@ -1,10 +1,17 @@
-import { SettingsComingSoon } from '@/components/settings-coming-soon';
+import { PageFrame } from '@eveider/ui';
+import { AccountSecurityForm } from '@/components/account-security-form';
+import { requireWebRole } from '@/lib/require-web-role';
 
-export default function AdminSecuritySettingsPage() {
+export default async function AdminSecuritySettingsPage() {
+  await requireWebRole(['admin']);
+
   return (
-    <SettingsComingSoon
+    <PageFrame
       title="Sécurité"
-      description="Mot de passe et sessions de connexion."
-    />
+      description="Modifiez le mot de passe de votre compte."
+      layout="standard"
+    >
+      <AccountSecurityForm />
+    </PageFrame>
   );
 }

@@ -204,13 +204,20 @@ export class TeamInviteRepository {
   async revoke(ctx: DataAccessContext, inviteId: string): Promise<void> {
     assertBusinessRole(ctx);
     assertCompanyPermission(ctx, 'manage_team');
-    await this.requireInviteInBusiness(ctx.businessId!, inviteId);
-    await this.db.query(
+    const current = await this.requireInviteInBusiness(ctx.businessId!, inviteId);
+    if (current.status !== 'pending') {
+      throw new Error('Cette invitation n’est plus en attente');
+    }
+    const updated = await this.db.query(
       `UPDATE business_team_invites
        SET status = 'revoked', updated_at = NOW()
-       WHERE id = $1 AND business_id = $2 AND status = 'pending'`,
+       WHERE id = $1 AND business_id = $2 AND status = 'pending'
+       RETURNING id`,
       [inviteId, ctx.businessId],
     );
+    if (!updated.rows[0]) {
+      throw new Error('Impossible de révoquer cette invitation');
+    }
   }
 
   async acceptForUser(input: {

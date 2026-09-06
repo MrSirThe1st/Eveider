@@ -19,6 +19,7 @@ describe('parcel lifecycle', () => {
 
   it('allows valid transitions', () => {
     expect(canTransitionParcel('created', 'in_transit')).toBe(true);
+    expect(canTransitionParcel('created', 'delivered_to_locker')).toBe(true);
     expect(transitionParcel('ready_for_pickup', 'collected')).toBe('collected');
   });
 

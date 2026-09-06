@@ -312,7 +312,7 @@ export function LockerCreatePanel({
   return (
     <div>
       <p style={{ margin: '0 0 0.5rem', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>
-        3. CONFIGURER LE POINT
+        CONFIGURER LE POINT
       </p>
       <p style={{ margin: '0 0 1rem', fontSize: '0.75rem', color: colors.secondary, opacity: 0.75 }}>
         L’emplacement final est celui du repère sur la carte.
@@ -331,11 +331,11 @@ export function LockerCreatePanel({
                 padding: '0.45rem 0.75rem',
                 borderRadius: radius.button,
                 border: `1px solid ${selected ? colors.primary : colors.border}`,
-                background: selected ? '#E8FCE8' : colors.surface,
-                fontWeight: 700,
-                fontSize: '0.6875rem',
-                cursor: 'pointer',
-                color: colors.secondary,
+                    background: selected ? colors.successMuted : colors.surface,
+                    fontWeight: 700,
+                    fontSize: '0.6875rem',
+                    cursor: 'pointer',
+                    color: selected ? colors.successFg : colors.secondary,
               }}
             >
               {LOCKER_TYPE_LABELS[pointType]}
@@ -410,11 +410,11 @@ export function LockerCreatePanel({
                     padding: '0.45rem 0.75rem',
                     borderRadius: radius.button,
                     border: `1px solid ${selected ? colors.primary : colors.border}`,
-                    background: selected ? '#E8FCE8' : colors.surface,
+                    background: selected ? colors.successMuted : colors.surface,
                     fontWeight: 700,
                     fontSize: '0.75rem',
                     cursor: 'pointer',
-                    color: colors.secondary,
+                    color: selected ? colors.successFg : colors.secondary,
                   }}
                 >
                   {option.label}
@@ -466,11 +466,11 @@ export function LockerCreatePanel({
                         padding: '0.45rem 0.75rem',
                         borderRadius: radius.button,
                         border: `1px solid ${selected ? colors.primary : colors.border}`,
-                        background: selected ? '#E8FCE8' : colors.surface,
+                        background: selected ? colors.successMuted : colors.surface,
                         fontWeight: 700,
                         fontSize: '0.75rem',
                         cursor: 'pointer',
-                        color: colors.secondary,
+                        color: selected ? colors.successFg : colors.secondary,
                       }}
                     >
                       {LAYOUT_PRESET_LABELS[preset]}
@@ -639,8 +639,8 @@ export function LockerCreatePanel({
       <div style={{ display: 'flex', gap: 12, marginBottom: '1rem' }}>
         {(
           [
-            { value: 'active' as const, label: 'ACTIF' },
-            { value: 'offline' as const, label: 'INACTIF' },
+            { value: 'active' as const, label: 'Actif' },
+            { value: 'offline' as const, label: 'Inactif' },
           ] as const
         ).map((option) => (
           <label
@@ -687,7 +687,7 @@ export function LockerCreatePanel({
           </p>
         ) : null}
         <p style={{ margin: '0 0 12px', fontSize: '0.8125rem' }}>
-          <strong>Capacité :</strong> {previewCapacity} — {status === 'active' ? 'ACTIF' : 'INACTIF'}
+          <strong>Capacité :</strong> {previewCapacity} — {status === 'active' ? 'Actif' : 'Inactif'}
         </p>
         {smartLocker ? <LockerLayoutPreview layout={layout} compact /> : null}
       </div>

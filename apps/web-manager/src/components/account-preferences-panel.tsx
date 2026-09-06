@@ -1,9 +1,7 @@
 'use client';
 
 import { colors, spacing, typography, webCardStyle } from '@eveider/config-ui';
-import { Button } from '@eveider/ui';
 import { useSyncExternalStore } from 'react';
-import { openCookieSettings } from '@/lib/consent';
 import {
   applyThemePreference,
   readThemePreference,
@@ -93,13 +91,9 @@ export function AccountPreferencesPanel() {
         </div>
 
         <p style={{ margin: 0, color: colors.textMuted, fontSize: 13 }}>
-          Si vous acceptez les cookies de préférence, ce choix est mémorisé sur cet appareil.
+          Si les cookies de préférence sont acceptés, ce choix d’apparence est mémorisé sur cet
+          appareil.
         </p>
-        <div>
-          <Button variant="secondary" size="sm" onClick={() => openCookieSettings()}>
-            Gérer les cookies
-          </Button>
-        </div>
       </div>
     </section>
   );

@@ -76,7 +76,7 @@ describe('DeliveryRepository', () => {
   it('assigns delivery for admin when parcel has locker', async () => {
     setup((sql) => {
       if (sqlIncludes(sql, 'SELECT * FROM parcels')) {
-        return parcelRow();
+        return parcelRow({ pickup_type: 'courier_pickup' });
       }
       if (sqlIncludes(sql, 'SELECT * FROM users')) {
         return { id: 'courier-1', role: 'courier' };
@@ -113,7 +113,7 @@ describe('DeliveryRepository', () => {
   it('lets a business assign its own active courier', async () => {
     setup((sql) => {
       if (sqlIncludes(sql, 'SELECT * FROM parcels')) {
-        return parcelRow();
+        return parcelRow({ pickup_type: 'courier_pickup' });
       }
       if (sqlIncludes(sql, 'SELECT * FROM users')) {
         return {
@@ -150,7 +150,7 @@ describe('DeliveryRepository', () => {
   it('rejects assigning another company’s courier', async () => {
     setup((sql) => {
       if (sqlIncludes(sql, 'SELECT * FROM parcels')) {
-        return parcelRow();
+        return parcelRow({ pickup_type: 'courier_pickup' });
       }
       if (sqlIncludes(sql, 'FROM deliveries') && sqlIncludes(sql, 'status = ANY')) {
         return null;
@@ -174,7 +174,7 @@ describe('DeliveryRepository', () => {
   it('rejects assign when active delivery exists', async () => {
     setup((sql) => {
       if (sqlIncludes(sql, 'SELECT * FROM parcels')) {
-        return parcelRow();
+        return parcelRow({ pickup_type: 'courier_pickup' });
       }
       if (sqlIncludes(sql, 'SELECT * FROM users')) {
         return { id: 'courier-1', role: 'courier' };
@@ -193,10 +193,10 @@ describe('DeliveryRepository', () => {
     );
   });
 
-  it('rejects assigning a driver whose KYC is still pending', async () => {
+  it('rejects assigning an Eveider fleet driver whose KYC is still pending', async () => {
     setup((sql) => {
       if (sqlIncludes(sql, 'SELECT * FROM parcels')) {
-        return parcelRow();
+        return parcelRow({ pickup_type: 'courier_pickup' });
       }
       if (sqlIncludes(sql, 'FROM deliveries') && sqlIncludes(sql, 'status = ANY')) {
         return null;
@@ -212,7 +212,7 @@ describe('DeliveryRepository', () => {
         };
       }
       if (sqlIncludes(sql, 'FROM driver_dossiers')) {
-        return { status: 'pending_review', business_id: 'biz-1' };
+        return { status: 'pending_review', business_id: null, contractor_type: 'eveider' };
       }
       throw new Error(`Unexpected SQL: ${sql}`);
     });
@@ -220,6 +220,40 @@ describe('DeliveryRepository', () => {
     await expect(repo.assign(businessCtx, 'parcel-1', 'courier-1')).rejects.toThrow(
       'pas encore approuvé',
     );
+  });
+
+  it('allows assigning a business driver whose documents are still on file', async () => {
+    setup((sql) => {
+      if (sqlIncludes(sql, 'SELECT * FROM parcels')) {
+        return parcelRow({ pickup_type: 'courier_pickup' });
+      }
+      if (sqlIncludes(sql, 'FROM deliveries') && sqlIncludes(sql, 'status = ANY')) {
+        return null;
+      }
+      if (sqlIncludes(sql, 'SELECT * FROM users')) {
+        return {
+          id: 'courier-1',
+          role: 'courier',
+          business_id: 'biz-1',
+          is_blocked: false,
+          deactivated_at: null,
+          deleted_at: null,
+        };
+      }
+      if (sqlIncludes(sql, 'FROM driver_dossiers')) {
+        return { status: 'pending_review', business_id: 'biz-1', contractor_type: 'business' };
+      }
+      if (sqlIncludes(sql, 'INSERT INTO deliveries')) {
+        return deliveryRow();
+      }
+      if (sqlIncludes(sql, 'SELECT name FROM lockers')) {
+        return { name: 'EVEIDER GOMBE' };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const delivery = await repo.assign(businessCtx, 'parcel-1', 'courier-1');
+    expect(delivery.status).toBe('assigned');
   });
 
   it('scans parcel with matching reference', async () => {
@@ -369,7 +403,7 @@ describe('DeliveryRepository', () => {
         writes.push('compartment');
         return null;
       }
-      if (sqlIncludes(sql, 'UPDATE parcels SET status')) {
+      if (sqlIncludes(sql, 'UPDATE parcels') && sqlIncludes(sql, 'SET status')) {
         writes.push('parcel');
         return null;
       }
@@ -393,7 +427,7 @@ describe('DeliveryRepository', () => {
       ['comp-1'],
     );
     expect(db.query).toHaveBeenCalledWith(
-      expect.stringContaining('UPDATE parcels SET status'),
+      expect.stringContaining('UPDATE parcels'),
       expect.arrayContaining(['ready_for_pickup', 'comp-1', 'parcel-1']),
     );
   });
@@ -451,6 +485,9 @@ describe('DeliveryRepository', () => {
           { status: 'completed', kind: 'return', completed_at: new Date() },
           { status: 'ready_for_pickup', compartment_id: null },
         );
+      }
+      if (sqlIncludes(sql, 'SELECT ready_for_pickup_at FROM parcels')) {
+        return { ready_for_pickup_at: null };
       }
       if (sqlIncludes(sql, 'UPDATE deliveries SET status')) {
         writes.push('delivery');

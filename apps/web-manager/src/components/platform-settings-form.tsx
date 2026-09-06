@@ -17,9 +17,52 @@ const FEATURE_LABELS: Record<(typeof PLATFORM_DEFAULT_FEATURES)[number], string>
 
 const inputStyle = { ...webInputStyle, width: '100%', height: 44, padding: '0 0.75rem' };
 
+type LimitKey =
+  | 'defaultDailyShipments'
+  | 'defaultMonthlyShipments'
+  | 'defaultMaxPackageValueUsd'
+  | 'defaultCodDailyLimitUsd';
+
 type PlatformSettingsFormProps = {
   initialSettings: PlatformSettingsDto;
 };
+
+function LimitField({
+  label,
+  value,
+  step,
+  onChange,
+}: {
+  label: string;
+  value: number | null;
+  step?: string;
+  onChange: (value: number | null) => void;
+}) {
+  const unlimited = value == null;
+  return (
+    <div style={{ display: 'grid', gap: 8 }}>
+      <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>{label}</span>
+      <input
+        type="number"
+        min={0.01}
+        step={step ?? '1'}
+        value={unlimited ? '' : value}
+        disabled={unlimited}
+        onChange={(e) => onChange(Number(e.target.value))}
+        style={{ ...inputStyle, opacity: unlimited ? 0.55 : 1 }}
+        placeholder={unlimited ? 'Illimité' : undefined}
+      />
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8125rem' }}>
+        <input
+          type="checkbox"
+          checked={unlimited}
+          onChange={(e) => onChange(e.target.checked ? null : 1)}
+        />
+        Illimité
+      </label>
+    </div>
+  );
+}
 
 export function PlatformSettingsForm({ initialSettings }: PlatformSettingsFormProps) {
   const router = useRouter();
@@ -27,6 +70,10 @@ export function PlatformSettingsForm({ initialSettings }: PlatformSettingsFormPr
   const [settings, setSettings] = useState(initialSettings);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function setLimit(key: LimitKey, value: number | null) {
+    setSettings((current) => ({ ...current, [key]: value }));
+  }
 
   function toggleFeature(feature: (typeof PLATFORM_DEFAULT_FEATURES)[number]) {
     setSettings((current) => {
@@ -82,7 +129,7 @@ export function PlatformSettingsForm({ initialSettings }: PlatformSettingsFormPr
         </h3>
         <p style={{ margin: '0 0 1.25rem', fontSize: '0.8125rem', color: colors.textMuted }}>
           Montant demandé au destinataire quand il paie au casier (mobile money). Le prix de
-          la livraison se règle dans Facturation.
+          la course (distance / taille) se règle dans Tarifs de livraison.
         </p>
         <div
           style={{
@@ -129,10 +176,10 @@ export function PlatformSettingsForm({ initialSettings }: PlatformSettingsFormPr
 
       <section style={{ ...webCardStyle, padding: '1.5rem' }}>
         <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.875rem', fontWeight: 700 }}>
-          Valeurs par défaut — nouvelles organisations
+          Valeurs par défaut — nouvelles entreprises
         </h3>
         <p style={{ margin: '0 0 1.25rem', fontSize: '0.8125rem', color: colors.textMuted }}>
-          Appliquées à chaque nouvelle organisation. Les comptes existants ne sont pas modifiés.
+          Appliquées à chaque nouvelle entreprise à son inscription. Les comptes déjà créés ne changent pas.
         </p>
         <div
           style={{
@@ -141,56 +188,28 @@ export function PlatformSettingsForm({ initialSettings }: PlatformSettingsFormPr
             gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
           }}
         >
-          <label>
-            Colis par jour
-            <input
-              type="number"
-              min={1}
-              value={settings.defaultDailyShipments}
-              onChange={(e) =>
-                setSettings({ ...settings, defaultDailyShipments: Number(e.target.value) })
-              }
-              style={inputStyle}
-            />
-          </label>
-          <label>
-            Colis par mois
-            <input
-              type="number"
-              min={1}
-              value={settings.defaultMonthlyShipments}
-              onChange={(e) =>
-                setSettings({ ...settings, defaultMonthlyShipments: Number(e.target.value) })
-              }
-              style={inputStyle}
-            />
-          </label>
-          <label>
-            Valeur max d’un colis (USD)
-            <input
-              type="number"
-              step="0.01"
-              min={0.01}
-              value={settings.defaultMaxPackageValueUsd}
-              onChange={(e) =>
-                setSettings({ ...settings, defaultMaxPackageValueUsd: Number(e.target.value) })
-              }
-              style={inputStyle}
-            />
-          </label>
-          <label>
-            Paiement à la livraison — max / jour (USD)
-            <input
-              type="number"
-              step="0.01"
-              min={0.01}
-              value={settings.defaultCodDailyLimitUsd}
-              onChange={(e) =>
-                setSettings({ ...settings, defaultCodDailyLimitUsd: Number(e.target.value) })
-              }
-              style={inputStyle}
-            />
-          </label>
+          <LimitField
+            label="Colis par jour"
+            value={settings.defaultDailyShipments}
+            onChange={(value) => setLimit('defaultDailyShipments', value)}
+          />
+          <LimitField
+            label="Colis par mois"
+            value={settings.defaultMonthlyShipments}
+            onChange={(value) => setLimit('defaultMonthlyShipments', value)}
+          />
+          <LimitField
+            label="Valeur max d’un colis (USD)"
+            value={settings.defaultMaxPackageValueUsd}
+            step="0.01"
+            onChange={(value) => setLimit('defaultMaxPackageValueUsd', value)}
+          />
+          <LimitField
+            label="Paiement à la livraison — max / jour (USD)"
+            value={settings.defaultCodDailyLimitUsd}
+            step="0.01"
+            onChange={(value) => setLimit('defaultCodDailyLimitUsd', value)}
+          />
         </div>
         <div style={{ marginTop: '1.25rem', display: 'grid', gap: 8 }}>
           <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>

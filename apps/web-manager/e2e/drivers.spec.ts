@@ -11,7 +11,8 @@ test.describe('Organization drivers', () => {
     await expect(
       page.getByText('Vos chauffeurs et où ils en sont.'),
     ).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Ajouter un chauffeur' })).toHaveAttribute(
+    await expect(page.getByTestId('business-drivers-header-add')).toBeVisible();
+    await expect(page.getByTestId('business-drivers-header-add')).toHaveAttribute(
       'href',
       '/organisation/tableau-de-bord/chauffeurs/nouveau',
     );
@@ -40,7 +41,7 @@ test.describe('Organization drivers', () => {
 
     await tabs.getByRole('link', { name: 'Documents' }).click();
     await expect(page).toHaveURL(/\/documents$/);
-    await expect(page.getByText('Contrôle des pièces')).toBeVisible();
+    await expect(page.getByText('Pièces enregistrées')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Approuver' })).toHaveCount(0);
   });
 
@@ -51,12 +52,15 @@ test.describe('Organization drivers', () => {
 
     await expect(page.getByLabel('Nom complet')).toHaveCount(0);
 
-    await page.getByRole('link', { name: 'Ajouter un chauffeur' }).click();
+    await page.getByTestId('business-drivers-header-add').click();
     await expect(page).toHaveURL(/\/chauffeurs\/nouveau$/);
     await expect(page.getByRole('heading', { name: 'Ajouter un chauffeur', level: 1 })).toBeVisible();
     await expect(page.getByLabel('Nom complet')).toBeVisible();
     await expect(page.getByLabel('E-mail')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Ajouter et inviter' })).toBeVisible();
+    await expect(
+      page.getByText('Ses pièces sont enregistrées chez Eveider.'),
+    ).toBeVisible();
   });
 });
 

@@ -11,12 +11,11 @@ export type UserListItem = {
 };
 
 type UsersQueryParams = {
-  role: 'customer' | 'courier';
   search: string;
 };
 
-function usersUrl({ role, search }: UsersQueryParams) {
-  const params = new URLSearchParams({ role });
+function usersUrl({ search }: UsersQueryParams) {
+  const params = new URLSearchParams({ role: 'customer' });
   if (search) params.set('search', search);
   return `/api/users?${params.toString()}`;
 }
@@ -52,7 +51,7 @@ export function useUsersQuery(params: UsersQueryParams) {
       setIsLoading(false);
       setIsFetching(false);
     }
-  }, [params.role, params.search]);
+  }, [params.search]);
 
   useEffect(() => {
     hasDataRef.current = false;

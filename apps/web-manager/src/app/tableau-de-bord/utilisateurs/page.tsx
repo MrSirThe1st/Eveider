@@ -1,8 +1,7 @@
 'use client';
 
-import { colors, radius, webInputStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
-import { ConfirmDialog, LoadingSpinner, PageFrame, TableSkeleton, useToast } from '@eveider/ui';
-import Link from 'next/link';
+import { colors, webInputStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
+import { ConfirmDialog, EmptyState, IconSearch, IconUser, LoadingSpinner, PageFrame, TableSkeleton, useToast } from '@eveider/ui';
 import { useEffect, useState } from 'react';
 import { FlashBanner } from '@/components/flash-banner';
 import { type UserListItem, useUsersQuery } from '@/hooks/queries/use-users-query';
@@ -17,7 +16,6 @@ function formatDate(iso: string) {
 
 export default function UsersPage() {
   const toast = useToast();
-  const [role, setRole] = useState<'customer' | 'courier'>('customer');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [success, setSuccess] = useState<string | null>(null);
@@ -35,7 +33,6 @@ export default function UsersPage() {
 
   const { data: users = [], setUsers, isLoading, isFetching, isError, error, refetch } =
     useUsersQuery({
-      role,
       search: debouncedSearch,
     });
 
@@ -85,7 +82,7 @@ export default function UsersPage() {
   return (
     <PageFrame
       title="Utilisateurs"
-      description="Comptes des clients et des chauffeurs."
+      description="Comptes des clients Eveider."
       layout="wide"
     >
       {success ? <FlashBanner message={success} onDismiss={() => setSuccess(null)} /> : null}
@@ -102,60 +99,13 @@ export default function UsersPage() {
       <div
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
+          justifyContent: 'flex-end',
           alignItems: 'center',
           gap: '1rem',
           flexWrap: 'wrap',
           marginBottom: '1.5rem',
         }}
       >
-        <div
-          style={{
-            display: 'flex',
-            background: colors.border,
-            padding: '3px',
-            borderRadius: radius.button,
-            height: '44px',
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setRole('customer')}
-            style={{
-              padding: '0 1.5rem',
-              border: 'none',
-              borderRadius: '6px',
-              fontWeight: 700,
-              fontSize: '0.75rem',
-              letterSpacing: '0.05em',
-              cursor: 'pointer',
-              backgroundColor: role === 'customer' ? colors.surface : 'transparent',
-              color: colors.secondary,
-              transition: 'all 0.15s',
-            }}
-          >
-            CLIENTS
-          </button>
-          <button
-            type="button"
-            onClick={() => setRole('courier')}
-            style={{
-              padding: '0 1.5rem',
-              border: 'none',
-              borderRadius: '6px',
-              fontWeight: 700,
-              fontSize: '0.75rem',
-              letterSpacing: '0.05em',
-              cursor: 'pointer',
-              backgroundColor: role === 'courier' ? colors.surface : 'transparent',
-              color: colors.secondary,
-              transition: 'all 0.15s',
-            }}
-          >
-            COURSIERS
-          </button>
-        </div>
-
         <input
           type="text"
           placeholder="RECHERCHER PAR NOM, EMAIL OR NUMÉRO..."
@@ -193,9 +143,12 @@ export default function UsersPage() {
             </button>
           </div>
         ) : users.length === 0 ? (
-          <p style={{ padding: '2rem', fontWeight: 500, textAlign: 'center', opacity: 0.65 }}>
-            Aucun utilisateur trouvé.
-          </p>
+          <EmptyState
+            compact
+            title="Aucun client trouvé"
+            description="Essayez une autre recherche."
+            icon={debouncedSearch.trim() ? <IconSearch /> : <IconUser />}
+          />
         ) : (
           <table>
             <thead>
@@ -217,18 +170,7 @@ export default function UsersPage() {
                     backgroundColor: user.isBlocked ? 'rgba(229, 57, 53, 0.02)' : undefined,
                   }}
                 >
-                  <td>
-                    {role === 'courier' ? (
-                      <Link
-                        href={`/tableau-de-bord/utilisateurs/${user.id}`}
-                        className="nb-data-table__link"
-                      >
-                        {user.fullName?.toUpperCase() ?? '—'}
-                      </Link>
-                    ) : (
-                      user.fullName?.toUpperCase() ?? '—'
-                    )}
-                  </td>
+                  <td>{user.fullName?.toUpperCase() ?? '—'}</td>
                   <td style={{ color: 'var(--color-text-muted)' }}>
                     {user.email ?? '—'}
                   </td>
@@ -257,41 +199,26 @@ export default function UsersPage() {
                     </span>
                   </td>
                   <td className="nb-data-table__actions">
-                    <div style={{ display: 'inline-flex', gap: '0.5rem', alignItems: 'center' }}>
-                      {role === 'courier' ? (
-                        <Link
-                          href={`/tableau-de-bord/utilisateurs/${user.id}`}
-                          style={{
-                            ...webSecondaryButtonStyle,
-                            fontSize: '0.75rem',
-                            padding: '6px 12px',
-                            textDecoration: 'none',
-                          }}
-                        >
-                          PROFIL
-                        </Link>
-                      ) : null}
-                      <button
-                        type="button"
-                        disabled={actingId === user.id}
-                        onClick={() => setPendingUser(user)}
-                        style={{
-                          height: '28px',
-                          padding: '0 10px',
-                          border: 'none',
-                          borderRadius: '4px',
-                          fontWeight: 700,
-                          fontSize: '0.6875rem',
-                          letterSpacing: '0.04em',
-                          cursor: actingId === user.id ? 'wait' : 'pointer',
-                          backgroundColor: user.isBlocked ? colors.primary : colors.danger,
-                          color: colors.secondary,
-                          opacity: actingId === user.id ? 0.6 : 1,
-                        }}
-                      >
-                        {user.isBlocked ? 'ACTIVER' : 'BLOQUER'}
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      disabled={actingId === user.id}
+                      onClick={() => setPendingUser(user)}
+                      style={{
+                        height: '28px',
+                        padding: '0 10px',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontWeight: 700,
+                        fontSize: '0.6875rem',
+                        letterSpacing: '0.04em',
+                        cursor: actingId === user.id ? 'wait' : 'pointer',
+                        backgroundColor: user.isBlocked ? colors.primary : colors.danger,
+                        color: colors.secondary,
+                        opacity: actingId === user.id ? 0.6 : 1,
+                      }}
+                    >
+                      {user.isBlocked ? 'ACTIVER' : 'BLOQUER'}
+                    </button>
                   </td>
                 </tr>
               ))}

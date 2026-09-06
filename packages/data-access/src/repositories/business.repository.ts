@@ -15,10 +15,10 @@ import { PLATFORM_DEFAULT_FEATURES } from './platform-settings.repository.js';
 
 export type OrganizationOperatingAccess = {
   enabledFeatures: Array<(typeof PLATFORM_DEFAULT_FEATURES)[number]>;
-  dailyShipments: number;
-  monthlyShipments: number;
-  maxPackageValueUsd: number;
-  codDailyLimitUsd: number;
+  dailyShipments: number | null;
+  monthlyShipments: number | null;
+  maxPackageValueUsd: number | null;
+  codDailyLimitUsd: number | null;
 };
 
 export type CreateBusinessInput = {
@@ -97,10 +97,10 @@ export class BusinessRepository {
     if (!row) {
       return {
         requireOrgApproval: false,
-        defaultDailyShipments: 50,
-        defaultMonthlyShipments: 1000,
-        defaultMaxPackageValueUsd: 500,
-        defaultCodDailyLimitUsd: 200,
+        defaultDailyShipments: 50 as number | null,
+        defaultMonthlyShipments: 1000 as number | null,
+        defaultMaxPackageValueUsd: 500 as number | null,
+        defaultCodDailyLimitUsd: 200 as number | null,
         defaultEnabledFeatures: [
           'CREATE_SHIPMENT',
           'API_ACCESS',
@@ -134,10 +134,16 @@ export class BusinessRepository {
 
     return {
       requireOrgApproval: Boolean(row.require_org_approval),
-      defaultDailyShipments: Number(row.default_daily_shipments),
-      defaultMonthlyShipments: Number(row.default_monthly_shipments),
-      defaultMaxPackageValueUsd: Number(row.default_max_package_value_usd),
-      defaultCodDailyLimitUsd: Number(row.default_cod_daily_limit_usd),
+      defaultDailyShipments:
+        row.default_daily_shipments == null ? null : Number(row.default_daily_shipments),
+      defaultMonthlyShipments:
+        row.default_monthly_shipments == null ? null : Number(row.default_monthly_shipments),
+      defaultMaxPackageValueUsd:
+        row.default_max_package_value_usd == null
+          ? null
+          : Number(row.default_max_package_value_usd),
+      defaultCodDailyLimitUsd:
+        row.default_cod_daily_limit_usd == null ? null : Number(row.default_cod_daily_limit_usd),
       defaultEnabledFeatures,
     };
   }
@@ -334,10 +340,10 @@ export class BusinessRepository {
 
     return {
       enabledFeatures: [...resolvedFeatures],
-      dailyShipments: limit?.dailyShipments ?? platform.defaultDailyShipments,
-      monthlyShipments: limit?.monthlyShipments ?? platform.defaultMonthlyShipments,
-      maxPackageValueUsd: limit?.maxPackageValueUsd ?? platform.defaultMaxPackageValueUsd,
-      codDailyLimitUsd: limit?.codDailyLimitUsd ?? platform.defaultCodDailyLimitUsd,
+      dailyShipments: limit ? limit.dailyShipments : platform.defaultDailyShipments,
+      monthlyShipments: limit ? limit.monthlyShipments : platform.defaultMonthlyShipments,
+      maxPackageValueUsd: limit ? limit.maxPackageValueUsd : platform.defaultMaxPackageValueUsd,
+      codDailyLimitUsd: limit ? limit.codDailyLimitUsd : platform.defaultCodDailyLimitUsd,
     };
   }
 
@@ -393,10 +399,10 @@ export class BusinessRepository {
     businessId: string,
     enabledFeatures: readonly string[],
     limits: {
-      dailyShipments: number;
-      monthlyShipments: number;
-      maxPackageValueUsd: number;
-      codDailyLimitUsd: number;
+      dailyShipments: number | null;
+      monthlyShipments: number | null;
+      maxPackageValueUsd: number | null;
+      codDailyLimitUsd: number | null;
     },
   ): Promise<void> {
     const enabled = new Set(enabledFeatures);

@@ -1,3 +1,4 @@
+import { colors } from '@eveider/config-ui';
 import { LOCKER_STATUS_LABELS, type LockerStatus } from '@eveider/domain';
 
 type LockerStatusBadgeProps = {
@@ -9,28 +10,28 @@ const STATUS_STYLES: Record<
   { bg: string; color: string; dot: string; border: string }
 > = {
   active: {
-    bg: '#DCF5D6',
-    color: '#067A07',
-    dot: '#09D40B',
-    border: '#C0EAB7',
+    bg: colors.successMuted,
+    color: colors.successFg,
+    dot: colors.success,
+    border: colors.primaryMuted,
   },
   offline: {
-    bg: '#F0F4EE',
-    color: '#475467',
-    dot: '#98A2B3',
-    border: '#E2E8E0',
+    bg: colors.surfaceMuted,
+    color: colors.textMuted,
+    dot: colors.textDisabled,
+    border: colors.border,
   },
   full: {
-    bg: '#FFFBEB',
-    color: '#B45309',
-    dot: '#F59E0B',
-    border: '#FDE68A',
+    bg: colors.warningMuted,
+    color: colors.warningFg,
+    dot: colors.warning,
+    border: colors.warningMuted,
   },
   archived: {
-    bg: '#F0F4EE',
-    color: '#475467',
-    dot: '#98A2B3',
-    border: '#E2E8E0',
+    bg: colors.surfaceMuted,
+    color: colors.textMuted,
+    dot: colors.textDisabled,
+    border: colors.border,
   },
 };
 
@@ -64,4 +65,3 @@ export function LockerStatusBadge({ status }: LockerStatusBadgeProps) {
     </span>
   );
 }
-

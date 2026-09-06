@@ -17,10 +17,53 @@ const FEATURE_LABELS: Record<(typeof PLATFORM_DEFAULT_FEATURES)[number], string>
 
 const inputStyle = { ...webInputStyle, width: '100%', height: 44, padding: '0 0.75rem' };
 
+type LimitKey =
+  | 'dailyShipments'
+  | 'monthlyShipments'
+  | 'maxPackageValueUsd'
+  | 'codDailyLimitUsd';
+
 type AdminOrganizationOperatingAccessProps = {
   organizationId: string;
   initialAccess: OrganizationOperatingAccessDto;
 };
+
+function LimitField({
+  label,
+  value,
+  step,
+  onChange,
+}: {
+  label: string;
+  value: number | null;
+  step?: string;
+  onChange: (value: number | null) => void;
+}) {
+  const unlimited = value == null;
+  return (
+    <div style={{ display: 'grid', gap: 8 }}>
+      <span style={{ fontSize: typography.caption.fontSize, fontWeight: 600 }}>{label}</span>
+      <input
+        type="number"
+        min={0.01}
+        step={step ?? '1'}
+        value={unlimited ? '' : value}
+        disabled={unlimited}
+        onChange={(e) => onChange(Number(e.target.value))}
+        style={{ ...inputStyle, opacity: unlimited ? 0.55 : 1 }}
+        placeholder={unlimited ? 'Illimité' : undefined}
+      />
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: typography.body.fontSize }}>
+        <input
+          type="checkbox"
+          checked={unlimited}
+          onChange={(e) => onChange(e.target.checked ? null : 1)}
+        />
+        Illimité
+      </label>
+    </div>
+  );
+}
 
 export function AdminOrganizationOperatingAccess({
   organizationId,
@@ -32,6 +75,10 @@ export function AdminOrganizationOperatingAccess({
   const [saving, setSaving] = useState(false);
   const [applyingDefaults, setApplyingDefaults] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function setLimit(key: LimitKey, value: number | null) {
+    setAccess((current) => ({ ...current, [key]: value }));
+  }
 
   function toggleFeature(feature: (typeof PLATFORM_DEFAULT_FEATURES)[number]) {
     setAccess((current) => {
@@ -103,56 +150,28 @@ export function AdminOrganizationOperatingAccess({
             gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
           }}
         >
-          <label>
-            Colis / jour
-            <input
-              type="number"
-              min={1}
-              value={access.dailyShipments}
-              onChange={(e) =>
-                setAccess({ ...access, dailyShipments: Number(e.target.value) })
-              }
-              style={inputStyle}
-            />
-          </label>
-          <label>
-            Colis / mois
-            <input
-              type="number"
-              min={1}
-              value={access.monthlyShipments}
-              onChange={(e) =>
-                setAccess({ ...access, monthlyShipments: Number(e.target.value) })
-              }
-              style={inputStyle}
-            />
-          </label>
-          <label>
-            Valeur max colis (USD)
-            <input
-              type="number"
-              step="0.01"
-              min={0.01}
-              value={access.maxPackageValueUsd}
-              onChange={(e) =>
-                setAccess({ ...access, maxPackageValueUsd: Number(e.target.value) })
-              }
-              style={inputStyle}
-            />
-          </label>
-          <label>
-            Plafond COD / jour (USD)
-            <input
-              type="number"
-              step="0.01"
-              min={0.01}
-              value={access.codDailyLimitUsd}
-              onChange={(e) =>
-                setAccess({ ...access, codDailyLimitUsd: Number(e.target.value) })
-              }
-              style={inputStyle}
-            />
-          </label>
+          <LimitField
+            label="Colis / jour"
+            value={access.dailyShipments}
+            onChange={(value) => setLimit('dailyShipments', value)}
+          />
+          <LimitField
+            label="Colis / mois"
+            value={access.monthlyShipments}
+            onChange={(value) => setLimit('monthlyShipments', value)}
+          />
+          <LimitField
+            label="Valeur max colis (USD)"
+            value={access.maxPackageValueUsd}
+            step="0.01"
+            onChange={(value) => setLimit('maxPackageValueUsd', value)}
+          />
+          <LimitField
+            label="Plafond COD / jour (USD)"
+            value={access.codDailyLimitUsd}
+            step="0.01"
+            onChange={(value) => setLimit('codDailyLimitUsd', value)}
+          />
         </div>
 
         <div style={{ display: 'grid', gap: 8 }}>
@@ -187,7 +206,7 @@ export function AdminOrganizationOperatingAccess({
           </Button>
         </div>
         <p style={{ margin: 0, fontSize: typography.caption.fontSize, color: colors.textMuted }}>
-          Les défauts viennent de Paramètres → Plateforme. Ils ne s’appliquent pas automatiquement
+          Les défauts viennent de Paramètres → Règles générales. Ils ne s’appliquent pas automatiquement
           aux organisations existantes.
         </p>
       </form>

@@ -3,6 +3,8 @@
 import { colors, typography } from '@eveider/config-ui';
 import {
   DataTable,
+  IconBuilding,
+  IconSearch,
   type DataTableColumn,
   StatusBadge,
 } from '@eveider/ui';
@@ -171,9 +173,10 @@ export function AdminBusinessApplications({ applications }: AdminBusinessApplica
         emptyTitle={searchQuery.trim() ? 'Aucune demande pour cette recherche' : 'Aucune demande'}
         emptyDescription={
           searchQuery.trim()
-            ? 'Essayez un autre nom ou contact.'
-            : 'Les demandes de vérification apparaîtront ici.'
+            ? 'Essayez un autre nom d’organisation ou propriétaire.'
+            : 'Les dossiers de vérification en attente apparaîtront ici.'
         }
+        emptyIcon={searchQuery.trim() ? <IconSearch /> : <IconBuilding />}
         initialSortId="updatedAt"
         initialSortDirection="desc"
         rowActions={(row) => [

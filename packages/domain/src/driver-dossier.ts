@@ -45,8 +45,25 @@ export function assertDriverDossierTransition(
   }
 }
 
-/** KYC-approved dossiers can be assigned; pending review cannot. */
-export function isAssignableDriverDossier(status: DriverDossierStatus): boolean {
+/**
+ * Eveider fleet drivers need platform approval before assignment.
+ * Business drivers are operational as soon as invited/active (or still on file
+ * in review) — documents stay recorded for Eveider without blocking delivery.
+ */
+export function isAssignableDriverDossier(
+  status: DriverDossierStatus,
+  contractorType: DriverContractorKind | 'business' = 'eveider',
+): boolean {
+  if (status === 'rejected' || status === 'deactivated') return false;
+  if (contractorType === 'business' || contractorType === 'organization') {
+    return (
+      status === 'pending_review' ||
+      status === 'needs_correction' ||
+      status === 'approved' ||
+      status === 'invited' ||
+      status === 'active'
+    );
+  }
   return status === 'approved' || status === 'invited' || status === 'active';
 }
 
@@ -75,6 +92,7 @@ export const DRIVER_OPERATIONAL_STATUS_LABELS: Record<DriverOperationalStatus, s
 
 export type DriverOperationalStatusInput = {
   dossierStatus: DriverDossierStatus;
+  contractorType?: DriverContractorKind | 'business';
   isBlocked?: boolean;
   deactivated?: boolean;
   hasActiveDelivery: boolean;
@@ -89,7 +107,12 @@ export function deriveDriverOperationalStatus(
   if (input.dossierStatus === 'rejected') {
     return 'rejected';
   }
-  if (input.dossierStatus === 'pending_review' || input.dossierStatus === 'needs_correction') {
+  const isBusinessDriver =
+    input.contractorType === 'business' || input.contractorType === 'organization';
+  if (
+    !isBusinessDriver &&
+    (input.dossierStatus === 'pending_review' || input.dossierStatus === 'needs_correction')
+  ) {
     return 'pending_approval';
   }
   if (input.hasActiveDelivery) {

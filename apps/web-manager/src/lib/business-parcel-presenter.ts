@@ -2,7 +2,7 @@ import {
   BUSINESS_PARCEL_LOCATION_LABELS,
   BUSINESS_PARCEL_PROGRESSION_LABELS,
   COMPARTMENT_SIZE_FULL_LABELS,
-  formatDeliveryFeeFc,
+  formatDeliveryFee,
   markBusinessParcelProgression,
   PACKAGE_CATEGORY_LABELS,
   PACKAGE_SIZE_LABELS,
@@ -13,6 +13,7 @@ import {
   type BusinessParcelLocation,
   type BusinessParcelProgressionStep,
   type DeliveryKind,
+  type DeliveryPricingCurrency,
   type DeliveryStatus,
   type PackageCategory,
   type PackageSize,
@@ -65,7 +66,8 @@ export type ParcelDto = {
   paymentResponsibilityLabel: string;
   codAmountCdf: number | null;
   codAmountUsd: number | null;
-  deliveryFeeFc: number | null;
+  deliveryFeeAmount: number | null;
+  deliveryFeeCurrency: DeliveryPricingCurrency;
   deliveryFeeLabel: string | null;
   deliveryDistanceKm: number | null;
   pricingSizeUsed: PackageSize | null;
@@ -97,7 +99,8 @@ export function toParcelDto(parcel: {
   paymentResponsibility: PaymentResponsibility;
   codAmountCdf: number | null;
   codAmountUsd: number | null;
-  deliveryFeeFc?: number | null;
+  deliveryFeeAmount?: number | null;
+  deliveryFeeCurrency?: DeliveryPricingCurrency | null;
   deliveryDistanceKm?: number | null;
   pricingSizeUsed?: PackageSize | null;
   createdAt: Date;
@@ -149,9 +152,15 @@ export function toParcelDto(parcel: {
     paymentResponsibilityLabel: PAYMENT_RESPONSIBILITY_LABELS[parcel.paymentResponsibility],
     codAmountCdf: parcel.codAmountCdf,
     codAmountUsd: parcel.codAmountUsd,
-    deliveryFeeFc: parcel.deliveryFeeFc ?? null,
+    deliveryFeeAmount: parcel.deliveryFeeAmount ?? null,
+    deliveryFeeCurrency: parcel.deliveryFeeCurrency === 'USD' ? 'USD' : 'CDF',
     deliveryFeeLabel:
-      parcel.deliveryFeeFc != null ? formatDeliveryFeeFc(parcel.deliveryFeeFc) : null,
+      parcel.deliveryFeeAmount != null
+        ? formatDeliveryFee(
+            parcel.deliveryFeeAmount,
+            parcel.deliveryFeeCurrency === 'USD' ? 'USD' : 'CDF',
+          )
+        : null,
     deliveryDistanceKm: parcel.deliveryDistanceKm ?? null,
     pricingSizeUsed: parcel.pricingSizeUsed ?? null,
     pricingSizeLabel: parcel.pricingSizeUsed

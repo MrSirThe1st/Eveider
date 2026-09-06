@@ -1,7 +1,7 @@
 'use client';
 
 import { colors, typography } from '@eveider/config-ui';
-import { DataTable, type DataTableColumn } from '@eveider/ui';
+import { DataTable, IconBuilding, IconSearch, type DataTableColumn } from '@eveider/ui';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { AdminAccountStatusBadge } from '@/components/admin-account-status-badge';
@@ -164,6 +164,18 @@ export function AdminOrganizationList({ organizations }: AdminOrganizationListPr
           searchQuery.trim() || accountFilter !== 'all' || verificationFilter !== 'all'
             ? 'Aucune organisation pour ces filtres'
             : 'Aucune organisation'
+        }
+        emptyDescription={
+          searchQuery.trim() || accountFilter !== 'all' || verificationFilter !== 'all'
+            ? 'Modifiez les filtres pour élargir la recherche.'
+            : 'Les organisations Eveider apparaîtront ici.'
+        }
+        emptyIcon={
+          searchQuery.trim() || accountFilter !== 'all' || verificationFilter !== 'all' ? (
+            <IconSearch />
+          ) : (
+            <IconBuilding />
+          )
         }
         rowActions={(row) => [
           {

@@ -44,7 +44,10 @@ type ParcelDetailData = {
   recipientPhone: string;
   business: { id: string; name: string };
   locker: { id: string; name: string; address: string } | null;
-  deliveryFeeFc: number | null;
+  pickupType: 'courier_pickup' | 'merchant_dropoff';
+  pickupTypeLabel: string;
+  deliveryFeeAmount: number | null;
+  deliveryFeeCurrency: 'USD' | 'CDF';
   deliveryFeeLabel: string | null;
   deliveryDistanceKm: number | null;
   pricingSizeUsed: string | null;
@@ -210,21 +213,6 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
       {successMessage ? <FlashBanner message={successMessage} /> : null}
       {actionError ? <FlashBanner message={actionError} variant="error" /> : null}
 
-      <Link
-        href="/tableau-de-bord/colis"
-        style={{
-          display: 'inline-block',
-          marginBottom: '1.5rem',
-          fontWeight: 600,
-          fontSize: '0.8125rem',
-          letterSpacing: '0.04em',
-          color: colors.secondary,
-          textDecoration: 'none',
-        }}
-      >
-        ← Retour aux colis
-      </Link>
-
       <section
         style={{
           ...webCardStyle,
@@ -318,7 +306,9 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
               {activeDelivery.courier.fullName ?? activeDelivery.courier.email ?? 'Coursier'} —{' '}
               {DELIVERY_STATUS_LABELS[activeDelivery.status]}
             </p>
-          ) : parcel.locker && (parcel.status === 'created' || parcel.status === 'in_transit') ? (
+          ) : parcel.locker &&
+            parcel.pickupType === 'courier_pickup' &&
+            (parcel.status === 'created' || parcel.status === 'in_transit') ? (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
               <select
                 value={selectedCourierId}

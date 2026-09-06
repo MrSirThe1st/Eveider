@@ -182,9 +182,11 @@ export function mapParcel(row: Record<string, unknown>): Parcel {
       (row.payment_responsibility as Parcel['paymentResponsibility']) ?? 'receiver_pays',
     codAmountCdf: asNumberOrNull(row.cod_amount_cdf),
     codAmountUsd: asNumberOrNull(row.cod_amount_usd),
-    deliveryFeeFc: asNumberOrNull(row.delivery_fee_fc),
+    deliveryFeeAmount: asNumberOrNull(row.delivery_fee_amount),
+    deliveryFeeCurrency: row.delivery_fee_currency === 'USD' ? 'USD' : 'CDF',
     deliveryDistanceKm: asNumberOrNull(row.delivery_distance_km),
     pricingSizeUsed: (row.pricing_size_used as Parcel['pricingSizeUsed']) ?? null,
+    readyForPickupAt: row.ready_for_pickup_at == null ? null : asDate(row.ready_for_pickup_at),
     createdAt: asDate(row.created_at),
     updatedAt: asDate(row.updated_at),
   };
@@ -380,10 +382,10 @@ export function mapBusinessLimit(row: Record<string, unknown>): BusinessLimit {
   return {
     id: String(row.id),
     businessId: String(row.business_id),
-    dailyShipments: Number(row.daily_shipments),
-    monthlyShipments: Number(row.monthly_shipments),
-    maxPackageValueUsd: Number(row.max_package_value_usd),
-    codDailyLimitUsd: Number(row.cod_daily_limit_usd),
+    dailyShipments: asNumberOrNull(row.daily_shipments),
+    monthlyShipments: asNumberOrNull(row.monthly_shipments),
+    maxPackageValueUsd: asNumberOrNull(row.max_package_value_usd),
+    codDailyLimitUsd: asNumberOrNull(row.cod_daily_limit_usd),
     createdAt: asDate(row.created_at),
     updatedAt: asDate(row.updated_at),
   };

@@ -57,6 +57,29 @@ export const updateAccountProfileSchema = z.object({
   fullName: z.string().trim().min(2, 'Nom requis').max(80),
 });
 
+export const changePasswordSchema = z
+  .object({
+    currentPassword: passwordSchema,
+    newPassword: passwordSchema,
+    confirmPassword: z.string().min(1, 'Confirmez le nouveau mot de passe'),
+  })
+  .superRefine((data, ctx) => {
+    if (data.newPassword !== data.confirmPassword) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Les mots de passe ne correspondent pas',
+        path: ['confirmPassword'],
+      });
+    }
+    if (data.newPassword === data.currentPassword) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Le nouveau mot de passe doit être différent de l’actuel',
+        path: ['newPassword'],
+      });
+    }
+  });
+
 export type SignInInput = z.infer<typeof signInSchema>;
 export type SignUpInput = z.infer<typeof signUpSchema>;
 export type RequestPhoneOtpInput = z.infer<typeof requestPhoneOtpSchema>;
@@ -64,3 +87,4 @@ export type VerifyPhoneOtpInput = z.infer<typeof verifyPhoneOtpSchema>;
 export type OnboardUserInput = z.infer<typeof onboardUserSchema>;
 export type RegisterMobileAccountInput = z.infer<typeof registerMobileAccountSchema>;
 export type UpdateAccountProfileInput = z.infer<typeof updateAccountProfileSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

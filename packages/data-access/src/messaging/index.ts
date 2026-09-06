@@ -7,3 +7,7 @@ export {
   sendPlatformAdminInviteEmail,
   buildPlatformAdminInviteEmail,
 } from './platform-admin-invite-email.js';
+export {
+  buildBrandedEmailHtml,
+  getEveiderLogoUrl,
+} from './email-brand.js';

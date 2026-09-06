@@ -1,7 +1,7 @@
 'use client';
 
 import { colors, typography } from '@eveider/config-ui';
-import { DataTable, type DataTableColumn } from '@eveider/ui';
+import { DataTable, IconTruck, type DataTableColumn } from '@eveider/ui';
 import { useMemo } from 'react';
 import type { DriverDeliveryItem } from '@/server/drivers';
 
@@ -90,6 +90,7 @@ export function BusinessDriverDeliveries({
       getRowId={(row) => row.id}
       emptyTitle="Aucune livraison"
       emptyDescription="Les livraisons assignées à ce chauffeur apparaîtront ici."
+      emptyIcon={<IconTruck />}
       initialSortId="createdAt"
       initialSortDirection="desc"
     />

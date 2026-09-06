@@ -3,7 +3,7 @@
 import { colors, spacing, typography } from '@eveider/config-ui';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Suspense, type ReactNode } from 'react';
+import { Suspense, useEffect, useState, type ReactNode } from 'react';
 
 export type PageTab = {
   href: string;
@@ -46,6 +46,11 @@ function PageTabsNav({ tabs, 'aria-label': ariaLabel = 'Vues' }: PageTabsProps) 
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const search = searchParams.toString() ? `?${searchParams.toString()}` : '';
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname, search]);
 
   return (
     <nav
@@ -60,15 +65,19 @@ function PageTabsNav({ tabs, 'aria-label': ariaLabel = 'Vues' }: PageTabsProps) 
       }}
     >
       {tabs.map((tab) => {
-        const active = tab.isActive
+        const routeActive = tab.isActive
           ? tab.isActive(pathname, search)
           : defaultTabActive(tab.href, pathname, search);
+        const active = pendingHref ? pendingHref === tab.href : routeActive;
         return (
           <Link
             key={tab.href}
             href={tab.href}
             className="nb-page-tabs__link"
             aria-current={active ? 'page' : undefined}
+            onClick={() => {
+              if (!routeActive) setPendingHref(tab.href);
+            }}
             style={{
               display: 'inline-flex',
               alignItems: 'center',

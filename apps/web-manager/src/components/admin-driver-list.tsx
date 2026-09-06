@@ -6,7 +6,7 @@ import {
   DRIVER_OPERATIONAL_STATUSES,
   type DriverOperationalStatus,
 } from '@eveider/domain';
-import { DataTable, FilterToolbar, type DataTableColumn } from '@eveider/ui';
+import { DataTable, FilterToolbar, IconSearch, IconTruck, type DataTableColumn } from '@eveider/ui';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { DriverStatusBadge } from '@/components/driver-status-badge';
@@ -221,6 +221,7 @@ export function AdminDriverList({ drivers }: AdminDriverListProps) {
             : 'Aucun chauffeur'
         }
         emptyDescription="Ajoutez un chauffeur Eveider, ou attendez ceux des entreprises."
+        emptyIcon={searchQuery.trim() ? <IconSearch /> : <IconTruck />}
         emptyAction={
           <Link href={WEB_ROUTES.adminNewDriver} className="nb-btn nb-btn-primary nb-btn--sm">
             Ajouter un chauffeur

@@ -19,14 +19,15 @@ type LockerCompartmentCabinetProps = {
   onSelect: (id: string) => void;
 };
 
+/** Cell fill + legend indicator — keep both in sync so meaning matches color. */
 const STATUS_STYLE: Record<
   CompartmentStatus,
   { background: string; color: string; indicator: string }
 > = {
   available: {
-    background: '#09D40B',
-    color: '#FFFFFF',
-    indicator: '#FFFFFF',
+    background: colors.primary,
+    color: colors.onPrimary,
+    indicator: colors.primary,
   },
   occupied: {
     background: '#FF99B2',
@@ -34,9 +35,9 @@ const STATUS_STYLE: Record<
     indicator: '#E53935',
   },
   reserved: {
-    background: '#475467',
-    color: '#FFFFFF',
-    indicator: '#1677FF',
+    background: colors.surfaceMuted,
+    color: colors.secondary,
+    indicator: colors.info,
   },
 };
 
@@ -93,13 +94,18 @@ export function LockerCompartmentCabinet({
               type="button"
               className="cabinet-cell"
               onClick={() => onSelect(compartment.id)}
-              title={`${compartment.label} — ${compartment.status}`}
+              title={`${compartment.label} — ${
+                compartment.status === 'available'
+                  ? 'Disponible'
+                  : compartment.status === 'occupied'
+                    ? 'Occupé'
+                    : 'Réservé'
+              }`}
               style={{
                 minHeight: cellMin,
                 borderRadius: 10,
-                border: 'none',
-                outline: isSelected ? '3px solid #09D40B' : 'none',
-                outlineOffset: 2,
+                border: isSelected ? `2px solid ${colors.primary}` : `1px solid ${colors.borderSubtle}`,
+                outline: 'none',
                 background: visual.background,
                 color: visual.color,
                 cursor: 'pointer',
@@ -110,6 +116,7 @@ export function LockerCompartmentCabinet({
                 gap: 4,
                 padding: '0.35rem',
                 position: 'relative',
+                boxShadow: isSelected ? `0 0 0 2px ${colors.primaryMuted}` : undefined,
               }}
             >
               <span
@@ -121,6 +128,11 @@ export function LockerCompartmentCabinet({
                   height: 8,
                   borderRadius: '50%',
                   background: visual.indicator,
+                  border:
+                    compartment.status === 'available'
+                      ? `1.5px solid ${colors.onPrimary}`
+                      : `1px solid ${colors.borderSubtle}`,
+                  boxSizing: 'border-box',
                 }}
               />
               <span
@@ -156,9 +168,9 @@ export function LockerCompartmentCabinet({
 
 function CabinetLegend() {
   const items: { label: string; color: string }[] = [
-    { label: 'Disponible', color: colors.primary },
-    { label: 'Occupé', color: colors.secondary },
-    { label: 'Réservé', color: colors.info },
+    { label: 'Disponible', color: STATUS_STYLE.available.indicator },
+    { label: 'Occupé', color: STATUS_STYLE.occupied.indicator },
+    { label: 'Réservé', color: STATUS_STYLE.reserved.indicator },
   ];
 
   return (
@@ -185,7 +197,7 @@ function CabinetLegend() {
             style={{
               fontSize: '0.75rem',
               fontWeight: 600,
-              opacity: 0.65,
+              color: colors.textMuted,
             }}
           >
             {item.label}

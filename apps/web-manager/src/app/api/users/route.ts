@@ -1,6 +1,5 @@
 import { fail, ok } from '@eveider/api-contracts';
 import { createRepositories } from '@eveider/data-access';
-import type { UserRole } from '@eveider/domain';
 import { NextResponse } from 'next/server';
 import { createRequestTimer } from '@/lib/perf/request-timer';
 import { requireAdminSession } from '@/lib/session';
@@ -17,7 +16,8 @@ export async function GET(request: Request) {
   const roleParam = searchParams.get('role') ?? 'customer';
   const search = searchParams.get('search') ?? '';
 
-  if (roleParam !== 'customer' && roleParam !== 'courier') {
+  // Utilisateurs admin lists customers only; drivers are under Chauffeurs.
+  if (roleParam !== 'customer') {
     perf.flush(400);
     return NextResponse.json(fail('Rôle invalide pour cet endpoint'), { status: 400 });
   }
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
   try {
     const { users } = createRepositories();
     const items = await perf.measure('db.users.list', () =>
-      users.listByRoleWithSearch(roleParam as UserRole, search || undefined),
+      users.listCustomers(search || undefined),
     );
 
     perf.flush(200);

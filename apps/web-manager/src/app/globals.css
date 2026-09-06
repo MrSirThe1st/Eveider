@@ -535,8 +535,7 @@ button:focus-visible,
   max-width: none;
 }
 
-.nb-data-table__scroll,
-.nb-data-table:not(:has(.nb-data-table__scroll)):not(:has(.nb-data-table__header)) {
+.nb-data-table__scroll {
   width: 100%;
   overflow-x: auto;
   background: var(--color-surface);
@@ -1110,5 +1109,9 @@ body:not(:has(.portal-shell)):not(:has(.auth-viewport)) {
 @media (max-width: 720px) {
   .nb-data-table__hide-mobile {
     display: none;
+  }
+
+  .locker-detail-split {
+    grid-template-columns: 1fr !important;
   }
 }

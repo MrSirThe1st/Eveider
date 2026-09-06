@@ -19,7 +19,11 @@ export default async function BusinessDriversPage() {
         { label: 'Chauffeurs' },
       ]}
       action={
-        <Link href={WEB_ROUTES.businessNewDriver} className="nb-btn nb-btn-primary nb-btn--sm">
+        <Link
+          href={WEB_ROUTES.businessNewDriver}
+          className="nb-btn nb-btn-primary nb-btn--sm"
+          data-testid="business-drivers-header-add"
+        >
           Ajouter un chauffeur
         </Link>
       }

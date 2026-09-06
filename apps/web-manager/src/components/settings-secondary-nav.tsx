@@ -51,6 +51,7 @@ export function SettingsSecondaryNav({ groups }: SettingsSecondaryNavProps) {
                   <li key={item.id}>
                     <Link
                       href={item.href}
+                      title={item.description}
                       style={{
                         display: 'block',
                         padding: `${spacing[1] + 2}px ${spacing[2]}px`,

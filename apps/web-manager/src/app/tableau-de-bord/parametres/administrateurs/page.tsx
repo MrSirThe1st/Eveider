@@ -10,7 +10,7 @@ export default async function AdminAdminsSettingsPage() {
   return (
     <PageFrame
       title="Administrateurs"
-      description="Accès administration plateforme — super administrateurs et administrateurs."
+      description="Personnes qui gèrent Eveider (super administrateurs et administrateurs)."
       layout="wide"
     >
       <AdminPlatformStaffPanel

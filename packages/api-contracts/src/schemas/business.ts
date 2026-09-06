@@ -258,7 +258,8 @@ export const registerBusinessAccountResponseSchema = z.object({
     contactPhone: z.string().nullable(),
     isPhoneVerified: z.boolean(),
   }),
-  joinedExistingCompany: z.boolean(),
+  /** True when the account joined via team invite (not creating a new org). */
+  joinedExistingCompany: z.boolean().default(false),
 });
 
 export const verifyBusinessPhoneOtpResponseSchema = z.object({
@@ -268,10 +269,10 @@ export const verifyBusinessPhoneOtpResponseSchema = z.object({
 
 export const updateOrganizationOperatingAccessSchema = z.object({
   enabledFeatures: z.array(platformDefaultFeatureSchema).min(1, 'Au moins une fonction'),
-  dailyShipments: z.number().int().positive('Plafond invalide').max(100_000),
-  monthlyShipments: z.number().int().positive('Plafond invalide').max(1_000_000),
-  maxPackageValueUsd: z.number().positive('Plafond invalide').max(100_000),
-  codDailyLimitUsd: z.number().positive('Plafond invalide').max(100_000),
+  dailyShipments: z.number().int().positive('Plafond invalide').max(100_000).nullable(),
+  monthlyShipments: z.number().int().positive('Plafond invalide').max(1_000_000).nullable(),
+  maxPackageValueUsd: z.number().positive('Plafond invalide').max(100_000).nullable(),
+  codDailyLimitUsd: z.number().positive('Plafond invalide').max(100_000).nullable(),
 });
 
 export type RegisterBusinessAccountResponse = z.infer<typeof registerBusinessAccountResponseSchema>;

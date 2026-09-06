@@ -14,7 +14,9 @@ test.describe('Settings secondary sidebar', () => {
       'href',
       '/organisation/tableau-de-bord/parametres/membres',
     );
-    await expect(nav.getByRole('link', { name: 'Facturation' })).toHaveAttribute(
+    await expect(nav.getByRole('link', { name: 'Équipes' })).toHaveCount(0);
+    await expect(nav.getByRole('link', { name: 'Casiers' })).toHaveCount(0);
+    await expect(nav.getByRole('link', { name: 'Paiement & limites' })).toHaveAttribute(
       'href',
       '/organisation/tableau-de-bord/parametres/facturation',
     );
@@ -33,7 +35,7 @@ test.describe('Settings secondary sidebar', () => {
     await expect(page.getByRole('heading', { name: 'Membres', level: 1 })).toBeVisible();
 
     await page.goto('/organisation/tableau-de-bord/parametres/facturation');
-    await expect(page.getByRole('heading', { name: 'Facturation', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Paiement & limites', level: 1 })).toBeVisible();
 
     await page.goto('/organisation/tableau-de-bord/parametres/mon-compte/profil');
     await expect(page.getByRole('heading', { name: 'Profil', level: 1 })).toBeVisible();
@@ -51,6 +53,15 @@ test.describe('Settings secondary sidebar', () => {
     await expect(page.getByRole('heading', { name: 'Apparence' })).toBeVisible();
     await expect(page.getByRole('radio', { name: 'Clair' })).toBeVisible();
     await expect(page.getByText('Français', { exact: true })).toBeVisible();
+
+    await nav.getByRole('link', { name: 'Sécurité' }).click();
+    await expect(page).toHaveURL(/\/mon-compte\/securite$/);
+    await expect(page.getByRole('heading', { name: 'Sécurité', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Mot de passe' })).toBeVisible();
+    await expect(page.getByLabel('Mot de passe actuel')).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Nouveau mot de passe', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Mettre à jour le mot de passe' })).toBeVisible();
+    await expect(page.getByText('Bientôt disponible')).toHaveCount(0);
   });
 
   test('dispatcher only sees Mon compte items', async ({ page }) => {
@@ -64,7 +75,7 @@ test.describe('Settings secondary sidebar', () => {
     await expect(nav.getByRole('link', { name: 'Sécurité' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Entreprise' })).toHaveCount(0);
     await expect(nav.getByRole('link', { name: 'Membres' })).toHaveCount(0);
-    await expect(nav.getByRole('link', { name: 'Facturation' })).toHaveCount(0);
+    await expect(nav.getByRole('link', { name: 'Paiement & limites' })).toHaveCount(0);
 
     await nav.getByRole('link', { name: 'Préférences' }).click();
     await expect(page).toHaveURL(/\/mon-compte\/preferences$/);
@@ -87,26 +98,33 @@ test.describe('Settings secondary sidebar', () => {
     await expect(page.getByRole('heading', { name: 'Préférences', level: 1 })).toBeVisible();
     await expect(page.getByRole('radio', { name: 'Sombre' })).toBeVisible();
 
+    await nav.getByRole('link', { name: 'Sécurité' }).click();
+    await expect(page).toHaveURL(/\/parametres\/mon-compte\/securite$/);
+    await expect(page.getByRole('heading', { name: 'Sécurité', level: 1 })).toBeVisible();
+    await expect(page.getByLabel('Mot de passe actuel')).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Nouveau mot de passe', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Mettre à jour le mot de passe' })).toBeVisible();
+
     await page.goto('/tableau-de-bord/parametres/mon-compte/profil');
     await expect(page.getByRole('heading', { name: 'Profil', level: 1 })).toBeVisible();
-    await expect(nav.getByRole('link', { name: 'Plateforme' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Règles générales' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Casiers' })).toBeVisible();
-    await expect(nav.getByRole('link', { name: 'Facturation' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Tarifs de livraison' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Casiers' })).toHaveAttribute(
       'href',
       '/tableau-de-bord/parametres/casiers/configuration',
     );
 
-    await nav.getByRole('link', { name: 'Facturation' }).click();
+    await nav.getByRole('link', { name: 'Tarifs de livraison' }).click();
     await expect(page).toHaveURL(/\/parametres\/facturation$/);
-    await expect(page.getByRole('heading', { name: 'Facturation' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Tarifs de livraison' })).toBeVisible();
 
     await page.goto('/tableau-de-bord/parametres/tarifs');
     await expect(page).toHaveURL(/\/parametres\/facturation$/);
 
-    await nav.getByRole('link', { name: 'Plateforme' }).click();
+    await nav.getByRole('link', { name: 'Règles générales' }).click();
     await expect(page).toHaveURL(/\/parametres\/plateforme$/);
-    await expect(page.getByRole('heading', { name: 'Plateforme', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Règles générales', level: 1 })).toBeVisible();
     await expect(page.getByText('Frais de retrait')).toBeVisible();
 
     await nav.getByRole('link', { name: 'Casiers' }).click();

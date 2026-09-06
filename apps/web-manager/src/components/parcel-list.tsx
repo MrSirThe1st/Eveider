@@ -1,7 +1,7 @@
 'use client';
 
 import { colors, spacing, typography } from '@eveider/config-ui';
-import { DataTable, type DataTableColumn } from '@eveider/ui';
+import { DataTable, IconPackage, IconSearch, type DataTableColumn, Button } from '@eveider/ui';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { BusinessParcelLocationBadge } from '@/components/business-parcel-location-badge';
@@ -12,7 +12,6 @@ import {
 import { ListSearchField } from '@/components/list-search-field';
 import { ParcelExportMenu } from '@/components/parcel-export-menu';
 import { ParcelImportWizard } from '@/components/parcel-import-wizard';
-import { Button } from '@eveider/ui';
 import { WEB_ROUTES, businessParcelPath } from '@/lib/auth-routing';
 import { matchesListSearch } from '@/lib/list-search';
 import type { BusinessParcelListItem } from '@/server/parcels';
@@ -177,6 +176,9 @@ export function ParcelList({ parcels }: ParcelListProps) {
           searchQuery.trim()
             ? 'Essayez un autre numéro de suivi, une référence ou un destinataire.'
             : 'Créez votre premier colis pour le réseau Eveider.'
+        }
+        emptyIcon={
+          searchQuery.trim() || locationFilter !== 'all' ? <IconSearch /> : <IconPackage />
         }
         emptyAction={
           <Link href={WEB_ROUTES.businessNewParcel} className="nb-btn nb-btn-primary nb-btn--sm">

@@ -46,18 +46,25 @@ export function isActiveDeliveryStatus(status: DeliveryStatus): boolean {
 }
 
 /**
- * Return leg (locker → merchant) may start when the parcel is at the point,
- * the prior outbound delivery is terminal, and nothing is still in movement.
+ * Return leg (locker → merchant) may start when the parcel is at the point
+ * and nothing is still in movement.
+ *
+ * Outbound courier completion is required for `courier_pickup`.
+ * `merchant_dropoff` parcels may return after business deposit (no outbound delivery).
  */
 export function canCreateReturnLeg(input: {
   parcelStatus: import('./parcel.js').ParcelStatus;
   hasActiveDelivery: boolean;
   hasCompletedOutbound: boolean;
   hasCompletedReturn?: boolean;
+  /** When true, outbound courier completion is not required. */
+  merchantDropoffArrived?: boolean;
 }): boolean {
   if (input.hasActiveDelivery) return false;
-  if (!input.hasCompletedOutbound) return false;
   if (input.hasCompletedReturn) return false;
+  const arrivedViaCourier = input.hasCompletedOutbound;
+  const arrivedViaMerchant = Boolean(input.merchantDropoffArrived);
+  if (!arrivedViaCourier && !arrivedViaMerchant) return false;
   return (
     input.parcelStatus === 'delivered_to_locker' || input.parcelStatus === 'ready_for_pickup'
   );

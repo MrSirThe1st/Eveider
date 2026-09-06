@@ -1,4 +1,4 @@
-export type { User, CourierDossier, DriverDossier, OrganizationMembership } from './db/types.js';
+export type { User, CourierDossier, DriverDossier, OrganizationMembership, ParcelCharge } from './db/types.js';
 export type { DriverRosterRecord } from './repositories/courier-dossier.repository.js';
 export * from './context.js';
 export * from './env.js';
@@ -27,6 +27,11 @@ export {
   type PublicNetworkStats,
 } from './repositories/stats.repository.js';
 export { PricingRepository, toDeliveryPricingRules } from './repositories/pricing.repository.js';
+export {
+  ParcelChargeRepository,
+  quoteForPickupType,
+} from './repositories/parcel-charge.repository.js';
+export { syncParcelLockerRental } from './repositories/parcel-rental.js';
 export {
   LockerSettingsRepository,
   toLockerNetworkSettings,
@@ -96,6 +101,7 @@ import { TeamInviteRepository } from './repositories/team-invite.repository.js';
 import { OrganizationMembershipRepository } from './repositories/organization-membership.repository.js';
 import { PaymentRepository } from './payments/payment.repository.js';
 import { PricingRepository } from './repositories/pricing.repository.js';
+import { ParcelChargeRepository } from './repositories/parcel-charge.repository.js';
 import { LockerSettingsRepository } from './repositories/locker-settings.repository.js';
 import { PlatformSettingsRepository } from './repositories/platform-settings.repository.js';
 import { PlatformStaffRepository } from './repositories/platform-staff.repository.js';
@@ -115,6 +121,7 @@ export function createRepositories() {
   const courierDossiers = new CourierDossierRepository(db);
   const payments = new PaymentRepository(db);
   const pricing = new PricingRepository(db);
+  const parcelCharges = new ParcelChargeRepository(db);
   const lockerSettings = new LockerSettingsRepository(db);
   const platformSettings = new PlatformSettingsRepository(db);
   const platformStaff = new PlatformStaffRepository(db, users);
@@ -144,6 +151,7 @@ export function createRepositories() {
     courierDossiers,
     payments,
     pricing,
+    parcelCharges,
     stats: new StatsRepository(db),
     onboarding: new OnboardingService(users, businesses, memberships, db),
     accounts: new AccountService(users, courierDossiers, deliveries, notifications, memberships),

@@ -27,7 +27,6 @@ export default async function AdminOrganizationVerificationDossierPage({ params 
       business={business}
       nextApplicationId={nextApplicationId}
       hidePageChrome
-      backHref={`/tableau-de-bord/organisations/${businessId}/verification`}
       queueHref="/tableau-de-bord/organisations/verification"
     />
   );

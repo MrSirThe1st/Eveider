@@ -1,4 +1,5 @@
-import { radius, borders, type ColorTokens } from '@eveider/config-ui';
+import { borders, type ColorTokens } from '@eveider/config-ui';
+import { Feather } from '@expo/vector-icons';
 import type { DeliveryStatus } from '@eveider/domain';
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -13,92 +14,100 @@ type DeliveryCardProps = {
 
 const ACTION_STATUSES: DeliveryStatus[] = ['assigned', 'scanned', 'drop_off_pending'];
 
+function actionHint(delivery: CourierDelivery): string | null {
+  if (!ACTION_STATUSES.includes(delivery.status)) return null;
+  if (delivery.kind === 'return') {
+    if (delivery.status === 'assigned') return 'Scan requis — retour';
+    if (delivery.status === 'scanned') return 'En route vers le marchand';
+    return 'Confirmer la remise';
+  }
+  if (delivery.status === 'assigned') return 'Scan requis';
+  if (delivery.status === 'scanned') return 'En route vers le casier';
+  return 'Confirmer le dépôt';
+}
+
 export function DeliveryCard({ delivery, highlight }: DeliveryCardProps) {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const needsAction = ACTION_STATUSES.includes(delivery.status);
   const showHighlight = highlight ?? needsAction;
+  const hint = actionHint(delivery);
 
   return (
     <View
       style={[
-        styles.card,
+        styles.row,
         showHighlight && delivery.status === 'assigned' && styles.highlightWarning,
-        showHighlight && delivery.status !== 'assigned' && styles.highlightAction,
+        showHighlight && delivery.status !== 'assigned' && needsAction && styles.highlightAction,
       ]}
     >
-      <View style={styles.header}>
-        <Text style={styles.reference}>{delivery.parcel.trackingNumber ?? delivery.parcel.reference}</Text>
-        <DeliveryStatusBadge status={delivery.status} />
+      <View style={styles.body}>
+        <View style={styles.header}>
+          <Text style={styles.reference}>
+            {delivery.parcel.trackingNumber ?? delivery.parcel.reference}
+          </Text>
+          <DeliveryStatusBadge status={delivery.status} />
+        </View>
+        <Text style={styles.meta}>{delivery.parcel.businessName}</Text>
+        <Text style={styles.locker}>{delivery.parcel.locker?.name ?? 'Casier non défini'}</Text>
+        {hint ? <Text style={styles.actionHint}>{hint}</Text> : null}
       </View>
-      <Text style={styles.meta}>{delivery.parcel.businessName}</Text>
-      <Text style={styles.locker}>
-        {delivery.parcel.locker?.name ?? 'Casier non défini'}
-      </Text>
-      {needsAction ? (
-        <Text style={styles.actionHint}>
-          {delivery.kind === 'return'
-            ? delivery.status === 'assigned'
-              ? 'SCAN REQUIS — RETOUR'
-              : delivery.status === 'scanned'
-                ? 'EN ROUTE VERS LE MARCHAND'
-                : 'CONFIRMER LA REMISE'
-            : delivery.status === 'assigned'
-              ? 'SCAN REQUIS'
-              : delivery.status === 'scanned'
-                ? 'EN ROUTE VERS LE CASIER'
-                : 'CONFIRMER LE DÉPÔT'}
-        </Text>
-      ) : null}
+      <Feather name="chevron-right" size={18} color={colors.primary} />
     </View>
   );
 }
 
 function createStyles(colors: ColorTokens) {
   return StyleSheet.create({
-    card: {
-      backgroundColor: colors.surface,
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
       borderWidth: borders.width,
       borderColor: colors.border,
-      borderRadius: radius.card,
-      padding: 16,
+      paddingVertical: 14,
+      paddingHorizontal: 14,
+      backgroundColor: colors.surface,
     },
     highlightAction: {
-      borderWidth: 2,
       borderColor: colors.primary,
     },
     highlightWarning: {
-      borderWidth: 2,
       borderColor: colors.warning,
+    },
+    body: {
+      flex: 1,
     },
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      gap: 12,
+      gap: 8,
     },
     reference: {
-      fontSize: 16,
       fontWeight: '700',
+      fontSize: 15,
       color: colors.secondary,
+      fontVariant: ['tabular-nums'],
+      flex: 1,
     },
     meta: {
-      marginTop: 8,
-      fontWeight: '500',
-      color: colors.secondary,
+      marginTop: 6,
+      fontSize: 13,
+      fontWeight: '400',
+      color: colors.textMuted,
     },
     locker: {
-      marginTop: 4,
+      marginTop: 2,
       fontSize: 13,
       fontWeight: '500',
       color: colors.secondary,
     },
     actionHint: {
-      marginTop: 10,
-      fontSize: 10,
-      fontWeight: '700',
-      letterSpacing: 0.5,
-      color: colors.warning,
+      marginTop: 8,
+      fontSize: 12,
+      fontWeight: '500',
+      color: colors.primary,
     },
   });
 }

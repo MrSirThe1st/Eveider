@@ -71,7 +71,7 @@ export const createParcelSchema = z
     if (data.pickupType === 'courier_pickup' && !data.senderAddress) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Adresse expéditeur requise pour un enlèvement coursier',
+        message: 'Adresse expéditeur requise pour une collecte par chauffeur',
         path: ['senderAddress'],
       });
     }

@@ -140,7 +140,7 @@ export function LockerNetworkSettingsForm({ initialSettings }: LockerNetworkSett
           }}
         >
           <label>
-            Délai de rétention (heures)
+            Délai de rétention gratuit (heures)
             <input
               type="number"
               min={1}
@@ -166,6 +166,10 @@ export function LockerNetworkSettingsForm({ initialSettings }: LockerNetworkSett
             />
           </label>
         </div>
+        <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>
+          Après ce délai gratuit à partir de « prêt pour retrait », la location casier (tarif
+          Facturation) s’applique par période de 24 h pour les casiers à compartiments.
+        </p>
       </section>
 
       <Button type="submit" loading={saving} style={{ width: 'fit-content', fontWeight: 700 }}>

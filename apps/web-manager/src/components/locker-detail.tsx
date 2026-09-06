@@ -19,7 +19,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CompartmentStatusBadge } from '@/components/compartment-status-badge';
 import { FlashBanner } from '@/components/flash-banner';
 import { LockerCompartmentCabinet } from '@/components/locker-compartment-cabinet';
-import { LockerStatusBadge } from '@/components/locker-status-badge';
+import { LockerStatusToggle } from '@/components/locker-status-toggle';
 import {
   type LockerDetailData,
   useLockerDetailQuery,
@@ -219,7 +219,7 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
       <div>
         <p style={{ fontWeight: 500, color: colors.danger }}>{error ?? 'Point introuvable'}</p>
         <Link href="/tableau-de-bord/points" style={{ fontWeight: 600 }}>
-          ← Retour aux points
+          Retour aux points
         </Link>
       </div>
     );
@@ -235,24 +235,6 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
     <div style={{ width: '100%' }}>
       {successMessage ? <FlashBanner message={successMessage} /> : null}
       {actionError ? <FlashBanner message={actionError} variant="error" /> : null}
-
-      <Link
-        href="/tableau-de-bord/points"
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 6,
-          marginBottom: '1.25rem',
-          fontWeight: 600,
-          fontSize: '0.75rem',
-          letterSpacing: '0.06em',
-          color: colors.secondary,
-          textDecoration: 'none',
-          opacity: 0.7,
-        }}
-      >
-        ← POINTS
-      </Link>
 
       <header style={{ marginBottom: '1.5rem' }}>
         <div
@@ -380,7 +362,12 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
               </p>
             ) : null}
           </div>
-          <LockerStatusBadge status={locker.status} />
+          <LockerStatusToggle
+            status={locker.status}
+            options={nextLockerStatuses}
+            disabled={updatingLocker}
+            onChange={(next) => void advanceLockerStatus(next)}
+          />
         </div>
       </header>
 
@@ -419,14 +406,15 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
       {/* Cabinet + side panel */}
       {smartLocker ? (
       <div
+        className="locker-detail-split"
         style={{
-          display: 'flex',
-          flexWrap: 'wrap',
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1.65fr) minmax(260px, 1fr)',
           gap: '1.25rem',
           alignItems: 'stretch',
         }}
       >
-        <div style={{ flex: '2 1 340px', minWidth: 0 }}>
+        <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           <LockerCompartmentCabinet
             rows={locker.rows}
             columns={locker.columns}
@@ -438,11 +426,15 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
 
         <aside
           style={{
-            flex: '1 1 280px',
-            minWidth: 280,
-            minHeight: 280,
+            minWidth: 0,
             display: 'flex',
             flexDirection: 'column',
+            height: '100%',
+            boxSizing: 'border-box',
+            padding: '1.25rem',
+            border: `1px solid ${colors.borderSubtle}`,
+            borderRadius: radius.md,
+            background: colors.surface,
           }}
         >
           {selectedCompartment ? (
@@ -453,7 +445,7 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
                   fontSize: '0.625rem',
                   fontWeight: 700,
                   letterSpacing: '0.1em',
-                  opacity: 0.55,
+                  color: colors.textMuted,
                 }}
               >
                 COMPARTIMENT SÉLECTIONNÉ
@@ -465,11 +457,19 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
                   fontWeight: 700,
                   letterSpacing: '0.04em',
                   lineHeight: 1,
+                  color: colors.secondary,
                 }}
               >
                 {selectedCompartment.label}
               </p>
-              <p style={{ margin: '0.5rem 0 1rem', fontWeight: 600, fontSize: '0.8125rem', opacity: 0.7 }}>
+              <p
+                style={{
+                  margin: '0.5rem 0 0.75rem',
+                  fontWeight: 500,
+                  fontSize: '0.8125rem',
+                  color: colors.textMuted,
+                }}
+              >
                 Taille {COMPARTMENT_SIZE_FULL_LABELS[selectedCompartment.size]}
               </p>
               <CompartmentStatusBadge status={selectedCompartment.status} />
@@ -482,7 +482,7 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
                       fontSize: '0.625rem',
                       fontWeight: 700,
                       letterSpacing: '0.1em',
-                      opacity: 0.55,
+                      color: colors.textMuted,
                     }}
                   >
                     CHANGER LE STATUT
@@ -500,14 +500,14 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
                           ...webSecondaryButtonStyle,
                           height: spacing.buttonHeight,
                           padding: '0 1.25rem',
-                          fontWeight: 700,
+                          fontWeight: 600,
                           fontSize: '0.8125rem',
                           cursor:
                             updatingCompartmentId === selectedCompartment.id ? 'wait' : 'pointer',
                           textAlign: 'left',
                         }}
                       >
-                        → {COMPARTMENT_STATUS_LABELS[status]}
+                        {COMPARTMENT_STATUS_LABELS[status]}
                       </button>
                     ))}
                   </div>
@@ -531,13 +531,13 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
                   fontSize: '0.8125rem',
                   fontWeight: 600,
                   letterSpacing: '0.04em',
-                  opacity: 0.55,
+                  color: colors.textMuted,
                   lineHeight: 1.5,
                 }}
               >
-                SÉLECTIONNEZ UN COMPARTIMENT
+                Sélectionnez un compartiment
                 <br />
-                DANS LA GRILLE
+                dans la grille
               </p>
             </div>
           )}
@@ -548,45 +548,6 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
           Point sans grille matérielle — le retrait se fait en personne via le contact indiqué.
         </p>
       )}
-      {nextLockerStatuses.length > 0 ? (
-        <section style={{ marginTop: '2rem' }}>
-          <p
-            style={{
-              margin: '0 0 0.75rem',
-              fontSize: '0.625rem',
-              fontWeight: 700,
-              letterSpacing: '0.1em',
-              opacity: 0.55,
-            }}
-          >
-            STATUT DU POINT
-          </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-            {nextLockerStatuses.map((status) => (
-              <button
-                key={status}
-                type="button"
-                disabled={updatingLocker}
-                onClick={() => void advanceLockerStatus(status)}
-                style={{
-                  height: spacing.buttonHeight,
-                  padding: '0 1.25rem',
-                  background: colors.secondary,
-                  color: colors.surface,
-                  border: 'none',
-                  borderRadius: radius.button,
-                  fontWeight: 700,
-                  fontSize: '0.75rem',
-                  letterSpacing: '0.06em',
-                  cursor: updatingLocker ? 'wait' : 'pointer',
-                }}
-              >
-                → {LOCKER_STATUS_LABELS[status]}
-              </button>
-            ))}
-          </div>
-        </section>
-      ) : null}
     </div>
   );
 }

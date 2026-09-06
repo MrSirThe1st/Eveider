@@ -136,6 +136,37 @@ describe('CourierDossierRepository', () => {
     expect(rows[0]?.serviceAreaCode).toBe('LSH');
   });
 
+  it('creates business dossiers as approved (operational without platform KYC)', async () => {
+    const db = createSqlMatchMock((sql) => {
+      if (sqlIncludes(sql, "status <> 'rejected'")) {
+        return null;
+      }
+      if (sqlIncludes(sql, 'INSERT INTO driver_dossiers')) {
+        return dossierRow({
+          contractor_type: 'business',
+          business_id: 'biz-1',
+          status: 'approved',
+        });
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    const repo = new CourierDossierRepository(db);
+    const ctx = createDataAccessContext('business', {
+      userId: 'owner-1',
+      businessId: 'biz-1',
+      businessUserRole: 'admin',
+    });
+
+    const created = await repo.create(ctx, {
+      contractorType: 'business',
+      fullName: 'Nouveau Chauffeur',
+      email: 'nouveau@boutique.cd',
+      idDocumentUrl: 'https://files.example/id.jpg',
+    });
+    expect(created.status).toBe('approved');
+    expect(created.contractorType).toBe('business');
+  });
+
   it('updates the service area on an in-scope dossier', async () => {
     const db = createSqlMatchMock((sql) => {
       if (sqlIncludes(sql, 'SELECT * FROM driver_dossiers WHERE id')) {

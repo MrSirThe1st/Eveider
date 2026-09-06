@@ -29,8 +29,8 @@ export function BusinessDriverDocuments({ driver }: BusinessDriverDocumentsProps
     <div style={{ display: 'grid', gap: spacing[5] }}>
       <Card>
         <CardHeader
-          title="Contrôle des pièces"
-          description="Eveider vérifie la pièce d’identité. Le chauffeur ne peut pas livrer tant que ce n’est pas accepté."
+          title="Pièces enregistrées"
+          description="Les documents sont transmis à Eveider pour le dossier. Le chauffeur peut livrer sans attendre une validation."
         />
         <Row label="Statut">{driver.dossierStatusLabel}</Row>
         <Row label="Invitation sur le téléphone">{driver.invitedAt ? 'Envoyée' : 'Non envoyée'}</Row>

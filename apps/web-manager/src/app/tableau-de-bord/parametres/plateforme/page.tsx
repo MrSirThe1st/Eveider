@@ -9,8 +9,8 @@ export default async function AdminPlatformSettingsPage() {
 
   return (
     <PageFrame
-      title="Plateforme"
-      description="Frais au casier, nouvelles entreprises, et limites de départ."
+      title="Règles générales"
+      description="Pour toute la plateforme Eveider : frais payés au casier, et réglages de départ des nouvelles entreprises."
       layout="standard"
     >
       <PlatformSettingsForm initialSettings={settings} />

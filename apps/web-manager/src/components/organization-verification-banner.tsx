@@ -1,13 +1,25 @@
+'use client';
+
 import { colors, radius, spacing, typography } from '@eveider/config-ui';
 import type { OrganizationVerificationStatus } from '@eveider/domain';
+import { IconX } from '@eveider/ui';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { WEB_ROUTES } from '@/lib/auth-routing';
 import { VerificationStatusBadge } from './verification-status-badge';
 
 type OrganizationVerificationBannerProps = {
   status: OrganizationVerificationStatus;
   reviewNotes?: string | null;
+  /** When true, user can hide the banner (dashboard). Settings keeps it until verified. */
+  dismissible?: boolean;
 };
+
+const DISMISS_STORAGE_PREFIX = 'eveider.verification-banner.dismissed';
+
+function dismissStorageKey(status: OrganizationVerificationStatus): string {
+  return `${DISMISS_STORAGE_PREFIX}:${status}`;
+}
 
 function copyFor(status: OrganizationVerificationStatus): { title: string; body: string; action: string } | null {
   if (status === 'approved') return null;
@@ -39,11 +51,35 @@ function copyFor(status: OrganizationVerificationStatus): { title: string; body:
   };
 }
 
-export function OrganizationVerificationBanner({ status, reviewNotes }: OrganizationVerificationBannerProps) {
+export function OrganizationVerificationBanner({
+  status,
+  reviewNotes,
+  dismissible = false,
+}: OrganizationVerificationBannerProps) {
   const copy = copyFor(status);
-  if (!copy) return null;
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    if (!dismissible || !copy) return;
+    try {
+      setDismissed(window.localStorage.getItem(dismissStorageKey(status)) === '1');
+    } catch {
+      setDismissed(false);
+    }
+  }, [dismissible, status, copy]);
+
+  if (!copy || dismissed) return null;
 
   const warning = status === 'correction_requested' || status === 'rejected';
+
+  function handleDismiss() {
+    setDismissed(true);
+    try {
+      window.localStorage.setItem(dismissStorageKey(status), '1');
+    } catch {
+      // Ignore storage failures; banner stays hidden for this session.
+    }
+  }
 
   return (
     <div
@@ -61,7 +97,7 @@ export function OrganizationVerificationBanner({ status, reviewNotes }: Organiza
         flexWrap: 'wrap',
       }}
     >
-      <div>
+      <div style={{ flex: '1 1 16rem', minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2], marginBottom: spacing[1] }}>
           <p
             style={{
@@ -97,9 +133,33 @@ export function OrganizationVerificationBanner({ status, reviewNotes }: Organiza
           </p>
         ) : null}
       </div>
-      <Link href={WEB_ROUTES.businessVerification} className="nb-btn nb-btn-secondary nb-btn--sm">
-        {copy.action}
-      </Link>
+      <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2], flexShrink: 0 }}>
+        <Link href={WEB_ROUTES.businessVerification} className="nb-btn nb-btn-secondary nb-btn--sm">
+          {copy.action}
+        </Link>
+        {dismissible ? (
+          <button
+            type="button"
+            onClick={handleDismiss}
+            aria-label="Masquer ce message"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 32,
+              height: 32,
+              padding: 0,
+              border: 'none',
+              borderRadius: radius.sm,
+              background: 'transparent',
+              color: colors.textMuted,
+              cursor: 'pointer',
+            }}
+          >
+            <IconX width={16} height={16} />
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

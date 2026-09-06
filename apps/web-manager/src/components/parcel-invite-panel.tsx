@@ -1,20 +1,13 @@
 'use client';
 
 import { colors, radius, webCardStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
-import { CardListSkeleton } from '@eveider/ui';
-import { useEffect, useState } from 'react';
-
-type InviteInfo = {
-  status: 'pending' | 'accepted' | 'expired';
-  deepLink: string;
-  webLink: string;
-  expiresAt: string;
-  acceptedAt: string | null;
-};
+import { useState } from 'react';
+import type { ParcelInviteView } from '@/server/parcels';
 
 type ParcelInvitePanelProps = {
   parcelId: string;
-  initialInvite?: InviteInfo | null;
+  /** Server-loaded invite; `null` means no invite exists (do not client-fetch). */
+  initialInvite: ParcelInviteView | null;
 };
 
 function formatDateTime(iso: string) {
@@ -27,31 +20,17 @@ function formatDateTime(iso: string) {
   }).format(new Date(iso));
 }
 
-const STATUS_LABELS: Record<InviteInfo['status'], string> = {
+const STATUS_LABELS: Record<ParcelInviteView['status'], string> = {
   pending: 'En attente',
   accepted: 'Acceptée',
   expired: 'Expirée',
 };
 
 export function ParcelInvitePanel({ parcelId, initialInvite }: ParcelInvitePanelProps) {
-  const [invite, setInvite] = useState<InviteInfo | null>(initialInvite ?? null);
-  const [loading, setLoading] = useState(!initialInvite);
+  const [invite, setInvite] = useState<ParcelInviteView | null>(initialInvite);
   const [resending, setResending] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (initialInvite) return;
-
-    void fetch(`/api/organisation/parcels/${parcelId}/invite`)
-      .then((res) => res.json())
-      .then((result) => {
-        if (result.success) {
-          setInvite(result.data.invite);
-        }
-      })
-      .finally(() => setLoading(false));
-  }, [parcelId, initialInvite]);
 
   async function handleResend() {
     setResending(true);
@@ -84,20 +63,6 @@ export function ParcelInvitePanel({ parcelId, initialInvite }: ParcelInvitePanel
     } catch {
       setError('Copie impossible');
     }
-  }
-
-  if (loading) {
-    return (
-      <section
-        style={{
-          ...webCardStyle,
-          marginTop: '1.25rem',
-          padding: '1.5rem',
-        }}
-      >
-        <CardListSkeleton cards={1} />
-      </section>
-    );
   }
 
   if (!invite) {

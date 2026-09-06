@@ -1,5 +1,5 @@
-import { CardListSkeleton } from '@eveider/ui';
+import { SettingsBodySkeleton } from '@/components/settings-body-skeleton';
 
 export default function AdminServiceAreasLoading() {
-  return <CardListSkeleton cards={3} />;
+  return <SettingsBodySkeleton cards={3} />;
 }

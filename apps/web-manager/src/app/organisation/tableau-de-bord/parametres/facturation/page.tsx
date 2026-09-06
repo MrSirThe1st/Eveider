@@ -14,8 +14,8 @@ export default async function OrganizationBillingSettingsPage() {
 
   return (
     <PageFrame
-      title="Facturation"
-      description="Qui paie, comment vous êtes payé, et vos limites."
+      title="Paiement & limites"
+      description="Pour votre entreprise : qui paie la livraison, comment Eveider vous règle, et vos plafonds."
       layout="standard"
     >
       <BusinessBillingForm

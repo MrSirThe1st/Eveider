@@ -176,7 +176,7 @@ export function ShippingLabel({ data }: ShippingLabelProps) {
             </dd>
           </div>
           <div>
-            <dt style={{ fontWeight: 700, opacity: 0.65 }}>Enlèvement / paiement</dt>
+            <dt style={{ fontWeight: 700, opacity: 0.65 }}>Collecte / paiement</dt>
             <dd style={{ margin: '0.15rem 0 0' }}>
               {data.pickupTypeLabel} · {data.paymentResponsibilityLabel}
             </dd>

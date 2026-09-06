@@ -1,8 +1,8 @@
 'use client';
 
-import { colors, spacing, typography, webCardStyle } from '@eveider/config-ui';
+import { colors, spacing, typography } from '@eveider/config-ui';
 import { LOCKER_TYPE_LABELS } from '@eveider/domain';
-import { DataTable, type DataTableColumn } from '@eveider/ui';
+import { DataTable, EmptyState, IconMapPin, IconSearch, type DataTableColumn } from '@eveider/ui';
 import { useMemo, useState } from 'react';
 import { ListSearchField } from '@/components/list-search-field';
 import { LockerGoogleMap } from '@/components/locker-google-map';
@@ -146,19 +146,11 @@ export function BusinessLockerDirectory({ lockers }: BusinessLockerDirectoryProp
 
   if (lockers.length === 0) {
     return (
-      <section style={{ ...webCardStyle, padding: '2.5rem', textAlign: 'center' }}>
-        <p style={{ margin: 0, fontWeight: 600 }}>Aucun point Eveider pour le moment</p>
-        <p
-          style={{
-            margin: '0.75rem 0 0',
-            fontWeight: 500,
-            fontSize: '0.875rem',
-            color: colors.textMuted,
-          }}
-        >
-          Le réseau de casiers apparaîtra ici dès qu’Eveider ouvrira des points près de vous.
-        </p>
-      </section>
+      <EmptyState
+        title="Aucun point Eveider pour le moment"
+        description="Le réseau de casiers apparaîtra ici dès qu’Eveider ouvrira des points près de vous."
+        icon={<IconMapPin />}
+      />
     );
   }
 
@@ -193,6 +185,7 @@ export function BusinessLockerDirectory({ lockers }: BusinessLockerDirectoryProp
         }
         emptyTitle="Aucun point pour cette recherche"
         emptyDescription="Essayez un autre quartier, nom ou adresse."
+        emptyIcon={<IconSearch />}
         initialSortId="location"
         pageSize={TABLE_PAGE_SIZE}
         selectedRowId={selectedLockerId}

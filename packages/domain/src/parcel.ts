@@ -15,7 +15,8 @@ export const PARCEL_STATUSES: readonly ParcelStatus[] = [
 ] as const;
 
 const PARCEL_TRANSITIONS: Record<ParcelStatus, readonly ParcelStatus[]> = {
-  created: ['in_transit'],
+  /** Merchant drop-off can skip courier custody and go straight to the locker. */
+  created: ['in_transit', 'delivered_to_locker'],
   in_transit: ['delivered_to_locker'],
   delivered_to_locker: ['ready_for_pickup'],
   ready_for_pickup: ['collected'],

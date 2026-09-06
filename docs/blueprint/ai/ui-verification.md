@@ -45,12 +45,17 @@ Keep unit tests (Vitest) for pure nav config helpers; keep Playwright for real r
 
 ## Settings IA (reference)
 
-Organization and admin Paramètres use a secondary sidebar (`SettingsLayoutShell` + `settings-nav.ts` via `SettingsChrome` in the dashboard shell). Facturation / Équipe are nested under Paramètres (not primary nav). See `apps/web-manager/src/lib/settings-nav.ts`.
+Organization and admin Paramètres use a secondary sidebar (`SettingsLayoutShell` + `settings-nav.ts` via `SettingsChrome` in the dashboard shell). Paiement / Équipe live under Paramètres (not primary nav). Admin groups: Mon compte, Fonctionnement (règles, tarifs, casiers), Équipe Eveider, Outils. See `apps/web-manager/src/lib/settings-nav.ts`.
 
 ### Loading skeletons
 
 Paramètres `loading.tsx` files must use **content-only** skeletons (`SettingsBodySkeleton`) — never a full `PageFrame` that replaces the secondary sidebar or section tabs.
 
 - Secondary sidebar: client chrome in the shell (instant on navigate)
-- Casiers Configuration / Modèles: persistent `AdminCasiersSettingsChrome` layout; only the panel body skeletons
+- Casiers Configuration / Modèles / Zones: persistent `AdminCasiersSettingsChrome` layout; only the panel body skeletons
+- Livraisons / Incidents: persistent `AdminLivraisonsChrome` in `(operations)` layout; content-only `loading.tsx`
+- Organisations list / Vérification: persistent `AdminOrganisationsChrome` in `(directory)` layout; content-only `loading.tsx`
+- Organization / driver detail tabs: tabs live in `[id]/layout.tsx`; `[id]/loading.tsx` is content-only
 - Other settings sections: body skeleton beside the secondary nav
+
+When switching tabs: keep header/sidebar/tabs mounted, update active-tab styling immediately, skeleton only the tab content area.

@@ -3,25 +3,32 @@ import type { Page } from '@playwright/test';
 export const SEED_PASSWORD = process.env.SEED_PASSWORD ?? 'EveiderDemo2026!';
 
 export async function seedConsentCookie(page: Page) {
-  const value = encodeURIComponent(
-    JSON.stringify({
-      v: 1,
-      preferences: false,
-      updatedAt: new Date().toISOString(),
-    }),
-  );
+  const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:3000';
+  const host = new URL(baseURL).hostname;
+  const value = JSON.stringify({
+    v: 1,
+    preferences: false,
+    updatedAt: new Date().toISOString(),
+  });
   await page.context().addCookies([
     {
       name: 'eveider_cookie_consent',
       value,
-      domain: '127.0.0.1',
+      domain: host,
       path: '/',
     },
   ]);
+  await page.addInitScript((payload) => {
+    try {
+      window.localStorage.setItem('eveider.cookie_consent', payload);
+    } catch {
+      /* ignore */
+    }
+  }, value);
 }
 
 export async function dismissCookieBanner(page: Page) {
-  const accept = page.getByRole('button', { name: /Accepter/i });
+  const accept = page.getByRole('button', { name: /^Accepter$/i });
   if (await accept.isVisible({ timeout: 1000 }).catch(() => false)) {
     await accept.click();
   }

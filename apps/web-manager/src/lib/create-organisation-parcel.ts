@@ -1,5 +1,5 @@
 import type { CreateParcelInput } from '@eveider/api-contracts';
-import { createRepositories, type DataAccessContext } from '@eveider/data-access';
+import { createRepositories, type DataAccessContext, withTransaction } from '@eveider/data-access';
 import { buildDeliveryQuote } from '@/lib/delivery-quote';
 import { toParcelDto, type ParcelDto } from '@/lib/business-parcel-presenter';
 
@@ -20,9 +20,11 @@ export async function createOrganisationParcel(
     compartmentId: data.compartmentId,
     packageSize: data.packageSize,
     senderAddress: data.senderAddress,
+    pickupType: data.pickupType,
   });
 
-  const { parcels } = createRepositories();
+  const isMerchantDropoff = data.pickupType === 'merchant_dropoff';
+  const { parcels, parcelCharges } = createRepositories();
   const result = await parcels.create(ctx, {
     businessId,
     reference: data.reference,
@@ -46,10 +48,23 @@ export async function createOrganisationParcel(
     paymentResponsibility: data.paymentResponsibility,
     codAmountCdf: data.codAmountCdf,
     codAmountUsd: data.codAmountUsd,
-    deliveryFeeFc: quote.deliveryFeeFc,
-    deliveryDistanceKm: quote.deliveryDistanceKm,
-    pricingSizeUsed: quote.pricingSizeUsed,
+    // Drop-off fee is locked on deposit, not at create.
+    deliveryFeeAmount: isMerchantDropoff ? null : quote.deliveryFeeAmount,
+    deliveryFeeCurrency: quote.deliveryFeeCurrency,
+    deliveryDistanceKm: isMerchantDropoff ? null : quote.deliveryDistanceKm,
+    pricingSizeUsed: isMerchantDropoff ? null : quote.pricingSizeUsed,
   });
+
+  if (!isMerchantDropoff && quote.deliveryFeeAmount != null) {
+    await withTransaction(async (tx) => {
+      await parcelCharges.recordDeliveryFee(tx, {
+        parcelId: result.parcel.id,
+        businessId,
+        amount: quote.deliveryFeeAmount,
+        currency: quote.deliveryFeeCurrency,
+      });
+    });
+  }
 
   return {
     parcel: toParcelDto(result.parcel),

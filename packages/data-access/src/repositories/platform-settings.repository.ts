@@ -15,10 +15,10 @@ export type PlatformSettingsRow = {
   pickupFeeAmount: number;
   pickupFeeCurrency: string;
   requireOrgApproval: boolean;
-  defaultDailyShipments: number;
-  defaultMonthlyShipments: number;
-  defaultMaxPackageValueUsd: number;
-  defaultCodDailyLimitUsd: number;
+  defaultDailyShipments: number | null;
+  defaultMonthlyShipments: number | null;
+  defaultMaxPackageValueUsd: number | null;
+  defaultCodDailyLimitUsd: number | null;
   defaultEnabledFeatures: PlatformDefaultFeature[];
   supportPhone: string | null;
   dispatcherWhatsapp: string | null;
@@ -30,10 +30,10 @@ export type UpdatePlatformSettingsInput = {
   pickupFeeAmount: number;
   pickupFeeCurrency: string;
   requireOrgApproval: boolean;
-  defaultDailyShipments: number;
-  defaultMonthlyShipments: number;
-  defaultMaxPackageValueUsd: number;
-  defaultCodDailyLimitUsd: number;
+  defaultDailyShipments: number | null;
+  defaultMonthlyShipments: number | null;
+  defaultMaxPackageValueUsd: number | null;
+  defaultCodDailyLimitUsd: number | null;
   defaultEnabledFeatures: PlatformDefaultFeature[];
   supportPhone?: string | null;
   dispatcherWhatsapp?: string | null;
@@ -49,16 +49,22 @@ function parseFeatures(raw: unknown): PlatformDefaultFeature[] {
   return features.length > 0 ? features : [...PLATFORM_DEFAULT_FEATURES];
 }
 
+function asNullableNumber(value: unknown): number | null {
+  if (value == null) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 function mapRow(row: Record<string, unknown>): PlatformSettingsRow {
   return {
     id: String(row.id),
     pickupFeeAmount: Number(row.pickup_fee_amount),
     pickupFeeCurrency: String(row.pickup_fee_currency),
     requireOrgApproval: Boolean(row.require_org_approval),
-    defaultDailyShipments: Number(row.default_daily_shipments),
-    defaultMonthlyShipments: Number(row.default_monthly_shipments),
-    defaultMaxPackageValueUsd: Number(row.default_max_package_value_usd),
-    defaultCodDailyLimitUsd: Number(row.default_cod_daily_limit_usd),
+    defaultDailyShipments: asNullableNumber(row.default_daily_shipments),
+    defaultMonthlyShipments: asNullableNumber(row.default_monthly_shipments),
+    defaultMaxPackageValueUsd: asNullableNumber(row.default_max_package_value_usd),
+    defaultCodDailyLimitUsd: asNullableNumber(row.default_cod_daily_limit_usd),
     defaultEnabledFeatures: parseFeatures(row.default_enabled_features),
     supportPhone: row.support_phone == null ? null : String(row.support_phone),
     dispatcherWhatsapp:

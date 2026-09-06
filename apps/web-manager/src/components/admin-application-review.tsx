@@ -55,7 +55,6 @@ interface AdminApplicationReviewProps {
   nextApplicationId?: string | null;
   /** When true, skip outer max-width / title (provided by PageFrame). */
   hidePageChrome?: boolean;
-  backHref?: string;
   queueHref?: string;
 }
 
@@ -259,7 +258,6 @@ export function AdminApplicationReview({
   business,
   nextApplicationId = null,
   hidePageChrome = false,
-  backHref = '/tableau-de-bord/organisations/verification',
   queueHref = '/tableau-de-bord/organisations/verification',
 }: AdminApplicationReviewProps) {
   const [step, setStep] = useState(1);
@@ -653,27 +651,13 @@ export function AdminApplicationReview({
           : { width: '100%', padding: '0 0 7rem' }
       }
     >
-      {!hidePageChrome ? (
-        <Link
-          href={backHref}
-          style={{
-            textDecoration: 'none',
-            color: colors.secondary,
-            fontWeight: 700,
-            fontSize: '0.8125rem',
-          }}
-        >
-          ← Retour aux demandes
-        </Link>
-      ) : null}
-
       {/* Command bar */}
       <div
         style={{
           position: 'sticky',
           top: 0,
           zIndex: 40,
-          marginTop: hidePageChrome ? 0 : '1rem',
+          marginTop: 0,
           marginBottom: spacing[4],
           background: colors.surface,
           border: `1px solid ${colors.borderSubtle}`,

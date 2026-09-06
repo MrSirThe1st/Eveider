@@ -1,5 +1,20 @@
 const DEFAULT_DEEP_LINK_SCHEME = 'eveider';
-const DEFAULT_WEB_BASE_URL = 'http://localhost:3000';
+/** Production portal — set INVITE_WEB_BASE_URL=http://localhost:3000 for local-only invite testing. */
+const DEFAULT_WEB_BASE_URL = 'https://www.eveider.com';
+
+function isLocalWebBase(url: string): boolean {
+  return /localhost|127\.0\.0\.1/i.test(url);
+}
+
+function resolveWebBaseUrl(): string {
+  const invite = process.env.INVITE_WEB_BASE_URL?.trim();
+  if (invite) return invite.replace(/\/$/, '');
+
+  const portal = process.env.NEXT_PUBLIC_PORTAL_URL?.trim();
+  if (portal && !isLocalWebBase(portal)) return portal.replace(/\/$/, '');
+
+  return DEFAULT_WEB_BASE_URL;
+}
 
 export type InviteLinks = {
   deepLink: string;
@@ -10,7 +25,7 @@ export type InviteLinks = {
 export function getInviteConfig() {
   return {
     deepLinkScheme: process.env.INVITE_DEEP_LINK_SCHEME ?? DEFAULT_DEEP_LINK_SCHEME,
-    webBaseUrl: (process.env.INVITE_WEB_BASE_URL ?? DEFAULT_WEB_BASE_URL).replace(/\/$/, ''),
+    webBaseUrl: resolveWebBaseUrl(),
   };
 }
 
