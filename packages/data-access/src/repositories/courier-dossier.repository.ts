@@ -397,8 +397,7 @@ export class CourierDossierRepository {
       throw new Error('Ce chauffeur ne peut pas être invité');
     }
 
-    const isBusinessDriver =
-      current.contractorType === 'business' || current.contractorType === 'organization';
+    const isBusinessDriver = current.contractorType === 'business';
     let nextStatus = current.status;
     if (current.status === 'approved') {
       assertCourierDossierTransition(current.status, 'invited');
