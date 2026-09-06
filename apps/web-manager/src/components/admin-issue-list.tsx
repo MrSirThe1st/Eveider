@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, webCardStyle } from '@eveider/config-ui';
+import { webCardStyle } from '@eveider/config-ui';
 import type { IssueStatus } from '@eveider/domain';
 import { ISSUE_STATUS_LABELS } from '@eveider/domain';
 import { Button, EmptyState, FilterToolbar, IconAlert } from '@eveider/ui';

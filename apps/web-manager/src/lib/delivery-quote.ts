@@ -5,7 +5,6 @@ import {
   getPool,
   quoteForPickupType,
   resolveBusinessPickupCoordinates,
-  toDeliveryPricingRules,
 } from '@eveider/data-access';
 
 export type DeliveryQuoteInput = {
@@ -36,7 +35,6 @@ export async function buildDeliveryQuote(input: DeliveryQuoteInput): Promise<Del
   const pickupType = input.pickupType ?? 'courier_pickup';
 
   const rulesRow = await pricing.getDeliveryRules();
-  const rules = toDeliveryPricingRules(rulesRow);
 
   if (pickupType === 'merchant_dropoff') {
     const quoted = quoteForPickupType({
