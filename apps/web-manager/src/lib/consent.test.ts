@@ -19,6 +19,7 @@ describe('cookie consent persistence', () => {
       },
       set cookie(value: string) {
         const [pair] = value.split(';');
+        if (!pair) return;
         const eq = pair.indexOf('=');
         const name = pair.slice(0, eq).trim();
         const raw = pair.slice(eq + 1).trim();

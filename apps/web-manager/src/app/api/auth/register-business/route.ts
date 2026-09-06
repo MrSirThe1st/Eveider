@@ -5,7 +5,6 @@ import {
   registerBusinessAccountResponseSchema,
 } from '@eveider/api-contracts';
 import { NextResponse } from 'next/server';
-import { ZodError } from 'zod';
 import { registerBusinessAccount } from '@/server/auth';
 import { createClient } from '@/lib/supabase/server';
 
@@ -66,12 +65,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json(ok(response));
   } catch (err) {
-    if (err instanceof ZodError) {
-      return NextResponse.json(
-        fail(err.errors[0]?.message ?? 'Réponse serveur invalide'),
-        { status: 500 },
-      );
-    }
     const message = err instanceof Error ? err.message : 'Erreur serveur';
     return NextResponse.json(fail(message), { status: 500 });
   }
