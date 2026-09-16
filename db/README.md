@@ -34,3 +34,6 @@ Seed demo lockers:
 ```bash
 pnpm db:seed
 ```
+
+pnpm --filter @eveider/web-admin dev
+pnpm --filter @eveider/mobile dev
