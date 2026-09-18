@@ -4,7 +4,6 @@ import { BusinessParcelDetail } from '@/components/business-parcel-detail';
 import { WEB_ROUTES } from '@/lib/auth-routing';
 import { hasBusinessPermission } from '@eveider/domain';
 import { requireBusinessPermission } from '@/server/business';
-import { loadAssignableBusinessCouriers } from '@/server/couriers';
 import {
   loadBusinessParcelDetail,
   loadBusinessParcelOperations,
@@ -25,15 +24,11 @@ export default async function BusinessParcelDetailPage({ params, searchParams }:
     notFound();
   }
 
-  const canAssignCouriers = hasBusinessPermission(profile.userRole, 'manage_couriers');
   const canManageOperations = hasBusinessPermission(profile.userRole, 'manage_operations');
 
-  const [assignableCouriers, operations] = await Promise.all([
-    canAssignCouriers ? loadAssignableBusinessCouriers(profile.businessId) : Promise.resolve([]),
-    canManageOperations
-      ? loadBusinessParcelOperations(ctx, id)
-      : Promise.resolve({ invite: null, issues: [] }),
-  ]);
+  const operations = canManageOperations
+    ? await loadBusinessParcelOperations(ctx, id)
+    : { invite: null, issues: [] };
 
   return (
     <PageFrame
@@ -49,8 +44,6 @@ export default async function BusinessParcelDetailPage({ params, searchParams }:
         parcel={parcel}
         justCreated={query.created === '1'}
         canManageOperations={canManageOperations}
-        canAssignCouriers={canAssignCouriers}
-        assignableCouriers={assignableCouriers}
         invite={operations.invite}
         issues={operations.issues}
       />

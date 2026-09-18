@@ -18,6 +18,8 @@ export const createServiceAreaSchema = z.object({
   city: zodEnum(DRC_CITIES),
   notes: z.string().trim().max(2000).nullable().optional(),
   status: serviceAreaStatusSchema.optional().default('active'),
+  outboundDeliveryAmount: z.number().min(0).max(10_000_000).optional(),
+  returnDeliveryAmount: z.number().min(0).max(10_000_000).optional(),
 });
 
 export const updateServiceAreaSchema = z.object({
@@ -26,6 +28,8 @@ export const updateServiceAreaSchema = z.object({
   city: zodEnum(DRC_CITIES).optional(),
   notes: z.string().trim().max(2000).nullable().optional(),
   status: serviceAreaStatusSchema.optional(),
+  outboundDeliveryAmount: z.number().min(0).max(10_000_000).optional(),
+  returnDeliveryAmount: z.number().min(0).max(10_000_000).optional(),
 });
 
 export const listServiceAreasQuerySchema = z.object({

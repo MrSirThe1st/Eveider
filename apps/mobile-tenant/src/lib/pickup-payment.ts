@@ -20,11 +20,14 @@ export function pickupActionLabel(parcel: CustomerParcel): string {
 
 export function pickupCardHint(parcel: CustomerParcel): string | null {
   if (parcel.status !== 'ready_for_pickup') return null;
-  if (needsPickupPayment(parcel)) {
+    if (needsPickupPayment(parcel)) {
     const amount = parcel.pickupPayment?.amount;
     const currency = parcel.pickupPayment?.currency;
+    const purpose = parcel.pickupPayment?.purpose;
     if (amount && currency) {
-      return `PAIEMENT ${amount} ${currency} REQUIS`;
+      return purpose
+        ? `${purpose.toUpperCase()} · ${amount} ${currency}`
+        : `PAIEMENT ${amount} ${currency} REQUIS`;
     }
     return 'PAIEMENT REQUIS AVANT RETRAIT';
   }

@@ -2,6 +2,8 @@ import {
   calculateDeliveryFee,
   calculateLockerRentalAmount,
   calculateLockerRentalPeriods,
+  payerForChargeKind,
+  type ChargePayer,
   type DeliveryPricingCurrency,
   type DeliveryPricingRules,
   type LockerType,
@@ -25,6 +27,8 @@ export function mapParcelCharge(row: Record<string, unknown>): ParcelCharge {
     businessId: String(row.business_id),
     kind: row.kind as ParcelChargeKind,
     status: row.status as ParcelChargeStatus,
+    payer: (row.payer as ChargePayer) ?? payerForChargeKind(row.kind as ParcelChargeKind),
+    pricingZoneId: row.pricing_zone_id == null ? null : String(row.pricing_zone_id),
     amount: Number(row.amount),
     currency: parseCurrency(row.currency),
     unitRate: row.unit_rate == null ? null : Number(row.unit_rate),
@@ -64,6 +68,16 @@ export class ParcelChargeRepository {
     return result.rows.map((row) => mapParcelCharge(row));
   }
 
+  async listBusinessChargesForParcel(parcelId: string): Promise<ParcelCharge[]> {
+    const result = await this.db.query(
+      `SELECT * FROM parcel_charges
+       WHERE parcel_id = $1 AND status <> 'void' AND payer = 'business'
+       ORDER BY created_at ASC`,
+      [parcelId],
+    );
+    return result.rows.map((row) => mapParcelCharge(row));
+  }
+
   async recordDeliveryFee(
     db: Queryable,
     input: {
@@ -77,8 +91,8 @@ export class ParcelChargeRepository {
     if (existing) return existing;
     const result = await db.query(
       `INSERT INTO parcel_charges (
-         parcel_id, business_id, kind, status, amount, currency, locked_at
-       ) VALUES ($1, $2, 'delivery_fee', 'owed', $3, $4, NOW())
+         parcel_id, business_id, kind, status, payer, amount, currency, locked_at
+       ) VALUES ($1, $2, 'delivery_fee', 'owed', 'business', $3, $4, NOW())
        RETURNING *`,
       [input.parcelId, input.businessId, input.amount, input.currency],
     );
@@ -98,8 +112,8 @@ export class ParcelChargeRepository {
     if (existing) return existing;
     const result = await db.query(
       `INSERT INTO parcel_charges (
-         parcel_id, business_id, kind, status, amount, currency, locked_at
-       ) VALUES ($1, $2, 'drop_off_fee', 'owed', $3, $4, NOW())
+         parcel_id, business_id, kind, status, payer, amount, currency, locked_at
+       ) VALUES ($1, $2, 'drop_off_fee', 'owed', 'business', $3, $4, NOW())
        RETURNING *`,
       [input.parcelId, input.businessId, input.amount, input.currency],
     );
@@ -157,9 +171,9 @@ export class ParcelChargeRepository {
       if (periods <= 0) return null;
       const inserted = await db.query(
         `INSERT INTO parcel_charges (
-           parcel_id, business_id, kind, status, amount, currency,
+           parcel_id, business_id, kind, status, payer, amount, currency,
            unit_rate, quantity, period_started_at, period_ended_at, locked_at
-         ) VALUES ($1, $2, 'locker_rental', $3, $4, $5, $6, $7, $8, $9, NOW())
+         ) VALUES ($1, $2, 'locker_rental', $3, 'business', $4, $5, $6, $7, $8, $9, NOW())
          RETURNING *`,
         [
           input.parcelId,
@@ -192,6 +206,9 @@ export class ParcelChargeRepository {
   }
 }
 
+/**
+ * @deprecated Distance × size quoting. Canonical Flow 1/2 use CommercialRepository.quoteOutbound.
+ */
 export function quoteForPickupType(input: {
   pickupType: 'courier_pickup' | 'merchant_dropoff';
   distanceKm: number;

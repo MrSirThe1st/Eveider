@@ -499,8 +499,10 @@ export function GuestTrackPage() {
                   PAIEMENT RETRAIT
                 </h2>
                 <p style={{ margin: '0 0 1rem', fontSize: '0.875rem', color: colors.textMuted, fontWeight: 500 }}>
-                  Payez {providers?.amount ?? parcel.pickupPayment?.amount}{' '}
-                  {providers?.currency ?? parcel.pickupPayment?.currency} pour révéler votre code PIN.
+                  Payez {parcel.pickupPayment?.amount ?? providers?.amount}{' '}
+                  {parcel.pickupPayment?.currency ?? providers?.currency}
+                  {parcel.pickupPayment?.purpose ? ` (${parcel.pickupPayment.purpose})` : ''} pour
+                  révéler votre code PIN.
                 </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
                   {(providers?.providers ?? []).map((provider) => (

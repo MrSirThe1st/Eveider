@@ -7,7 +7,6 @@ import {
   IconLayout,
   IconMapPin,
   IconPackage,
-  IconTruck,
   type NavModule,
 } from '@eveider/ui';
 import type { BusinessPermission } from '@eveider/domain';
@@ -66,17 +65,6 @@ export function BusinessDashboardShell({ children, permissions = [] }: BusinessD
             href: WEB_ROUTES.businessIssues,
             icon: <IconAlert {...NAV_ICON_PROPS} />,
             match: (p: string) => p.startsWith(WEB_ROUTES.businessIssues),
-          },
-        ]
-      : []),
-    ...(can(permissions, 'manage_drivers')
-      ? [
-          {
-            id: 'chauffeurs',
-            label: 'Chauffeurs',
-            href: WEB_ROUTES.businessCouriers,
-            icon: <IconTruck {...NAV_ICON_PROPS} />,
-            match: (p: string) => p.startsWith(WEB_ROUTES.businessCouriers),
           },
         ]
       : []),

@@ -15,10 +15,10 @@ const STATUS_STYLES: Record<
     border: '#C0EAB7',
   },
   delivered_to_locker: {
-    bg: '#DCF5D6',
-    color: '#067A07',
-    dot: '#09D40B',
-    border: '#C0EAB7',
+    bg: '#FFF3D6',
+    color: '#B54708',
+    dot: '#F79009',
+    border: '#FEDF89',
   },
   in_transit: {
     bg: '#FFE4EC',
@@ -37,6 +37,24 @@ const STATUS_STYLES: Record<
     color: '#475467',
     dot: '#98A2B3',
     border: '#E5E7EB',
+  },
+  return_at_point: {
+    bg: '#E8F1FB',
+    color: '#175CD3',
+    dot: '#2E90FA',
+    border: '#B2DDFF',
+  },
+  returning: {
+    bg: '#E8F1FB',
+    color: '#175CD3',
+    dot: '#2E90FA',
+    border: '#B2DDFF',
+  },
+  returned: {
+    bg: '#F0F4EE',
+    color: '#475467',
+    dot: '#98A2B3',
+    border: '#E2E8E0',
   },
 };
 

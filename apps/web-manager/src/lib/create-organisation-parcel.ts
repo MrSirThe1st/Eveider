@@ -1,5 +1,5 @@
 import type { CreateParcelInput } from '@eveider/api-contracts';
-import { createRepositories, type DataAccessContext, withTransaction } from '@eveider/data-access';
+import { createRepositories, type DataAccessContext } from '@eveider/data-access';
 import { buildDeliveryQuote } from '@/lib/delivery-quote';
 import { toParcelDto, type ParcelDto } from '@/lib/business-parcel-presenter';
 
@@ -15,16 +15,13 @@ export async function createOrganisationParcel(
   data: CreateParcelInput,
 ): Promise<CreatedOrganisationParcel> {
   const quote = await buildDeliveryQuote({
-    businessId,
     lockerId: data.lockerId,
-    compartmentId: data.compartmentId,
-    packageSize: data.packageSize,
-    senderAddress: data.senderAddress,
     pickupType: data.pickupType,
   });
 
-  const isMerchantDropoff = data.pickupType === 'merchant_dropoff';
-  const { parcels, parcelCharges } = createRepositories();
+  // Web, Excel/import, and organisation API all use this helper.
+  // Canonical charge snapshot happens inside parcels.create's transaction.
+  const { parcels } = createRepositories();
   const result = await parcels.create(ctx, {
     businessId,
     reference: data.reference,
@@ -45,26 +42,14 @@ export async function createOrganisationParcel(
     packageCategory: data.packageCategory,
     declaredValueCdf: data.declaredValueCdf,
     declaredValueUsd: data.declaredValueUsd,
-    paymentResponsibility: data.paymentResponsibility,
+    paymentResponsibility: data.paymentResponsibility ?? 'receiver_pays',
     codAmountCdf: data.codAmountCdf,
     codAmountUsd: data.codAmountUsd,
-    // Drop-off fee is locked on deposit, not at create.
-    deliveryFeeAmount: isMerchantDropoff ? null : quote.deliveryFeeAmount,
+    deliveryFeeAmount: quote.deliveryFeeAmount,
     deliveryFeeCurrency: quote.deliveryFeeCurrency,
-    deliveryDistanceKm: isMerchantDropoff ? null : quote.deliveryDistanceKm,
-    pricingSizeUsed: isMerchantDropoff ? null : quote.pricingSizeUsed,
+    deliveryDistanceKm: null,
+    pricingSizeUsed: null,
   });
-
-  if (!isMerchantDropoff && quote.deliveryFeeAmount != null) {
-    await withTransaction(async (tx) => {
-      await parcelCharges.recordDeliveryFee(tx, {
-        parcelId: result.parcel.id,
-        businessId,
-        amount: quote.deliveryFeeAmount,
-        currency: quote.deliveryFeeCurrency,
-      });
-    });
-  }
 
   return {
     parcel: toParcelDto(result.parcel),
@@ -93,7 +78,12 @@ export function organisationParcelCreateStatus(err: unknown): { status: number; 
   ) {
     return { status: 400, message };
   }
-  if (message.includes('indisponible') || message.includes('introuvable')) {
+  if (
+    message.includes('indisponible') ||
+    message.includes('introuvable') ||
+    message.includes('Zone tarifaire') ||
+    message.includes('CANONICAL')
+  ) {
     return { status: 409, message };
   }
   return { status: 500, message };

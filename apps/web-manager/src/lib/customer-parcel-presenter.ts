@@ -1,5 +1,12 @@
-import { PARCEL_STATUS_LABELS, type DeliveryStatus, type ParcelStatus } from '@eveider/domain';
+import {
+  PARCEL_STATUS_LABELS,
+  canRequestCustomerReturn,
+  type DeliveryStatus,
+  type ParcelStatus,
+  type ShipmentPickupType,
+} from '@eveider/domain';
 import type { PickupPaymentStatus } from '@eveider/api-contracts';
+import type { ParcelReturnView } from '@/lib/parcel-return-presenter';
 
 export type PickupPaymentDto = {
   required: boolean;
@@ -9,6 +16,10 @@ export type PickupPaymentDto = {
   provider: string | null;
   depositId: string | null;
   failureReason: string | null;
+  kind?: string | null;
+  purpose?: string | null;
+  integrityError?: 'CANONICAL_CHARGE_MISSING' | null;
+  paymentProviderAvailable?: boolean;
 };
 
 export type CustomerParcelDto = {
@@ -19,6 +30,7 @@ export type CustomerParcelDto = {
   statusLabel: string;
   recipientName: string | null;
   businessName: string;
+  pickupType: ShipmentPickupType;
   locker: {
     id: string;
     name: string;
@@ -30,6 +42,8 @@ export type CustomerParcelDto = {
   pickupPin: string | null;
   pickupPayment: PickupPaymentDto | null;
   deliveryStatus: DeliveryStatus | null;
+  canRequestReturn: boolean;
+  customerReturn: ParcelReturnView | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -41,6 +55,7 @@ export function toCustomerParcelDto(
     reference: string | null;
     status: ParcelStatus;
     recipientName: string | null;
+    pickupType: ShipmentPickupType;
     createdAt: Date;
     updatedAt: Date;
     business: { name: string };
@@ -56,8 +71,9 @@ export function toCustomerParcelDto(
     deliveries?: { status: DeliveryStatus }[];
   },
   options?: {
-    pickupPayment?: PickupPaymentDto | null;
+    pickupPayment: PickupPaymentDto | null;
     pickupPaid?: boolean;
+    customerReturn?: ParcelReturnView | null;
   },
 ): CustomerParcelDto {
   const pickupPayment =
@@ -75,6 +91,7 @@ export function toCustomerParcelDto(
     statusLabel: PARCEL_STATUS_LABELS[parcel.status],
     recipientName: parcel.recipientName,
     businessName: parcel.business.name,
+    pickupType: parcel.pickupType,
     locker: parcel.locker
       ? {
           id: parcel.locker.id,
@@ -88,6 +105,14 @@ export function toCustomerParcelDto(
     pickupPin: showPin ? (parcel.pickupPin?.code ?? null) : null,
     pickupPayment,
     deliveryStatus: parcel.deliveries?.[0]?.status ?? null,
+    canRequestReturn:
+      canRequestCustomerReturn(parcel.status) &&
+      (!options?.customerReturn ||
+        (options.customerReturn.status !== 'requested' &&
+          options.customerReturn.status !== 'authorized' &&
+          options.customerReturn.status !== 'awaiting_pickup' &&
+          options.customerReturn.status !== 'in_transit')),
+    customerReturn: options?.customerReturn ?? null,
     createdAt: parcel.createdAt.toISOString(),
     updatedAt: parcel.updatedAt.toISOString(),
   };

@@ -2,19 +2,15 @@
 
 import { colors, borderSubtle } from '@eveider/config-ui';
 import {
-  isCodAllowedForLockerType,
   PACKAGE_CATEGORIES,
   PACKAGE_CATEGORY_LABELS,
   PACKAGE_SIZE_LABELS,
   PACKAGE_SIZES,
-  PAYMENT_RESPONSIBILITIES,
-  PAYMENT_RESPONSIBILITY_LABELS,
   SHIPMENT_PICKUP_TYPE_LABELS,
   suggestPackageSizeFromDimensions,
   usesCompartmentGrid,
   type PackageCategory,
   type PackageSize,
-  type PaymentResponsibility,
   type ShipmentPickupType,
 } from '@eveider/domain';
 import { InlineAlert, LoadingSpinner, TextField, Wizard, type WizardStep, useToast } from '@eveider/ui';
@@ -44,9 +40,9 @@ const STEPS: WizardStep[] = [
     description: 'Point Eveider et caractéristiques du colis.',
   },
   {
-    id: 'payment',
-    title: 'Paiement',
-    description: 'Qui paie, puis revue avant création.',
+    id: 'review',
+    title: 'Revue',
+    description: 'Vérifiez le colis. Le destinataire paie à la collecte.',
   },
 ];
 
@@ -96,7 +92,7 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
   const [packageSize, setPackageSize] = useState<PackageSize>('medium');
   const [sizeManuallySet, setSizeManuallySet] = useState(false);
   const [deliveryQuoteLabel, setDeliveryQuoteLabel] = useState<string | null>(null);
-  const [feeChargedOnDeposit, setFeeChargedOnDeposit] = useState(false);
+  const [quotePurpose, setQuotePurpose] = useState<string | null>(null);
   const [packageCategory, setPackageCategory] = useState<PackageCategory>('other');
   const [packageLengthCm, setPackageLengthCm] = useState('');
   const [packageWidthCm, setPackageWidthCm] = useState('');
@@ -104,11 +100,6 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
   const [packageWeightKg, setPackageWeightKg] = useState('');
   const [declaredValueCdf, setDeclaredValueCdf] = useState('');
   const [declaredValueUsd, setDeclaredValueUsd] = useState('');
-
-  const [paymentResponsibility, setPaymentResponsibility] =
-    useState<PaymentResponsibility>('receiver_pays');
-  const [codAmountCdf, setCodAmountCdf] = useState('');
-  const [codAmountUsd, setCodAmountUsd] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -209,16 +200,6 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
     ? usesCompartmentGrid(selectedLocker.type ?? 'SMART_LOCKER')
     : false;
 
-  const codAllowed = selectedLocker
-    ? isCodAllowedForLockerType(selectedLocker.type ?? 'SMART_LOCKER')
-    : true;
-
-  useEffect(() => {
-    if (!codAllowed && paymentResponsibility === 'cod') {
-      setPaymentResponsibility('receiver_pays');
-    }
-  }, [codAllowed, paymentResponsibility]);
-
   useEffect(() => {
     const suggested = suggestPackageSizeFromDimensions({
       lengthCm: optionalNumber(packageLengthCm),
@@ -245,13 +226,13 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
       .then((json) => {
         if (!cancelled && json.success) {
           setDeliveryQuoteLabel(json.data.deliveryFeeLabel as string);
-          setFeeChargedOnDeposit(Boolean(json.data.feeChargedOnDeposit));
+          setQuotePurpose((json.data.purpose as string | undefined) ?? null);
         }
       })
       .catch(() => {
         if (!cancelled) {
           setDeliveryQuoteLabel(null);
-          setFeeChargedOnDeposit(false);
+          setQuotePurpose(null);
         }
       });
     return () => {
@@ -306,21 +287,6 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
     return true;
   }
 
-  function validatePayment(): boolean {
-    if (paymentResponsibility === 'cod') {
-      if (!codAllowed) {
-        setError('Le paiement à la livraison n’est pas disponible pour les casiers intelligents.');
-        return false;
-      }
-      if (!optionalNumber(codAmountCdf) && !optionalNumber(codAmountUsd)) {
-        setError('Indiquez un montant à encaisser (FC ou USD).');
-        return false;
-      }
-    }
-    setError(null);
-    return true;
-  }
-
   function handleNext() {
     if (stepIndex === 0 && !validatePickup()) return;
     if (stepIndex === 1 && !validateRecipient()) return;
@@ -329,7 +295,7 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
   }
 
   async function handleSubmit() {
-    if (!validatePickup() || !validateRecipient() || !validatePackage() || !validatePayment()) {
+    if (!validatePickup() || !validateRecipient() || !validatePackage()) {
       return;
     }
 
@@ -360,11 +326,6 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
           packageWeightKg: optionalNumber(packageWeightKg),
           declaredValueCdf: optionalNumber(declaredValueCdf),
           declaredValueUsd: optionalNumber(declaredValueUsd),
-          paymentResponsibility,
-          codAmountCdf:
-            paymentResponsibility === 'cod' ? optionalNumber(codAmountCdf) : undefined,
-          codAmountUsd:
-            paymentResponsibility === 'cod' ? optionalNumber(codAmountUsd) : undefined,
         }),
       });
 
@@ -708,65 +669,6 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
 
       {stepIndex === 3 ? (
         <section style={{ display: 'grid', gap: '1rem' }}>
-          <div style={{ display: 'grid', gap: '0.5rem' }}>
-            {PAYMENT_RESPONSIBILITIES.map((mode) => {
-              const disabledMode = loading || (mode === 'cod' && !codAllowed);
-              return (
-                <button
-                  key={mode}
-                  type="button"
-                  disabled={disabledMode}
-                  onClick={() => setPaymentResponsibility(mode)}
-                  style={{
-                    textAlign: 'left',
-                    padding: '0.875rem 1rem',
-                    border:
-                      paymentResponsibility === mode
-                        ? `2px solid ${colors.primary}`
-                        : borderSubtle(),
-                    borderRadius: 8,
-                    background:
-                      paymentResponsibility === mode
-                        ? colors.primaryMuted
-                        : colors.surface,
-                    color: colors.secondary,
-                    opacity: mode === 'cod' && !codAllowed ? 0.5 : 1,
-                    cursor: disabledMode ? 'not-allowed' : 'pointer',
-                    fontWeight: 600,
-                  }}
-                >
-                  {PAYMENT_RESPONSIBILITY_LABELS[mode]}
-                  {mode === 'cod' && !codAllowed ? ' — indisponible (casier intelligent)' : ''}
-                </button>
-              );
-            })}
-          </div>
-
-          {paymentResponsibility === 'cod' ? (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-                gap: '0.75rem',
-              }}
-            >
-              <TextField
-                label="Montant à encaisser (FC)"
-                name="codAmountCdf"
-                value={codAmountCdf}
-                onChange={(e) => setCodAmountCdf(e.target.value)}
-                disabled={loading}
-              />
-              <TextField
-                label="Montant à encaisser (USD)"
-                name="codAmountUsd"
-                value={codAmountUsd}
-                onChange={(e) => setCodAmountUsd(e.target.value)}
-                disabled={loading}
-              />
-            </div>
-          ) : null}
-
           <div
             style={{
               border: borderSubtle(),
@@ -792,17 +694,14 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
               Colis : {PACKAGE_SIZE_LABELS[packageSize]} ·{' '}
               {PACKAGE_CATEGORY_LABELS[packageCategory]}
             </span>
-            <span>Paiement : {PAYMENT_RESPONSIBILITY_LABELS[paymentResponsibility]}</span>
             {deliveryQuoteLabel ? (
               <span>
-                {feeChargedOnDeposit
-                  ? `Frais de dépôt (facturés à la confirmation du dépôt) : ${deliveryQuoteLabel}`
-                  : `Frais de livraison (estimés, verrouillés à la création) : ${deliveryQuoteLabel}`}
+                {quotePurpose ?? 'Frais destinataire'} (payés à la collecte) : {deliveryQuoteLabel}
               </span>
             ) : null}
             <span style={{ fontSize: '0.8125rem', color: colors.textMuted }}>
-              Les frais de retrait client (pickup) restent distincts et s’appliquent au destinataire si
-              « Destinataire paie ».
+              Le destinataire paie ce frais pour autoriser le retrait. L’entreprise n’est pas
+              facturée pour ce service.
             </span>
           </div>
         </section>

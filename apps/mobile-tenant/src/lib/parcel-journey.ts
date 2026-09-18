@@ -30,8 +30,19 @@ function isAssigned(deliveryStatus: DeliveryStatus | null) {
 }
 
 function isInTransit(status: ParcelStatus, deliveryStatus: DeliveryStatus | null) {
-  if (status === 'in_transit' || status === 'delivered_to_locker') return true;
-  return deliveryStatus === 'scanned' || deliveryStatus === 'drop_off_pending' || deliveryStatus === 'completed';
+  if (status === 'in_transit') return true;
+  if (
+    status === 'delivered_to_locker' ||
+    status === 'ready_for_pickup' ||
+    status === 'collected'
+  ) {
+    return (
+      deliveryStatus === 'scanned' ||
+      deliveryStatus === 'drop_off_pending' ||
+      deliveryStatus === 'completed'
+    );
+  }
+  return false;
 }
 
 function isReady(status: ParcelStatus) {
@@ -58,14 +69,21 @@ function buildSteps(
 }
 
 function lockerVisualFor(status: ParcelStatus): LockerVisual {
-  if (status === 'collected') return 'collected';
-  if (status === 'ready_for_pickup' || status === 'delivered_to_locker') return 'ready';
+  if (status === 'collected' || status === 'returned') return 'collected';
+  if (status === 'ready_for_pickup' || status === 'return_at_point') return 'ready';
   return 'incoming';
 }
 
 function headlineFor(parcel: CustomerParcel): string {
   if (parcel.status === 'ready_for_pickup') return 'Votre colis est prêt';
-  if (parcel.status === 'collected') return 'Colis retiré';
+  if (parcel.status === 'collected') {
+    if (parcel.customerReturn?.status === 'requested') return 'Retour demandé';
+    if (parcel.customerReturn?.status === 'authorized') return 'Retour autorisé';
+    return 'Colis retiré';
+  }
+  if (parcel.status === 'return_at_point') return 'Retour au casier';
+  if (parcel.status === 'returning') return 'Retour en cours';
+  if (parcel.status === 'returned') return 'Retourné au marchand';
   if (parcel.status === 'delivered_to_locker') return 'Colis au casier';
   if (parcel.status === 'in_transit') return 'Colis en transit';
   if (parcel.deliveryStatus === 'assigned') return 'Coursier assigné';
@@ -89,6 +107,9 @@ export function pickFeaturedParcel(parcels: CustomerParcel[]): CustomerParcel | 
     'in_transit',
     'created',
     'collected',
+    'return_at_point',
+    'returning',
+    'returned',
   ];
 
   for (const status of priority) {

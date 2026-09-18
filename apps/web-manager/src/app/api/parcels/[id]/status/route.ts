@@ -33,7 +33,16 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     return NextResponse.json(ok({ parcel: toAdminParcelDto(full) }));
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur serveur';
-    const status = message.includes('Invalid parcel transition') ? 400 : 500;
+    const status =
+      message.includes('Invalid parcel transition') ||
+      message.includes('dépôt') ||
+      message.includes('préparation du retrait') ||
+      message.includes('prêt pour retrait') ||
+      message.includes('transit Eveider')
+        ? 400
+        : message.includes('Paiement requis') || message.includes('CANONICAL_CHARGE_MISSING')
+          ? 409
+          : 500;
     return NextResponse.json(fail(message), { status });
   }
 }

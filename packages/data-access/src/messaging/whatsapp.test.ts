@@ -95,6 +95,48 @@ describe('sendParcelStatusWhatsApp', () => {
   const originalEnv = process.env;
   const fetchMock = vi.fn();
 
+  function chargeRow(amount: number) {
+    return {
+      id: 'charge-1',
+      parcel_id: 'parcel-1',
+      business_id: 'biz-1',
+      kind: 'outbound_delivery',
+      status: 'owed',
+      payer: 'recipient',
+      pricing_zone_id: 'zone-1',
+      amount,
+      currency: 'CDF',
+      unit_rate: null,
+      quantity: null,
+      period_started_at: null,
+      period_ended_at: null,
+      locked_at: new Date(),
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+  }
+
+  function collectionDecisionSql(
+    sql: string,
+    input: { status: string; amount: number | null; paid?: boolean; model?: string },
+  ) {
+    if (sqlIncludes(sql, 'SELECT status, pickup_type, commercial_model')) {
+      return {
+        status: input.status,
+        pickup_type: 'courier_pickup',
+        commercial_model: input.model ?? 'canonical',
+        payment_responsibility: 'receiver_pays',
+      };
+    }
+    if (sqlIncludes(sql, 'FROM parcel_charges')) {
+      return input.amount == null ? null : chargeRow(input.amount);
+    }
+    if (sqlIncludes(sql, 'FROM parcel_payments')) {
+      return input.paid ? { id: 'pay-1' } : null;
+    }
+    return undefined;
+  }
+
   beforeEach(() => {
     process.env = {
       ...originalEnv,
@@ -117,6 +159,8 @@ describe('sendParcelStatusWhatsApp', () => {
   it('sends in-transit template with expected body params', async () => {
     const inserts: unknown[][] = [];
     const db = createSqlMatchMock((sql, values) => {
+      const decision = collectionDecisionSql(sql, { status: 'in_transit', amount: 1500 });
+      if (decision !== undefined) return decision;
       if (sqlIncludes(sql, 'FROM parcels p') && sqlIncludes(sql, 'JOIN businesses')) {
         return {
           ...parcelRow({
@@ -132,6 +176,9 @@ describe('sendParcelStatusWhatsApp', () => {
         };
       }
       if (sqlIncludes(sql, 'FROM notifications') && sqlIncludes(sql, "channel = 'sms'")) {
+        return null;
+      }
+      if (sqlIncludes(sql, 'FROM parcel_charges')) {
         return null;
       }
       if (sqlIncludes(sql, 'INSERT INTO notifications')) {
@@ -165,9 +212,11 @@ describe('sendParcelStatusWhatsApp', () => {
     expect(String(inserts[0]?.[2])).toContain('[whatsapp:eveider_parcel_in_transit]');
   });
 
-  it('sends arrived template with pickup PIN', async () => {
+  it('sends arrived template with a pickup link when the recipient pays', async () => {
     process.env.INVITE_WEB_BASE_URL = 'https://www.eveider.com';
     const db = createSqlMatchMock((sql) => {
+      const decision = collectionDecisionSql(sql, { status: 'ready_for_pickup', amount: 1500 });
+      if (decision !== undefined) return decision;
       if (sqlIncludes(sql, 'FROM parcels p') && sqlIncludes(sql, 'JOIN businesses')) {
         return {
           ...parcelRow({
@@ -210,7 +259,114 @@ describe('sendParcelStatusWhatsApp', () => {
       'Marc',
       'EVD26TEST0001A',
       'GOMBE',
+      'https://www.eveider.com/suivi?mode=tracking&tracking=EVD26TEST0001A',
+    ]);
+  });
+
+  it('does not send the PIN in the ready WhatsApp when a canonical recipient charge is unpaid', async () => {
+    process.env.INVITE_WEB_BASE_URL = 'https://www.eveider.com';
+    const db = createSqlMatchMock((sql) => {
+      const decision = collectionDecisionSql(sql, { status: 'ready_for_pickup', amount: 1500 });
+      if (decision !== undefined) return decision;
+      if (sqlIncludes(sql, 'FROM parcels p') && sqlIncludes(sql, 'JOIN businesses')) {
+        return {
+          ...parcelRow({
+            recipient_phone: '+243800000000',
+            recipient_name: 'Marc',
+            customer_id: null,
+            reference: 'PK-001',
+            payment_responsibility: 'sender_pays',
+          }),
+          business_name: 'Boutique Kin',
+          locker_name: 'GOMBE',
+          locker_address: 'Ave 1',
+          invite_token: 'abc-123',
+          pickup_pin_code: '482913',
+        };
+      }
+      if (sqlIncludes(sql, 'FROM notifications') && sqlIncludes(sql, "channel = 'sms'")) {
+        return null;
+      }
+      if (sqlIncludes(sql, 'INSERT INTO notifications')) {
+        return null;
+      }
+      if (sqlIncludes(sql, 'INSERT INTO parcel_events')) {
+        return parcelEventRow({ event_type: 'notification.sent' });
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ messages: [{ id: 'wamid.unpaid' }] }),
+    });
+
+    await sendParcelStatusWhatsApp(db, 'parcel-1', 'ready_for_pickup');
+
+    const body = JSON.parse((fetchMock.mock.calls[0]![1] as RequestInit).body as string);
+    const params = body.template.components[0].parameters.map((p: { text: string }) => p.text);
+    expect(params).not.toContain('482913');
+    expect(params[3]).toContain('https://www.eveider.com/suivi');
+  });
+
+  it('sends the PIN in the ready WhatsApp after the canonical recipient charge is paid', async () => {
+    const db = createSqlMatchMock((sql) => {
+      const decision = collectionDecisionSql(sql, {
+        status: 'ready_for_pickup',
+        amount: 1500,
+        paid: true,
+      });
+      if (decision !== undefined) return decision;
+      if (sqlIncludes(sql, 'FROM parcels p') && sqlIncludes(sql, 'JOIN businesses')) {
+        return {
+          ...parcelRow({
+            recipient_phone: '+243800000000',
+            recipient_name: 'Marc',
+            customer_id: null,
+            reference: 'PK-001',
+          }),
+          business_name: 'Boutique Kin',
+          locker_name: 'GOMBE',
+          locker_address: 'Ave 1',
+          invite_token: 'abc-123',
+          pickup_pin_code: '482913',
+        };
+      }
+      if (sqlIncludes(sql, 'FROM notifications') && sqlIncludes(sql, "channel = 'sms'")) {
+        return null;
+      }
+      if (sqlIncludes(sql, 'INSERT INTO notifications')) {
+        return null;
+      }
+      if (sqlIncludes(sql, 'INSERT INTO parcel_events')) {
+        return parcelEventRow({ event_type: 'notification.sent' });
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ messages: [{ id: 'wamid.paid' }] }),
+    });
+
+    await sendParcelStatusWhatsApp(db, 'parcel-1', 'ready_for_pickup');
+
+    const body = JSON.parse((fetchMock.mock.calls[0]![1] as RequestInit).body as string);
+    expect(body.template.components[0].parameters.map((p: { text: string }) => p.text)).toEqual([
+      'Marc',
+      'EVD26TEST0001A',
+      'GOMBE',
       '482913',
     ]);
+  });
+
+  it('does not send WhatsApp at AT_POINT', async () => {
+    const db = createSqlMatchMock(() => {
+      throw new Error('AT_POINT must not load parcel for WhatsApp');
+    });
+
+    await sendParcelStatusWhatsApp(db, 'parcel-1', 'delivered_to_locker');
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

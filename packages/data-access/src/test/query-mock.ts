@@ -84,6 +84,7 @@ export function parcelRow(
     ready_for_pickup_at: null,
     delivery_distance_km: null,
     pricing_size_used: null,
+    commercial_model: 'legacy',
     created_at: now,
     updated_at: now,
     ...overrides,
@@ -136,6 +137,7 @@ export function lockerRow(
     rows: 5,
     columns: 4,
     status: 'active',
+    type: 'SMART_LOCKER',
     archived_at: null,
     created_at: now,
     updated_at: now,
@@ -152,6 +154,51 @@ export function compartmentRow(
     label: 'A1',
     size: 'medium',
     status: 'available',
+    created_at: now,
+    updated_at: now,
+    ...overrides,
+  };
+}
+
+export function parcelReturnRow(
+  overrides: Partial<Record<string, unknown>> = {},
+): Record<string, unknown> {
+  return {
+    id: 'return-1',
+    parcel_id: 'parcel-1',
+    business_id: 'biz-1',
+    status: 'requested',
+    method: null,
+    return_locker_id: null,
+    compartment_id: null,
+    return_code: null,
+    requested_at: now,
+    authorized_at: null,
+    deposited_at: null,
+    completed_at: null,
+    created_at: now,
+    updated_at: now,
+    ...overrides,
+  };
+}
+
+export function lockerActionSessionRow(
+  overrides: Partial<Record<string, unknown>> = {},
+): Record<string, unknown> {
+  return {
+    id: 'session-1',
+    action: 'deposit',
+    parcel_id: 'parcel-1',
+    locker_id: 'locker-1',
+    compartment_id: 'comp-1',
+    actor_type: 'eveider_driver',
+    actor_reference: 'courier-1',
+    status: 'authorized',
+    expires_at: new Date('2099-01-15T12:03:00.000Z'),
+    authorized_at: now,
+    confirmed_at: null,
+    cancelled_at: null,
+    device_event_id: null,
     created_at: now,
     updated_at: now,
     ...overrides,
@@ -261,7 +308,7 @@ export function courierDeliveryJoin(
     business_relation_id: 'biz-1',
     business_name: 'Shop',
     compartment_json: null,
-    parcel_row: parcelRow(parcelOverrides),
+    parcel_row: parcelRow({ pickup_type: 'courier_pickup', ...parcelOverrides }),
   };
 }
 

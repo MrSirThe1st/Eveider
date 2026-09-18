@@ -15,7 +15,6 @@ import { CustomerHome } from '../screens/CustomerHome';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { PointsScreen } from '../screens/PointsScreen';
 import { ReceiveScreen } from '../screens/ReceiveScreen';
-import { SendScreen } from '../screens/SendScreen';
 import { TrackResultScreen } from '../screens/TrackResultScreen';
 import { AppearanceSettingsScreen } from '../screens/settings/AppearanceSettingsScreen';
 import { CountrySettingsScreen } from '../screens/settings/CountrySettingsScreen';
@@ -118,7 +117,7 @@ export function CustomerNavigator({
       },
       goToSend: () => {
         setDrawerOpenRef.current(false);
-        stackNavRef.current?.navigate('Tabs', { screen: 'Send' });
+        stackNavRef.current?.navigate('Tabs', { screen: 'Home' });
       },
       goToPoints: () => {
         setDrawerOpenRef.current(false);
@@ -222,11 +221,6 @@ const CustomerTabBar = memo(function CustomerTabBar() {
           name="Home"
           component={CustomerHomeScreen}
           options={{ tabBarLabel: t('tabs.home'), tabBarIcon: tabIcon('home') }}
-        />
-        <Tab.Screen
-          name="Send"
-          component={SendScreen}
-          options={{ tabBarLabel: t('tabs.send'), tabBarIcon: tabIcon('send') }}
         />
         <Tab.Screen
           name="Receive"

@@ -8,10 +8,14 @@ export type DeliveryPricingRules = {
   aboveThresholdAmount: number;
   currency: DeliveryPricingCurrency;
   sizeCoefficients: Record<PackageSize, number>;
-  /** Fixed fee when business deposits at an Eveider point (no distance/size). */
+  /** @deprecated Historical Flow 2 business drop-off fee. Canonical Flow 2 uses lockerCollectionAmount. */
   dropOffFeeAmount: number;
   /** Per 24h period after the free hold window (physical compartments only). */
   lockerRentalRateAmount: number;
+  /** Flow 2 recipient locker/collection fee (fixed). */
+  lockerCollectionAmount: number;
+  /** Flow 3B business return-pickup locker fee (fixed). */
+  returnLockerAmount: number;
 };
 
 export const DEFAULT_DELIVERY_PRICING_RULES: DeliveryPricingRules = {
@@ -26,15 +30,28 @@ export const DEFAULT_DELIVERY_PRICING_RULES: DeliveryPricingRules = {
   },
   dropOffFeeAmount: 500,
   lockerRentalRateAmount: 200,
+  lockerCollectionAmount: 500,
+  returnLockerAmount: 500,
 };
 
-export type ParcelChargeKind = 'delivery_fee' | 'drop_off_fee' | 'locker_rental';
+export type ParcelChargeKind =
+  | 'delivery_fee'
+  | 'drop_off_fee'
+  | 'locker_rental'
+  | 'outbound_delivery'
+  | 'locker_collection'
+  | 'return_delivery'
+  | 'return_locker';
 export type ParcelChargeStatus = 'pending' | 'owed' | 'void';
 
 export const PARCEL_CHARGE_KINDS: readonly ParcelChargeKind[] = [
   'delivery_fee',
   'drop_off_fee',
   'locker_rental',
+  'outbound_delivery',
+  'locker_collection',
+  'return_delivery',
+  'return_locker',
 ] as const;
 
 export const MS_PER_HOUR = 60 * 60 * 1000;
@@ -47,14 +64,17 @@ export function sizeCoefficientFor(
   return rules.sizeCoefficients[size];
 }
 
-function roundFeeAmount(raw: number, currency: DeliveryPricingCurrency): number {
+export function roundFeeAmount(raw: number, currency: DeliveryPricingCurrency): number {
   if (currency === 'USD') {
     return Math.round(raw * 100) / 100;
   }
   return Math.round(raw);
 }
 
-/** Delivery fee: base tier × size coefficient. Pickup fee remains separate. */
+/**
+ * @deprecated Distance × size is no longer the canonical Flow 1 commercial model.
+ * Kept to read historical quotes. New charges use zone / fixed commercial pricing.
+ */
 export function calculateDeliveryFee(
   distanceKm: number,
   size: PackageSize,

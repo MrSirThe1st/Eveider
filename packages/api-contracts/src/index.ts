@@ -11,9 +11,11 @@ export function fail<T>(error: string): ApiResult<T> {
 export * from './schemas.js';
 export * from './schemas/auth.js';
 export * from './schemas/parcel.js';
+export * from './schemas/parcel-return.js';
 export * from './schemas/parcel-import.js';
 export * from './schemas/business.js';
 export * from './schemas/locker.js';
+export * from './schemas/locker-action.js';
 export * from './schemas/locker-settings.js';
 export * from './schemas/service-area.js';
 export * from './schemas/delivery.js';

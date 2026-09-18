@@ -31,6 +31,17 @@ describe('PaymentRepository', () => {
 
   it('returns pickup payment summary with configured fee', async () => {
     setup((sql) => {
+      if (sqlIncludes(sql, 'SELECT status, pickup_type, commercial_model')) {
+        return {
+          status: 'ready_for_pickup',
+          pickup_type: 'courier_pickup',
+          commercial_model: 'legacy',
+          payment_responsibility: 'receiver_pays',
+        };
+      }
+      if (sqlIncludes(sql, 'FROM parcel_charges')) {
+        return null;
+      }
       if (sqlIncludes(sql, 'FROM platform_settings')) {
         return { pickup_fee_amount: 5, pickup_fee_currency: 'USD' };
       }
@@ -50,11 +61,158 @@ describe('PaymentRepository', () => {
       status: 'none',
       amount: '5',
       currency: 'USD',
+      kind: 'pickup_fee',
     });
+  });
+
+  it('uses the canonical recipient charge instead of payment_responsibility', async () => {
+    setup((sql) => {
+      if (sqlIncludes(sql, 'SELECT status, pickup_type, commercial_model')) {
+        return {
+          status: 'ready_for_pickup',
+          pickup_type: 'courier_pickup',
+          commercial_model: 'canonical',
+          payment_responsibility: 'sender_pays',
+        };
+      }
+      if (sqlIncludes(sql, 'FROM parcel_charges')) {
+        return {
+          id: 'charge-1',
+          parcel_id: 'parcel-1',
+          business_id: 'biz-1',
+          kind: 'outbound_delivery',
+          status: 'owed',
+          payer: 'recipient',
+          pricing_zone_id: 'zone-1',
+          amount: 1500,
+          currency: 'CDF',
+          unit_rate: null,
+          quantity: null,
+          period_started_at: null,
+          period_ended_at: null,
+          locked_at: new Date(),
+          created_at: new Date(),
+          updated_at: new Date(),
+        };
+      }
+      if (sqlIncludes(sql, 'FROM parcel_payments')) {
+        return null;
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const summary = await repo.getPickupPaymentSummary('parcel-1');
+    expect(summary).toMatchObject({
+      required: true,
+      amount: '1500',
+      currency: 'CDF',
+      kind: 'outbound_delivery',
+      purpose: 'Livraison Eveider',
+    });
+
+    const paid = await repo.hasCompletedPickupPayment('parcel-1');
+    expect(paid).toBe(false);
+  });
+
+  it('keeps canonical payment outstanding when PawaPay is not configured', async () => {
+    delete process.env.PAWAPAY_API_TOKEN;
+    setup((sql) => {
+      if (sqlIncludes(sql, 'SELECT status, pickup_type, commercial_model')) {
+        return {
+          status: 'ready_for_pickup',
+          pickup_type: 'courier_pickup',
+          commercial_model: 'canonical',
+          payment_responsibility: 'receiver_pays',
+        };
+      }
+      if (sqlIncludes(sql, 'FROM parcel_charges')) {
+        return {
+          id: 'charge-1',
+          parcel_id: 'parcel-1',
+          business_id: 'biz-1',
+          kind: 'outbound_delivery',
+          status: 'owed',
+          payer: 'recipient',
+          pricing_zone_id: 'zone-1',
+          amount: 1500,
+          currency: 'CDF',
+          unit_rate: null,
+          quantity: null,
+          period_started_at: null,
+          period_ended_at: null,
+          locked_at: new Date(),
+          created_at: new Date(),
+          updated_at: new Date(),
+        };
+      }
+      if (sqlIncludes(sql, 'FROM parcel_payments')) {
+        return null;
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const summary = await repo.getPickupPaymentSummary('parcel-1');
+    expect(summary.required).toBe(true);
+    expect(summary.amount).toBe('1500');
+    expect(summary.paymentProviderAvailable).toBe(false);
+    expect(await repo.hasCompletedPickupPayment('parcel-1')).toBe(false);
+  });
+
+  it('allows a zero-amount canonical charge without PawaPay', async () => {
+    delete process.env.PAWAPAY_API_TOKEN;
+    setup((sql) => {
+      if (sqlIncludes(sql, 'SELECT status, pickup_type, commercial_model')) {
+        return {
+          status: 'ready_for_pickup',
+          pickup_type: 'merchant_dropoff',
+          commercial_model: 'canonical',
+          payment_responsibility: 'receiver_pays',
+        };
+      }
+      if (sqlIncludes(sql, 'FROM parcel_charges')) {
+        return {
+          id: 'charge-1',
+          parcel_id: 'parcel-1',
+          business_id: 'biz-1',
+          kind: 'locker_collection',
+          status: 'owed',
+          payer: 'recipient',
+          pricing_zone_id: null,
+          amount: 0,
+          currency: 'CDF',
+          unit_rate: null,
+          quantity: null,
+          period_started_at: null,
+          period_ended_at: null,
+          locked_at: new Date(),
+          created_at: new Date(),
+          updated_at: new Date(),
+        };
+      }
+      if (sqlIncludes(sql, 'FROM parcel_payments')) {
+        return null;
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const summary = await repo.getPickupPaymentSummary('parcel-1');
+    expect(summary.required).toBe(false);
+    expect(await repo.hasCompletedPickupPayment('parcel-1')).toBe(true);
   });
 
   it('skips pickup fee when sender pays', async () => {
     setup((sql) => {
+      if (sqlIncludes(sql, 'SELECT status, pickup_type, commercial_model')) {
+        return {
+          status: 'ready_for_pickup',
+          pickup_type: 'courier_pickup',
+          commercial_model: 'legacy',
+          payment_responsibility: 'sender_pays',
+        };
+      }
+      if (sqlIncludes(sql, 'FROM parcel_charges')) {
+        return null;
+      }
       if (sqlIncludes(sql, 'FROM platform_settings')) {
         return { pickup_fee_amount: 5, pickup_fee_currency: 'USD' };
       }

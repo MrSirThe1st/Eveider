@@ -32,6 +32,13 @@ export const SOFT_CAPACITY_LOCKER_TYPES: readonly LockerType[] = [
   'RESIDENTIAL_LOCKER',
 ] as const;
 
+/** Network destinations for the PLC locker model. Other types remain in schema, hidden from pickers. */
+export const NETWORK_LOCKER_TYPE: LockerType = 'SMART_LOCKER';
+
+export function isNetworkLockerType(type: LockerType | string | null | undefined): boolean {
+  return type === NETWORK_LOCKER_TYPE;
+}
+
 export const COMMISSION_TYPES: readonly CommissionType[] = ['fixed', 'percent'] as const;
 
 export const ACTIVE_LOCKER_STATUSES: readonly LockerStatus[] = ['active', 'offline', 'full'] as const;

@@ -1,4 +1,4 @@
-import { matchDrcCity, type DeliveryKind, type DeliveryStatus, type IssueStatus, type IssueType, type ParcelStatus, type UserRole } from '@eveider/domain';
+import { matchDrcCity, type DeliveryKind, type DeliveryStatus, type IssueStatus, type IssueType, type ParcelReturnMethod, type ParcelReturnStatus, type ParcelStatus, type ShipmentPickupType, type UserRole } from '@eveider/domain';
 import { apiFetch } from './api-fetch';
 import { supabase } from './supabase';
 
@@ -12,11 +12,25 @@ export type PickupPayment = {
   provider: string | null;
   depositId: string | null;
   failureReason: string | null;
+  kind?: string | null;
+  purpose?: string | null;
 };
 
 export type PaymentProvider = {
   id: string;
   label: string;
+};
+
+export type CustomerReturn = {
+  id: string;
+  status: ParcelReturnStatus;
+  statusLabel: string;
+  method: ParcelReturnMethod | null;
+  methodLabel: string | null;
+  returnLocker: { id: string; name: string; address: string } | null;
+  returnCode: string | null;
+  canCancel: boolean;
+  canDeposit: boolean;
 };
 
 export type CustomerParcel = {
@@ -27,6 +41,7 @@ export type CustomerParcel = {
   statusLabel: string;
   recipientName: string | null;
   businessName: string;
+  pickupType: ShipmentPickupType;
   locker: {
     id: string;
     name: string;
@@ -38,6 +53,8 @@ export type CustomerParcel = {
   pickupPin: string | null;
   pickupPayment: PickupPayment | null;
   deliveryStatus: DeliveryStatus | null;
+  canRequestReturn?: boolean;
+  customerReturn?: CustomerReturn | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -229,6 +246,32 @@ export async function markCustomerParcelCollected(parcelId: string) {
   });
 }
 
+export async function requestCustomerReturn(parcelId: string) {
+  return customerFetch<{ parcel: CustomerParcel }>(`/api/customer/parcels/${parcelId}/return`, {
+    method: 'POST',
+  });
+}
+
+export async function cancelCustomerReturn(parcelId: string) {
+  return customerFetch<{ parcel: CustomerParcel }>(
+    `/api/customer/parcels/${parcelId}/return/cancel`,
+    { method: 'POST' },
+  );
+}
+
+export async function confirmCustomerReturnDeposit(
+  parcelId: string,
+  input: { lockerId: string; returnCode: string },
+) {
+  return customerFetch<{ parcel: CustomerParcel }>(
+    `/api/customer/parcels/${parcelId}/return/deposit`,
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    },
+  );
+}
+
 
 export async function fetchCustomerParcels() {
   return customerFetch<{ parcels: CustomerParcel[] }>('/api/customer/parcels');
@@ -323,6 +366,16 @@ export async function completeCourierDropOff(
     timeoutMs: 60_000,
     body: JSON.stringify(input),
   });
+}
+
+export async function completeCourierReturnToBusiness(id: string) {
+  return courierFetch<{ delivery: CourierDelivery }>(
+    `/api/driver/deliveries/${id}/complete-to-business`,
+    {
+      method: 'POST',
+      body: JSON.stringify({}),
+    },
+  );
 }
 
 export async function fetchCourierDropOffProof(id: string) {

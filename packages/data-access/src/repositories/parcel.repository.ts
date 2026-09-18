@@ -4,8 +4,11 @@ import {
   DELIVERY_STATUSES,
   generatePickupPinCode,
   generateTrackingNumber,
-  isCodAllowedForLockerType,
+  isNetworkLockerType,
   normalizeTrackingNumber,
+  PARCEL_RETURN_METHODS,
+  PARCEL_RETURN_STATUSES,
+  PRODUCT_LOCKS,
   requiresSenderAddress,
   transitionParcel,
   usesCompartmentGrid,
@@ -14,6 +17,8 @@ import {
   type LockerType,
   type PackageCategory,
   type PackageSize,
+  type ParcelReturnMethod,
+  type ParcelReturnStatus,
   type ParcelStatus,
   type PaymentResponsibility,
   type ShipmentPickupType,
@@ -43,10 +48,9 @@ import {
   appendParcelEvent,
   resolveEventActor,
 } from './parcel-event.repository.js';
-import { ParcelChargeRepository } from './parcel-charge.repository.js';
 import { ParcelInviteRepository } from './parcel-invite.repository.js';
+import { CommercialRepository } from './commercial.repository.js';
 import { syncParcelLockerRental } from './parcel-rental.js';
-import { PricingRepository } from './pricing.repository.js';
 import { UserRepository } from './user.repository.js';
 
 export type ParcelWithLocker = Parcel & {
@@ -83,12 +87,14 @@ export type BusinessColisListRow = {
   locker: { name: string; address: string } | null;
   latestDeliveryStatus: DeliveryStatus | null;
   latestDeliveryKind: DeliveryKind | null;
+  customerReturn: { status: ParcelReturnStatus; method: ParcelReturnMethod | null } | null;
   createdAt: Date;
 };
 
 export type BusinessParcelDetailRecord = ParcelWithLocker & {
   latestDeliveryStatus: DeliveryStatus | null;
   latestDeliveryKind: DeliveryKind | null;
+  customerReturn: { status: ParcelReturnStatus; method: ParcelReturnMethod | null } | null;
 };
 
 const UUID_RE =
@@ -108,6 +114,14 @@ const LATEST_DELIVERY_KIND_SQL = `(
   LIMIT 1
 )`;
 
+const LATEST_CUSTOMER_RETURN_SQL = `(
+  SELECT json_build_object('status', pr.status, 'method', pr.method)
+  FROM parcel_returns pr
+  WHERE pr.parcel_id = p.id
+  ORDER BY pr.created_at DESC
+  LIMIT 1
+)`;
+
 function parseDeliveryStatus(value: unknown): DeliveryStatus | null {
   if (typeof value !== 'string') return null;
   return (DELIVERY_STATUSES as readonly string[]).includes(value)
@@ -120,12 +134,23 @@ function parseDeliveryKind(value: unknown): DeliveryKind | null {
   return (DELIVERY_KINDS as readonly string[]).includes(value) ? (value as DeliveryKind) : null;
 }
 
-const ACTIVE_PIN_PARCEL_STATUSES: ParcelStatus[] = [
-  'created',
-  'in_transit',
-  'delivered_to_locker',
-  'ready_for_pickup',
-];
+function parseCustomerReturn(
+  value: unknown,
+): { status: ParcelReturnStatus; method: ParcelReturnMethod | null } | null {
+  if (value == null || typeof value !== 'object') return null;
+  const row = value as { status?: unknown; method?: unknown };
+  if (typeof row.status !== 'string') return null;
+  if (!(PARCEL_RETURN_STATUSES as readonly string[]).includes(row.status)) return null;
+  const method =
+    typeof row.method === 'string' &&
+    (PARCEL_RETURN_METHODS as readonly string[]).includes(row.method)
+      ? (row.method as ParcelReturnMethod)
+      : null;
+  return { status: row.status as ParcelReturnStatus, method };
+}
+
+/** Active PINs exist only once the parcel is READY_FOR_PICKUP. */
+const ACTIVE_PIN_PARCEL_STATUSES: ParcelStatus[] = ['ready_for_pickup'];
 
 async function allocateTrackingNumber(db: Queryable): Promise<string> {
   for (let attempt = 0; attempt < 8; attempt++) {
@@ -237,12 +262,12 @@ export class ParcelRepository {
 
     const selectable = await this.lockers.assertSelectable(input.lockerId);
 
-    if (input.paymentResponsibility === 'cod' && !isCodAllowedForLockerType(selectable.type)) {
-      throw new Error('Le COD n’est pas disponible pour les casiers intelligents');
+    if (!isNetworkLockerType(selectable.type)) {
+      throw new Error(PRODUCT_LOCKS.nonSmartLocker);
     }
 
-    if (input.paymentResponsibility === 'cod' && input.codAmountCdf == null && input.codAmountUsd == null) {
-      throw new Error('Montant COD requis (CDF ou USD)');
+    if (input.paymentResponsibility === 'cod') {
+      throw new Error(PRODUCT_LOCKS.codDisabled);
     }
 
     if (usesCompartmentGrid(selectable.type) && !input.compartmentId) {
@@ -275,8 +300,8 @@ export class ParcelRepository {
       input.declaredValueCdf ?? null,
       input.declaredValueUsd ?? null,
       input.paymentResponsibility,
-      input.paymentResponsibility === 'cod' ? (input.codAmountCdf ?? null) : null,
-      input.paymentResponsibility === 'cod' ? (input.codAmountUsd ?? null) : null,
+      null,
+      null,
       input.deliveryFeeAmount ?? null,
       input.deliveryFeeCurrency === 'USD' ? 'USD' : 'CDF',
       input.deliveryDistanceKm ?? null,
@@ -289,7 +314,8 @@ export class ParcelRepository {
       package_size, package_length_cm, package_width_cm, package_height_cm, package_weight_kg,
       package_category, declared_value_cdf, declared_value_usd,
       payment_responsibility, cod_amount_cdf, cod_amount_usd,
-      delivery_fee_amount, delivery_fee_currency, delivery_distance_km, pricing_size_used, status
+      delivery_fee_amount, delivery_fee_currency, delivery_distance_km, pricing_size_used,
+      commercial_model, status
     `;
 
     if (input.compartmentId) {
@@ -320,7 +346,7 @@ export class ParcelRepository {
              ${insertColumns}, compartment_id
            ) VALUES (
              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-             $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, 'created', $27
+             $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, 'canonical', 'created', $27
            )
            RETURNING *`,
           [...shipmentValues, compartment.id],
@@ -345,6 +371,7 @@ export class ParcelRepository {
           compartmentId: compartment.id,
           payload: { lockerId: mapped.lockerId },
         });
+        await this.snapshotCanonicalOutboundCharge(tx, mapped);
         return mapped;
       });
 
@@ -358,7 +385,7 @@ export class ParcelRepository {
            ${insertColumns}
          ) VALUES (
            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-           $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, 'created'
+           $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, 'canonical', 'created'
          )
          RETURNING *`,
         shipmentValues,
@@ -375,10 +402,31 @@ export class ParcelRepository {
           pickupType: mapped.pickupType,
         },
       });
+      await this.snapshotCanonicalOutboundCharge(tx, mapped);
       return mapped;
     });
 
     return this.finalizeCreate(created, input);
+  }
+
+  private async snapshotCanonicalOutboundCharge(
+    tx: Queryable,
+    parcel: {
+      id: string;
+      businessId: string;
+      pickupType: ShipmentPickupType;
+      lockerId: string | null;
+    },
+  ): Promise<void> {
+    if (!parcel.lockerId) {
+      throw new Error('Zone tarifaire introuvable pour ce casier');
+    }
+    await new CommercialRepository(tx).snapshotOutboundCharge(tx, {
+      parcelId: parcel.id,
+      businessId: parcel.businessId,
+      pickupType: parcel.pickupType,
+      lockerId: parcel.lockerId,
+    });
   }
 
   async linkParcelsForUser(userId: string, phone: string): Promise<void> {
@@ -566,7 +614,8 @@ export class ParcelRepository {
               l.name AS locker_name,
               l.address AS locker_address,
               ${LATEST_DELIVERY_STATUS_SQL} AS latest_delivery_status,
-              ${LATEST_DELIVERY_KIND_SQL} AS latest_delivery_kind
+              ${LATEST_DELIVERY_KIND_SQL} AS latest_delivery_kind,
+              ${LATEST_CUSTOMER_RETURN_SQL} AS latest_customer_return
        FROM parcels p
        LEFT JOIN lockers l ON l.id = p.locker_id
        WHERE p.business_id = $1
@@ -589,6 +638,7 @@ export class ParcelRepository {
           : { name: String(row.locker_name), address: String(row.locker_address ?? '') },
       latestDeliveryStatus: parseDeliveryStatus(row.latest_delivery_status),
       latestDeliveryKind: parseDeliveryKind(row.latest_delivery_kind),
+      customerReturn: parseCustomerReturn(row.latest_customer_return),
       createdAt:
         row.created_at instanceof Date ? row.created_at : new Date(String(row.created_at)),
     }));
@@ -608,7 +658,8 @@ export class ParcelRepository {
                    ELSE json_build_object('id', c.id, 'label', c.label, 'size', c.size)
               END AS compartment_json,
               ${LATEST_DELIVERY_STATUS_SQL} AS latest_delivery_status,
-              ${LATEST_DELIVERY_KIND_SQL} AS latest_delivery_kind
+              ${LATEST_DELIVERY_KIND_SQL} AS latest_delivery_kind,
+              ${LATEST_CUSTOMER_RETURN_SQL} AS latest_customer_return
        FROM parcels p
        LEFT JOIN lockers l ON l.id = p.locker_id
        JOIN businesses b ON b.id = p.business_id
@@ -623,6 +674,7 @@ export class ParcelRepository {
       ...this.mapParcelWithRelations(row),
       latestDeliveryStatus: parseDeliveryStatus(row.latest_delivery_status),
       latestDeliveryKind: parseDeliveryKind(row.latest_delivery_kind),
+      customerReturn: parseCustomerReturn(row.latest_customer_return),
     };
   }
 
@@ -748,6 +800,22 @@ export class ParcelRepository {
     if (!row) throw new Error(`Parcel ${id} not found`);
     const parcel = mapParcel(row);
     this.assertWriteAccess(ctx, parcel);
+
+    if (nextStatus === 'delivered_to_locker') {
+      throw new Error(
+        'Le dépôt au casier se confirme par l’opération de dépôt, pas par un changement de statut manuel',
+      );
+    }
+    if (nextStatus === 'ready_for_pickup') {
+      return this.prepareCollection(ctx, id);
+    }
+    if (nextStatus === 'collected') {
+      return this.collectParcel(ctx, id);
+    }
+    if (parcel.pickupType === 'merchant_dropoff' && nextStatus === 'in_transit') {
+      throw new Error('Un dépôt marchand ne passe pas en transit Eveider');
+    }
+
     const status = transitionParcel(parcel.status, nextStatus);
     const actor = resolveEventActor(ctx);
     const isAdminOverride = ctx.role === 'admin';
@@ -756,10 +824,6 @@ export class ParcelRepository {
       const result = await tx.query(
         `UPDATE parcels
          SET status = $1,
-             ready_for_pickup_at = CASE
-               WHEN $1 = 'ready_for_pickup' AND ready_for_pickup_at IS NULL THEN NOW()
-               ELSE ready_for_pickup_at
-             END,
              updated_at = NOW()
          WHERE id = $2
          RETURNING *`,
@@ -774,20 +838,6 @@ export class ParcelRepository {
         newParcelStatus: status,
         payload: isAdminOverride ? { reason: 'admin_override' } : {},
       });
-
-      if (nextStatus === 'ready_for_pickup') {
-        const pinIssued = await this.ensurePickupPin(id, tx);
-        if (pinIssued) {
-          await appendParcelEvent(tx, {
-            parcelId: id,
-            eventType: 'pickup_pin.issued',
-            actor,
-            newParcelStatus: status,
-            payload: { issued: true },
-          });
-        }
-      }
-
       return mapped;
     });
 
@@ -796,10 +846,96 @@ export class ParcelRepository {
     return updated;
   }
 
+  /**
+   * AT_POINT → READY_FOR_PICKUP. Idempotent: a second call reuses the PIN
+   * and does not duplicate status events or the ready notification.
+   */
+  async prepareCollection(ctx: DataAccessContext, id: string): Promise<Parcel> {
+    assertAdmin(ctx);
+    const existing = await this.db.query(`SELECT * FROM parcels WHERE id = $1 LIMIT 1`, [id]);
+    const row = existing.rows[0];
+    if (!row) throw new Error(`Parcel ${id} not found`);
+    const parcel = mapParcel(row);
+    this.assertWriteAccess(ctx, parcel);
+
+    if (parcel.status === 'ready_for_pickup') {
+      await this.ensurePickupPin(id);
+      return parcel;
+    }
+
+    if (parcel.status !== 'delivered_to_locker') {
+      throw new Error('Le colis doit être arrivé au casier avant la préparation du retrait');
+    }
+
+    const status = transitionParcel(parcel.status, 'ready_for_pickup');
+    const actor = resolveEventActor(ctx);
+
+    const updated = await withTransaction(async (tx) => {
+      const result = await tx.query(
+        `UPDATE parcels
+         SET status = $1,
+             ready_for_pickup_at = CASE
+               WHEN ready_for_pickup_at IS NULL THEN NOW()
+               ELSE ready_for_pickup_at
+             END,
+             updated_at = NOW()
+         WHERE id = $2
+         RETURNING *`,
+        [status, id],
+      );
+      const mapped = mapParcel(result.rows[0]!);
+      await appendParcelEvent(tx, {
+        parcelId: id,
+        eventType: 'parcel.status_changed',
+        actor,
+        previousParcelStatus: parcel.status,
+        newParcelStatus: status,
+        payload: { reason: 'collection_prepared' },
+      });
+      const pinIssued = await this.ensurePickupPin(id, tx);
+      if (pinIssued) {
+        await appendParcelEvent(tx, {
+          parcelId: id,
+          eventType: 'pickup_pin.issued',
+          actor,
+          newParcelStatus: status,
+          payload: { issued: true },
+        });
+      }
+      return mapped;
+    });
+
+    await this.notifications.notifyParcelStatusChange(id, 'ready_for_pickup');
+    return updated;
+  }
+
+  /**
+   * READY → COLLECTED for Eveider Ops. Releases the compartment and consumes the PIN.
+   * Direct jumps from earlier statuses are rejected.
+   */
+  async collectParcel(ctx: DataAccessContext, id: string): Promise<Parcel> {
+    assertAdmin(ctx);
+    const existing = await this.loadParcelWithRelations(id);
+    if (!existing) throw new Error(`Parcel ${id} not found`);
+    this.assertWriteAccess(ctx, existing);
+
+    if (existing.status === 'collected') {
+      return existing;
+    }
+    if (existing.status !== 'ready_for_pickup') {
+      throw new Error('Un colis ne peut être marqué retiré que lorsqu’il est prêt pour retrait');
+    }
+
+    await this.applyCollection(ctx, existing);
+    const updated = await this.loadParcelWithRelations(id);
+    if (!updated) throw new Error(`Parcel ${id} not found`);
+    return updated;
+  }
+
   async assignLockerByCustomer(
     ctx: DataAccessContext,
     parcelId: string,
-    lockerId: string,
+    _lockerId: string,
   ): Promise<CustomerParcel> {
     assertCustomerRole(ctx);
 
@@ -809,25 +945,7 @@ export class ParcelRepository {
     }
 
     this.assertReadAccess(ctx, parcel);
-
-    if (parcel.status !== 'created') {
-      throw new Error('Le point ne peut plus être modifié à ce stade');
-    }
-
-    if (parcel.lockerId) {
-      throw new Error('Un point a déjà été choisi pour ce colis');
-    }
-
-    await this.lockers.assertSelectable(lockerId);
-
-    await this.db.query(
-      `UPDATE parcels SET locker_id = $1, updated_at = NOW() WHERE id = $2`,
-      [lockerId, parcelId],
-    );
-
-    const updated = await this.loadCustomerParcel(parcelId);
-    if (!updated) throw new Error(`Parcel ${parcelId} not found`);
-    return updated;
+    throw new Error(PRODUCT_LOCKS.customerLockerReselect);
   }
 
   async markCollectedByCustomer(ctx: DataAccessContext, parcelId: string): Promise<CustomerParcel> {
@@ -840,54 +958,14 @@ export class ParcelRepository {
 
     this.assertReadAccess(ctx, parcel);
 
+    if (parcel.status === 'collected') {
+      return parcel;
+    }
     if (parcel.status !== 'ready_for_pickup') {
       throw new Error('Ce colis n’est pas prêt au retrait');
     }
 
-    const status = transitionParcel(parcel.status, 'collected');
-    const actor = resolveEventActor(ctx);
-    const collectedAt = new Date();
-
-    await withTransaction(async (tx) => {
-      await tx.query(`UPDATE parcels SET status = $1, updated_at = NOW() WHERE id = $2`, [
-        status,
-        parcelId,
-      ]);
-      await appendParcelEvent(tx, {
-        parcelId,
-        eventType: 'parcel.status_changed',
-        actor,
-        previousParcelStatus: parcel.status,
-        newParcelStatus: status,
-      });
-
-      if (parcel.compartment?.id) {
-        await tx.query(
-          `UPDATE compartments SET status = 'available', updated_at = NOW() WHERE id = $1`,
-          [parcel.compartment.id],
-        );
-        await appendParcelEvent(tx, {
-          parcelId,
-          eventType: 'compartment.released',
-          actor,
-          compartmentId: parcel.compartment.id,
-          previousParcelStatus: parcel.status,
-          newParcelStatus: status,
-        });
-      }
-
-      await syncParcelLockerRental(tx, {
-        parcelId,
-        businessId: parcel.businessId,
-        readyForPickupAt: parcel.readyForPickupAt,
-        endAt: collectedAt,
-        lockerType: (parcel.locker?.type as LockerType | undefined) ?? null,
-        compartmentId: parcel.compartment?.id ?? parcel.compartmentId,
-        finalize: true,
-      });
-    });
-
-    await this.notifications.notifyParcelStatusChange(parcelId, status);
+    await this.applyCollection(ctx, parcel);
 
     const updated = await this.loadCustomerParcel(parcelId);
     if (!updated) throw new Error(`Parcel ${parcelId} not found`);
@@ -896,8 +974,8 @@ export class ParcelRepository {
 
   /**
    * Business confirms merchant drop-off at the destination locker.
-   * Advances created → delivered_to_locker → ready_for_pickup without a courier delivery,
-   * and locks the drop-off fee charge.
+   * Advances created → delivered_to_locker (AT_POINT). Does not notify the
+   * recipient and does not issue a PIN — collection preparation is a later hop.
    */
   async confirmMerchantDeposit(
     ctx: DataAccessContext,
@@ -916,6 +994,9 @@ export class ParcelRepository {
 
     if (existing.pickupType !== 'merchant_dropoff') {
       throw new Error('Ce colis n’est pas en dépôt marchand');
+    }
+    if (existing.status === 'delivered_to_locker') {
+      return existing;
     }
     if (existing.status !== 'created') {
       throw new Error('Le dépôt n’est possible qu’avant l’arrivée au point');
@@ -952,10 +1033,7 @@ export class ParcelRepository {
       compartment = mapped;
     }
 
-    const pricing = new PricingRepository(this.db);
-    const rules = await pricing.getDeliveryRules();
     const actor = resolveEventActor(ctx);
-    const readyAt = new Date();
 
     await withTransaction(async (tx) => {
       if (compartment) {
@@ -967,22 +1045,11 @@ export class ParcelRepository {
 
       await tx.query(
         `UPDATE parcels
-         SET status = 'ready_for_pickup',
+         SET status = 'delivered_to_locker',
              compartment_id = COALESCE($1, compartment_id),
-             ready_for_pickup_at = $2,
-             delivery_fee_amount = $3,
-             delivery_fee_currency = $4,
-             delivery_distance_km = 0,
-             pricing_size_used = NULL,
              updated_at = NOW()
-         WHERE id = $5`,
-        [
-          compartment?.id ?? null,
-          readyAt,
-          rules.dropOffFeeAmount,
-          rules.currency,
-          parcelId,
-        ],
+         WHERE id = $2`,
+        [compartment?.id ?? null, parcelId],
       );
 
       await appendParcelEvent(tx, {
@@ -992,15 +1059,6 @@ export class ParcelRepository {
         actor,
         previousParcelStatus: 'created',
         newParcelStatus: 'delivered_to_locker',
-        payload: { reason: 'merchant_deposit' },
-      });
-      await appendParcelEvent(tx, {
-        parcelId,
-        compartmentId: compartment?.id,
-        eventType: 'parcel.status_changed',
-        actor,
-        previousParcelStatus: 'delivered_to_locker',
-        newParcelStatus: 'ready_for_pickup',
         payload: { reason: 'merchant_deposit' },
       });
 
@@ -1017,32 +1075,74 @@ export class ParcelRepository {
           },
         });
       }
-
-      const pinIssued = await this.ensurePickupPin(parcelId, tx);
-      if (pinIssued) {
-        await appendParcelEvent(tx, {
-          parcelId,
-          eventType: 'pickup_pin.issued',
-          actor,
-          newParcelStatus: 'ready_for_pickup',
-          payload: { issued: true, reason: 'merchant_deposit' },
-        });
-      }
-
-      const charges = new ParcelChargeRepository(tx);
-      await charges.recordDropOffFee(tx, {
-        parcelId,
-        businessId: existing.businessId,
-        amount: rules.dropOffFeeAmount,
-        currency: rules.currency,
-      });
     });
-
-    await this.notifications.notifyParcelStatusChange(parcelId, 'ready_for_pickup');
 
     const updated = await this.loadParcelWithRelations(parcelId);
     if (!updated) throw new Error(`Parcel ${parcelId} not found`);
     return updated;
+  }
+
+  private async applyCollection(
+    ctx: DataAccessContext,
+    parcel: {
+      id: string;
+      status: ParcelStatus;
+      businessId: string;
+      readyForPickupAt: Date | null;
+      compartmentId: string | null;
+      locker?: { type?: string } | null;
+      compartment?: { id: string } | null;
+    },
+  ): Promise<void> {
+    const status = transitionParcel(parcel.status, 'collected');
+    const actor = resolveEventActor(ctx);
+    const collectedAt = new Date();
+    const compartmentId = parcel.compartment?.id ?? parcel.compartmentId;
+
+    await new CommercialRepository(this.db).assertRecipientCollectionAuthorized(parcel.id);
+
+    await withTransaction(async (tx) => {
+      await tx.query(`UPDATE parcels SET status = $1, updated_at = NOW() WHERE id = $2`, [
+        status,
+        parcel.id,
+      ]);
+      await appendParcelEvent(tx, {
+        parcelId: parcel.id,
+        eventType: 'parcel.status_changed',
+        actor,
+        previousParcelStatus: parcel.status,
+        newParcelStatus: status,
+      });
+
+      if (compartmentId) {
+        await tx.query(
+          `UPDATE compartments SET status = 'available', updated_at = NOW() WHERE id = $1`,
+          [compartmentId],
+        );
+        await appendParcelEvent(tx, {
+          parcelId: parcel.id,
+          eventType: 'compartment.released',
+          actor,
+          compartmentId,
+          previousParcelStatus: parcel.status,
+          newParcelStatus: status,
+        });
+      }
+
+      await tx.query(`DELETE FROM pickup_pins WHERE parcel_id = $1`, [parcel.id]);
+
+      await syncParcelLockerRental(tx, {
+        parcelId: parcel.id,
+        businessId: parcel.businessId,
+        readyForPickupAt: parcel.readyForPickupAt,
+        endAt: collectedAt,
+        lockerType: (parcel.locker?.type as LockerType | undefined) ?? null,
+        compartmentId,
+        finalize: true,
+      });
+    });
+
+    await this.notifications.notifyParcelStatusChange(parcel.id, status);
   }
 
   private async loadParcelWithRelations(id: string): Promise<ParcelWithLocker | null> {

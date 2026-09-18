@@ -25,14 +25,16 @@ test.describe('Driver service areas', () => {
     await expect(page.getByLabel('Zone de service')).toHaveValue(/.+/);
   });
 
-  test('org chauffeur list shows zone column', async ({ page }) => {
+  test('org chauffeur list is locked', async ({ page }) => {
     await signIn(page, 'boutique.lubum@eveider.cd');
     await page.goto('/organisation/tableau-de-bord/chauffeurs');
     await dismissCookieBanner(page);
 
     await expect(page.getByRole('heading', { name: 'Chauffeurs', level: 1 })).toBeVisible();
-    await expect(page.getByRole('columnheader', { name: 'Zone' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Jean-Pierre Tshibanda' })).toBeVisible();
-    await expect(page.getByRole('cell', { name: 'Lubumbashi' }).first()).toBeVisible();
+    await expect(
+      page.getByText('La gestion des chauffeurs n’est plus disponible pour l’entreprise.'),
+    ).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Zone' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Jean-Pierre Tshibanda' })).toHaveCount(0);
   });
 });

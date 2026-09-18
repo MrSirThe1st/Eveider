@@ -16,6 +16,7 @@ export {
 } from './repositories/business-onboarding.repository.js';
 export { DeliveryRepository, type CourierAdminDetail, type CourierHistorySummary } from './repositories/delivery.repository.js';
 export { ParcelRepository } from './repositories/parcel.repository.js';
+export { ParcelReturnRepository } from './repositories/parcel-return.repository.js';
 export { UserRepository } from './repositories/user.repository.js';
 export { IssueRepository, type IssueWithRelations } from './repositories/issue.repository.js';
 export { NotificationRepository, type CustomerNotification } from './repositories/notification.repository.js';
@@ -27,6 +28,7 @@ export {
   type PublicNetworkStats,
 } from './repositories/stats.repository.js';
 export { PricingRepository, toDeliveryPricingRules } from './repositories/pricing.repository.js';
+export { CommercialRepository } from './repositories/commercial.repository.js';
 export {
   ParcelChargeRepository,
   quoteForPickupType,
@@ -78,6 +80,11 @@ export {
   apiKeyLooksValid,
 } from './org-api/secrets.js';
 export {
+  parseLockerApiTokens,
+  resolveLockerIdForApiToken,
+  LOCKER_API_TOKEN_ENV,
+} from './locker-api/auth.js';
+export {
   isAllowedNotificationUrl,
   buildOrganizationNotificationPayload,
   deliverSignedNotification,
@@ -89,8 +96,10 @@ import { BusinessRepository } from './repositories/business.repository.js';
 import { BusinessOnboardingRepository } from './repositories/business-onboarding.repository.js';
 import { DeliveryRepository } from './repositories/delivery.repository.js';
 import { LockerRepository } from './repositories/locker.repository.js';
+import { LockerActionRepository } from './repositories/locker-action.repository.js';
 import { ServiceAreaRepository } from './repositories/service-area.repository.js';
 import { ParcelRepository } from './repositories/parcel.repository.js';
+import { ParcelReturnRepository } from './repositories/parcel-return.repository.js';
 import { ParcelEventRepository } from './repositories/parcel-event.repository.js';
 import { OrganizationApiRepository } from './repositories/organization-api.repository.js';
 import { IssueRepository } from './repositories/issue.repository.js';
@@ -101,6 +110,7 @@ import { TeamInviteRepository } from './repositories/team-invite.repository.js';
 import { OrganizationMembershipRepository } from './repositories/organization-membership.repository.js';
 import { PaymentRepository } from './payments/payment.repository.js';
 import { PricingRepository } from './repositories/pricing.repository.js';
+import { CommercialRepository } from './repositories/commercial.repository.js';
 import { ParcelChargeRepository } from './repositories/parcel-charge.repository.js';
 import { LockerSettingsRepository } from './repositories/locker-settings.repository.js';
 import { PlatformSettingsRepository } from './repositories/platform-settings.repository.js';
@@ -122,11 +132,13 @@ export function createRepositories() {
   const payments = new PaymentRepository(db);
   const pricing = new PricingRepository(db);
   const parcelCharges = new ParcelChargeRepository(db);
+  const commercial = new CommercialRepository(db);
   const lockerSettings = new LockerSettingsRepository(db);
   const platformSettings = new PlatformSettingsRepository(db);
   const platformStaff = new PlatformStaffRepository(db, users);
   const deliveries = new DeliveryRepository(db, notifications);
   const parcelEvents = new ParcelEventRepository(db);
+  const parcelReturns = new ParcelReturnRepository(db);
   const organizationApi = new OrganizationApiRepository(db);
   const serviceAreas = new ServiceAreaRepository(db);
 
@@ -137,9 +149,11 @@ export function createRepositories() {
     businessOnboarding,
     parcels: new ParcelRepository(db, notifications, invites, users),
     parcelEvents,
+    parcelReturns,
     organizationApi,
     deliveries,
     lockers: new LockerRepository(db, notifications),
+    lockerActions: new LockerActionRepository(db),
     serviceAreas,
     lockerSettings,
     platformSettings,
@@ -152,6 +166,7 @@ export function createRepositories() {
     payments,
     pricing,
     parcelCharges,
+    commercial,
     stats: new StatsRepository(db),
     onboarding: new OnboardingService(users, businesses, memberships, db),
     accounts: new AccountService(users, courierDossiers, deliveries, notifications, memberships),

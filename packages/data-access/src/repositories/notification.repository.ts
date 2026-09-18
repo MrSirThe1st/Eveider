@@ -16,7 +16,6 @@ export type CustomerNotification = Notification & {
 
 const CUSTOMER_NOTIFY_STATUSES: ParcelStatus[] = [
   'in_transit',
-  'delivered_to_locker',
   'ready_for_pickup',
   'collected',
 ];
@@ -37,7 +36,7 @@ export class NotificationRepository {
     );
     if (!parcel.rows[0]) return;
 
-    const message = `${businessName} vous a envoyé un colis prêt pour retrait.`;
+    const message = `${businessName} vous a envoyé un colis.`;
 
     const duplicate = await this.db.query(`SELECT id FROM notifications WHERE user_id = $1 AND parcel_id = $2 AND message = $3 AND channel = 'in_app' LIMIT 1`, [userId, parcelId, message]);
     if (!duplicate.rows[0]) await this.db.query(`INSERT INTO notifications (user_id, parcel_id, channel, message) VALUES ($1, $2, 'in_app', $3)`, [userId, parcelId, message]);

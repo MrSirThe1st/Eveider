@@ -62,6 +62,36 @@ const LOCATION_STYLES: Record<
     dot: '#98A2B3',
     border: '#E2E8E0',
   },
+  customer_return_requested: {
+    bg: '#E8F1FB',
+    color: '#175CD3',
+    dot: '#2E90FA',
+    border: '#B2DDFF',
+  },
+  customer_return_authorized: {
+    bg: '#E8F1FB',
+    color: '#175CD3',
+    dot: '#2E90FA',
+    border: '#B2DDFF',
+  },
+  customer_return_at_locker: {
+    bg: '#FFF3D6',
+    color: '#B54708',
+    dot: '#F79009',
+    border: '#FEDF89',
+  },
+  customer_return_in_transit: {
+    bg: '#E8F1FB',
+    color: '#175CD3',
+    dot: '#2E90FA',
+    border: '#B2DDFF',
+  },
+  customer_return_completed: {
+    bg: '#F0F4EE',
+    color: '#475467',
+    dot: '#98A2B3',
+    border: '#E2E8E0',
+  },
 };
 
 export function BusinessParcelLocationBadge({ location }: BusinessParcelLocationBadgeProps) {

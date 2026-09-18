@@ -114,6 +114,9 @@ export const fr = {
     delivered_to_locker: 'Au point',
     ready_for_pickup: 'Prêt à récupérer',
     collected: 'Livré',
+    return_at_point: 'Retour au casier',
+    returning: 'Retour en cours',
+    returned: 'Retourné',
   },
   journey: {
     received: 'Reçu',

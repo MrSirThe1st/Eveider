@@ -1,4 +1,5 @@
 import type { ParcelStatus } from '@eveider/domain';
+import { CommercialRepository } from '../repositories/commercial.repository.js';
 import type { Queryable } from '../db/index.js';
 import { buildParcelPickupLink } from '../invitations/invite-links.js';
 import { appendParcelEventSafe } from '../repositories/parcel-event.repository.js';
@@ -6,6 +7,11 @@ import { getWhatsAppConfig } from './whatsapp-config.js';
 import { sendWhatsAppTemplate } from './whatsapp-client.js';
 
 const WHATSAPP_STATUSES: ParcelStatus[] = ['in_transit', 'ready_for_pickup'];
+
+async function shouldHideCollectionPin(db: Queryable, parcelId: string): Promise<boolean> {
+  const decision = await new CommercialRepository(db).evaluateRecipientCollection(parcelId);
+  return !decision.pinAuthorized;
+}
 
 /**
  * Sends the customer WhatsApp template for parcel lifecycle events.
@@ -64,10 +70,13 @@ export async function sendParcelStatusWhatsApp(
     phone: String(parcel.recipient_phone),
   });
 
+  const hidePin = await shouldHideCollectionPin(db, parcelId);
+  const pinForMessage = hidePin ? pickupLink : pickupPin || pickupLink;
+
   const bodyParams =
     newStatus === 'in_transit'
       ? [customerName, trackingNumber, businessName, lockerLabel]
-      : [customerName, trackingNumber, lockerLabel, pickupPin || pickupLink];
+      : [customerName, trackingNumber, lockerLabel, pinForMessage];
 
   const result = await sendWhatsAppTemplate({
     to: String(parcel.recipient_phone),

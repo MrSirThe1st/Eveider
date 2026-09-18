@@ -5,6 +5,7 @@ import {
   canTransitionCompartment,
   canTransitionLocker,
   isLockerSelectable,
+  isNetworkLockerType,
   lockerAvailableLabel,
   lockerNetworkCapacity,
   lockerNetworkLabel,
@@ -35,6 +36,12 @@ describe('locker status', () => {
     expect(isLockerSelectable('active')).toBe(true);
     expect(isLockerSelectable('offline')).toBe(false);
     expect(isLockerSelectable('archived')).toBe(false);
+  });
+
+  it('treats only smart lockers as network destinations', () => {
+    expect(isNetworkLockerType('SMART_LOCKER')).toBe(true);
+    expect(isNetworkLockerType('PARTNER_POINT')).toBe(false);
+    expect(isNetworkLockerType('RESIDENTIAL_LOCKER')).toBe(false);
   });
 
   it('supports archiving and restoring lockers', () => {

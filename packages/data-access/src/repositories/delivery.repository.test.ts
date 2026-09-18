@@ -108,67 +108,20 @@ describe('DeliveryRepository', () => {
       'EVD26TEST0001A',
       'EVEIDER GOMBE',
     );
-  });
-
-  it('lets a business assign its own active courier', async () => {
-    setup((sql) => {
-      if (sqlIncludes(sql, 'SELECT * FROM parcels')) {
-        return parcelRow({ pickup_type: 'courier_pickup' });
-      }
-      if (sqlIncludes(sql, 'SELECT * FROM users')) {
-        return {
-          id: 'courier-1',
-          role: 'courier',
-          business_id: 'biz-1',
-          is_blocked: false,
-          deactivated_at: null,
-          deleted_at: null,
-        };
-      }
-      if (sqlIncludes(sql, 'FROM driver_dossiers')) {
-        return { status: 'active', business_id: 'biz-1' };
-      }
-      if (sqlIncludes(sql, 'FROM deliveries') && sqlIncludes(sql, 'status = ANY')) {
-        return null;
-      }
-      if (sqlIncludes(sql, 'INSERT INTO deliveries')) {
-        return deliveryRow();
-      }
-      if (sqlIncludes(sql, 'SELECT name FROM lockers')) {
-        return { name: 'EVEIDER GOMBE' };
-      }
-      throw new Error(`Unexpected SQL: ${sql}`);
-    });
-
-    await repo.assign(businessCtx, 'parcel-1', 'courier-1');
-    expect(db.query).toHaveBeenCalledWith(
-      expect.stringContaining('INSERT INTO deliveries'),
-      ['parcel-1', 'courier-1', 'outbound'],
+    expect(db.query).not.toHaveBeenCalledWith(
+      expect.stringMatching(/UPDATE parcels\s+SET status/),
+      expect.anything(),
     );
   });
 
-  it('rejects assigning another company’s courier', async () => {
-    setup((sql) => {
-      if (sqlIncludes(sql, 'SELECT * FROM parcels')) {
-        return parcelRow({ pickup_type: 'courier_pickup' });
-      }
-      if (sqlIncludes(sql, 'FROM deliveries') && sqlIncludes(sql, 'status = ANY')) {
-        return null;
-      }
-      if (sqlIncludes(sql, 'SELECT * FROM users')) {
-        return {
-          id: 'courier-2',
-          role: 'courier',
-          business_id: 'biz-other',
-          is_blocked: false,
-          deactivated_at: null,
-          deleted_at: null,
-        };
-      }
-      throw new Error(`Unexpected SQL: ${sql}`);
+  it('rejects business assignment of any driver', async () => {
+    setup(() => {
+      throw new Error('Unexpected SQL');
     });
 
-    await expect(repo.assign(businessCtx, 'parcel-1', 'courier-2')).rejects.toThrow('périmètre');
+    await expect(repo.assign(businessCtx, 'parcel-1', 'courier-1')).rejects.toThrow(
+      'Eveider Operations',
+    );
   });
 
   it('rejects assign when active delivery exists', async () => {
@@ -217,12 +170,12 @@ describe('DeliveryRepository', () => {
       throw new Error(`Unexpected SQL: ${sql}`);
     });
 
-    await expect(repo.assign(businessCtx, 'parcel-1', 'courier-1')).rejects.toThrow(
+    await expect(repo.assign(adminCtx, 'parcel-1', 'courier-1')).rejects.toThrow(
       'pas encore approuvé',
     );
   });
 
-  it('allows assigning a business driver whose documents are still on file', async () => {
+  it('rejects assigning a business contractor as an Eveider driver', async () => {
     setup((sql) => {
       if (sqlIncludes(sql, 'SELECT * FROM parcels')) {
         return parcelRow({ pickup_type: 'courier_pickup' });
@@ -234,26 +187,20 @@ describe('DeliveryRepository', () => {
         return {
           id: 'courier-1',
           role: 'courier',
-          business_id: 'biz-1',
           is_blocked: false,
           deactivated_at: null,
           deleted_at: null,
         };
       }
       if (sqlIncludes(sql, 'FROM driver_dossiers')) {
-        return { status: 'pending_review', business_id: 'biz-1', contractor_type: 'business' };
-      }
-      if (sqlIncludes(sql, 'INSERT INTO deliveries')) {
-        return deliveryRow();
-      }
-      if (sqlIncludes(sql, 'SELECT name FROM lockers')) {
-        return { name: 'EVEIDER GOMBE' };
+        return { status: 'active', business_id: 'biz-1', contractor_type: 'business' };
       }
       throw new Error(`Unexpected SQL: ${sql}`);
     });
 
-    const delivery = await repo.assign(businessCtx, 'parcel-1', 'courier-1');
-    expect(delivery.status).toBe('assigned');
+    await expect(repo.assign(adminCtx, 'parcel-1', 'courier-1')).rejects.toThrow(
+      'chauffeurs Eveider',
+    );
   });
 
   it('scans parcel with matching reference', async () => {
@@ -273,7 +220,7 @@ describe('DeliveryRepository', () => {
         return null;
       }
       if (sqlIncludes(sql, 'SELECT * FROM parcels')) {
-        return parcelRow({ status: 'created' });
+        return parcelRow({ status: 'created', pickup_type: 'courier_pickup' });
       }
       if (sqlIncludes(sql, 'UPDATE parcels SET status')) {
         return parcelRow({ status: 'in_transit' });
@@ -386,7 +333,7 @@ describe('DeliveryRepository', () => {
         }
         return courierDeliveryJoin(
           { status: 'completed', completed_at: new Date() },
-          { status: 'ready_for_pickup', compartment_id: 'comp-1' },
+          { status: 'delivered_to_locker', compartment_id: 'comp-1' },
         );
       }
       if (sqlIncludes(sql, 'FROM compartments') && sqlIncludes(sql, "status = 'available'")) {
@@ -416,8 +363,8 @@ describe('DeliveryRepository', () => {
 
     await repo.completeDropOff(courierCtx, 'delivery-1', undefined, jpegPhoto);
 
-    expect(writes).toEqual(['delivery', 'compartment', 'parcel', 'pin']);
-    expect(notifyParcelStatusChange).toHaveBeenCalledWith('parcel-1', 'ready_for_pickup');
+    expect(writes).toEqual(['delivery', 'compartment', 'parcel']);
+    expect(notifyParcelStatusChange).not.toHaveBeenCalled();
     expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('drop_off_photo'),
       expect.arrayContaining(['completed', expect.stringContaining('data:image/jpeg;base64,'), 'delivery-1']),
@@ -428,43 +375,55 @@ describe('DeliveryRepository', () => {
     );
     expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('UPDATE parcels'),
-      expect.arrayContaining(['ready_for_pickup', 'comp-1', 'parcel-1']),
+      expect.arrayContaining(['delivered_to_locker', 'comp-1', 'parcel-1']),
     );
   });
 
-  it('assigns a return leg when the parcel is at the locker', async () => {
+  it('confirms locker outbound deposit from assigned without photo or READY', async () => {
+    const writes: string[] = [];
     setup((sql) => {
-      if (sqlIncludes(sql, 'SELECT * FROM parcels')) {
-        return parcelRow({ status: 'ready_for_pickup', compartment_id: 'comp-1' });
+      if (sqlIncludes(sql, 'FROM deliveries d') && sqlIncludes(sql, 'JOIN parcels')) {
+        return courierDeliveryJoin(
+          { status: 'assigned', kind: 'outbound' },
+          { status: 'in_transit', pickup_type: 'courier_pickup', locker_id: 'locker-1' },
+        );
       }
-      if (sqlIncludes(sql, 'FROM deliveries') && sqlIncludes(sql, 'status = ANY')) {
+      if (sqlIncludes(sql, 'FROM compartments WHERE id')) {
+        return compartmentRow({ id: 'comp-1', status: 'reserved' });
+      }
+      if (sqlIncludes(sql, 'UPDATE deliveries')) {
+        writes.push('delivery');
         return null;
       }
-      if (sqlIncludes(sql, "kind = 'outbound'")) {
-        return { '?column?': 1 };
-      }
-      if (sqlIncludes(sql, "kind = 'return'")) {
+      if (sqlIncludes(sql, 'UPDATE compartments SET status')) {
+        writes.push('compartment');
         return null;
       }
-      if (sqlIncludes(sql, 'SELECT * FROM users')) {
-        return { id: 'courier-1', role: 'courier' };
+      if (sqlIncludes(sql, 'UPDATE parcels') && sqlIncludes(sql, 'SET status')) {
+        writes.push('parcel');
+        return null;
       }
-      if (sqlIncludes(sql, 'FROM driver_dossiers')) {
-        return { status: 'active', business_id: null };
-      }
-      if (sqlIncludes(sql, 'INSERT INTO deliveries')) {
-        return deliveryRow({ kind: 'return' });
-      }
-      if (sqlIncludes(sql, 'SELECT name FROM lockers')) {
-        return { name: 'EVEIDER GOMBE' };
+      if (sqlIncludes(sql, 'INSERT INTO pickup_pins')) {
+        writes.push('pin');
+        return null;
       }
       throw new Error(`Unexpected SQL: ${sql}`);
     });
 
-    await repo.assign(adminCtx, 'parcel-1', 'courier-1', 'return');
-    expect(db.query).toHaveBeenCalledWith(
-      expect.stringContaining('INSERT INTO deliveries'),
-      ['parcel-1', 'courier-1', 'return'],
+    await repo.confirmLockerOutboundDeposit(adminCtx, {
+      deliveryId: 'delivery-1',
+      compartmentId: 'comp-1',
+    });
+
+    expect(writes).toEqual(['delivery', 'compartment', 'parcel']);
+    expect(notifyParcelStatusChange).not.toHaveBeenCalled();
+  });
+
+  it('does not create new RTS return legs', async () => {
+    setup(() => null);
+
+    await expect(repo.assign(adminCtx, 'parcel-1', 'courier-1', 'return')).rejects.toThrow(
+      'ne sont plus disponibles',
     );
   });
 
@@ -570,5 +529,69 @@ describe('DeliveryRepository', () => {
       failed: 2,
       successRate: 80,
     });
+  });
+
+  it('assigns a customer_return livraison for an Eveider driver', async () => {
+    setup((sql) => {
+      if (sqlIncludes(sql, 'FROM parcel_returns pr') && sqlIncludes(sql, 'status = ANY')) {
+        return {
+          id: 'return-1',
+          parcel_id: 'parcel-1',
+          business_id: 'biz-1',
+          status: 'awaiting_pickup',
+          method: 'eveider_return',
+          return_locker_id: 'locker-1',
+          compartment_id: 'comp-1',
+          return_code: '123456',
+          requested_at: new Date(),
+          authorized_at: new Date(),
+          deposited_at: new Date(),
+          completed_at: null,
+          created_at: new Date(),
+          updated_at: new Date(),
+          return_locker_json: { id: 'locker-1', name: 'Gombe', address: 'Ave 1' },
+          compartment_label: 'A1',
+        };
+      }
+      if (sqlIncludes(sql, 'FROM parcels WHERE id')) {
+        return parcelRow({ status: 'return_at_point', pickup_type: 'courier_pickup' });
+      }
+      if (sqlIncludes(sql, 'FROM deliveries') && sqlIncludes(sql, 'status = ANY')) {
+        return null;
+      }
+      if (sqlIncludes(sql, 'SELECT * FROM users')) {
+        return { id: 'courier-1', role: 'courier' };
+      }
+      if (sqlIncludes(sql, 'FROM driver_dossiers')) {
+        return { status: 'active', business_id: null, contractor_type: 'eveider' };
+      }
+      if (sqlIncludes(sql, 'INSERT INTO deliveries')) {
+        return deliveryRow({ kind: 'customer_return' });
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const delivery = await repo.assign(adminCtx, 'parcel-1', 'courier-1', 'customer_return');
+    expect(delivery.kind).toBe('customer_return');
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining("VALUES ($1, $2, 'assigned', 'customer_return')"),
+      ['parcel-1', 'courier-1'],
+    );
+  });
+
+  it('refuses locker drop-off pending for a customer_return livraison', async () => {
+    setup((sql) => {
+      if (sqlIncludes(sql, 'FROM deliveries d') && sqlIncludes(sql, 'JOIN parcels')) {
+        return courierDeliveryJoin(
+          { status: 'scanned', kind: 'customer_return' },
+          { status: 'returning' },
+        );
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    await expect(repo.markDropOffPending(courierCtx, 'delivery-1')).rejects.toThrow(
+      'chez le marchand',
+    );
   });
 });

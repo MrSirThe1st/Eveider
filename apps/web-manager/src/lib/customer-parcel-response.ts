@@ -1,11 +1,21 @@
 import type { CustomerParcel } from '@eveider/data-access';
 import { createRepositories } from '@eveider/data-access';
 import { toCustomerParcelDto, type CustomerParcelDto } from '@/lib/customer-parcel-presenter';
+import { toParcelReturnView } from '@/lib/parcel-return-presenter';
 
 export async function buildCustomerParcelDto(parcel: CustomerParcel): Promise<CustomerParcelDto> {
-  const { payments } = createRepositories();
-  const pickupPayment = await payments.getPickupPaymentSummary(parcel.id);
-  const pickupPaid = await payments.hasCompletedPickupPayment(parcel.id);
+  const { payments, parcelReturns, commercial } = createRepositories();
+  const [pickupPayment, decision, customerReturn] = await Promise.all([
+    payments.getPickupPaymentSummary(parcel.id),
+    commercial.evaluateRecipientCollection(parcel.id),
+    parcelReturns.findLatestForParcel(parcel.id),
+  ]);
 
-  return toCustomerParcelDto(parcel, { pickupPayment, pickupPaid });
+  return toCustomerParcelDto(parcel, {
+    pickupPayment,
+    pickupPaid: decision.pinAuthorized,
+    customerReturn: customerReturn
+      ? toParcelReturnView(customerReturn, { includeReturnCode: true })
+      : null,
+  });
 }

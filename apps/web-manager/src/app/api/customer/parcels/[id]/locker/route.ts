@@ -43,9 +43,11 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     const message = err instanceof Error ? err.message : 'Erreur serveur';
     const status = message.includes('introuvable')
       ? 404
-      : message.includes('déjà') || message.includes('stade') || message.includes('indisponible')
-        ? 409
-        : 500;
+      : message.includes('ne peut plus') || message.includes('n’est pas disponible')
+        ? 403
+        : message.includes('déjà') || message.includes('stade') || message.includes('indisponible')
+          ? 409
+          : 500;
     return withMobileCors(NextResponse.json(fail(message), { status }));
   }
 }

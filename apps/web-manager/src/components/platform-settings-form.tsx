@@ -125,11 +125,11 @@ export function PlatformSettingsForm({ initialSettings }: PlatformSettingsFormPr
     <form onSubmit={(event) => void handleSubmit(event)} style={{ display: 'grid', gap: '1.5rem' }}>
       <section style={{ ...webCardStyle, padding: '1.5rem' }}>
         <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.875rem', fontWeight: 700 }}>
-          Frais de retrait
+          Frais de retrait (historique)
         </h3>
         <p style={{ margin: '0 0 1.25rem', fontSize: '0.8125rem', color: colors.textMuted }}>
-          Montant demandé au destinataire quand il paie au casier (mobile money). Le prix de
-          la course (distance / taille) se règle dans Tarifs de livraison.
+          Conservé pour les anciens colis sans frais canonique. Les nouveaux envois utilisent
+          le tarif de zone ou le frais de casier (Paramètres → Facturation).
         </p>
         <div
           style={{
@@ -204,18 +204,12 @@ export function PlatformSettingsForm({ initialSettings }: PlatformSettingsFormPr
             step="0.01"
             onChange={(value) => setLimit('defaultMaxPackageValueUsd', value)}
           />
-          <LimitField
-            label="Paiement à la livraison — max / jour (USD)"
-            value={settings.defaultCodDailyLimitUsd}
-            step="0.01"
-            onChange={(value) => setLimit('defaultCodDailyLimitUsd', value)}
-          />
         </div>
         <div style={{ marginTop: '1.25rem', display: 'grid', gap: 8 }}>
           <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>
             Ce qu’elles peuvent faire dès le départ
           </span>
-          {PLATFORM_DEFAULT_FEATURES.map((feature) => (
+          {PLATFORM_DEFAULT_FEATURES.filter((feature) => feature !== 'COD').map((feature) => (
             <label key={feature} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <input
                 type="checkbox"

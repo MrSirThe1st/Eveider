@@ -9,6 +9,8 @@ export type ServiceAreaDto = {
   statusLabel: string;
   notes: string | null;
   lockerCount: number;
+  outboundDeliveryAmount: number;
+  returnDeliveryAmount: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -31,6 +33,8 @@ export function toServiceAreaDto(area: {
   lockerCount: number;
   createdAt: Date;
   updatedAt: Date;
+  outboundDeliveryAmount?: number;
+  returnDeliveryAmount?: number;
 }): ServiceAreaDto {
   return {
     id: area.id,
@@ -41,6 +45,8 @@ export function toServiceAreaDto(area: {
     statusLabel: SERVICE_AREA_STATUS_LABELS[area.status],
     notes: area.notes,
     lockerCount: area.lockerCount,
+    outboundDeliveryAmount: area.outboundDeliveryAmount ?? 0,
+    returnDeliveryAmount: area.returnDeliveryAmount ?? 0,
     createdAt: area.createdAt.toISOString(),
     updatedAt: area.updatedAt.toISOString(),
   };

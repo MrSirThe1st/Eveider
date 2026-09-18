@@ -1,11 +1,13 @@
 import type { DeliveryKind, DeliveryStatus } from './delivery.js';
-import { isActiveDeliveryStatus } from './delivery.js';
+import { isActiveDeliveryStatus, isLegacyRtsDeliveryKind } from './delivery.js';
 import type { ParcelStatus } from './parcel.js';
+import type { ParcelReturnMethod, ParcelReturnStatus } from './parcel-return.js';
 import type { ShipmentPickupType } from './shipment.js';
 
 /**
  * Business-facing location of a parcel — derived, never persisted.
- * Canonical lifecycle remains {@link ParcelStatus}; movement remains {@link DeliveryStatus}.
+ * Parcel status is physical truth. Customer-return process overlays Flow 3.
+ * Historical RTS (`kind=return`) overlays remain readable and distinct.
  */
 export type BusinessParcelLocation =
   | 'awaiting_courier'
@@ -16,7 +18,12 @@ export type BusinessParcelLocation =
   | 'ready_for_pickup'
   | 'return_in_progress'
   | 'returned_to_business'
-  | 'collected';
+  | 'collected'
+  | 'customer_return_requested'
+  | 'customer_return_authorized'
+  | 'customer_return_at_locker'
+  | 'customer_return_in_transit'
+  | 'customer_return_completed';
 
 export const BUSINESS_PARCEL_LOCATIONS: readonly BusinessParcelLocation[] = [
   'awaiting_courier',
@@ -28,6 +35,11 @@ export const BUSINESS_PARCEL_LOCATIONS: readonly BusinessParcelLocation[] = [
   'return_in_progress',
   'returned_to_business',
   'collected',
+  'customer_return_requested',
+  'customer_return_authorized',
+  'customer_return_at_locker',
+  'customer_return_in_transit',
+  'customer_return_completed',
 ] as const;
 
 /** Timeline origin plus location steps. `submitted` is history, never the current location. */
@@ -40,6 +52,11 @@ export type BusinessParcelLocationInput = {
   latestDeliveryStatus: DeliveryStatus | null;
   /** Kind of the most recently created delivery. */
   latestDeliveryKind?: DeliveryKind | null;
+  /** Latest customer-return process row (Flow 3), never legacy RTS. */
+  customerReturn?: {
+    status: ParcelReturnStatus;
+    method: ParcelReturnMethod | null;
+  } | null;
 };
 
 export type BusinessParcelProgressionMark = {
@@ -48,55 +65,106 @@ export type BusinessParcelProgressionMark = {
   current: boolean;
 };
 
+/** Eveider pickup: IN_TRANSIT only when parcel.status is in_transit. Assignment is a Situation overlay. */
 export const COURIER_PICKUP_PROGRESSION: readonly BusinessParcelProgressionStep[] = [
   'submitted',
   'awaiting_courier',
-  'courier_assigned',
   'in_transit',
   'at_locker',
   'ready_for_pickup',
-  'return_in_progress',
-  'returned_to_business',
   'collected',
 ] as const;
 
+/** Business drop-off: no Livraison, no IN_TRANSIT. */
 export const MERCHANT_DROPOFF_PROGRESSION: readonly BusinessParcelProgressionStep[] = [
   'submitted',
   'awaiting_dropoff',
-  'in_transit',
   'at_locker',
   'ready_for_pickup',
-  'return_in_progress',
-  'returned_to_business',
   'collected',
 ] as const;
 
-const MOVEMENT_STARTED: ReadonlySet<DeliveryStatus> = new Set([
-  'scanned',
-  'drop_off_pending',
-  'completed',
-]);
+const LEGACY_RTS_PROGRESSION_TAIL: readonly BusinessParcelProgressionStep[] = [
+  'return_in_progress',
+  'returned_to_business',
+];
+
+const CUSTOMER_RETURN_PROGRESSION: readonly BusinessParcelProgressionStep[] = [
+  'customer_return_requested',
+  'customer_return_authorized',
+  'customer_return_at_locker',
+  'customer_return_in_transit',
+  'customer_return_completed',
+] as const;
+
+const CUSTOMER_RETURN_BUSINESS_PICKUP_PROGRESSION: readonly BusinessParcelProgressionStep[] = [
+  'customer_return_requested',
+  'customer_return_authorized',
+  'customer_return_at_locker',
+  'customer_return_completed',
+] as const;
+
+function isCustomerReturnLocation(location: BusinessParcelLocation): boolean {
+  return (
+    location === 'customer_return_requested' ||
+    location === 'customer_return_authorized' ||
+    location === 'customer_return_at_locker' ||
+    location === 'customer_return_in_transit' ||
+    location === 'customer_return_completed'
+  );
+}
 
 export function businessParcelProgression(
   pickupType: ShipmentPickupType,
+  location?: BusinessParcelLocation,
+  returnMethod?: ParcelReturnMethod | null,
 ): readonly BusinessParcelProgressionStep[] {
-  return pickupType === 'merchant_dropoff'
-    ? MERCHANT_DROPOFF_PROGRESSION
-    : COURIER_PICKUP_PROGRESSION;
+  const base =
+    pickupType === 'merchant_dropoff' ? MERCHANT_DROPOFF_PROGRESSION : COURIER_PICKUP_PROGRESSION;
+  if (location === 'return_in_progress' || location === 'returned_to_business') {
+    return [...base.filter((step) => step !== 'collected'), ...LEGACY_RTS_PROGRESSION_TAIL];
+  }
+  if (location && isCustomerReturnLocation(location)) {
+    const skipTransit =
+      returnMethod === 'business_pickup' ||
+      (returnMethod == null && location !== 'customer_return_in_transit');
+    const tail = skipTransit
+      ? CUSTOMER_RETURN_BUSINESS_PICKUP_PROGRESSION
+      : CUSTOMER_RETURN_PROGRESSION;
+    return [...base, ...tail];
+  }
+  return base;
 }
 
 /**
  * Where the company should see the parcel now.
- * Parcel status wins after `created`; pickup type + latest delivery refine `created` only.
+ * Parcel status is the source of truth. Customer-return and historical RTS are overlays.
  */
 export function resolveBusinessParcelLocation(
   input: BusinessParcelLocationInput,
 ): BusinessParcelLocation {
-  const { parcelStatus, pickupType, latestDeliveryStatus, latestDeliveryKind } = input;
+  const {
+    parcelStatus,
+    pickupType,
+    latestDeliveryStatus,
+    latestDeliveryKind,
+    customerReturn,
+  } = input;
 
+  if (customerReturn) {
+    if (customerReturn.status === 'requested') return 'customer_return_requested';
+    if (customerReturn.status === 'authorized') return 'customer_return_authorized';
+    if (customerReturn.status === 'awaiting_pickup') return 'customer_return_at_locker';
+    if (customerReturn.status === 'in_transit') return 'customer_return_in_transit';
+    if (customerReturn.status === 'completed') return 'customer_return_completed';
+  }
+
+  if (parcelStatus === 'returned') return 'customer_return_completed';
+  if (parcelStatus === 'returning') return 'customer_return_in_transit';
+  if (parcelStatus === 'return_at_point') return 'customer_return_at_locker';
   if (parcelStatus === 'collected') return 'collected';
 
-  if (latestDeliveryKind === 'return' && latestDeliveryStatus) {
+  if (isLegacyRtsDeliveryKind(latestDeliveryKind) && latestDeliveryStatus) {
     if (isActiveDeliveryStatus(latestDeliveryStatus)) return 'return_in_progress';
     if (latestDeliveryStatus === 'completed') return 'returned_to_business';
   }
@@ -105,23 +173,30 @@ export function resolveBusinessParcelLocation(
   if (parcelStatus === 'delivered_to_locker') return 'at_locker';
   if (parcelStatus === 'in_transit') return 'in_transit';
 
-  if (latestDeliveryStatus && MOVEMENT_STARTED.has(latestDeliveryStatus)) {
-    return 'in_transit';
-  }
+  if (pickupType === 'merchant_dropoff') return 'awaiting_dropoff';
 
-  if (pickupType === 'courier_pickup' && latestDeliveryStatus === 'assigned') {
+  if (latestDeliveryStatus && isActiveDeliveryStatus(latestDeliveryStatus)) {
     return 'courier_assigned';
   }
 
-  return pickupType === 'merchant_dropoff' ? 'awaiting_dropoff' : 'awaiting_courier';
+  return 'awaiting_courier';
+}
+
+function progressionLocation(location: BusinessParcelLocation): BusinessParcelLocation {
+  return location === 'courier_assigned' ? 'awaiting_courier' : location;
 }
 
 export function markBusinessParcelProgression(
   input: BusinessParcelLocationInput,
 ): BusinessParcelProgressionMark[] {
-  const steps = businessParcelProgression(input.pickupType);
   const location = resolveBusinessParcelLocation(input);
-  const currentIndex = steps.indexOf(location);
+  const ladderLocation = progressionLocation(location);
+  const steps = businessParcelProgression(
+    input.pickupType,
+    ladderLocation,
+    input.customerReturn?.method,
+  );
+  const currentIndex = steps.indexOf(ladderLocation);
 
   return steps.map((step, index) => ({
     step,

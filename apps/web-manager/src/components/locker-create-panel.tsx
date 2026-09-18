@@ -8,7 +8,6 @@ import {
   resizeLayoutCells,
   resolveLockerLayout,
   usesCompartmentGrid,
-  usesSoftCapacity,
   type CompartmentCell,
   type CompartmentSize,
   type CommissionType,
@@ -82,7 +81,7 @@ type CreateStatus = 'active' | 'offline';
 type LayoutSource = 'manual' | 'template';
 
 const BULK_SIZES: CompartmentSize[] = ['small', 'medium', 'large'];
-const POINT_TYPES: LockerType[] = ['SMART_LOCKER', 'PARTNER_POINT', 'RESIDENTIAL_LOCKER'];
+const NETWORK_TYPE: LockerType = 'SMART_LOCKER';
 
 export function LockerCreatePanel({
   address,
@@ -92,7 +91,7 @@ export function LockerCreatePanel({
   serviceAreas = [],
   onCreate,
 }: LockerCreatePanelProps) {
-  const [type, setType] = useState<LockerType>('SMART_LOCKER');
+  const type = NETWORK_TYPE;
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [nameTouched, setNameTouched] = useState(false);
@@ -109,13 +108,6 @@ export function LockerCreatePanel({
   const [status, setStatus] = useState<CreateStatus>('active');
   const [serviceAreaId, setServiceAreaId] = useState('');
   const [suggesting, setSuggesting] = useState(false);
-  const [maxCapacity, setMaxCapacity] = useState('20');
-  const [contactPhone, setContactPhone] = useState('');
-  const [contactName, setContactName] = useState('');
-  const [notes, setNotes] = useState('');
-  const [commissionType, setCommissionType] = useState<CommissionType | ''>('');
-  const [commissionValue, setCommissionValue] = useState('');
-  const [commissionCurrency, setCommissionCurrency] = useState('CDF');
 
   useEffect(() => {
     if (layoutSource !== 'manual') return;
@@ -166,7 +158,6 @@ export function LockerCreatePanel({
     customColumns,
     cells,
   );
-  const softCapacity = usesSoftCapacity(type);
   const smartLocker = usesCompartmentGrid(type);
 
   useEffect(() => {
@@ -193,18 +184,12 @@ export function LockerCreatePanel({
     };
   }, [address, placementConfirmed, nameTouched]);
 
-  const capacityOk = softCapacity
-    ? Number.parseInt(maxCapacity, 10) >= 1 && contactPhone.trim().length >= 8
-    : layoutSource === 'template'
-      ? Boolean(selectedTemplateId)
-      : true;
+  const capacityOk = layoutSource === 'template' ? Boolean(selectedTemplateId) : true;
 
   const canCreate =
     placementConfirmed && code.trim() && name.trim() && address.trim() && capacityOk;
 
-  const previewCapacity = smartLocker
-    ? `${layout.cells.length} compartiments`
-    : `${maxCapacity || '—'} colis max`;
+  const previewCapacity = `${layout.cells.length} compartiments`;
 
   const selectedTemplate = templates.find((template) => template.id === selectedTemplateId);
 
@@ -285,26 +270,9 @@ export function LockerCreatePanel({
       ...(serviceAreaId ? { serviceAreaId } : {}),
     };
 
-    if (smartLocker) {
-      payload.rows = layout.rows;
-      payload.columns = layout.columns;
-      payload.compartments = layout.cells;
-    } else {
-      payload.maxCapacity = Number.parseInt(maxCapacity, 10);
-      payload.contactPhone = contactPhone.trim();
-      if (contactName.trim()) payload.contactName = contactName.trim();
-      if (notes.trim()) payload.notes = notes.trim();
-      if (commissionType) {
-        payload.commissionType = commissionType;
-        const value = Number.parseFloat(commissionValue);
-        payload.commissionValue = Number.isFinite(value) ? value : null;
-        payload.commissionCurrency = commissionCurrency.trim().toUpperCase() || null;
-      } else {
-        payload.commissionType = null;
-        payload.commissionValue = null;
-        payload.commissionCurrency = null;
-      }
-    }
+    payload.rows = layout.rows;
+    payload.columns = layout.columns;
+    payload.compartments = layout.cells;
 
     onCreate(payload);
   }
@@ -312,37 +280,11 @@ export function LockerCreatePanel({
   return (
     <div>
       <p style={{ margin: '0 0 0.5rem', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>
-        CONFIGURER LE POINT
+        CONFIGURER LE CASIER
       </p>
       <p style={{ margin: '0 0 1rem', fontSize: '0.75rem', color: colors.secondary, opacity: 0.75 }}>
-        L’emplacement final est celui du repère sur la carte.
+        Casier intelligent uniquement. L’emplacement final est celui du repère sur la carte.
       </p>
-
-      <p style={{ margin: '0 0 0.5rem', fontSize: '0.75rem', fontWeight: 600 }}>TYPE DE POINT</p>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: '1rem' }}>
-        {POINT_TYPES.map((pointType) => {
-          const selected = type === pointType;
-          return (
-            <button
-              key={pointType}
-              type="button"
-              onClick={() => setType(pointType)}
-              style={{
-                padding: '0.45rem 0.75rem',
-                borderRadius: radius.button,
-                border: `1px solid ${selected ? colors.primary : colors.border}`,
-                    background: selected ? colors.successMuted : colors.surface,
-                    fontWeight: 700,
-                    fontSize: '0.6875rem',
-                    cursor: 'pointer',
-                    color: selected ? colors.successFg : colors.secondary,
-              }}
-            >
-              {LOCKER_TYPE_LABELS[pointType]}
-            </button>
-          );
-        })}
-      </div>
 
       <label style={{ display: 'block', marginBottom: '0.85rem' }}>
         <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>CODE</span>
@@ -362,7 +304,7 @@ export function LockerCreatePanel({
             setNameTouched(true);
             setName(e.target.value);
           }}
-          placeholder={softCapacity ? 'Pharmacie XYZ' : 'Kolwezi Centre'}
+          placeholder="Kolwezi Centre"
           style={inputStyle}
         />
       </label>
@@ -556,84 +498,7 @@ export function LockerCreatePanel({
             />
           </div>
         </>
-      ) : (
-        <>
-          <label style={{ display: 'block', marginBottom: '0.85rem' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>CAPACITÉ MAXIMALE (COLIS)</span>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={maxCapacity}
-              onChange={(e) => setMaxCapacity(e.target.value.replace(/\D/g, ''))}
-              style={inputStyle}
-            />
-          </label>
-
-          <label style={{ display: 'block', marginBottom: '0.85rem' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>TÉLÉPHONE DE CONTACT</span>
-            <input
-              value={contactPhone}
-              onChange={(e) => setContactPhone(e.target.value)}
-              placeholder="+243810000000"
-              style={inputStyle}
-            />
-          </label>
-
-          <label style={{ display: 'block', marginBottom: '0.85rem' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>NOM DU CONTACT</span>
-            <input
-              value={contactName}
-              onChange={(e) => setContactName(e.target.value)}
-              placeholder="Optionnel"
-              style={inputStyle}
-            />
-          </label>
-
-          <label style={{ display: 'block', marginBottom: '0.85rem' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>NOTES / ACCÈS</span>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Horaires, instructions d’accès…"
-              rows={3}
-              style={{ ...inputStyle, height: 'auto', padding: '0.65rem 10px', resize: 'vertical' }}
-            />
-          </label>
-
-          <p style={{ margin: '0 0 0.5rem', fontSize: '0.75rem', fontWeight: 600 }}>
-            COMMISSION (FUTUR)
-          </p>
-          <div style={{ display: 'grid', gap: '0.75rem', marginBottom: '1rem' }}>
-            <select
-              value={commissionType}
-              onChange={(e) => setCommissionType(e.target.value as CommissionType | '')}
-              style={inputStyle}
-            >
-              <option value="">Aucune pour l’instant</option>
-              <option value="percent">Pourcentage</option>
-              <option value="fixed">Montant fixe</option>
-            </select>
-            {commissionType ? (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: 8 }}>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={commissionValue}
-                  onChange={(e) => setCommissionValue(e.target.value)}
-                  placeholder={commissionType === 'percent' ? '5' : '500'}
-                  style={inputStyle}
-                />
-                <input
-                  value={commissionCurrency}
-                  onChange={(e) => setCommissionCurrency(e.target.value.toUpperCase())}
-                  placeholder="CDF"
-                  style={inputStyle}
-                />
-              </div>
-            ) : null}
-          </div>
-        </>
-      )}
+      ) : null}
 
       <p style={{ margin: '0 0 0.5rem', fontSize: '0.75rem', fontWeight: 600 }}>STATUT À LA CRÉATION</p>
       <div style={{ display: 'flex', gap: 12, marginBottom: '1rem' }}>

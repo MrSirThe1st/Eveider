@@ -24,6 +24,8 @@ function mapPricingRow(row: Record<string, unknown>): DeliveryPricingRuleRow {
     largeCoefficient: Number(row.large_coefficient),
     dropOffFeeAmount: Number(row.drop_off_fee_amount ?? 500),
     lockerRentalRateAmount: Number(row.locker_rental_rate_amount ?? 200),
+    lockerCollectionAmount: Number(row.locker_collection_amount ?? row.drop_off_fee_amount ?? 500),
+    returnLockerAmount: Number(row.return_locker_amount ?? 500),
     updatedAt: new Date(String(row.updated_at)),
     updatedBy: row.updated_by == null ? null : String(row.updated_by),
   };
@@ -42,6 +44,8 @@ export function toDeliveryPricingRules(row: DeliveryPricingRuleRow): DeliveryPri
     },
     dropOffFeeAmount: row.dropOffFeeAmount,
     lockerRentalRateAmount: row.lockerRentalRateAmount,
+    lockerCollectionAmount: row.lockerCollectionAmount,
+    returnLockerAmount: row.returnLockerAmount,
   };
 }
 
@@ -55,6 +59,8 @@ export type UpdateDeliveryPricingInput = {
   largeCoefficient: number;
   dropOffFeeAmount: number;
   lockerRentalRateAmount: number;
+  lockerCollectionAmount: number;
+  returnLockerAmount: number;
 };
 
 export class PricingRepository {
@@ -88,9 +94,11 @@ export class PricingRepository {
            large_coefficient = $7,
            drop_off_fee_amount = $8,
            locker_rental_rate_amount = $9,
+           locker_collection_amount = $10,
+           return_locker_amount = $11,
            updated_at = NOW(),
-           updated_by = $10
-       WHERE id = $11
+           updated_by = $12
+       WHERE id = $13
        RETURNING *`,
       [
         input.distanceThresholdKm,
@@ -102,6 +110,8 @@ export class PricingRepository {
         input.largeCoefficient,
         input.dropOffFeeAmount,
         input.lockerRentalRateAmount,
+        input.lockerCollectionAmount,
+        input.returnLockerAmount,
         ctx.userId ?? null,
         current.id,
       ],

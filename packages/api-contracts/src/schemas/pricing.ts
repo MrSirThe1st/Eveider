@@ -12,6 +12,8 @@ export const updateDeliveryPricingSchema = z.object({
   largeCoefficient: z.number().positive('Coefficient invalide').max(10),
   dropOffFeeAmount: z.number().min(0, 'Montant invalide').max(10_000_000),
   lockerRentalRateAmount: z.number().min(0, 'Montant invalide').max(10_000_000),
+  lockerCollectionAmount: z.number().min(0, 'Montant invalide').max(10_000_000),
+  returnLockerAmount: z.number().min(0, 'Montant invalide').max(10_000_000),
 });
 
 export const deliveryQuoteQuerySchema = z.object({

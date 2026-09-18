@@ -17,7 +17,6 @@ export function OrganizationDetailTabs({ basePath }: OrganizationDetailTabsProps
           isActive: (pathname) => pathname === basePath,
         },
         { href: `${basePath}/membres`, label: 'Membres' },
-        { href: `${basePath}/chauffeurs`, label: 'Chauffeurs' },
         { href: `${basePath}/livraisons`, label: 'Livraisons' },
         { href: `${basePath}/verification`, label: 'Vérification' },
       ]}

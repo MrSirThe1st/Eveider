@@ -727,6 +727,13 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
   const areaByCode = new Map(
     serviceAreaIds.rows.map((row) => [String(row.code), String(row.id)]),
   );
+  await db.query(
+    `UPDATE service_areas
+     SET outbound_delivery_amount = 1500,
+         return_delivery_amount = 1500
+     WHERE code = ANY($1)`,
+    [['LSH', 'KWZ']],
+  );
   const lubumAreaId = areaByCode.get('LSH') ?? null;
   const kolweziAreaId = areaByCode.get('KWZ') ?? null;
 
@@ -735,15 +742,13 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
        contractor_type, business_id, user_id, full_name, email, phone, id_document_url, status,
        service_area_id
      ) VALUES
-       ('business', $4, $1, 'Jean-Pierre Tshibanda', 'courier.lubum1@eveider.cd', '+243820100001', 'https://files.eveider.cd/id/lubum1.jpg', 'active', $6),
-       ('business', $4, $2, 'Ruth Mbuyi', 'courier.lubum2@eveider.cd', '+243820100002', 'https://files.eveider.cd/id/lubum2.jpg', 'active', $6),
-       ('business', $5, $3, 'Michel Kabwe', 'courier.kolwezi@eveider.cd', '+243820200001', 'https://files.eveider.cd/id/kolwezi.jpg', 'active', $7)`,
+       ('eveider', NULL, $1, 'Jean-Pierre Tshibanda', 'courier.lubum1@eveider.cd', '+243820100001', 'https://files.eveider.cd/id/lubum1.jpg', 'active', $4),
+       ('eveider', NULL, $2, 'Ruth Mbuyi', 'courier.lubum2@eveider.cd', '+243820100002', 'https://files.eveider.cd/id/lubum2.jpg', 'active', $4),
+       ('eveider', NULL, $3, 'Michel Kabwe', 'courier.kolwezi@eveider.cd', '+243820200001', 'https://files.eveider.cd/id/kolwezi.jpg', 'active', $5)`,
     [
       courierLubum1,
       courierLubum2,
       courierKolwezi,
-      lubumBusinessId,
-      kolweziBusinessId,
       lubumAreaId,
       kolweziAreaId,
     ],

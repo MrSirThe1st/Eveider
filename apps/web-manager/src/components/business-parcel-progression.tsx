@@ -94,6 +94,36 @@ export function locationStatusCopy(location: BusinessParcelLocation): {
       body: 'Le destinataire a collecté le colis au point Eveider.',
     };
   }
+  if (location === 'customer_return_requested') {
+    return {
+      title: 'Retour demandé',
+      body: 'Le destinataire a demandé un retour. Approuvez ou refusez la demande.',
+    };
+  }
+  if (location === 'customer_return_authorized') {
+    return {
+      title: 'Retour autorisé',
+      body: 'Le destinataire peut déposer le colis au casier de retour.',
+    };
+  }
+  if (location === 'customer_return_at_locker') {
+    return {
+      title: 'Retour au casier',
+      body: 'Le colis retourné est au casier Eveider.',
+    };
+  }
+  if (location === 'customer_return_in_transit') {
+    return {
+      title: 'Retour en cours',
+      body: 'Eveider ramène le colis du casier vers votre entreprise.',
+    };
+  }
+  if (location === 'customer_return_completed') {
+    return {
+      title: 'Retourné au marchand',
+      body: 'Le colis retourné a été récupéré par votre entreprise.',
+    };
+  }
   if (location === 'ready_for_pickup') {
     return {
       title: 'Prêt pour retrait',
@@ -102,8 +132,8 @@ export function locationStatusCopy(location: BusinessParcelLocation): {
   }
   if (location === 'at_locker') {
     return {
-      title: 'Arrivé au point',
-      body: 'Le colis est au point Eveider, mais le retrait n’est pas encore ouvert.',
+      title: 'Au casier',
+      body: 'Le colis est au casier. Eveider prépare le code de retrait — le destinataire n’est pas encore notifié.',
     };
   }
   if (location === 'in_transit') {
@@ -114,8 +144,8 @@ export function locationStatusCopy(location: BusinessParcelLocation): {
   }
   if (location === 'courier_assigned') {
     return {
-      title: 'Coursier assigné',
-      body: 'Un coursier va enlever le colis. L’identité du coursier n’est pas affichée ici.',
+      title: 'Chauffeur assigné',
+      body: 'Un chauffeur Eveider va enlever le colis. Le statut du colis reste en attente de prise en charge.',
     };
   }
   if (location === 'awaiting_dropoff') {

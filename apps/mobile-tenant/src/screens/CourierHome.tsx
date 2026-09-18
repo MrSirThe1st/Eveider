@@ -30,6 +30,7 @@ import { SuccessBanner } from '../components/SuccessBanner';
 import { useHideTabBar } from '../navigation/useHideTabBar';
 import {
   completeCourierDropOff,
+  completeCourierReturnToBusiness,
   fetchCourierDeliveries,
   fetchCourierDelivery,
   fetchCourierDropOffProof,
@@ -146,7 +147,7 @@ export function CourierHome() {
   }
 
   function showSuccessForStatus(next: CourierDelivery) {
-    if (next.kind === 'return') {
+    if (next.kind === 'return' || next.kind === 'customer_return') {
       if (next.status === 'scanned') {
         setSuccessMessage('COLIS SCANNÉ — RETOUR');
         return;
@@ -256,6 +257,28 @@ export function CourierHome() {
     setProofPhoto(null);
     showSuccessForStatus(result.data.delivery);
     setScreen({ name: 'detail', deliveryId: delivery.id });
+  }
+
+  async function handleCompleteCustomerReturn() {
+    if (!delivery) return;
+    const previousStatus = delivery.status;
+    setActing(true);
+    setError(null);
+    const result = await completeCourierReturnToBusiness(delivery.id);
+    if (!result.success) {
+      const reconciled = await reconcileAfterMutation(delivery.id, previousStatus);
+      setActing(false);
+      if (reconciled) {
+        setDelivery(reconciled);
+        showSuccessForStatus(reconciled);
+        return;
+      }
+      setError(result.error);
+      return;
+    }
+    setActing(false);
+    setDelivery(result.data.delivery);
+    showSuccessForStatus(result.data.delivery);
   }
 
   const activeDeliveries = sortDeliveriesByRoute(
@@ -597,11 +620,14 @@ export function CourierHome() {
 
   const showScan = delivery.status === 'assigned';
   const isReturn = delivery.kind === 'return';
+  const isCustomerReturn = delivery.kind === 'customer_return';
   const lockerBlocked = Boolean(
-    !isReturn && delivery.parcel.locker && !delivery.parcel.locker.canAcceptDropOff,
+    !isReturn && !isCustomerReturn && delivery.parcel.locker && !delivery.parcel.locker.canAcceptDropOff,
   );
-  const showDropOff = delivery.status === 'scanned' && !lockerBlocked;
-  const showComplete = delivery.status === 'drop_off_pending' && !lockerBlocked;
+  const showDropOff = delivery.status === 'scanned' && !lockerBlocked && !isCustomerReturn;
+  const showComplete = isCustomerReturn
+    ? delivery.status === 'scanned'
+    : delivery.status === 'drop_off_pending' && !lockerBlocked;
   const hasAction = showScan || showDropOff || showComplete;
 
   return (
@@ -632,7 +658,11 @@ export function CourierHome() {
             </Text>
             <DeliveryStatusBadge status={delivery.status} />
           </View>
-          {isReturn ? <Text style={styles.detailMeta}>Retour vers le marchand</Text> : null}
+          {isReturn || isCustomerReturn ? (
+            <Text style={styles.detailMeta}>
+              {isCustomerReturn ? 'Retour client vers le marchand' : 'Retour vers le marchand'}
+            </Text>
+          ) : null}
           <Text style={styles.detailMeta}>{delivery.parcel.businessName}</Text>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -753,16 +783,23 @@ export function CourierHome() {
           {showComplete ? (
             <PrimaryButton
               label={
-                isReturn
-                  ? 'Photographier la remise'
-                  : delivery.parcel.compartmentLabel
-                    ? `Photographier le dépôt · ${delivery.parcel.compartmentLabel}`
-                    : 'Photographier le dépôt'
+                isCustomerReturn
+                  ? 'Confirmer la remise au marchand'
+                  : isReturn
+                    ? 'Photographier la remise'
+                    : delivery.parcel.compartmentLabel
+                      ? `Photographier le dépôt · ${delivery.parcel.compartmentLabel}`
+                      : 'Photographier le dépôt'
               }
               onPress={() => {
+                if (isCustomerReturn) {
+                  void handleCompleteCustomerReturn();
+                  return;
+                }
                 setProofPhoto(null);
                 setScreen({ name: 'proof', deliveryId: delivery.id });
               }}
+              loading={acting}
             />
           ) : null}
         </View>

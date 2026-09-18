@@ -17,6 +17,8 @@ import {
   type DeliveryStatus,
   type PackageCategory,
   type PackageSize,
+  type ParcelReturnMethod,
+  type ParcelReturnStatus,
   type ParcelStatus,
   type PaymentResponsibility,
   type ShipmentPickupType,
@@ -189,12 +191,14 @@ export function toBusinessParcelLocationView(input: {
   pickupType: ShipmentPickupType;
   latestDeliveryStatus: DeliveryStatus | null;
   latestDeliveryKind?: DeliveryKind | null;
+  customerReturn?: { status: ParcelReturnStatus; method: ParcelReturnMethod | null } | null;
 }): BusinessParcelLocationView {
   const resolved = {
     parcelStatus: input.status,
     pickupType: input.pickupType,
     latestDeliveryStatus: input.latestDeliveryStatus,
     latestDeliveryKind: input.latestDeliveryKind ?? null,
+    customerReturn: input.customerReturn ?? null,
   };
   const location = resolveBusinessParcelLocation(resolved);
   return {

@@ -19,7 +19,13 @@ export type ParcelEventType =
   | 'pickup_pin.issued'
   | 'notification.sent'
   | 'notification.failed'
-  | 'issue.opened';
+  | 'issue.opened'
+  | 'parcel_return.requested'
+  | 'parcel_return.authorized'
+  | 'parcel_return.rejected'
+  | 'parcel_return.cancelled'
+  | 'parcel_return.deposited'
+  | 'parcel_return.completed';
 
 export const PARCEL_EVENT_ACTOR_TYPES: readonly ParcelEventActorType[] = [
   'user',
@@ -42,6 +48,12 @@ export const PARCEL_EVENT_TYPES: readonly ParcelEventType[] = [
   'notification.sent',
   'notification.failed',
   'issue.opened',
+  'parcel_return.requested',
+  'parcel_return.authorized',
+  'parcel_return.rejected',
+  'parcel_return.cancelled',
+  'parcel_return.deposited',
+  'parcel_return.completed',
 ] as const;
 
 /** Events forwarded to an organisation's software notification address. */
@@ -52,6 +64,10 @@ export const ORGANIZATION_NOTIFY_EVENT_TYPES: readonly ParcelEventType[] = [
   'delivery.completed',
   'delivery.failed',
   'issue.opened',
+  'parcel_return.requested',
+  'parcel_return.authorized',
+  'parcel_return.deposited',
+  'parcel_return.completed',
 ] as const;
 
 export function isOrganizationNotifyEventType(type: ParcelEventType): boolean {

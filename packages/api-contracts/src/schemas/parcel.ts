@@ -63,7 +63,7 @@ export const createParcelSchema = z
     packageCategory: packageCategorySchema,
     declaredValueCdf: optionalPositiveNumber,
     declaredValueUsd: optionalPositiveNumber,
-    paymentResponsibility: paymentResponsibilitySchema,
+    paymentResponsibility: paymentResponsibilitySchema.optional().default('receiver_pays'),
     codAmountCdf: optionalPositiveNumber,
     codAmountUsd: optionalPositiveNumber,
   })

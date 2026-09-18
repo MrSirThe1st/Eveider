@@ -166,19 +166,13 @@ export function AdminOrganizationOperatingAccess({
             step="0.01"
             onChange={(value) => setLimit('maxPackageValueUsd', value)}
           />
-          <LimitField
-            label="Plafond COD / jour (USD)"
-            value={access.codDailyLimitUsd}
-            step="0.01"
-            onChange={(value) => setLimit('codDailyLimitUsd', value)}
-          />
         </div>
 
         <div style={{ display: 'grid', gap: 8 }}>
           <span style={{ fontSize: typography.caption.fontSize, fontWeight: 600 }}>
             Fonctions activées
           </span>
-          {PLATFORM_DEFAULT_FEATURES.map((feature) => (
+          {PLATFORM_DEFAULT_FEATURES.filter((feature) => feature !== 'COD').map((feature) => (
             <label key={feature} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <input
                 type="checkbox"

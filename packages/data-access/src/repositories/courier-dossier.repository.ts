@@ -172,10 +172,16 @@ export class CourierDossierRepository {
   async listForAdmin(status?: CourierDossierStatus): Promise<CourierDossier[]> {
     const result = status
       ? await this.db.query(
-          `SELECT * FROM driver_dossiers WHERE status = $1 ORDER BY created_at DESC`,
+          `SELECT * FROM driver_dossiers
+           WHERE contractor_type = 'eveider' AND status = $1
+           ORDER BY created_at DESC`,
           [status],
         )
-      : await this.db.query(`SELECT * FROM driver_dossiers ORDER BY created_at DESC`);
+      : await this.db.query(
+          `SELECT * FROM driver_dossiers
+           WHERE contractor_type = 'eveider'
+           ORDER BY created_at DESC`,
+        );
     return result.rows.map(mapCourierDossier);
   }
 
@@ -207,6 +213,7 @@ export class CourierDossierRepository {
     assertAdmin(ctx);
     const result = await this.db.query(
       `${ROSTER_SELECT}
+       WHERE d.contractor_type = 'eveider'
        ORDER BY d.full_name ASC`,
       [ACTIVE_DELIVERY_STATUSES],
     );

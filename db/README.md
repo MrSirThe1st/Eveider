@@ -24,6 +24,14 @@ pnpm db:migrate
 | `014_20260821150000_company_team_roles.sql` | Company team roles |
 | `015_20260823140000_locker_city.sql` | Locker city |
 | `016_20260823180000_delivery_drop_off_photo.sql` | Courier locker drop-off photo proof |
+| `030_20260916220000_customer_return_enums.sql` | Customer-return parcel statuses, `customer_return` delivery kind, return events |
+| `031_20260916220100_parcel_returns.sql` | `parcel_returns` table (Flow 3, distinct from legacy RTS) |
+| `032_20260917200000_commercial_charge_kinds.sql` | Canonical charge kinds (`outbound_delivery`, `locker_collection`, `return_delivery`, `return_locker`) |
+| `033_20260917200100_commercial_pricing.sql` | Zone fees on `service_areas`, Flow 2/3B global amounts, charge `payer` |
+| `034_20260917210000_parcel_commercial_model.sql` | `parcels.commercial_model` (`canonical` vs `legacy`) |
+| `035_20260917220000_locker_action_sessions.sql` | Hardware locker action sessions (`authorize` / `confirm` / `cancel`) |
+
+Hardware locker clients authenticate with `EVEIDER_LOCKER_API_TOKENS` (JSON map of locker UUID → secret) via `Authorization: Bearer <secret>`. The token identifies the locker; the client cannot claim another `locker_id`. Keep secrets out of git. Default authorization TTL is 180 seconds (`EVEIDER_LOCKER_ACTION_TTL_SECONDS`).
 
 Applied migrations are recorded in `schema_migrations`.
 

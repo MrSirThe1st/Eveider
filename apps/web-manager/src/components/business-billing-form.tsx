@@ -24,7 +24,6 @@ export function BusinessBillingForm({
   accountHolder: initialHolder,
   accountNumber: initialNumber,
   dailyShipments,
-  codDailyLimitUsd,
 }: BillingFormProps) {
   const router = useRouter();
   const [paymentRule, setPaymentRule] = useState(initialRule);
@@ -150,12 +149,6 @@ export function BusinessBillingForm({
             <dt style={{ fontSize: '0.6875rem', fontWeight: 600, color: colors.textMuted }}>COLIS PAR JOUR</dt>
             <dd style={{ margin: '0.25rem 0 0', fontWeight: 600 }}>
               {dailyShipments == null ? 'Illimité' : `${dailyShipments} colis / jour`}
-            </dd>
-          </div>
-          <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, color: colors.textMuted }}>PAIEMENT À LA LIVRAISON — MAX / JOUR</dt>
-            <dd style={{ margin: '0.25rem 0 0', fontWeight: 600 }}>
-              {codDailyLimitUsd == null ? 'Illimité' : `$${codDailyLimitUsd} / jour`}
             </dd>
           </div>
         </dl>

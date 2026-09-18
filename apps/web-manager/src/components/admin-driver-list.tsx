@@ -220,7 +220,7 @@ export function AdminDriverList({ drivers }: AdminDriverListProps) {
             ? 'Aucun chauffeur pour cette recherche'
             : 'Aucun chauffeur'
         }
-        emptyDescription="Ajoutez un chauffeur Eveider, ou attendez ceux des entreprises."
+        emptyDescription="Ajoutez un chauffeur Eveider."
         emptyIcon={searchQuery.trim() ? <IconSearch /> : <IconTruck />}
         emptyAction={
           <Link href={WEB_ROUTES.adminNewDriver} className="nb-btn nb-btn-primary nb-btn--sm">

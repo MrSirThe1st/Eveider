@@ -5,6 +5,7 @@
 
 import type {
   BusinessStatus,
+  ChargePayer,
   CommissionType,
   CompartmentSize,
   CompartmentStatus,
@@ -13,15 +14,23 @@ import type {
   DriverDossierStatus,
   IssueStatus,
   IssueType,
+  LockerAction,
+  LockerActionActorType,
+  LockerActionSessionStatus,
   LockerStatus,
   LockerType,
   OrganizationRole,
   PackageCategory,
   PackageSize,
+  ParcelChargeKind,
+  ParcelChargeStatus,
   ParcelEventActorType,
   ParcelEventType,
+  ParcelReturnMethod,
+  ParcelReturnStatus,
   ParcelStatus,
   PaymentResponsibility,
+  CommercialPricingModel,
   PlatformRole,
   ServiceAreaStatus,
   ShipmentPickupType,
@@ -169,6 +178,8 @@ export type ServiceArea = {
   city: string;
   status: ServiceAreaStatus;
   notes: string | null;
+  outboundDeliveryAmount: number;
+  returnDeliveryAmount: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -213,6 +224,7 @@ export type Parcel = {
   deliveryFeeCurrency: 'USD' | 'CDF';
   deliveryDistanceKm: number | null;
   pricingSizeUsed: PackageSize | null;
+  commercialModel: CommercialPricingModel;
   readyForPickupAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -229,6 +241,8 @@ export type DeliveryPricingRuleRow = {
   largeCoefficient: number;
   dropOffFeeAmount: number;
   lockerRentalRateAmount: number;
+  lockerCollectionAmount: number;
+  returnLockerAmount: number;
   updatedAt: Date;
   updatedBy: string | null;
 };
@@ -237,8 +251,10 @@ export type ParcelCharge = {
   id: string;
   parcelId: string;
   businessId: string;
-  kind: 'delivery_fee' | 'drop_off_fee' | 'locker_rental';
-  status: 'pending' | 'owed' | 'void';
+  kind: ParcelChargeKind;
+  status: ParcelChargeStatus;
+  payer: ChargePayer;
+  pricingZoneId: string | null;
   amount: number;
   currency: 'USD' | 'CDF';
   unitRate: number | null;
@@ -294,6 +310,42 @@ export type PickupPin = {
   code: string;
   expiresAt: Date | null;
   createdAt: Date;
+};
+
+/** Flow 3 customer-return process. Distinct from historical deliveries.kind=return (RTS). */
+export type ParcelReturn = {
+  id: string;
+  parcelId: string;
+  businessId: string;
+  status: ParcelReturnStatus;
+  method: ParcelReturnMethod | null;
+  returnLockerId: string | null;
+  compartmentId: string | null;
+  returnCode: string | null;
+  requestedAt: Date;
+  authorizedAt: Date | null;
+  depositedAt: Date | null;
+  completedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type LockerActionSession = {
+  id: string;
+  action: LockerAction;
+  parcelId: string;
+  lockerId: string;
+  compartmentId: string | null;
+  actorType: LockerActionActorType;
+  actorReference: string;
+  status: LockerActionSessionStatus;
+  expiresAt: Date;
+  authorizedAt: Date;
+  confirmedAt: Date | null;
+  cancelledAt: Date | null;
+  deviceEventId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 export type Notification = {

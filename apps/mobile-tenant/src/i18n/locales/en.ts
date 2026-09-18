@@ -116,6 +116,9 @@ export const en: TranslationSchema = {
     delivered_to_locker: 'At locker',
     ready_for_pickup: 'Ready for pickup',
     collected: 'Delivered',
+    return_at_point: 'Return at locker',
+    returning: 'Return in progress',
+    returned: 'Returned',
   },
   journey: {
     received: 'Received',

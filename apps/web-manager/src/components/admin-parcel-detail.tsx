@@ -5,8 +5,7 @@ import {
   DELIVERY_KIND_LABELS,
   DELIVERY_STATUS_LABELS,
   PARCEL_STATUS_LABELS,
-  PARCEL_STATUSES,
-  canTransitionParcel,
+  adminAdvanceableParcelStatuses,
   type DeliveryKind,
   type DeliveryStatus,
   type ParcelStatus,
@@ -18,6 +17,7 @@ import { FlashBanner } from '@/components/flash-banner';
 import { ParcelEventTimeline } from '@/components/parcel-event-timeline';
 import { ParcelStatusBadge } from '@/components/parcel-status-badge';
 import type { AdminParcelEventDto } from '@/lib/parcel-presenter';
+import type { ParcelReturnView } from '@/lib/parcel-return-presenter';
 
 type ActiveDelivery = {
   id: string;
@@ -67,7 +67,7 @@ function formatDateTime(iso: string) {
 }
 
 function getNextStatuses(current: ParcelStatus): ParcelStatus[] {
-  return PARCEL_STATUSES.filter((status) => canTransitionParcel(current, status));
+  return adminAdvanceableParcelStatuses(current);
 }
 
 type AdminParcelDetailProps = {
@@ -77,10 +77,10 @@ type AdminParcelDetailProps = {
 export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
   const [parcel, setParcel] = useState<ParcelDetailData | null>(null);
   const [activeDelivery, setActiveDelivery] = useState<ActiveDelivery | null>(null);
+  const [customerReturn, setCustomerReturn] = useState<ParcelReturnView | null>(null);
   const [events, setEvents] = useState<AdminParcelEventDto[]>([]);
   const [couriers, setCouriers] = useState<CourierOption[]>([]);
   const [selectedCourierId, setSelectedCourierId] = useState('');
-  const [canCreateReturn, setCanCreateReturn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -89,7 +89,7 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   async function loadCouriers() {
-    const response = await fetch('/api/drivers', { cache: 'no-store' });
+    const response = await fetch('/api/couriers', { cache: 'no-store' });
     const result = await response.json();
     if (result.success) {
       setCouriers(result.data.couriers);
@@ -107,19 +107,17 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
       if (!result.success) {
         setError(result.error ?? 'Colis introuvable');
         setParcel(null);
-        setCanCreateReturn(false);
         return;
       }
 
       setParcel(result.data.parcel);
       setActiveDelivery(result.data.activeDelivery ?? null);
-      setCanCreateReturn(Boolean(result.data.canCreateReturn));
+      setCustomerReturn(result.data.customerReturn ?? null);
       setEvents(Array.isArray(result.data.events) ? result.data.events : []);
     } catch {
-        setError('Impossible de charger le colis.');
+      setError('Impossible de charger le colis.');
       setParcel(null);
       setEvents([]);
-      setCanCreateReturn(false);
     } finally {
       setLoading(false);
     }
@@ -130,7 +128,7 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
     void loadCouriers();
   }, [parcelId]);
 
-  async function assignCourier(kind: DeliveryKind = 'outbound') {
+  async function assignCourier(kind: 'outbound' | 'customer_return' = 'outbound') {
     if (!selectedCourierId) return;
 
     setAssigning(true);
@@ -150,13 +148,11 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
         return;
       }
 
-      setSuccessMessage(kind === 'return' ? 'Retour créé' : 'Coursier assigné');
+      setSuccessMessage('Coursier Eveider assigné');
       setSelectedCourierId('');
       await loadParcel();
     } catch {
-      setActionError(
-        kind === 'return' ? 'Impossible de créer le retour.' : 'Impossible d’assigner le coursier.',
-      );
+      setActionError('Impossible d’assigner le coursier.');
     } finally {
       setAssigning(false);
     }
@@ -342,11 +338,28 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
                 Assigner
               </button>
             </div>
-          ) : parcel.locker && canCreateReturn ? (
-            <div style={{ display: 'grid', gap: '0.75rem' }}>
-              <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 500 }}>
-                Créer un retour vers le marchand (casier → entreprise).
+          ) : (
+            <p style={{ margin: 0, fontWeight: 500, fontSize: '0.875rem' }}>
+              Aucune livraison active.
+            </p>
+          )}
+        </div>
+
+        {customerReturn ? (
+          <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: borderSubtle() }}>
+            <p style={{ margin: '0 0 1rem', fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
+              Retour client
+            </p>
+            <p style={{ margin: '0 0 0.75rem', fontWeight: 500 }}>
+              {customerReturn.statusLabel}
+              {customerReturn.methodLabel ? ` · ${customerReturn.methodLabel}` : ''}
+            </p>
+            {customerReturn.returnLocker ? (
+              <p style={{ margin: '0 0 0.75rem', fontSize: '0.875rem' }}>
+                Casier : {customerReturn.returnLocker.name}
               </p>
+            ) : null}
+            {customerReturn.canAssignDriver && !activeDelivery ? (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
                 <select
                   value={selectedCourierId}
@@ -368,7 +381,7 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
                 <button
                   type="button"
                   disabled={assigning || !selectedCourierId}
-                  onClick={() => void assignCourier('return')}
+                  onClick={() => void assignCourier('customer_return')}
                   style={{
                     ...webSecondaryButtonStyle,
                     height: spacing.buttonHeight,
@@ -377,16 +390,12 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
                     cursor: assigning || !selectedCourierId ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  Créer un retour
+                  Assigner le retour Eveider
                 </button>
               </div>
-            </div>
-          ) : (
-            <p style={{ margin: 0, fontWeight: 500, fontSize: '0.875rem' }}>
-              Aucune livraison active.
-            </p>
-          )}
-        </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {nextStatuses.length > 0 ? (
           <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: borderSubtle() }}>
@@ -408,7 +417,9 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
                     cursor: updating ? 'wait' : 'pointer',
                   }}
                 >
-                  → {PARCEL_STATUS_LABELS[status]}
+                  → {status === 'ready_for_pickup'
+                    ? 'Marquer prêt pour retrait'
+                    : PARCEL_STATUS_LABELS[status]}
                 </button>
               ))}
             </div>

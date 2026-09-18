@@ -4,7 +4,7 @@ export default function AdminDriversLoading() {
   return (
     <PageFrame
       title="Chauffeurs"
-      description="Chauffeurs Eveider et chauffeurs des entreprises."
+      description="Chauffeurs Eveider."
       layout="wide"
     >
       <TableSkeleton />

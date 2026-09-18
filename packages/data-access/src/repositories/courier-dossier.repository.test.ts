@@ -110,9 +110,9 @@ describe('CourierDossierRepository', () => {
           review_notes: null,
           invited_at: new Date('2026-08-01T12:00:00.000Z'),
           created_at: new Date('2026-08-01T12:00:00.000Z'),
-          contractor_type: 'business',
-          business_id: 'biz-1',
-          business_name: 'Boutique Kenya',
+          contractor_type: 'eveider',
+          business_id: null,
+          business_name: null,
           service_area_id: 'area-lsh',
           service_area_name: 'Lubumbashi',
           service_area_code: 'LSH',
@@ -130,8 +130,8 @@ describe('CourierDossierRepository', () => {
 
     const rows = await repo.listRosterForAdmin(ctx);
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.contractorType).toBe('business');
-    expect(rows[0]?.organizationName).toBe('Boutique Kenya');
+    expect(rows[0]?.contractorType).toBe('eveider');
+    expect(rows[0]?.organizationName).toBeNull();
     expect(rows[0]?.currentTrackingNumber).toBe('EV12345');
     expect(rows[0]?.serviceAreaCode).toBe('LSH');
   });

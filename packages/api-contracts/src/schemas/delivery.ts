@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const assignCourierSchema = z.object({
   courierId: z.string().uuid('Coursier invalide'),
-  kind: z.enum(['outbound', 'return']).optional().default('outbound'),
+  kind: z.enum(['outbound', 'return', 'customer_return']).optional().default('outbound'),
 });
 
 export const scanDeliverySchema = z.object({
@@ -16,6 +16,15 @@ export const completeDropOffSchema = z.object({
     .trim()
     .min(32, 'Photo de dépôt requise')
     .max(1_200_000, 'Photo trop volumineuse'),
+});
+
+export const completeCustomerReturnToBusinessSchema = z.object({
+  photoBase64: z
+    .string()
+    .trim()
+    .min(32, 'Photo trop courte')
+    .max(1_200_000, 'Photo trop volumineuse')
+    .optional(),
 });
 
 export const listDeliveriesQuerySchema = z.object({

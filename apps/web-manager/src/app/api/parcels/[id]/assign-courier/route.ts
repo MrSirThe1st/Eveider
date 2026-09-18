@@ -50,7 +50,11 @@ export async function POST(request: Request, { params }: RouteParams) {
       message.includes('stade') ||
       message.includes('approuvé')
         ? 400
-        : 500;
+        : message.includes('Eveider Operations') ||
+            message.includes('chauffeurs Eveider') ||
+            message.includes('ne sont plus disponibles')
+          ? 403
+          : 500;
     return NextResponse.json(fail(message), { status });
   }
 }

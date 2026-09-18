@@ -1,10 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { dismissCookieBanner, signIn } from './helpers/auth';
 
-test.describe('Return leg', () => {
-  test('admin Colis detail offers Créer un retour for a parcel at the point', async ({
-    page,
-  }) => {
+test.describe('Legacy RTS return is locked', () => {
+  test('admin Colis detail does not offer Créer un retour', async ({ page }) => {
     await signIn(page, 'admin@eveider.cd');
     const response = await page.request.get('/api/parcels?search=LSH-1001');
     const result = await response.json();
@@ -16,13 +14,11 @@ test.describe('Return leg', () => {
     await page.goto(`/tableau-de-bord/colis/${parcel!.id}`);
     await dismissCookieBanner(page);
 
-    await expect(page.getByText('Créer un retour vers le marchand')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Créer un retour' })).toBeDisabled();
+    await expect(page.getByText('Créer un retour vers le marchand')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Créer un retour' })).toHaveCount(0);
   });
 
-  test('org Colis detail offers Créer un retour for a parcel at the point', async ({
-    page,
-  }) => {
+  test('org Colis detail does not offer Créer un retour', async ({ page }) => {
     await signIn(page, 'boutique.lubum@eveider.cd');
     await page.goto('/organisation/tableau-de-bord/colis');
     await dismissCookieBanner(page);
@@ -31,7 +27,7 @@ test.describe('Return leg', () => {
     await expect(page.getByText('Réf. LSH-1001')).toBeVisible();
     await page.locator('a.nb-data-table__link').filter({ hasText: /EVD/ }).first().click();
 
-    await expect(page.getByRole('heading', { name: 'Créer un retour' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Créer le retour' })).toBeDisabled();
+    await expect(page.getByRole('heading', { name: 'Créer un retour' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Créer le retour' })).toHaveCount(0);
   });
 });

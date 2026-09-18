@@ -22,7 +22,7 @@ import { SuccessBanner } from '../components/SuccessBanner';
 import { ScreenHeader, ScreenScaffold } from '../components/ScreenHeader';
 import { TextField } from '../components/TextField';
 import { useHideTabBar } from '../navigation/useHideTabBar';
-import { fetchCustomerParcel, fetchCustomerParcels, fetchCustomerLockers, assignCustomerParcelLocker, reportCustomerIssue, fetchPickupPaymentProviders, fetchPickupPaymentStatus, initiatePickupPayment, fetchProfile, fetchCustomerNotifications, markCustomerParcelCollected, type CustomerLocker, type CustomerParcel, type CustomerNotification, type PaymentProvider } from '../lib/api';
+import { fetchCustomerParcel, fetchCustomerParcels, fetchCustomerLockers, assignCustomerParcelLocker, reportCustomerIssue, fetchPickupPaymentProviders, fetchPickupPaymentStatus, initiatePickupPayment, fetchProfile, fetchCustomerNotifications, markCustomerParcelCollected, requestCustomerReturn, cancelCustomerReturn, confirmCustomerReturnDeposit, type CustomerLocker, type CustomerParcel, type CustomerNotification, type PaymentProvider } from '../lib/api';
 import { LockerMapView, LockerSelectPanel, getCurrentCoordinates, openDirections } from '../components/LockerMapView';
 import { pickFeaturedParcel } from '../lib/parcel-journey';
 import { needsPickupPayment } from '../lib/pickup-payment';
@@ -230,11 +230,11 @@ export function ReceiveScreen({
   }
 
   const activeParcels = useMemo(
-    () => parcels.filter((item) => item.status !== 'collected'),
+    () => parcels.filter((item) => item.status !== 'collected' && item.status !== 'returned'),
     [parcels],
   );
   const historyParcels = useMemo(
-    () => parcels.filter((item) => item.status === 'collected'),
+    () => parcels.filter((item) => item.status === 'collected' || item.status === 'returned'),
     [parcels],
   );
   const featuredParcel = pickFeaturedParcel(activeParcels);
@@ -274,6 +274,50 @@ export function ReceiveScreen({
 
     setParcel(result.data.parcel);
     setScreen({ name: 'detail', parcelId });
+  }
+
+  async function handleRequestReturn(parcelId: string) {
+    setCollecting(true);
+    setError(null);
+    const result = await requestCustomerReturn(parcelId);
+    setCollecting(false);
+    if (!result.success) {
+      setError(result.error);
+      return;
+    }
+    setParcel(result.data.parcel);
+    setScreen({ name: 'detail', parcelId });
+  }
+
+  async function handleCancelReturn(parcelId: string) {
+    setCollecting(true);
+    setError(null);
+    const result = await cancelCustomerReturn(parcelId);
+    setCollecting(false);
+    if (!result.success) {
+      setError(result.error);
+      return;
+    }
+    setParcel(result.data.parcel);
+  }
+
+  async function handleConfirmReturnDeposit(parcelId: string) {
+    const current = parcels.find((item) => item.id === parcelId) ?? parcel;
+    const lockerId = current?.customerReturn?.returnLocker?.id;
+    const returnCode = current?.customerReturn?.returnCode;
+    if (!lockerId || !returnCode) {
+      setError('Casier ou code retour manquant');
+      return;
+    }
+    setCollecting(true);
+    setError(null);
+    const result = await confirmCustomerReturnDeposit(parcelId, { lockerId, returnCode });
+    setCollecting(false);
+    if (!result.success) {
+      setError(result.error);
+      return;
+    }
+    setParcel(result.data.parcel);
   }
 
   async function handleCopyPin(code: string) {
@@ -752,7 +796,7 @@ export function ReceiveScreen({
 
       <View style={styles.detailSection}>
         <Text style={styles.sectionLabel}>{t('customer.tracking')}</Text>
-        <ParcelTimeline currentStatus={parcel.status} />
+        <ParcelTimeline currentStatus={parcel.status} pickupType={parcel.pickupType} />
       </View>
 
       {parcel.locker ? (
@@ -768,15 +812,8 @@ export function ReceiveScreen({
         <View style={styles.detailSection}>
           <Text style={styles.sectionLabel}>{t('customer.locker')}</Text>
           <Text style={styles.detailSubtext}>
-            Choisissez votre point de retrait pour lancer la livraison.
+            Le casier de destination est fixé par l’expéditeur.
           </Text>
-          <View style={{ marginTop: 12 }}>
-            <PrimaryButton
-              label={t('customer.choosePoint')}
-              variant="brand"
-              onPress={() => setScreen({ name: 'select-locker', parcelId: parcel.id })}
-            />
-          </View>
         </View>
       ) : null}
 
@@ -793,6 +830,42 @@ export function ReceiveScreen({
       {parcel.status === 'collected' ? (
         <View style={styles.collectedBanner}>
           <Text style={styles.collectedText}>{t('customer.collected')}</Text>
+        </View>
+      ) : null}
+
+      {parcel.canRequestReturn ? (
+        <PrimaryButton
+          label="Demander un retour"
+          variant="brand"
+          onPress={() => void handleRequestReturn(parcel.id)}
+        />
+      ) : null}
+
+      {parcel.customerReturn ? (
+        <View style={styles.collectedBanner}>
+          <Text style={styles.collectedText}>{parcel.customerReturn.statusLabel}</Text>
+          {parcel.customerReturn.returnLocker ? (
+            <Text style={styles.detailSubtext}>
+              {parcel.customerReturn.returnLocker.name}
+              {'\n'}
+              {parcel.customerReturn.returnLocker.address}
+            </Text>
+          ) : null}
+          {parcel.customerReturn.returnCode && parcel.customerReturn.canDeposit ? (
+            <Text style={styles.collectedText}>Code retour {parcel.customerReturn.returnCode}</Text>
+          ) : null}
+          {parcel.customerReturn.canDeposit ? (
+            <PrimaryButton
+              label="Confirmer le dépôt retour"
+              variant="brand"
+              onPress={() => void handleConfirmReturnDeposit(parcel.id)}
+            />
+          ) : null}
+          {parcel.customerReturn.canCancel ? (
+            <Pressable onPress={() => void handleCancelReturn(parcel.id)} style={styles.reportButton}>
+              <Text style={styles.reportButtonText}>Annuler le retour</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
 

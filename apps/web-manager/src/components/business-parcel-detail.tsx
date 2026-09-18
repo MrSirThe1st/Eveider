@@ -11,10 +11,8 @@ import {
   BusinessParcelProgression,
 } from '@/components/business-parcel-progression';
 import { ParcelInvitePanel } from '@/components/parcel-invite-panel';
-import { BusinessAssignCourier } from '@/components/business-assign-courier';
 import { ParcelEventTimeline } from '@/components/parcel-event-timeline';
 import { ShippingLabel } from '@/components/shipping-label';
-import type { AssignableCourierView } from '@/server/couriers';
 import type { IssueItem } from '@/server/issues';
 import type { BusinessParcelDetailView, ParcelInviteView } from '@/server/parcels';
 
@@ -32,8 +30,6 @@ type ParcelDetailProps = {
   parcel: BusinessParcelDetailView;
   justCreated?: boolean;
   canManageOperations?: boolean;
-  canAssignCouriers?: boolean;
-  assignableCouriers?: AssignableCourierView[];
   invite?: ParcelInviteView | null;
   issues?: IssueItem[];
 };
@@ -42,14 +38,20 @@ export function BusinessParcelDetail({
   parcel,
   justCreated = false,
   canManageOperations = false,
-  canAssignCouriers = false,
-  assignableCouriers = [],
   invite = null,
   issues = [],
 }: ParcelDetailProps) {
   const router = useRouter();
   const [depositError, setDepositError] = useState<string | null>(null);
   const [depositing, setDepositing] = useState(false);
+  const [returnError, setReturnError] = useState<string | null>(null);
+  const [returnActing, setReturnActing] = useState(false);
+  const [returnMethod, setReturnMethod] = useState<'eveider_return' | 'business_pickup'>(
+    'eveider_return',
+  );
+  const [returnLockerId, setReturnLockerId] = useState(
+    parcel.returnLockerOptions[0]?.id ?? '',
+  );
 
   async function confirmDeposit() {
     setDepositing(true);
@@ -72,6 +74,28 @@ export function BusinessParcelDetail({
       setDepositError('Erreur réseau');
     } finally {
       setDepositing(false);
+    }
+  }
+
+  async function postReturnAction(path: string, body?: Record<string, unknown>) {
+    setReturnActing(true);
+    setReturnError(null);
+    try {
+      const response = await fetch(`/api/organisation/parcels/${parcel.id}/return/${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body ?? {}),
+      });
+      const result = await response.json();
+      if (!result.success) {
+        setReturnError(result.error ?? 'Action impossible');
+        return;
+      }
+      router.refresh();
+    } catch {
+      setReturnError('Erreur réseau');
+    } finally {
+      setReturnActing(false);
     }
   }
 
@@ -186,6 +210,77 @@ export function BusinessParcelDetail({
         </section>
       ) : null}
 
+      {parcel.customerReturn ? (
+        <section style={{ ...webCardStyle, padding: '1.25rem', marginTop: '1.25rem' }}>
+          <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.95rem' }}>Retour client</h3>
+          <p style={{ margin: '0 0 0.75rem', fontSize: 14 }}>
+            {parcel.customerReturn.statusLabel}
+            {parcel.customerReturn.methodLabel ? ` · ${parcel.customerReturn.methodLabel}` : ''}
+          </p>
+          {parcel.customerReturn.returnLocker ? (
+            <p style={{ margin: '0 0 0.75rem', fontSize: 14, color: colors.textMuted }}>
+              Casier : {parcel.customerReturn.returnLocker.name}
+            </p>
+          ) : null}
+          {returnError ? <InlineAlert message={returnError} variant="error" /> : null}
+          {canManageOperations && parcel.customerReturn.canApprove ? (
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
+              <label style={{ fontSize: 13 }}>
+                Méthode
+                <select
+                  value={returnMethod}
+                  onChange={(event) =>
+                    setReturnMethod(event.target.value as 'eveider_return' | 'business_pickup')
+                  }
+                  style={{ display: 'block', marginTop: 4, width: '100%', minHeight: 40 }}
+                >
+                  <option value="eveider_return">Retour Eveider</option>
+                  <option value="business_pickup">Retrait marchand</option>
+                </select>
+              </label>
+              <label style={{ fontSize: 13 }}>
+                Casier de retour
+                <select
+                  value={returnLockerId}
+                  onChange={(event) => setReturnLockerId(event.target.value)}
+                  style={{ display: 'block', marginTop: 4, width: '100%', minHeight: 40 }}
+                >
+                  {parcel.returnLockerOptions.map((locker) => (
+                    <option key={locker.id} value={locker.id}>
+                      {locker.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <Button
+                  disabled={returnActing || !returnLockerId}
+                  onClick={() =>
+                    void postReturnAction('authorize', {
+                      method: returnMethod,
+                      returnLockerId,
+                    })
+                  }
+                >
+                  Autoriser
+                </Button>
+                <Button
+                  disabled={returnActing}
+                  onClick={() => void postReturnAction('reject')}
+                >
+                  Refuser
+                </Button>
+              </div>
+            </div>
+          ) : null}
+          {canManageOperations && parcel.customerReturn.canConfirmPickup ? (
+            <Button disabled={returnActing} onClick={() => void postReturnAction('pickup')}>
+              Confirmer le retrait marchand
+            </Button>
+          ) : null}
+        </section>
+      ) : null}
+
       {parcel.charges.length > 0 ? (
         <section style={{ ...webCardStyle, padding: '1.25rem', marginTop: '1.25rem' }}>
           <h3 style={{ margin: '0 0 0.75rem', fontSize: '0.95rem' }}>Frais entreprise</h3>
@@ -235,20 +330,6 @@ export function BusinessParcelDetail({
           }}
         />
       </section>
-
-      {canAssignCouriers && parcel.canAssignOutbound ? (
-        <BusinessAssignCourier parcelId={parcel.id} couriers={assignableCouriers} />
-      ) : null}
-
-      {canAssignCouriers && parcel.canCreateReturn ? (
-        <BusinessAssignCourier
-          parcelId={parcel.id}
-          couriers={assignableCouriers}
-          kind="return"
-          title="Créer un retour"
-          buttonLabel="Créer le retour"
-        />
-      ) : null}
 
       {canManageOperations ? (
         <ParcelInvitePanel parcelId={parcel.id} initialInvite={invite} />

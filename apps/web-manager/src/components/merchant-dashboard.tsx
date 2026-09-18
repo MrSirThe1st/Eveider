@@ -153,7 +153,7 @@ export function MerchantDashboard({
     { label: 'Total colis', value: analytics.total, hint: 'Tous statuts' },
     { label: 'Livrés', value: analytics.delivered, hint: 'Retirés au point' },
     { label: 'En transit', value: analytics.inTransit, hint: 'Vers le point' },
-    { label: 'En attente de retrait', value: analytics.awaitingPickup, hint: 'Au casier' },
+    { label: 'En attente de retrait', value: analytics.awaitingPickup, hint: 'Prêt pour retrait' },
     { label: 'Retours', value: analytics.returned, hint: 'Pas encore suivi' },
     { label: 'Échecs', value: analytics.failed, hint: 'Livraisons échouées', accent: analytics.failed > 0 },
     {

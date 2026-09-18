@@ -4,8 +4,9 @@ import { LockerRepository } from './locker.repository.js';
 
 describe('LockerRepository.listActivePickerOptions', () => {
   it('selects id, name, and address without availability joins', async () => {
-    const db = createSqlMatchMock((sql) => {
+    const db = createSqlMatchMock((sql, values) => {
       if (sqlIncludes(sql, 'SELECT id, name, address') && sqlIncludes(sql, 'FROM lockers')) {
+        expect(values).toEqual(['SMART_LOCKER']);
         return lockerRow({ id: 'locker-1', name: 'Gombe', address: 'Boulevard du 30 Juin' });
       }
       throw new Error(`Unexpected SQL: ${sql}`);

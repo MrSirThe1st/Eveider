@@ -148,6 +148,9 @@ export class UserRepository {
     const result = await this.db.query(
       `SELECT DISTINCT u.* FROM users u
        JOIN organization_memberships m ON m.user_id = u.id
+       JOIN driver_dossiers d ON d.user_id = u.id
+        AND d.contractor_type = 'eveider'
+        AND d.status IN ('approved', 'invited', 'active')
        WHERE m.role = 'driver'
          AND u.is_blocked = false
          AND u.deactivated_at IS NULL

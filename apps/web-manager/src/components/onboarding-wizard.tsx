@@ -738,11 +738,17 @@ export function OnboardingWizard({
             <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '1.25rem', borderRadius: 8 }}>
               <span style={{ fontWeight: 700, fontSize: '0.875rem', display: 'block', marginBottom: '0.75rem' }}>Choisissez le point de dépôt habituel</span>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {[
-                  { id: 'point-gombe', label: '○ Eveider Point Gombe (Av. Kananga)' },
-                  { id: 'point-limete', label: '○ Eveider Point Limete (Boulevard 30 Juin)' },
-                  { id: 'locker-central', label: '○ Eveider Locker Central (Victoire)' },
-                ].map((point) => (
+                {(availableLockers.length > 0
+                  ? availableLockers.map((locker) => ({
+                      id: locker.id,
+                      label: `${locker.name}${locker.address ? ` (${locker.address})` : ''}`,
+                    }))
+                  : [
+                      { id: 'locker-gombe', label: 'Casier Eveider Gombe (Av. Kananga)' },
+                      { id: 'locker-limete', label: 'Casier Eveider Limete (Boulevard 30 Juin)' },
+                      { id: 'locker-central', label: 'Casier Eveider Victoire' },
+                    ]
+                ).map((point) => (
                   <label
                     key={point.id}
                     style={{

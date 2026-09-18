@@ -13,6 +13,7 @@ import type {
   Delivery,
   Issue,
   Locker,
+  LockerActionSession,
   Notification,
   OrganizationApiKey,
   OrganizationNotificationDelivery,
@@ -20,6 +21,7 @@ import type {
   Parcel,
   ParcelEvent,
   ParcelInvite,
+  ParcelReturn,
   BusinessTeamInvite,
   PlatformAdminInvite,
   ParcelPayment,
@@ -128,6 +130,8 @@ export function mapServiceArea(row: Record<string, unknown>): ServiceArea {
     city: String(row.city),
     status: row.status as ServiceArea['status'],
     notes: row.notes == null ? null : String(row.notes),
+    outboundDeliveryAmount: Number(row.outbound_delivery_amount ?? 0),
+    returnDeliveryAmount: Number(row.return_delivery_amount ?? 0),
     createdAt: asDate(row.created_at),
     updatedAt: asDate(row.updated_at),
   };
@@ -186,6 +190,7 @@ export function mapParcel(row: Record<string, unknown>): Parcel {
     deliveryFeeCurrency: row.delivery_fee_currency === 'USD' ? 'USD' : 'CDF',
     deliveryDistanceKm: asNumberOrNull(row.delivery_distance_km),
     pricingSizeUsed: (row.pricing_size_used as Parcel['pricingSizeUsed']) ?? null,
+    commercialModel: row.commercial_model === 'canonical' ? 'canonical' : 'legacy',
     readyForPickupAt: row.ready_for_pickup_at == null ? null : asDate(row.ready_for_pickup_at),
     createdAt: asDate(row.created_at),
     updatedAt: asDate(row.updated_at),
@@ -193,15 +198,58 @@ export function mapParcel(row: Record<string, unknown>): Parcel {
 }
 
 export function mapDelivery(row: Record<string, unknown>): Delivery {
+  const kind = String(row.kind);
   return {
     id: String(row.id),
     parcelId: String(row.parcel_id),
     driverId: String(row.driver_id),
     courierId: String(row.driver_id),
-    kind: row.kind === 'return' ? 'return' : 'outbound',
+    kind:
+      kind === 'return' || kind === 'customer_return' || kind === 'outbound'
+        ? kind
+        : 'outbound',
     status: row.status as Delivery['status'],
     scannedAt: asDateOrNull(row.scanned_at),
     completedAt: asDateOrNull(row.completed_at),
+    createdAt: asDate(row.created_at),
+    updatedAt: asDate(row.updated_at),
+  };
+}
+
+export function mapParcelReturn(row: Record<string, unknown>): ParcelReturn {
+  return {
+    id: String(row.id),
+    parcelId: String(row.parcel_id),
+    businessId: String(row.business_id),
+    status: row.status as ParcelReturn['status'],
+    method: row.method == null || row.method === '' ? null : (row.method as ParcelReturn['method']),
+    returnLockerId: row.return_locker_id == null ? null : String(row.return_locker_id),
+    compartmentId: row.compartment_id == null ? null : String(row.compartment_id),
+    returnCode: row.return_code == null || row.return_code === '' ? null : String(row.return_code),
+    requestedAt: asDate(row.requested_at),
+    authorizedAt: asDateOrNull(row.authorized_at),
+    depositedAt: asDateOrNull(row.deposited_at),
+    completedAt: asDateOrNull(row.completed_at),
+    createdAt: asDate(row.created_at),
+    updatedAt: asDate(row.updated_at),
+  };
+}
+
+export function mapLockerActionSession(row: Record<string, unknown>): LockerActionSession {
+  return {
+    id: String(row.id),
+    action: row.action as LockerActionSession['action'],
+    parcelId: String(row.parcel_id),
+    lockerId: String(row.locker_id),
+    compartmentId: row.compartment_id == null ? null : String(row.compartment_id),
+    actorType: row.actor_type as LockerActionSession['actorType'],
+    actorReference: String(row.actor_reference),
+    status: row.status as LockerActionSession['status'],
+    expiresAt: asDate(row.expires_at),
+    authorizedAt: asDate(row.authorized_at),
+    confirmedAt: asDateOrNull(row.confirmed_at),
+    cancelledAt: asDateOrNull(row.cancelled_at),
+    deviceEventId: row.device_event_id == null ? null : String(row.device_event_id),
     createdAt: asDate(row.created_at),
     updatedAt: asDate(row.updated_at),
   };

@@ -26,11 +26,7 @@ export async function GET(request: Request) {
 
   try {
     const quote = await buildDeliveryQuote({
-      businessId: auth.session.profile.businessId!,
       lockerId: query.data.lockerId,
-      compartmentId: query.data.compartmentId,
-      packageSize: query.data.packageSize,
-      senderAddress: query.data.senderAddress,
       pickupType: query.data.pickupType,
     });
     return NextResponse.json(ok(quote));

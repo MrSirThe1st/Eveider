@@ -21,17 +21,10 @@ export async function POST(request: Request, { params }: RouteParams) {
   const { id } = await params;
 
   try {
-    const { parcels, payments } = createRepositories();
+    const { parcels } = createRepositories();
     const existing = await parcels.findByIdForCustomer(auth.session.ctx, id);
     if (!existing) {
       return withMobileCors(NextResponse.json(fail('Colis introuvable'), { status: 404 }));
-    }
-
-    const paid = await payments.hasCompletedPickupPayment(id);
-    if (!paid) {
-      return withMobileCors(
-        NextResponse.json(fail('Paiement requis avant le retrait'), { status: 409 }),
-      );
     }
 
     const parcel = await parcels.markCollectedByCustomer(auth.session.ctx, id);
@@ -42,10 +35,14 @@ export async function POST(request: Request, { params }: RouteParams) {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur serveur';
     const status = message.includes('introuvable')
-      ? 404
+      ? message.includes('CANONICAL_CHARGE_MISSING')
+        ? 409
+        : 404
       : message.includes('périmètre')
         ? 403
-        : message.includes('prêt')
+        : message.includes('prêt') ||
+            message.includes('Paiement requis') ||
+            message.includes('CANONICAL_CHARGE_MISSING')
           ? 409
           : 500;
     return withMobileCors(NextResponse.json(fail(message), { status }));

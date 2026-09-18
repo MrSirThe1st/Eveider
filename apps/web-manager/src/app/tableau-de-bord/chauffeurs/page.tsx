@@ -12,7 +12,7 @@ export default async function AdminDriversPage() {
   return (
     <PageFrame
       title="Chauffeurs"
-      description="Chauffeurs Eveider et chauffeurs des entreprises."
+      description="Chauffeurs Eveider."
       layout="wide"
       breadcrumbs={[
         { label: 'Tableau de bord', href: WEB_ROUTES.adminDashboard },

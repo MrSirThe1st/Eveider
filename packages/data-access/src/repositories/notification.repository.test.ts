@@ -62,6 +62,14 @@ describe('NotificationRepository', () => {
     ]);
   });
 
+  it('does not notify the recipient at AT_POINT', async () => {
+    setup(() => {
+      throw new Error('AT_POINT must not query notifications');
+    });
+
+    await repo.notifyParcelStatusChange('parcel-1', 'delivered_to_locker');
+  });
+
   it('skips duplicate notifications', async () => {
     const inserts: unknown[][] = [];
 

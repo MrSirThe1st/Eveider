@@ -46,6 +46,8 @@ describe('updateDeliveryPricingSchema', () => {
       largeCoefficient: 2,
       dropOffFeeAmount: 1,
       lockerRentalRateAmount: 0.5,
+      lockerCollectionAmount: 2,
+      returnLockerAmount: 3,
     };
     expect(updateDeliveryPricingSchema.safeParse({ ...base, currency: 'USD' }).success).toBe(true);
     expect(updateDeliveryPricingSchema.safeParse({ ...base, currency: 'CDF' }).success).toBe(true);

@@ -3,12 +3,18 @@ import type { Queryable } from '../db/index.js';
 import { mapParcelPayment } from '../db/mappers.js';
 import type { ParcelPayment, PaymentStatus } from '../db/types.js';
 import { phonesMatch } from '../tracking/guest-track.js';
+import { CommercialRepository } from '../repositories/commercial.repository.js';
+import {
+  PARCEL_CHARGE_KIND_LABELS,
+  type ParcelChargeKind,
+} from '@eveider/domain';
 import {
   buildPawaPayConfig,
   getPawaPayConfig,
   isDrcDepositProvider,
   normalizePawaPayPhone,
   type DrcDepositProvider,
+  type PawaPayConfig,
 } from './pawapay-config.js';
 import {
   getPawaPayDepositStatus,
@@ -25,6 +31,10 @@ export type PickupPaymentSummary = {
   provider: string | null;
   depositId: string | null;
   failureReason: string | null;
+  kind: ParcelChargeKind | 'pickup_fee' | null;
+  purpose: string | null;
+  integrityError: 'CANONICAL_CHARGE_MISSING' | null;
+  paymentProviderAvailable: boolean;
 };
 
 export type InitiatePickupPaymentInput = {
@@ -40,7 +50,8 @@ export type InitiatePickupPaymentResult = {
 export class PaymentRepository {
   constructor(private readonly db: Queryable) {}
 
-  private async resolvePawaPayConfig() {
+  private async resolvePawaPayConfig(fee?: { amount: string; currency: string }) {
+    if (fee) return buildPawaPayConfig(fee);
     const settingsResult = await this.db.query(
       `SELECT pickup_fee_amount, pickup_fee_currency
        FROM platform_settings
@@ -55,8 +66,47 @@ export class PaymentRepository {
     });
   }
 
-  async getPickupPaymentSummary(parcelId: string): Promise<PickupPaymentSummary> {
-    const config = await this.resolvePawaPayConfig();
+  private formatChargeAmount(amount: number, currency: string): string {
+    if (currency === 'USD') return amount.toFixed(2);
+    return String(Math.round(amount));
+  }
+
+  private async resolveRecipientTariff(parcelId: string): Promise<{
+    required: boolean;
+    amount: string | null;
+    currency: string | null;
+    kind: ParcelChargeKind | 'pickup_fee' | null;
+    purpose: string | null;
+    config: PawaPayConfig | null;
+    integrityError: 'CANONICAL_CHARGE_MISSING' | null;
+    paymentProviderAvailable: boolean;
+  }> {
+    const commercial = new CommercialRepository(this.db);
+    const decision = await commercial.evaluateRecipientCollection(parcelId);
+    const charge = await commercial.findRecipientServiceCharge(parcelId);
+
+    if (decision.model === 'canonical') {
+      const amount =
+        charge && charge.amount > 0
+          ? this.formatChargeAmount(charge.amount, charge.currency)
+          : null;
+      const config =
+        charge && amount
+          ? buildPawaPayConfig({ amount, currency: charge.currency })
+          : null;
+      return {
+        required: decision.outstanding,
+        amount: charge && charge.amount > 0 ? amount : null,
+        currency: charge && charge.amount > 0 ? charge.currency : null,
+        kind: charge?.kind ?? null,
+        purpose: charge ? PARCEL_CHARGE_KIND_LABELS[charge.kind] : null,
+        config,
+        integrityError:
+          decision.code === 'CANONICAL_CHARGE_MISSING' ? 'CANONICAL_CHARGE_MISSING' : null,
+        paymentProviderAvailable: Boolean(config),
+      };
+    }
+
     const parcelResult = await this.db.query(
       `SELECT payment_responsibility FROM parcels WHERE id = $1 LIMIT 1`,
       [parcelId],
@@ -64,35 +114,50 @@ export class PaymentRepository {
     const paymentResponsibility = String(
       parcelResult.rows[0]?.payment_responsibility ?? 'receiver_pays',
     );
-    const customerPays =
-      Boolean(config) && paymentResponsibility === 'receiver_pays';
+    const config = await this.resolvePawaPayConfig();
+    const customerPays = Boolean(config) && paymentResponsibility === 'receiver_pays';
+    return {
+      required: customerPays && decision.outstanding,
+      amount: customerPays ? (config?.pickupFeeAmount ?? null) : null,
+      currency: customerPays ? (config?.pickupFeeCurrency ?? null) : null,
+      kind: customerPays ? 'pickup_fee' : null,
+      purpose: customerPays ? 'Frais de retrait' : null,
+      config,
+      integrityError: null,
+      paymentProviderAvailable: Boolean(config),
+    };
+  }
+
+  async getPickupPaymentSummary(parcelId: string): Promise<PickupPaymentSummary> {
+    const tariff = await this.resolveRecipientTariff(parcelId);
 
     const latestResult = await this.db.query(
       `SELECT * FROM parcel_payments WHERE parcel_id = $1 ORDER BY created_at DESC LIMIT 1`,
       [parcelId],
     );
     const latest = latestResult.rows[0] ? mapParcelPayment(latestResult.rows[0]) : null;
+    const paid = latest?.status === 'completed';
+    const required = tariff.required && !paid;
 
     return {
-      required: customerPays,
+      required,
       status: latest?.status ?? 'none',
-      amount: customerPays ? (config?.pickupFeeAmount ?? null) : null,
-      currency: customerPays ? (config?.pickupFeeCurrency ?? null) : null,
+      amount: tariff.amount,
+      currency: tariff.currency,
       provider: latest?.provider ?? null,
       depositId: latest?.depositId ?? null,
       failureReason: latest?.failureReason ?? null,
+      kind: tariff.kind,
+      purpose: required || tariff.amount ? tariff.purpose : null,
+      integrityError: tariff.integrityError,
+      paymentProviderAvailable: tariff.paymentProviderAvailable,
     };
   }
 
   async hasCompletedPickupPayment(parcelId: string): Promise<boolean> {
-    const summary = await this.getPickupPaymentSummary(parcelId);
-    if (!summary.required) return true;
-
-    const completed = await this.db.query(
-      `SELECT id FROM parcel_payments WHERE parcel_id = $1 AND status = 'completed' LIMIT 1`,
-      [parcelId],
-    );
-    return Boolean(completed.rows[0]);
+    const commercial = new CommercialRepository(this.db);
+    const decision = await commercial.evaluateRecipientCollection(parcelId);
+    return !decision.outstanding;
   }
 
   async initiatePickupPayment(
@@ -102,10 +167,6 @@ export class PaymentRepository {
   ): Promise<InitiatePickupPaymentResult> {
     assertCustomerRole(ctx);
 
-    const config = await this.resolvePawaPayConfig();
-    if (!config) {
-      throw new Error('Paiement mobile indisponible pour le moment');
-    }
     if (!isDrcDepositProvider(input.provider)) {
       throw new Error('Opérateur mobile invalide');
     }
@@ -127,6 +188,15 @@ export class PaymentRepository {
     if (parcel.status !== 'ready_for_pickup') {
       throw new Error('Le paiement n’est disponible que pour un colis prêt au retrait');
     }
+
+    const tariff = await this.resolveRecipientTariff(parcelId);
+    if (!tariff.config) {
+      throw new Error('Paiement mobile indisponible pour le moment');
+    }
+    if (!tariff.required || !tariff.amount || !tariff.currency) {
+      throw new Error('Aucun frais destinataire à régler');
+    }
+    const config = tariff.config;
 
     const existingCompleted = await this.db.query(
       `SELECT id FROM parcel_payments WHERE parcel_id = $1 AND status = 'completed' LIMIT 1`,
@@ -250,10 +320,6 @@ export class PaymentRepository {
     recipientPhone: string,
     input: InitiatePickupPaymentInput,
   ): Promise<InitiatePickupPaymentResult> {
-    const config = await this.resolvePawaPayConfig();
-    if (!config) {
-      throw new Error('Paiement mobile indisponible pour le moment');
-    }
     if (!isDrcDepositProvider(input.provider)) {
       throw new Error('Opérateur mobile invalide');
     }
@@ -270,6 +336,15 @@ export class PaymentRepository {
     if (parcel.status !== 'ready_for_pickup') {
       throw new Error('Le paiement n’est disponible que pour un colis prêt au retrait');
     }
+
+    const tariff = await this.resolveRecipientTariff(parcelId);
+    if (!tariff.config) {
+      throw new Error('Paiement mobile indisponible pour le moment');
+    }
+    if (!tariff.required || !tariff.amount || !tariff.currency) {
+      throw new Error('Aucun frais destinataire à régler');
+    }
+    const config = tariff.config;
 
     const existingCompleted = await this.db.query(
       `SELECT id FROM parcel_payments WHERE parcel_id = $1 AND status = 'completed' LIMIT 1`,

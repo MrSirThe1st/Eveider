@@ -4,6 +4,7 @@ import { colors, borderSubtle, webInputStyle } from '@eveider/config-ui';
 import { Button, CardListSkeleton, PageFrame, useToast } from '@eveider/ui';
 import { useEffect, useState, type FormEvent } from 'react';
 import { fetchJson } from '@/lib/api/fetch-json';
+import type { ServiceAreaDto } from '@/lib/service-area-presenter';
 
 type PricingRules = {
   distanceThresholdKm: number;
@@ -13,17 +14,26 @@ type PricingRules = {
   sizeCoefficients: { small: number; medium: number; large: number };
   dropOffFeeAmount: number;
   lockerRentalRateAmount: number;
+  lockerCollectionAmount: number;
+  returnLockerAmount: number;
 };
 
 export default function AdminBillingSettingsPage() {
   const toast = useToast();
   const [rules, setRules] = useState<PricingRules | null>(null);
+  const [zones, setZones] = useState<ServiceAreaDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    void fetchJson<{ rules: PricingRules }>('/api/pricing/delivery-rules')
-      .then((data) => setRules(data.rules))
+    void Promise.all([
+      fetchJson<{ rules: PricingRules }>('/api/pricing/delivery-rules'),
+      fetchJson<{ serviceAreas: ServiceAreaDto[] }>('/api/service-areas?includeArchived=true'),
+    ])
+      .then(([pricing, areas]) => {
+        setRules(pricing.rules);
+        setZones(areas.serviceAreas);
+      })
       .catch(() => toast.error('Impossible de charger les tarifs'))
       .finally(() => setLoading(false));
   }, [toast]);
@@ -46,9 +56,26 @@ export default function AdminBillingSettingsPage() {
           largeCoefficient: rules.sizeCoefficients.large,
           dropOffFeeAmount: rules.dropOffFeeAmount,
           lockerRentalRateAmount: rules.lockerRentalRateAmount,
+          lockerCollectionAmount: rules.lockerCollectionAmount,
+          returnLockerAmount: rules.returnLockerAmount,
         }),
       });
       setRules(data.rules);
+
+      await Promise.all(
+        zones
+          .filter((zone) => zone.status === 'active')
+          .map((zone) =>
+            fetch(`/api/service-areas/${zone.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                outboundDeliveryAmount: zone.outboundDeliveryAmount,
+                returnDeliveryAmount: zone.returnDeliveryAmount,
+              }),
+            }),
+          ),
+      );
       toast.success('Tarifs mis à jour');
     } catch {
       toast.error('Échec de la mise à jour des tarifs');
@@ -71,7 +98,7 @@ export default function AdminBillingSettingsPage() {
   return (
     <PageFrame
       title="Facturation"
-      description="Tarifs Eveider pour la course, le dépôt marchand et la location de casier après le délai de rétention gratuit (réglé dans Casiers)."
+      description="Tarifs canoniques : zones pour la livraison/retour Eveider, frais fixes de casier, location après 72 h."
       layout="standard"
     >
       <form
@@ -79,7 +106,6 @@ export default function AdminBillingSettingsPage() {
         style={{
           display: 'grid',
           gap: '1rem',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
           width: '100%',
         }}
       >
@@ -87,9 +113,7 @@ export default function AdminBillingSettingsPage() {
           Devise
           <select
             value={rules.currency}
-            onChange={(e) =>
-              setRules({ ...rules, currency: e.target.value as 'USD' | 'CDF' })
-            }
+            onChange={(e) => setRules({ ...rules, currency: e.target.value as 'USD' | 'CDF' })}
             style={inputStyle}
           >
             <option value="CDF">CDF (franc congolais)</option>
@@ -97,81 +121,80 @@ export default function AdminBillingSettingsPage() {
           </select>
         </label>
 
-        <fieldset style={{ border: borderSubtle(), borderRadius: 8, padding: '1rem', gridColumn: '1 / -1' }}>
-          <legend style={{ fontWeight: 700 }}>Livraison Eveider (distance × taille)</legend>
-          <div
-            style={{
-              display: 'grid',
-              gap: '1rem',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            }}
-          >
-            <label>
-              Distance limite (km)
-              <input
-                type="number"
-                step="0.1"
-                value={rules.distanceThresholdKm}
-                onChange={(e) =>
-                  setRules({ ...rules, distanceThresholdKm: Number(e.target.value) })
-                }
-                style={inputStyle}
-              />
-            </label>
-            <label>
-              Prix si plus court ({currencyLabel})
-              <input
-                type="number"
-                step={rules.currency === 'USD' ? '0.01' : '1'}
-                value={rules.belowThresholdAmount}
-                onChange={(e) =>
-                  setRules({ ...rules, belowThresholdAmount: Number(e.target.value) })
-                }
-                style={inputStyle}
-              />
-            </label>
-            <label>
-              Prix si plus long ({currencyLabel})
-              <input
-                type="number"
-                step={rules.currency === 'USD' ? '0.01' : '1'}
-                value={rules.aboveThresholdAmount}
-                onChange={(e) =>
-                  setRules({ ...rules, aboveThresholdAmount: Number(e.target.value) })
-                }
-                style={inputStyle}
-              />
-            </label>
-          </div>
-          <div style={{ marginTop: '1rem' }}>
-            {(['small', 'medium', 'large'] as const).map((size) => (
-              <label key={size} style={{ display: 'block', marginBottom: '0.75rem' }}>
-                Multiplicateur {size === 'small' ? 'Petit' : size === 'medium' ? 'Moyen' : 'Grand'}
-                <input
-                  type="number"
-                  step="0.1"
-                  value={rules.sizeCoefficients[size]}
-                  onChange={(e) =>
-                    setRules({
-                      ...rules,
-                      sizeCoefficients: {
-                        ...rules.sizeCoefficients,
-                        [size]: Number(e.target.value),
-                      },
-                    })
-                  }
-                  style={inputStyle}
-                />
-              </label>
-            ))}
-          </div>
-          <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>
-            Prix course = montant de base × multiplicateur de taille.
+        <fieldset style={{ border: borderSubtle(), borderRadius: 8, padding: '1rem' }}>
+          <legend style={{ fontWeight: 700 }}>Zones — livraison et retour Eveider</legend>
+          <p style={{ margin: '0 0 1rem', fontSize: '0.8125rem', color: colors.textMuted }}>
+            La zone est celle du casier de destination (aller) ou du casier de retour. La taille du
+            colis ne change pas le prix.
           </p>
+          {zones.filter((zone) => zone.status === 'active').length === 0 ? (
+            <p style={{ margin: 0, color: colors.textMuted }}>Aucune zone active.</p>
+          ) : (
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
+              {zones
+                .filter((zone) => zone.status === 'active')
+                .map((zone) => (
+                  <div
+                    key={zone.id}
+                    style={{
+                      display: 'grid',
+                      gap: '0.75rem',
+                      gridTemplateColumns: 'minmax(160px, 1.4fr) 1fr 1fr',
+                      alignItems: 'end',
+                    }}
+                  >
+                    <div>
+                      <strong>{zone.name}</strong>
+                      <div style={{ fontSize: 12, color: colors.textMuted }}>
+                        {zone.code} · {zone.city}
+                      </div>
+                    </div>
+                    <label>
+                      Livraison destinataire ({currencyLabel})
+                      <input
+                        type="number"
+                        min={0}
+                        step={rules.currency === 'USD' ? '0.01' : '1'}
+                        value={zone.outboundDeliveryAmount}
+                        onChange={(e) =>
+                          setZones((current) =>
+                            current.map((item) =>
+                              item.id === zone.id
+                                ? { ...item, outboundDeliveryAmount: Number(e.target.value) }
+                                : item,
+                            ),
+                          )
+                        }
+                        style={inputStyle}
+                      />
+                    </label>
+                    <label>
+                      Retour entreprise ({currencyLabel})
+                      <input
+                        type="number"
+                        min={0}
+                        step={rules.currency === 'USD' ? '0.01' : '1'}
+                        value={zone.returnDeliveryAmount}
+                        onChange={(e) =>
+                          setZones((current) =>
+                            current.map((item) =>
+                              item.id === zone.id
+                                ? { ...item, returnDeliveryAmount: Number(e.target.value) }
+                                : item,
+                            ),
+                          )
+                        }
+                        style={inputStyle}
+                      />
+                    </label>
+                  </div>
+                ))}
+            </div>
+          )}
         </fieldset>
 
-        <fieldset style={{ border: borderSubtle(), borderRadius: 8, padding: '1rem', gridColumn: '1 / -1' }}>
-          <legend style={{ fontWeight: 700 }}>Dépôt marchand & location casier</legend>
+        <fieldset style={{ border: borderSubtle(), borderRadius: 8, padding: '1rem' }}>
+          <legend style={{ fontWeight: 700 }}>Frais fixes de casier</legend>
           <div
             style={{
               display: 'grid',
@@ -180,21 +203,36 @@ export default function AdminBillingSettingsPage() {
             }}
           >
             <label>
-              Frais de dépôt fixe ({currencyLabel})
+              Collecte destinataire — dépôt marchand ({currencyLabel})
               <input
                 type="number"
+                min={0}
                 step={rules.currency === 'USD' ? '0.01' : '1'}
-                value={rules.dropOffFeeAmount}
+                value={rules.lockerCollectionAmount}
                 onChange={(e) =>
-                  setRules({ ...rules, dropOffFeeAmount: Number(e.target.value) })
+                  setRules({ ...rules, lockerCollectionAmount: Number(e.target.value) })
                 }
                 style={inputStyle}
               />
             </label>
             <label>
-              Location casier / 24 h ({currencyLabel})
+              Retrait marchand d’un retour ({currencyLabel})
               <input
                 type="number"
+                min={0}
+                step={rules.currency === 'USD' ? '0.01' : '1'}
+                value={rules.returnLockerAmount}
+                onChange={(e) =>
+                  setRules({ ...rules, returnLockerAmount: Number(e.target.value) })
+                }
+                style={inputStyle}
+              />
+            </label>
+            <label>
+              Location casier / 24 h après rétention ({currencyLabel})
+              <input
+                type="number"
+                min={0}
                 step={rules.currency === 'USD' ? '0.01' : '1'}
                 value={rules.lockerRentalRateAmount}
                 onChange={(e) =>
@@ -205,12 +243,12 @@ export default function AdminBillingSettingsPage() {
             </label>
           </div>
           <p style={{ margin: '0.75rem 0 0', fontSize: '0.8125rem', color: colors.textMuted }}>
-            Le dépôt est facturé à la confirmation du dépôt. La location démarre après le délai de
-            rétention gratuit (Paramètres → Casiers), uniquement pour les casiers à compartiments.
+            La rétention gratuite (72 h par défaut) se règle dans Paramètres → Casiers. La location
+            est à la charge de l’entreprise.
           </p>
         </fieldset>
 
-        <div style={{ gridColumn: '1 / -1' }}>
+        <div>
           <Button type="submit" loading={saving}>
             Enregistrer
           </Button>

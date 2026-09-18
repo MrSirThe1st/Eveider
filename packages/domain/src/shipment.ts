@@ -26,6 +26,12 @@ export const PAYMENT_RESPONSIBILITIES: readonly PaymentResponsibility[] = [
   'cod',
 ] as const;
 
+/** COD is locked; wizard and create API only offer these. */
+export const ACTIVE_PAYMENT_RESPONSIBILITIES: readonly PaymentResponsibility[] = [
+  'sender_pays',
+  'receiver_pays',
+] as const;
+
 export const PACKAGE_CATEGORIES: readonly PackageCategory[] = [
   'documents',
   'fashion',

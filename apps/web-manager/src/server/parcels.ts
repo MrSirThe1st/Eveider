@@ -7,6 +7,7 @@ import {
 } from '@eveider/data-access';
 import {
   formatDeliveryFee,
+  PARCEL_CHARGE_KIND_LABELS,
   type BusinessParcelLocation,
   type ParcelChargeKind,
 } from '@eveider/domain';
@@ -17,6 +18,7 @@ import {
   type ParcelDto,
 } from '@/lib/business-parcel-presenter';
 import { toParcelEventDto, type ParcelEventDto } from '@/lib/parcel-presenter';
+import { toParcelReturnView, type ParcelReturnView } from '@/lib/parcel-return-presenter';
 import { listBusinessIssues, type IssueItem } from '@/server/issues';
 
 export type BusinessParcelListItem = {
@@ -61,6 +63,8 @@ export type BusinessParcelDetailView = ParcelDto & {
   canConfirmDeposit: boolean;
   readyForPickupAt: string | null;
   charges: ParcelChargeView[];
+  customerReturn: ParcelReturnView | null;
+  returnLockerOptions: Array<{ id: string; name: string; address: string }>;
 };
 
 export type BusinessParcelOperationsView = {
@@ -68,11 +72,7 @@ export type BusinessParcelOperationsView = {
   issues: IssueItem[];
 };
 
-const CHARGE_KIND_LABELS: Record<ParcelChargeKind, string> = {
-  delivery_fee: 'Livraison Eveider',
-  drop_off_fee: 'Dépôt marchand',
-  locker_rental: 'Location casier',
-};
+const CHARGE_KIND_LABELS = PARCEL_CHARGE_KIND_LABELS;
 
 function toChargeView(charge: ParcelCharge): ParcelChargeView {
   return {
@@ -101,6 +101,7 @@ export async function listBusinessParcels(
       pickupType: parcel.pickupType,
       latestDeliveryStatus: parcel.latestDeliveryStatus,
       latestDeliveryKind: parcel.latestDeliveryKind,
+      customerReturn: parcel.customerReturn,
     });
     return {
       id: parcel.id,
@@ -120,7 +121,8 @@ export async function loadBusinessParcelDetail(
   businessId: string,
   parcelId: string,
 ): Promise<BusinessParcelDetailView | null> {
-  const { parcels, parcelEvents, deliveries, parcelCharges } = createRepositories();
+  const { parcels, parcelEvents, deliveries, parcelCharges, parcelReturns, lockers } =
+    createRepositories();
   const parcel = await parcels.findForBusiness(ctx, businessId, parcelId);
   if (!parcel) return null;
 
@@ -129,6 +131,7 @@ export async function loadBusinessParcelDetail(
     pickupType: parcel.pickupType,
     latestDeliveryStatus: parcel.latestDeliveryStatus,
     latestDeliveryKind: parcel.latestDeliveryKind,
+    customerReturn: parcel.customerReturn,
   });
 
   if (parcel.status === 'ready_for_pickup' && parcel.readyForPickupAt) {
@@ -147,10 +150,12 @@ export async function loadBusinessParcelDetail(
     }
   }
 
-  const [events, canCreateReturn, charges] = await Promise.all([
+  const [events, canCreateReturn, charges, customerReturn, returnLockerOptions] = await Promise.all([
     parcelEvents.listForParcel(ctx, parcelId),
     deliveries.canCreateReturn(ctx, parcelId),
-    parcelCharges.listForParcel(parcelId),
+    parcelCharges.listBusinessChargesForParcel(parcelId),
+    parcelReturns.findLatestForParcel(parcelId),
+    lockers.listActivePickerOptions(),
   ]);
 
   return {
@@ -160,13 +165,13 @@ export async function loadBusinessParcelDetail(
     progression: location.progression,
     events: events.map(toParcelEventDto),
     canCreateReturn,
-    canAssignOutbound:
-      parcel.pickupType === 'courier_pickup' &&
-      (parcel.status === 'created' || parcel.status === 'in_transit'),
+    canAssignOutbound: false,
     canConfirmDeposit:
       parcel.pickupType === 'merchant_dropoff' && parcel.status === 'created',
     readyForPickupAt: parcel.readyForPickupAt?.toISOString() ?? null,
     charges: charges.map(toChargeView),
+    customerReturn: customerReturn ? toParcelReturnView(customerReturn) : null,
+    returnLockerOptions,
   };
 }
 

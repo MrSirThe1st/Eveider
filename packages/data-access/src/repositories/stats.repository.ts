@@ -344,7 +344,7 @@ export class StatsRepository {
          (SELECT COUNT(*)::int FROM parcels WHERE business_id = $1) AS total,
          (SELECT COUNT(*)::int FROM parcels WHERE business_id = $1 AND status = 'collected') AS delivered,
          (SELECT COUNT(*)::int FROM parcels WHERE business_id = $1 AND status = 'in_transit') AS in_transit,
-         (SELECT COUNT(*)::int FROM parcels WHERE business_id = $1 AND status IN ('delivered_to_locker', 'ready_for_pickup')) AS awaiting_pickup,
+         (SELECT COUNT(*)::int FROM parcels WHERE business_id = $1 AND status = 'ready_for_pickup') AS awaiting_pickup,
          (SELECT COUNT(DISTINCT p.id)::int
             FROM parcels p
             JOIN deliveries d ON d.parcel_id = p.id

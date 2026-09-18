@@ -14,6 +14,8 @@ export type CreateServiceAreaInput = {
   city: string;
   notes?: string | null;
   status?: ServiceAreaStatus;
+  outboundDeliveryAmount?: number;
+  returnDeliveryAmount?: number;
 };
 
 export type UpdateServiceAreaInput = {
@@ -22,6 +24,8 @@ export type UpdateServiceAreaInput = {
   city?: string;
   notes?: string | null;
   status?: ServiceAreaStatus;
+  outboundDeliveryAmount?: number;
+  returnDeliveryAmount?: number;
 };
 
 function normalizeCode(code: string): string {
@@ -138,8 +142,8 @@ export class ServiceAreaRepository {
     }
     const code = normalizeCode(input.code);
     const created = await this.db.query(
-      `INSERT INTO service_areas (code, name, city, status, notes)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO service_areas (code, name, city, status, notes, outbound_delivery_amount, return_delivery_amount)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
       [
         code,
@@ -147,6 +151,8 @@ export class ServiceAreaRepository {
         input.city,
         input.status ?? 'active',
         input.notes?.trim() || null,
+        input.outboundDeliveryAmount ?? 0,
+        input.returnDeliveryAmount ?? 0,
       ],
     );
     const area = mapServiceArea(created.rows[0]!);
@@ -172,6 +178,9 @@ export class ServiceAreaRepository {
     const nextStatus = input.status ?? existing.status;
     const nextNotes =
       input.notes !== undefined ? input.notes?.trim() || null : existing.notes;
+    const nextOutbound =
+      input.outboundDeliveryAmount ?? existing.outboundDeliveryAmount;
+    const nextReturn = input.returnDeliveryAmount ?? existing.returnDeliveryAmount;
 
     const updated = await this.db.query(
       `UPDATE service_areas SET
@@ -180,10 +189,12 @@ export class ServiceAreaRepository {
          city = $3,
          status = $4,
          notes = $5,
+         outbound_delivery_amount = $6,
+         return_delivery_amount = $7,
          updated_at = NOW()
-       WHERE id = $6
+       WHERE id = $8
        RETURNING *`,
-      [nextCode, nextName, nextCity, nextStatus, nextNotes, id],
+      [nextCode, nextName, nextCity, nextStatus, nextNotes, nextOutbound, nextReturn, id],
     );
 
     return {

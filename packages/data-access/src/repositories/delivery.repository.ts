@@ -1,10 +1,11 @@
 import {
   canAcceptDropOff,
-  canCreateReturnLeg,
+  completeOutboundDeliveryFromLocker,
   COURIER_HISTORY_DAYS,
-  generatePickupPinCode,
   isAssignableDriverDossier,
+  isCustomerReturnDeliveryKind,
   normalizeTrackingNumber,
+  PRODUCT_LOCKS,
   transitionDelivery,
   transitionParcel,
   type DeliveryKind,
@@ -39,6 +40,7 @@ import {
 } from './parcel-event.repository.js';
 import { syncParcelLockerRental } from './parcel-rental.js';
 import { ParcelRepository } from './parcel.repository.js';
+import { ParcelReturnRepository } from './parcel-return.repository.js';
 
 export type CourierDelivery = Delivery & {
   hasDropOffPhoto: boolean;
@@ -116,46 +118,13 @@ const ACTIVE_DELIVERY_STATUSES: DeliveryStatus[] = [
   'drop_off_pending',
 ];
 
-const ACTIVE_PIN_PARCEL_STATUSES: ParcelStatus[] = [
-  'created',
-  'in_transit',
-  'delivered_to_locker',
-  'ready_for_pickup',
-];
-
 function normalizeScanCode(value: string): string {
   return normalizeTrackingNumber(value);
 }
 
-async function allocatePickupPin(
-  db: Queryable,
-  lockerId: string | null,
-): Promise<string> {
-  for (let attempt = 0; attempt < 24; attempt++) {
-    const code = generatePickupPinCode();
-    if (lockerId) {
-      const conflict = await db.query(
-        `SELECT pp.id
-         FROM pickup_pins pp
-         INNER JOIN parcels p ON p.id = pp.parcel_id
-         WHERE pp.code = $1
-           AND p.locker_id = $2
-           AND p.status = ANY($3)
-         LIMIT 1`,
-        [code, lockerId, ACTIVE_PIN_PARCEL_STATUSES],
-      );
-      if (conflict.rows[0]) continue;
-    } else {
-      const conflict = await db.query(`SELECT id FROM pickup_pins WHERE code = $1 LIMIT 1`, [code]);
-      if (conflict.rows[0]) continue;
-    }
-    return code;
-  }
-  throw new Error('Impossible de générer un code PIN unique');
-}
-
 export class DeliveryRepository {
   private readonly parcels: ParcelRepository;
+  private readonly parcelReturns: ParcelReturnRepository;
   private readonly notifications: NotificationRepository;
 
   constructor(
@@ -165,6 +134,7 @@ export class DeliveryRepository {
     const notificationRepo = notifications ?? new NotificationRepository(db);
     this.notifications = notificationRepo;
     this.parcels = new ParcelRepository(db, notificationRepo);
+    this.parcelReturns = new ParcelReturnRepository(db);
   }
 
   async hasActiveForCourier(courierId: string): Promise<boolean> {
@@ -184,10 +154,15 @@ export class DeliveryRepository {
     kind: DeliveryKind = 'outbound',
   ): Promise<Delivery> {
     if (ctx.role === 'business') {
-      assertBusinessRole(ctx);
-      assertCompanyPermission(ctx, 'manage_couriers');
-    } else {
-      assertAdmin(ctx);
+      throw new AccessDeniedError(PRODUCT_LOCKS.orgDriverAssign);
+    }
+    assertAdmin(ctx);
+
+    if (kind === 'return') {
+      throw new Error(PRODUCT_LOCKS.legacyReturn);
+    }
+    if (isCustomerReturnDeliveryKind(kind)) {
+      return this.assignCustomerReturn(ctx, parcelId, courierId);
     }
 
     const parcelResult = await this.db.query(`SELECT * FROM parcels WHERE id = $1 LIMIT 1`, [
@@ -201,10 +176,6 @@ export class DeliveryRepository {
       throw new Error('Le colis doit avoir un casier de destination avant assignation');
     }
 
-    if (ctx.role === 'business' && parcel.businessId !== ctx.businessId) {
-      throw new AccessDeniedError('Colis hors périmètre');
-    }
-
     const existing = await this.db.query(
       `SELECT id FROM deliveries
        WHERE parcel_id = $1 AND status = ANY($2)
@@ -216,37 +187,10 @@ export class DeliveryRepository {
       throw new Error('Une livraison active existe déjà pour ce colis');
     }
 
-    if (kind === 'return') {
-      const completedOutbound = await this.db.query(
-        `SELECT 1 FROM deliveries
-         WHERE parcel_id = $1 AND kind = 'outbound' AND status = 'completed'
-         LIMIT 1`,
-        [parcelId],
-      );
-      const completedReturn = await this.db.query(
-        `SELECT 1 FROM deliveries
-         WHERE parcel_id = $1 AND kind = 'return' AND status = 'completed'
-         LIMIT 1`,
-        [parcelId],
-      );
-      const atLocker =
-        parcel.status === 'delivered_to_locker' || parcel.status === 'ready_for_pickup';
-      if (
-        !canCreateReturnLeg({
-          parcelStatus: parcel.status,
-          hasActiveDelivery: false,
-          hasCompletedOutbound: Boolean(completedOutbound.rows[0]),
-          hasCompletedReturn: Boolean(completedReturn.rows[0]),
-          merchantDropoffArrived: parcel.pickupType === 'merchant_dropoff' && atLocker,
-        })
-      ) {
-        throw new Error(
-          'Un retour n’est possible que pour un colis au point, après dépôt ou livraison aller terminée',
-        );
-      }
-    } else if (parcel.status !== 'created' && parcel.status !== 'in_transit') {
+    if (parcel.status !== 'created' && parcel.status !== 'in_transit') {
       throw new Error('Le colis ne peut pas recevoir de livraison à ce stade');
-    } else if (parcel.pickupType === 'merchant_dropoff') {
+    }
+    if (parcel.pickupType === 'merchant_dropoff') {
       throw new Error('Assignation coursier indisponible pour un dépôt marchand');
     }
 
@@ -261,22 +205,6 @@ export class DeliveryRepository {
     if (courier.is_blocked || courier.deactivated_at || courier.deleted_at) {
       throw new Error('Ce chauffeur n’est pas assignable');
     }
-    if (ctx.role === 'business') {
-      const courierBusinessId = courier.business_id == null ? null : String(courier.business_id);
-      if (courierBusinessId && courierBusinessId !== ctx.businessId) {
-        throw new AccessDeniedError('Chauffeur hors périmètre');
-      }
-      if (!courierBusinessId) {
-        const membership = await this.db.query(
-          `SELECT 1 FROM organization_memberships
-           WHERE user_id = $1 AND business_id = $2 AND role = 'driver' LIMIT 1`,
-          [courierId, ctx.businessId],
-        );
-        if (!membership.rows[0]) {
-          throw new AccessDeniedError('Chauffeur hors périmètre');
-        }
-      }
-    }
 
     const dossierResult = await this.db.query(
       `SELECT status, business_id, contractor_type FROM driver_dossiers
@@ -288,21 +216,14 @@ export class DeliveryRepository {
     const dossierRow = dossierResult.rows[0];
     const contractorType =
       dossierRow?.contractor_type === 'business' ? 'business' : 'eveider';
+    if (contractorType !== 'eveider') {
+      throw new Error(PRODUCT_LOCKS.eveiderDriversOnly);
+    }
     if (
       !dossierRow ||
       !isAssignableDriverDossier(dossierRow.status as DriverDossierStatus, contractorType)
     ) {
-      throw new Error(
-        contractorType === 'business'
-          ? 'Ce chauffeur n’est pas disponible'
-          : 'Ce chauffeur n’est pas encore approuvé',
-      );
-    }
-    if (ctx.role === 'business' && ctx.businessId) {
-      const dossierBusinessId = dossierRow.business_id == null ? null : String(dossierRow.business_id);
-      if (dossierBusinessId && dossierBusinessId !== ctx.businessId) {
-        throw new AccessDeniedError('Chauffeur hors périmètre');
-      }
+      throw new Error('Ce chauffeur n’est pas encore approuvé');
     }
 
     const actor = resolveEventActor(ctx);
@@ -343,55 +264,77 @@ export class DeliveryRepository {
     return delivery;
   }
 
-  async canCreateReturn(ctx: DataAccessContext, parcelId: string): Promise<boolean> {
-    if (ctx.role === 'business') {
-      assertBusinessRole(ctx);
-    } else {
-      assertAdmin(ctx);
-    }
+  private async assignCustomerReturn(
+    ctx: DataAccessContext,
+    parcelId: string,
+    courierId: string,
+  ): Promise<Delivery> {
+    await this.parcelReturns.assertAssignableCustomerReturn(parcelId);
 
-    const parcelResult = await this.db.query(
-      `SELECT id, status, business_id, pickup_type FROM parcels WHERE id = $1 LIMIT 1`,
-      [parcelId],
+    const existing = await this.db.query(
+      `SELECT id FROM deliveries
+       WHERE parcel_id = $1 AND status = ANY($2)
+       LIMIT 1`,
+      [parcelId, ACTIVE_DELIVERY_STATUSES],
     );
-    const parcelRow = parcelResult.rows[0];
-    if (!parcelRow) return false;
-    if (ctx.role === 'business' && String(parcelRow.business_id) !== ctx.businessId) {
-      throw new AccessDeniedError('Colis hors périmètre');
+    if (existing.rows[0]) {
+      throw new Error('Une livraison active existe déjà pour ce colis');
     }
 
-    const [active, completedOutbound, completedReturn] = await Promise.all([
-      this.db.query(
-        `SELECT id FROM deliveries
-         WHERE parcel_id = $1 AND status = ANY($2)
-         LIMIT 1`,
-        [parcelId, ACTIVE_DELIVERY_STATUSES],
-      ),
-      this.db.query(
-        `SELECT 1 FROM deliveries
-         WHERE parcel_id = $1 AND kind = 'outbound' AND status = 'completed'
-         LIMIT 1`,
-        [parcelId],
-      ),
-      this.db.query(
-        `SELECT 1 FROM deliveries
-         WHERE parcel_id = $1 AND kind = 'return' AND status = 'completed'
-         LIMIT 1`,
-        [parcelId],
-      ),
+    const courierResult = await this.db.query(`SELECT * FROM users WHERE id = $1 LIMIT 1`, [
+      courierId,
     ]);
+    const courier = courierResult.rows[0];
+    if (!courier) throw new Error(`User ${courierId} not found`);
+    if (courier.role && courier.role !== 'courier' && courier.role !== 'driver') {
+      throw new Error('Utilisateur non chauffeur');
+    }
+    if (courier.is_blocked || courier.deactivated_at || courier.deleted_at) {
+      throw new Error('Ce chauffeur n’est pas assignable');
+    }
 
-    const pickupType = String(parcelRow.pickup_type);
-    const atLocker =
-      parcelRow.status === 'delivered_to_locker' || parcelRow.status === 'ready_for_pickup';
+    const dossierResult = await this.db.query(
+      `SELECT status, business_id, contractor_type FROM driver_dossiers
+       WHERE user_id = $1 AND status <> 'rejected'
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [courierId],
+    );
+    const dossierRow = dossierResult.rows[0];
+    const contractorType =
+      dossierRow?.contractor_type === 'business' ? 'business' : 'eveider';
+    if (contractorType !== 'eveider') {
+      throw new Error(PRODUCT_LOCKS.eveiderDriversOnly);
+    }
+    if (
+      !dossierRow ||
+      !isAssignableDriverDossier(dossierRow.status as DriverDossierStatus, contractorType)
+    ) {
+      throw new Error('Ce chauffeur n’est pas encore approuvé');
+    }
 
-    return canCreateReturnLeg({
-      parcelStatus: parcelRow.status as ParcelStatus,
-      hasActiveDelivery: Boolean(active.rows[0]),
-      hasCompletedOutbound: Boolean(completedOutbound.rows[0]),
-      hasCompletedReturn: Boolean(completedReturn.rows[0]),
-      merchantDropoffArrived: pickupType === 'merchant_dropoff' && atLocker,
+    const actor = resolveEventActor(ctx);
+    const created = await this.db.query(
+      `INSERT INTO deliveries (parcel_id, driver_id, status, kind)
+       VALUES ($1, $2, 'assigned', 'customer_return')
+       RETURNING *`,
+      [parcelId, courierId],
+    );
+    const delivery = mapDelivery(created.rows[0]!);
+    await appendParcelEvent(this.db, {
+      parcelId,
+      deliveryId: delivery.id,
+      eventType: 'delivery.assigned',
+      actor,
+      newDeliveryStatus: 'assigned',
+      payload: { driverId: courierId, kind: 'customer_return' },
     });
+
+    return delivery;
+  }
+
+  async canCreateReturn(_ctx: DataAccessContext, _parcelId: string): Promise<boolean> {
+    return false;
   }
 
   async findActiveForParcel(
@@ -604,6 +547,11 @@ export class DeliveryRepository {
       throw new Error('Numéro de suivi / référence incorrecte');
     }
 
+    if (isCustomerReturnDeliveryKind(delivery.kind)) {
+      await this.parcelReturns.collectFromLocker(ctx, delivery);
+      return this.findByIdForCourier(ctx, id) as Promise<CourierDelivery>;
+    }
+
     const status = transitionDelivery(delivery.status, 'scanned');
     const actor = resolveEventActor(ctx);
     await this.db.query(
@@ -620,7 +568,7 @@ export class DeliveryRepository {
       newDeliveryStatus: status,
     });
 
-    if (delivery.parcel.status === 'created') {
+    if (delivery.parcel.status === 'created' && delivery.parcel.pickupType !== 'merchant_dropoff') {
       await this.parcels.updateStatus(ctx, delivery.parcelId, 'in_transit');
     }
 
@@ -629,6 +577,9 @@ export class DeliveryRepository {
 
   async markDropOffPending(ctx: DataAccessContext, id: string): Promise<CourierDelivery> {
     const delivery = await this.requireCourierDelivery(ctx, id);
+    if (isCustomerReturnDeliveryKind(delivery.kind)) {
+      throw new Error('Cette livraison se termine chez le marchand, pas au casier');
+    }
     if (delivery.status !== 'scanned') {
       throw new Error(
         delivery.kind === 'return'
@@ -671,6 +622,10 @@ export class DeliveryRepository {
     photoBase64?: string,
   ): Promise<CourierDelivery> {
     const delivery = await this.requireCourierDelivery(ctx, id);
+    if (isCustomerReturnDeliveryKind(delivery.kind)) {
+      await this.parcelReturns.completeToBusiness(ctx, delivery, photoBase64);
+      return this.findByIdForCourier(ctx, id) as Promise<CourierDelivery>;
+    }
     if (delivery.status !== 'drop_off_pending') {
       throw new Error('Confirmation de dépôt non autorisée à ce stade');
     }
@@ -700,19 +655,9 @@ export class DeliveryRepository {
     const deliveryStatus = transitionDelivery(delivery.status, 'completed');
 
     let parcelStatus: ParcelStatus = parcel.status;
-    if (parcelStatus === 'in_transit') {
+    if (parcelStatus === 'in_transit' || parcelStatus === 'created') {
       parcelStatus = transitionParcel(parcelStatus, 'delivered_to_locker');
     }
-    if (parcelStatus === 'delivered_to_locker') {
-      parcelStatus = transitionParcel(parcelStatus, 'ready_for_pickup');
-    }
-
-    const existingPin =
-      parcelStatus === 'ready_for_pickup'
-        ? await this.db.query(`SELECT id FROM pickup_pins WHERE parcel_id = $1 LIMIT 1`, [
-            parcel.id,
-          ])
-        : null;
 
     const actor = resolveEventActor(ctx);
     const previousParcelStatus = parcel.status;
@@ -731,10 +676,6 @@ export class DeliveryRepository {
         `UPDATE parcels
          SET status = $1,
              compartment_id = $2,
-             ready_for_pickup_at = CASE
-               WHEN $1 = 'ready_for_pickup' AND ready_for_pickup_at IS NULL THEN NOW()
-               ELSE ready_for_pickup_at
-             END,
              updated_at = NOW()
          WHERE id = $3`,
         [parcelStatus, compartment.id, parcel.id],
@@ -762,55 +703,111 @@ export class DeliveryRepository {
       });
 
       if (previousParcelStatus !== parcelStatus) {
-        if (previousParcelStatus === 'in_transit') {
-          await appendParcelEvent(tx, {
-            parcelId: parcel.id,
-            deliveryId: id,
-            eventType: 'parcel.status_changed',
-            actor,
-            previousParcelStatus: 'in_transit',
-            newParcelStatus: 'delivered_to_locker',
-          });
-          await appendParcelEvent(tx, {
-            parcelId: parcel.id,
-            deliveryId: id,
-            eventType: 'parcel.status_changed',
-            actor,
-            previousParcelStatus: 'delivered_to_locker',
-            newParcelStatus: 'ready_for_pickup',
-          });
-        } else {
-          await appendParcelEvent(tx, {
-            parcelId: parcel.id,
-            deliveryId: id,
-            eventType: 'parcel.status_changed',
-            actor,
-            previousParcelStatus,
-            newParcelStatus: parcelStatus,
-          });
-        }
-      }
-
-      if (parcelStatus === 'ready_for_pickup' && !existingPin?.rows[0]) {
-        const code = await allocatePickupPin(tx, parcel.lockerId);
-        await tx.query(`INSERT INTO pickup_pins (parcel_id, code) VALUES ($1, $2)`, [
-          parcel.id,
-          code,
-        ]);
         await appendParcelEvent(tx, {
           parcelId: parcel.id,
           deliveryId: id,
-          eventType: 'pickup_pin.issued',
+          eventType: 'parcel.status_changed',
           actor,
+          previousParcelStatus,
           newParcelStatus: parcelStatus,
-          payload: { issued: true },
         });
       }
     });
 
-    await this.notifications.notifyParcelStatusChange(parcel.id, 'ready_for_pickup');
-
     return this.findByIdForCourier(ctx, id) as Promise<CourierDelivery>;
+  }
+
+  /**
+   * Hardware confirmation of Flow 1 Eveider outbound deposit.
+   * Completes Livraison and occupies the reserved compartment without photo
+   * or drop_off_pending. Does not prepare collection (AT_POINT only).
+   */
+  async confirmLockerOutboundDeposit(
+    ctx: DataAccessContext,
+    input: { deliveryId: string; compartmentId: string },
+  ): Promise<void> {
+    const delivery = await this.loadCourierDelivery(input.deliveryId);
+    if (!delivery) throw new Error('Livraison introuvable');
+    if (isCustomerReturnDeliveryKind(delivery.kind) || delivery.kind === 'return') {
+      throw new Error('Cette livraison n’est pas un dépôt aller Eveider');
+    }
+
+    const parcel = delivery.parcel;
+    if (delivery.status === 'completed' && parcel.status === 'delivered_to_locker') {
+      return;
+    }
+
+    const deliveryStatus = completeOutboundDeliveryFromLocker(delivery.status);
+    const locker = parcel.locker;
+    if (!locker || !parcel.lockerId) {
+      throw new Error('Casier de destination manquant');
+    }
+    if (!canAcceptDropOff(locker.status)) {
+      throw new Error('Casier indisponible — dépôt impossible');
+    }
+
+    const compartmentResult = await this.db.query(
+      `SELECT * FROM compartments WHERE id = $1 AND locker_id = $2 LIMIT 1`,
+      [input.compartmentId, parcel.lockerId],
+    );
+    const compartmentRow = compartmentResult.rows[0];
+    if (!compartmentRow) throw new Error('Compartiment introuvable');
+    const compartment = mapCompartment(compartmentRow);
+    if (compartment.status !== 'reserved' && compartment.status !== 'available' && compartment.status !== 'occupied') {
+      throw new Error('Compartiment indisponible');
+    }
+
+    let parcelStatus: ParcelStatus = parcel.status;
+    if (parcelStatus === 'in_transit' || parcelStatus === 'created') {
+      parcelStatus = transitionParcel(parcelStatus, 'delivered_to_locker');
+    }
+    const actor = resolveEventActor(ctx);
+    const previousParcelStatus = parcel.status;
+
+    await withTransaction(async (tx) => {
+      await tx.query(
+        `UPDATE deliveries SET status = $1, completed_at = NOW(), updated_at = NOW() WHERE id = $2`,
+        [deliveryStatus, delivery.id],
+      );
+      await tx.query(
+        `UPDATE compartments SET status = 'occupied', updated_at = NOW() WHERE id = $1`,
+        [compartment.id],
+      );
+      await tx.query(
+        `UPDATE parcels SET status = $1, compartment_id = $2, updated_at = NOW() WHERE id = $3`,
+        [parcelStatus, compartment.id, parcel.id],
+      );
+      await appendParcelEvent(tx, {
+        parcelId: parcel.id,
+        deliveryId: delivery.id,
+        compartmentId: compartment.id,
+        eventType: 'compartment.occupied',
+        actor,
+        payload: { lockerId: parcel.lockerId, compartmentLabel: compartment.label, source: 'locker_confirm' },
+      });
+      await appendParcelEvent(tx, {
+        parcelId: parcel.id,
+        deliveryId: delivery.id,
+        compartmentId: compartment.id,
+        eventType: 'delivery.completed',
+        actor,
+        previousDeliveryStatus: delivery.status,
+        newDeliveryStatus: deliveryStatus,
+        previousParcelStatus,
+        newParcelStatus: parcelStatus,
+        payload: { lockerId: parcel.lockerId, kind: 'outbound', source: 'locker_confirm' },
+      });
+      if (previousParcelStatus !== parcelStatus) {
+        await appendParcelEvent(tx, {
+          parcelId: parcel.id,
+          deliveryId: delivery.id,
+          eventType: 'parcel.status_changed',
+          actor,
+          previousParcelStatus,
+          newParcelStatus: parcelStatus,
+        });
+      }
+    });
   }
 
   /**

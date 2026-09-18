@@ -4,7 +4,10 @@ import {
   generatePointCode,
   hasPointAvailability,
   isLockerSelectable,
+  isNetworkLockerType,
   isValidPointCode,
+  NETWORK_LOCKER_TYPE,
+  PRODUCT_LOCKS,
   normalizePointCode,
   matchDrcCity,
   OCCUPYING_PARCEL_STATUSES,
@@ -175,7 +178,7 @@ export class LockerRepository {
 
   async listActiveWithAvailability(): Promise<LockerWithAvailability[]> {
     return this.listWithAvailability(
-      `l.status = 'active' AND l.latitude IS NOT NULL AND l.longitude IS NOT NULL`,
+      `l.status = 'active' AND l.type = '${NETWORK_LOCKER_TYPE}' AND l.latitude IS NOT NULL AND l.longitude IS NOT NULL`,
     );
   }
 
@@ -184,8 +187,9 @@ export class LockerRepository {
     const result = await this.db.query(
       `SELECT id, name, address
        FROM lockers
-       WHERE archived_at IS NULL AND status = 'active'
+       WHERE archived_at IS NULL AND status = 'active' AND type = $1
        ORDER BY name ASC`,
+      [NETWORK_LOCKER_TYPE],
     );
     return result.rows.map((row) => ({
       id: String(row.id),
@@ -196,12 +200,14 @@ export class LockerRepository {
 
   /** Active, full, and offline points — the network businesses can send parcels to. */
   async listNetworkDirectory(): Promise<LockerWithAvailability[]> {
-    return this.listWithAvailability(`l.status IN ('active', 'offline', 'full')`);
+    return this.listWithAvailability(
+      `l.status IN ('active', 'offline', 'full') AND l.type = '${NETWORK_LOCKER_TYPE}'`,
+    );
   }
 
   async listByCity(city: string): Promise<LockerWithAvailability[]> {
     return this.listWithAvailability(
-      `l.archived_at IS NULL AND l.status IN ('active', 'offline', 'full') AND lower(l.city) = lower($1)`,
+      `l.archived_at IS NULL AND l.status IN ('active', 'offline', 'full') AND l.type = '${NETWORK_LOCKER_TYPE}' AND lower(l.city) = lower($1)`,
       [city],
     );
   }
@@ -535,6 +541,9 @@ export class LockerRepository {
     assertAdmin(ctx);
 
     const type = input.type ?? 'SMART_LOCKER';
+    if (!isNetworkLockerType(type)) {
+      throw new Error(PRODUCT_LOCKS.nonSmartLocker);
+    }
     const city = resolveLockerCity(input.name, input.address, input.city);
     const serviceAreaId = await this.resolveServiceAreaId(input.serviceAreaId, city);
     let code = input.code?.trim()
@@ -808,6 +817,9 @@ export class LockerRepository {
 
     if (!isLockerSelectable(locker.status)) {
       throw new Error('Point indisponible');
+    }
+    if (!isNetworkLockerType(locker.type)) {
+      throw new Error(PRODUCT_LOCKS.nonSmartLocker);
     }
     if (locker.latitude == null || locker.longitude == null) {
       throw new Error('Point sans coordonnées GPS');

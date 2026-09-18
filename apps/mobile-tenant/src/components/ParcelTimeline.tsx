@@ -1,5 +1,5 @@
 import { type ColorTokens } from '@eveider/config-ui';
-import { PARCEL_STATUSES, type ParcelStatus } from '@eveider/domain';
+import { PARCEL_STATUSES, type ParcelStatus, type ShipmentPickupType } from '@eveider/domain';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
@@ -7,17 +7,22 @@ import { useColors } from '../theme';
 
 type ParcelTimelineProps = {
   currentStatus: ParcelStatus;
+  pickupType?: ShipmentPickupType;
 };
 
-export function ParcelTimeline({ currentStatus }: ParcelTimelineProps) {
+export function ParcelTimeline({ currentStatus, pickupType }: ParcelTimelineProps) {
   const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const currentIndex = PARCEL_STATUSES.indexOf(currentStatus);
+  const steps =
+    pickupType === 'merchant_dropoff'
+      ? PARCEL_STATUSES.filter((status) => status !== 'in_transit')
+      : PARCEL_STATUSES;
+  const currentIndex = steps.indexOf(currentStatus);
 
   return (
     <View style={styles.container}>
-      {PARCEL_STATUSES.map((status, index) => {
+      {steps.map((status, index) => {
         const reached = index <= currentIndex;
         const isCurrent = status === currentStatus;
 
