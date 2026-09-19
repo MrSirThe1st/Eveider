@@ -52,3 +52,19 @@ export function resolveLockerIdForApiToken(
 }
 
 export const LOCKER_API_TOKEN_ENV = ENV_KEY;
+export const LOCKER_MAINTENANCE_TOKEN_ENV = 'EVEIDER_LOCKER_MAINTENANCE_TOKEN';
+
+export function lockerMaintenanceTokenConfigured(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return Boolean(env[LOCKER_MAINTENANCE_TOKEN_ENV]?.trim());
+}
+
+export function lockerMaintenanceTokenMatches(
+  token: string,
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  const expected = env[LOCKER_MAINTENANCE_TOKEN_ENV]?.trim();
+  if (!expected) return false;
+  return secretsEqual(token.trim(), expected);
+}

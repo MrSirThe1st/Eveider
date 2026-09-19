@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { parseLockerApiTokens, resolveLockerIdForApiToken } from './auth.js';
+import {
+  lockerMaintenanceTokenMatches,
+  parseLockerApiTokens,
+  resolveLockerIdForApiToken,
+} from './auth.js';
 
 describe('locker API tokens', () => {
   const original = process.env.EVEIDER_LOCKER_API_TOKENS;
@@ -24,5 +28,14 @@ describe('locker API tokens', () => {
   it('returns empty map for missing or invalid env', () => {
     expect(parseLockerApiTokens(undefined)).toEqual({});
     expect(parseLockerApiTokens('not-json')).toEqual({});
+  });
+
+  it('matches the maintenance token without treating a locker token as maintenance', () => {
+    const original = process.env.EVEIDER_LOCKER_MAINTENANCE_TOKEN;
+    process.env.EVEIDER_LOCKER_MAINTENANCE_TOKEN = 'maint-secret';
+    expect(lockerMaintenanceTokenMatches('maint-secret')).toBe(true);
+    expect(lockerMaintenanceTokenMatches('secret-a')).toBe(false);
+    if (original === undefined) delete process.env.EVEIDER_LOCKER_MAINTENANCE_TOKEN;
+    else process.env.EVEIDER_LOCKER_MAINTENANCE_TOKEN = original;
   });
 });

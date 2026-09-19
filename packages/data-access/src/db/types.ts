@@ -17,6 +17,7 @@ import type {
   LockerAction,
   LockerActionActorType,
   LockerActionSessionStatus,
+  LockerCollectionCredentialStatus,
   LockerStatus,
   LockerType,
   OrganizationRole,
@@ -326,6 +327,25 @@ export type ParcelReturn = {
   authorizedAt: Date | null;
   depositedAt: Date | null;
   completedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type LockerCollectionCredential = {
+  id: string;
+  parcelId: string;
+  lockerId: string;
+  compartmentId: string | null;
+  trackingNumber: string;
+  recipientPhoneNormalized: string;
+  pinHash: string;
+  status: LockerCollectionCredentialStatus;
+  version: number;
+  syncSeq: string;
+  activatedAt: Date | null;
+  consumedAt: Date | null;
+  revokedAt: Date | null;
+  collectionDeviceEventId: string | null;
   createdAt: Date;
   updatedAt: Date;
 };

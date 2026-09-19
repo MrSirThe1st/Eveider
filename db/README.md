@@ -30,8 +30,20 @@ pnpm db:migrate
 | `033_20260917200100_commercial_pricing.sql` | Zone fees on `service_areas`, Flow 2/3B global amounts, charge `payer` |
 | `034_20260917210000_parcel_commercial_model.sql` | `parcels.commercial_model` (`canonical` vs `legacy`) |
 | `035_20260917220000_locker_action_sessions.sql` | Hardware locker action sessions (`authorize` / `confirm` / `cancel`) |
+| `036_20260919090000_locker_collection_credentials.sql` | Locker collection credential sync records (Stage IV offline collection) |
 
 Hardware locker clients authenticate with `EVEIDER_LOCKER_API_TOKENS` (JSON map of locker UUID → secret) via `Authorization: Bearer <secret>`. The token identifies the locker; the client cannot claim another `locker_id`. Keep secrets out of git. Default authorization TTL is 180 seconds (`EVEIDER_LOCKER_ACTION_TTL_SECONDS`).
+
+Expired deposit reservations are released by `expireLockerActionSessions()` (transactional, `FOR UPDATE SKIP LOCKED`). Invoke periodically:
+
+```bash
+curl -X POST "$ORIGIN/api/locker/maintenance/expire-sessions" \
+  -H "Authorization: Bearer $EVEIDER_LOCKER_MAINTENANCE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+Opportunistic expiry still runs on authorize / confirm / cancel / credential sync. Occupied compartments are never released by expiry. Integrity findings: `GET /api/locker/maintenance/integrity`.
 
 Applied migrations are recorded in `schema_migrations`.
 

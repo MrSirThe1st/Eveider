@@ -56,6 +56,8 @@ export const LOCKER_DENIAL_REASONS = [
   'SESSION_EXPIRED',
   'SESSION_CANCELLED',
   'SESSION_MISMATCH',
+  'CREDENTIAL_NOT_FOUND',
+  'CREDENTIAL_NOT_ACTIVE',
 ] as const;
 
 export type LockerDenialReason = (typeof LOCKER_DENIAL_REASONS)[number];

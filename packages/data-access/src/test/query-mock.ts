@@ -205,6 +205,30 @@ export function lockerActionSessionRow(
   };
 }
 
+export function lockerCollectionCredentialRow(
+  overrides: Partial<Record<string, unknown>> = {},
+): Record<string, unknown> {
+  return {
+    id: 'cred-1',
+    parcel_id: 'parcel-1',
+    locker_id: 'locker-1',
+    compartment_id: 'comp-1',
+    tracking_number: 'EVD26TEST0001A',
+    recipient_phone_normalized: '243000000000',
+    pin_hash: 'abc',
+    status: 'pending',
+    version: 1,
+    sync_seq: '10',
+    activated_at: null,
+    consumed_at: null,
+    revoked_at: null,
+    collection_device_event_id: null,
+    created_at: now,
+    updated_at: now,
+    ...overrides,
+  };
+}
+
 export function deliveryRow(
   overrides: Partial<Record<string, unknown>> = {},
 ): Record<string, unknown> {

@@ -50,6 +50,7 @@ import {
 } from './parcel-event.repository.js';
 import { ParcelInviteRepository } from './parcel-invite.repository.js';
 import { CommercialRepository } from './commercial.repository.js';
+import { CollectionCredentialRepository } from './collection-credential.repository.js';
 import { syncParcelLockerRental } from './parcel-rental.js';
 import { UserRepository } from './user.repository.js';
 
@@ -860,6 +861,7 @@ export class ParcelRepository {
 
     if (parcel.status === 'ready_for_pickup') {
       await this.ensurePickupPin(id);
+      await this.reconcileCollectionCredential(id);
       return parcel;
     }
 
@@ -906,6 +908,7 @@ export class ParcelRepository {
     });
 
     await this.notifications.notifyParcelStatusChange(id, 'ready_for_pickup');
+    await this.reconcileCollectionCredential(id);
     return updated;
   }
 
@@ -1130,6 +1133,7 @@ export class ParcelRepository {
       }
 
       await tx.query(`DELETE FROM pickup_pins WHERE parcel_id = $1`, [parcel.id]);
+      await new CollectionCredentialRepository(tx).consumeForParcel(parcel.id);
 
       await syncParcelLockerRental(tx, {
         parcelId: parcel.id,
@@ -1143,6 +1147,10 @@ export class ParcelRepository {
     });
 
     await this.notifications.notifyParcelStatusChange(parcel.id, status);
+  }
+
+  private async reconcileCollectionCredential(parcelId: string): Promise<void> {
+    await new CollectionCredentialRepository(this.db).reconcileForParcel(parcelId);
   }
 
   private async loadParcelWithRelations(id: string): Promise<ParcelWithLocker | null> {

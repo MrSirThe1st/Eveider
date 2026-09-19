@@ -16,6 +16,7 @@ export * from './schemas/parcel-import.js';
 export * from './schemas/business.js';
 export * from './schemas/locker.js';
 export * from './schemas/locker-action.js';
+export * from './schemas/locker-collection.js';
 export * from './schemas/locker-settings.js';
 export * from './schemas/service-area.js';
 export * from './schemas/delivery.js';

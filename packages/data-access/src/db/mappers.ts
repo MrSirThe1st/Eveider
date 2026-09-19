@@ -14,6 +14,7 @@ import type {
   Issue,
   Locker,
   LockerActionSession,
+  LockerCollectionCredential,
   Notification,
   OrganizationApiKey,
   OrganizationNotificationDelivery,
@@ -250,6 +251,28 @@ export function mapLockerActionSession(row: Record<string, unknown>): LockerActi
     confirmedAt: asDateOrNull(row.confirmed_at),
     cancelledAt: asDateOrNull(row.cancelled_at),
     deviceEventId: row.device_event_id == null ? null : String(row.device_event_id),
+    createdAt: asDate(row.created_at),
+    updatedAt: asDate(row.updated_at),
+  };
+}
+
+export function mapLockerCollectionCredential(row: Record<string, unknown>): LockerCollectionCredential {
+  return {
+    id: String(row.id),
+    parcelId: String(row.parcel_id),
+    lockerId: String(row.locker_id),
+    compartmentId: row.compartment_id == null ? null : String(row.compartment_id),
+    trackingNumber: String(row.tracking_number),
+    recipientPhoneNormalized: String(row.recipient_phone_normalized),
+    pinHash: String(row.pin_hash),
+    status: row.status as LockerCollectionCredential['status'],
+    version: Number(row.version),
+    syncSeq: String(row.sync_seq),
+    activatedAt: asDateOrNull(row.activated_at),
+    consumedAt: asDateOrNull(row.consumed_at),
+    revokedAt: asDateOrNull(row.revoked_at),
+    collectionDeviceEventId:
+      row.collection_device_event_id == null ? null : String(row.collection_device_event_id),
     createdAt: asDate(row.created_at),
     updatedAt: asDate(row.updated_at),
   };

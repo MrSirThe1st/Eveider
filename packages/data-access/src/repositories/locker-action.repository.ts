@@ -38,18 +38,12 @@ import { appendParcelEvent, resolveEventActor } from './parcel-event.repository.
 import { ParcelRepository } from './parcel.repository.js';
 import { ParcelReturnRepository } from './parcel-return.repository.js';
 import { NotificationRepository } from './notification.repository.js';
+import { logLockerEvent } from '../locker-api/log.js';
+import { LockerAuthorizationError } from '../locker-api/errors.js';
+
+export { LockerAuthorizationError };
 
 const ACTIVE_DELIVERY_STATUSES = ['assigned', 'scanned', 'drop_off_pending'] as const;
-
-export class LockerAuthorizationError extends Error {
-  readonly code: LockerDenialReason;
-
-  constructor(code: LockerDenialReason, message?: string) {
-    super(message ?? code);
-    this.name = 'LockerAuthorizationError';
-    this.code = code;
-  }
-}
 
 export type LockerAuthorizeResult = {
   authorized: true;
@@ -74,6 +68,25 @@ export type LockerCancelResult = {
   alreadyReleased: boolean;
   sessionId: string;
   status: 'cancelled' | 'expired';
+};
+
+export type ExpireLockerSessionsResult = {
+  expired: number;
+  released: number;
+};
+
+export type LockerIntegrityFinding = {
+  kind:
+    | 'reserved_without_session'
+    | 'occupied_without_expected_parcel'
+    | 'active_credential_on_collected_parcel'
+    | 'confirmed_session_mismatched_parcel';
+  lockerId: string | null;
+  compartmentId: string | null;
+  parcelId: string | null;
+  sessionId: string | null;
+  credentialId: string | null;
+  detail: string;
 };
 
 type ParcelLockerRow = {
@@ -140,7 +153,7 @@ export class LockerActionRepository {
     try {
       return await withTransaction(async (tx) => {
         const repo = new LockerActionRepository(tx);
-        await repo.expireStale({ parcelId: parcel.id, lockerId });
+        await repo.expireAuthorizedSessions({ parcelId: parcel.id, lockerId });
         const prepared = await repo.prepareAuthorization(locker, parcel, input);
         await repo.assertNoActiveSession(parcel.id, prepared.compartmentId);
         const session = await repo.insertSession({
@@ -164,6 +177,13 @@ export class LockerActionRepository {
             },
           });
         }
+        logLockerEvent('action_authorized', {
+          lockerId,
+          sessionId: session.id,
+          action: session.action,
+          parcelId: parcel.id,
+          compartmentId: prepared.compartmentId,
+        });
         return {
           authorized: true as const,
           sessionId: session.id,
@@ -189,7 +209,7 @@ export class LockerActionRepository {
     const session = await this.loadSession(sessionId);
     if (!session) deny('SESSION_NOT_FOUND');
 
-    await this.expireStale({
+    await this.expireAuthorizedSessions({
       parcelId: session.parcelId,
       lockerId: session.lockerId,
       compartmentId: session.compartmentId,
@@ -234,6 +254,15 @@ export class LockerActionRepository {
       throw err;
     }
 
+    logLockerEvent('action_confirmed', {
+      lockerId,
+      sessionId: current.id,
+      action: current.action,
+      parcelId: current.parcelId,
+      alreadyConfirmed: false,
+      deviceEventId: input.deviceEventId,
+    });
+
     return {
       confirmed: true,
       alreadyConfirmed: false,
@@ -243,12 +272,126 @@ export class LockerActionRepository {
     };
   }
 
+  /**
+   * Periodic / maintenance expiry. Transactional, SKIP LOCKED, never releases
+   * occupied compartments or live reservations owned by another session.
+   */
+  async expireLockerActionSessions(lockerId?: string | null): Promise<ExpireLockerSessionsResult> {
+    return withTransaction(async (tx) => {
+      const repo = new LockerActionRepository(tx);
+      return repo.expireAuthorizedSessions({ lockerId: lockerId ?? null });
+    });
+  }
+
+  async inspectLockerIntegrity(lockerId?: string | null): Promise<LockerIntegrityFinding[]> {
+    const findings: LockerIntegrityFinding[] = [];
+    const reserved = await this.db.query(
+      `SELECT c.id, c.locker_id
+       FROM compartments c
+       WHERE c.status = 'reserved'
+         AND ($1::uuid IS NULL OR c.locker_id = $1)
+         AND NOT EXISTS (
+           SELECT 1 FROM locker_action_sessions s
+           WHERE s.compartment_id = c.id
+             AND s.status = 'authorized'
+             AND s.expires_at > NOW()
+         )`,
+      [lockerId ?? null],
+    );
+    for (const row of reserved.rows) {
+      findings.push({
+        kind: 'reserved_without_session',
+        lockerId: String(row.locker_id),
+        compartmentId: String(row.id),
+        parcelId: null,
+        sessionId: null,
+        credentialId: null,
+        detail: 'Compartment is reserved with no live authorized session',
+      });
+    }
+
+    const occupied = await this.db.query(
+      `SELECT c.id, c.locker_id, c.current_parcel_id, p.status AS parcel_status
+       FROM compartments c
+       LEFT JOIN parcels p ON p.id = c.current_parcel_id
+       WHERE c.status = 'occupied'
+         AND ($1::uuid IS NULL OR c.locker_id = $1)
+         AND (
+           c.current_parcel_id IS NULL
+           OR p.id IS NULL
+           OR p.status NOT IN ('at_point', 'ready_for_pickup', 'return_at_point')
+           OR p.locker_id IS DISTINCT FROM c.locker_id
+         )`,
+      [lockerId ?? null],
+    );
+    for (const row of occupied.rows) {
+      findings.push({
+        kind: 'occupied_without_expected_parcel',
+        lockerId: String(row.locker_id),
+        compartmentId: String(row.id),
+        parcelId: row.current_parcel_id == null ? null : String(row.current_parcel_id),
+        sessionId: null,
+        credentialId: null,
+        detail: `Occupied compartment parcel status=${row.parcel_status ?? 'missing'}`,
+      });
+    }
+
+    const credentials = await this.db.query(
+      `SELECT c.id, c.parcel_id, c.locker_id, p.status AS parcel_status
+       FROM locker_collection_credentials c
+       JOIN parcels p ON p.id = c.parcel_id
+       WHERE c.status = 'active'
+         AND ($1::uuid IS NULL OR c.locker_id = $1)
+         AND p.status = 'collected'`,
+      [lockerId ?? null],
+    );
+    for (const row of credentials.rows) {
+      findings.push({
+        kind: 'active_credential_on_collected_parcel',
+        lockerId: String(row.locker_id),
+        compartmentId: null,
+        parcelId: String(row.parcel_id),
+        sessionId: null,
+        credentialId: String(row.id),
+        detail: 'Active collection credential on a collected parcel',
+      });
+    }
+
+    const mismatched = await this.db.query(
+      `SELECT s.id, s.parcel_id, s.locker_id, s.compartment_id, p.status AS parcel_status, s.action
+       FROM locker_action_sessions s
+       JOIN parcels p ON p.id = s.parcel_id
+       WHERE s.status = 'confirmed'
+         AND ($1::uuid IS NULL OR s.locker_id = $1)
+         AND (
+           (s.action = 'deposit' AND p.status NOT IN ('at_point', 'ready_for_pickup', 'return_at_point', 'collected', 'returning', 'returned'))
+           OR (s.action = 'recipient_collection' AND p.status NOT IN ('collected', 'return_requested', 'return_authorized', 'return_at_point', 'returning', 'returned'))
+           OR (s.action = 'driver_pickup' AND p.status NOT IN ('returning', 'returned'))
+           OR (s.action = 'business_return_pickup' AND p.status <> 'returned')
+         )`,
+      [lockerId ?? null],
+    );
+    for (const row of mismatched.rows) {
+      findings.push({
+        kind: 'confirmed_session_mismatched_parcel',
+        lockerId: String(row.locker_id),
+        compartmentId: row.compartment_id == null ? null : String(row.compartment_id),
+        parcelId: String(row.parcel_id),
+        sessionId: String(row.id),
+        credentialId: null,
+        detail: `Confirmed ${row.action} session vs parcel status ${row.parcel_status}`,
+      });
+    }
+
+    return findings;
+  }
+
   async cancel(lockerId: string, sessionId: string): Promise<LockerCancelResult> {
     const session = await this.loadSession(sessionId);
     if (!session) deny('SESSION_NOT_FOUND');
     if (session.lockerId !== lockerId) deny('WRONG_LOCKER');
 
-    await this.expireStale({
+    await this.expireAuthorizedSessions({
       parcelId: session.parcelId,
       lockerId: session.lockerId,
       compartmentId: session.compartmentId,
@@ -821,30 +964,69 @@ export class LockerActionRepository {
     return row ? mapLockerActionSession(row) : null;
   }
 
-  private async expireStale(scope: {
-    parcelId?: string;
-    lockerId?: string;
+  /**
+   * Expire authorized sessions whose TTL has elapsed and release only those
+   * deposit reservations that are still reserved and not owned by another live session.
+   */
+  async expireAuthorizedSessions(scope: {
+    parcelId?: string | null;
+    lockerId?: string | null;
     compartmentId?: string | null;
-  }): Promise<void> {
-    const expired = await this.db.query(
-      `UPDATE locker_action_sessions
-       SET status = 'expired', updated_at = NOW()
-       WHERE status = 'authorized'
-         AND expires_at <= NOW()
-         AND (
-           ($1::uuid IS NOT NULL AND parcel_id = $1)
-           OR ($2::uuid IS NOT NULL AND locker_id = $2)
-           OR ($3::uuid IS NOT NULL AND compartment_id = $3)
-         )
-       RETURNING id, action, compartment_id`,
+  } = {}): Promise<ExpireLockerSessionsResult> {
+    const result = await this.db.query(
+      `WITH claimed AS (
+         SELECT id
+         FROM locker_action_sessions
+         WHERE status = 'authorized'
+           AND expires_at <= NOW()
+           AND (
+             ($1::uuid IS NULL AND $2::uuid IS NULL AND $3::uuid IS NULL)
+             OR ($1::uuid IS NOT NULL AND parcel_id = $1)
+             OR ($2::uuid IS NOT NULL AND locker_id = $2)
+             OR ($3::uuid IS NOT NULL AND compartment_id = $3)
+           )
+         ORDER BY expires_at ASC
+         FOR UPDATE SKIP LOCKED
+       ),
+       expired AS (
+         UPDATE locker_action_sessions s
+         SET status = 'expired', updated_at = NOW()
+         FROM claimed
+         WHERE s.id = claimed.id
+         RETURNING s.id, s.action, s.compartment_id
+       ),
+       released AS (
+         UPDATE compartments c
+         SET status = 'available', updated_at = NOW()
+         FROM expired e
+         WHERE c.id = e.compartment_id
+           AND e.action = 'deposit'
+           AND c.status = 'reserved'
+           AND NOT EXISTS (
+             SELECT 1 FROM locker_action_sessions live
+             WHERE live.compartment_id = c.id
+               AND live.status = 'authorized'
+               AND live.expires_at > NOW()
+               AND live.id <> e.id
+           )
+         RETURNING c.id
+       )
+       SELECT
+         (SELECT COUNT(*)::int FROM expired) AS expired,
+         (SELECT COUNT(*)::int FROM released) AS released`,
       [scope.parcelId ?? null, scope.lockerId ?? null, scope.compartmentId ?? null],
     );
-    for (const row of expired.rows) {
-      await this.releaseReservation(this.db, {
-        action: row.action as LockerAction,
-        compartmentId: row.compartment_id == null ? null : String(row.compartment_id),
+    const row = result.rows[0] as { expired: number; released: number } | undefined;
+    const expired = Number(row?.expired ?? 0);
+    const released = Number(row?.released ?? 0);
+    if (expired > 0) {
+      logLockerEvent('sessions_expired', {
+        lockerId: scope.lockerId ?? undefined,
+        expired,
+        released,
       });
     }
+    return { expired, released };
   }
 
   private async releaseReservation(

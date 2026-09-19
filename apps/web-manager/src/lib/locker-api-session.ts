@@ -1,6 +1,7 @@
 import {
-  resolveLockerIdForApiToken,
+  lockerMaintenanceTokenMatches,
   parseLockerApiTokens,
+  resolveLockerIdForApiToken,
 } from '@eveider/data-access';
 
 export type LockerApiAuth =
@@ -32,4 +33,17 @@ export function requireLockerApi(request: Request): LockerApiAuth {
     return { error: 'LOCKER_AUTH_REQUIRED', status: 401 };
   }
   return { lockerId };
+}
+
+export type LockerMaintenanceAuth = { ok: true } | { error: string; status: number };
+
+export function requireLockerMaintenance(request: Request): LockerMaintenanceAuth {
+  const token = bearerToken(request);
+  if (!token) {
+    return { error: 'LOCKER_MAINTENANCE_AUTH_REQUIRED', status: 401 };
+  }
+  if (!lockerMaintenanceTokenMatches(token)) {
+    return { error: 'LOCKER_MAINTENANCE_AUTH_REQUIRED', status: 401 };
+  }
+  return { ok: true };
 }

@@ -7,6 +7,12 @@ import {
 } from '../test/query-mock.js';
 import { PaymentRepository } from './payment.repository.js';
 
+vi.mock('../repositories/collection-credential.repository.js', () => ({
+  CollectionCredentialRepository: class {
+    reconcileForParcel = vi.fn(async () => null);
+  },
+}));
+
 describe('PaymentRepository', () => {
   let db = createSqlMatchMock(() => null);
   let repo: PaymentRepository;

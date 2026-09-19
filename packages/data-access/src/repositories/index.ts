@@ -1,6 +1,7 @@
 export * from './business.repository.js';
 export * from './delivery.repository.js';
 export * from './locker-action.repository.js';
+export * from './collection-credential.repository.js';
 export * from './locker.repository.js';
 export * from './service-area.repository.js';
 export * from './parcel.repository.js';

@@ -1,0 +1,119 @@
+[
+  {
+    "id": "tab-eveider-locker",
+    "type": "tab",
+    "label": "Eveider locker",
+    "disabled": false,
+    "info": "Reference Node-RED orchestration. Business rules live in Eveider and @eveider/locker-runtime, not in Function nodes."
+  },
+  {
+    "id": "cfg-eveider",
+    "type": "comment",
+    "z": "tab-eveider-locker",
+    "name": "Config: EVEIDER_API_BASE_URL, EVEIDER_LOCKER_API_TOKEN, LOCKER_ID, SYNC_INTERVAL_MS, RETRY_INTERVAL_MS, HARDWARE_ADAPTER",
+    "info": "Do not store production secrets in this flow. Use Node-RED env or a local credential file outside git.",
+    "x": 280,
+    "y": 40,
+    "wires": []
+  },
+  {
+    "id": "in-terminal",
+    "type": "comment",
+    "z": "tab-eveider-locker",
+    "name": "Terminal input → classify workflow",
+    "info": "Deposit / driver_pickup / business_return_pickup are online-required. Recipient collection uses local credentials after pull sync.",
+    "x": 200,
+    "y": 100,
+    "wires": []
+  },
+  {
+    "id": "online-authorize",
+    "type": "comment",
+    "z": "tab-eveider-locker",
+    "name": "POST /api/locker/actions/authorize",
+    "info": "Fail closed: if Eveider is unreachable, do not OPEN. On deny, show the machine code.",
+    "x": 220,
+    "y": 160,
+    "wires": []
+  },
+  {
+    "id": "hw-open",
+    "type": "comment",
+    "z": "tab-eveider-locker",
+    "name": "Hardware adapter OPEN(compartment)",
+    "info": "Adapter stub until the PLC protocol is known. Do not guess Modbus/OPC-UA registers.",
+    "x": 240,
+    "y": 220,
+    "wires": []
+  },
+  {
+    "id": "hw-evidence",
+    "type": "comment",
+    "z": "tab-eveider-locker",
+    "name": "Wait door opened + closed + occupancy evidence",
+    "info": "Command accepted is not deposit/removal success. Occupancy sensing is adapter-configurable.",
+    "x": 280,
+    "y": 280,
+    "wires": []
+  },
+  {
+    "id": "online-confirm",
+    "type": "comment",
+    "z": "tab-eveider-locker",
+    "name": "POST confirm(session) with stable deviceEventId",
+    "info": "Retries reuse the same deviceEventId. Failures stay in the local outbox (persistent context).",
+    "x": 280,
+    "y": 340,
+    "wires": []
+  },
+  {
+    "id": "online-cancel",
+    "type": "comment",
+    "z": "tab-eveider-locker",
+    "name": "POST cancel(session) on hardware failure / abandon",
+    "info": "Releases the reserved compartment. Never confirm because OPEN was sent.",
+    "x": 280,
+    "y": 400,
+    "wires": []
+  },
+  {
+    "id": "sync-pull",
+    "type": "comment",
+    "z": "tab-eveider-locker",
+    "name": "GET /api/locker/sync/collection-credentials?since=cursor",
+    "info": "Configurable interval. Apply activate/revoke/consume locally. Persist cursor + credentials.",
+    "x": 310,
+    "y": 460,
+    "wires": []
+  },
+  {
+    "id": "local-validate",
+    "type": "comment",
+    "z": "tab-eveider-locker",
+    "name": "Local recipient validation → exact compartment OPEN",
+    "info": "Phone + tracking + PIN hash. No pricing. No paid=true. Consume local credential before backend ack.",
+    "x": 310,
+    "y": 520,
+    "wires": []
+  },
+  {
+    "id": "offline-report",
+    "type": "comment",
+    "z": "tab-eveider-locker",
+    "name": "POST /api/locker/events/recipient-collection",
+    "info": "Bound to synchronized credential id/version. Same deviceEventId on retry.",
+    "x": 270,
+    "y": 580,
+    "wires": []
+  },
+  {
+    "id": "outbox-retry",
+    "type": "comment",
+    "z": "tab-eveider-locker",
+    "name": "Outbox retry (persistent context)",
+    "info": "Durability: Node-RED persistent context store (file-backed). Survives restart. Not Kafka.",
+    "x": 230,
+    "y": 640,
+    "wires": []
+  }
+]

@@ -20,6 +20,7 @@ export * from './service-area.js';
 export * from './locker-layout.js';
 export * from './locker-settings.js';
 export * from './locker-action.js';
+export * from './locker-collection.js';
 export * from './identifiers.js';
 export * from './shipment.js';
 export * from './pricing.js';

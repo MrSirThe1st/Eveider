@@ -82,8 +82,12 @@ export {
 export {
   parseLockerApiTokens,
   resolveLockerIdForApiToken,
+  lockerMaintenanceTokenMatches,
+  lockerMaintenanceTokenConfigured,
   LOCKER_API_TOKEN_ENV,
+  LOCKER_MAINTENANCE_TOKEN_ENV,
 } from './locker-api/auth.js';
+export { hashLockerCollectionPin, lockerPinHashMatches } from './locker-api/pin-hash.js';
 export {
   isAllowedNotificationUrl,
   buildOrganizationNotificationPayload,
@@ -97,6 +101,7 @@ import { BusinessOnboardingRepository } from './repositories/business-onboarding
 import { DeliveryRepository } from './repositories/delivery.repository.js';
 import { LockerRepository } from './repositories/locker.repository.js';
 import { LockerActionRepository } from './repositories/locker-action.repository.js';
+import { CollectionCredentialRepository } from './repositories/collection-credential.repository.js';
 import { ServiceAreaRepository } from './repositories/service-area.repository.js';
 import { ParcelRepository } from './repositories/parcel.repository.js';
 import { ParcelReturnRepository } from './repositories/parcel-return.repository.js';
@@ -154,6 +159,7 @@ export function createRepositories() {
     deliveries,
     lockers: new LockerRepository(db, notifications),
     lockerActions: new LockerActionRepository(db),
+    collectionCredentials: new CollectionCredentialRepository(db),
     serviceAreas,
     lockerSettings,
     platformSettings,

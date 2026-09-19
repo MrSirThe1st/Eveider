@@ -13,6 +13,14 @@ import {
 } from '../test/query-mock.js';
 import { ParcelRepository } from './parcel.repository.js';
 
+vi.mock('./collection-credential.repository.js', () => ({
+  CollectionCredentialRepository: class {
+    reconcileForParcel = vi.fn(async () => null);
+    consumeForParcel = vi.fn(async () => undefined);
+    revokeForParcel = vi.fn(async () => undefined);
+  },
+}));
+
 const txDb: { current: Queryable | null } = { current: null };
 const txLog = { begun: false, committed: false, rolledBack: false };
 

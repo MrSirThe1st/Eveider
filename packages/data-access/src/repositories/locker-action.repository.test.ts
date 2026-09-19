@@ -709,18 +709,9 @@ describe('LockerActionRepository', () => {
             expires_at: new Date('2026-01-15T11:00:00.000Z'),
           });
         }
-        if (sqlIncludes(sql, 'UPDATE locker_action_sessions') && sqlIncludes(sql, 'expired')) {
-          return [
-            {
-              id: 'session-1',
-              action: 'deposit',
-              compartment_id: 'comp-1',
-            },
-          ];
-        }
-        if (sqlIncludes(sql, 'SET status = \'available\'') && sqlIncludes(sql, 'reserved')) {
-          releases.push(values ?? []);
-          return null;
+        if (sqlIncludes(sql, 'FOR UPDATE SKIP LOCKED')) {
+          releases.push(['expired-session']);
+          return { expired: 1, released: 1 };
         }
         throw new Error(`Unexpected SQL: ${sql}`);
       });
@@ -801,6 +792,91 @@ describe('LockerActionRepository', () => {
       const result = await repo.cancel('locker-1', 'session-1');
       expect(result.cancelled).toBe(true);
       expect(releases[0]?.[0]).toBe('comp-1');
+    });
+  });
+
+  describe('expireLockerActionSessions', () => {
+    it('expires a stale deposit and reports the reserved compartment released', async () => {
+      setup((sql) => {
+        if (sqlIncludes(sql, 'FOR UPDATE SKIP LOCKED')) {
+          return { expired: 1, released: 1 };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      });
+      await expect(repo.expireLockerActionSessions()).resolves.toEqual({
+        expired: 1,
+        released: 1,
+      });
+    });
+
+    it('is idempotent when nothing remains to expire', async () => {
+      setup((sql) => {
+        if (sqlIncludes(sql, 'FOR UPDATE SKIP LOCKED')) {
+          return { expired: 0, released: 0 };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      });
+      await expect(repo.expireLockerActionSessions()).resolves.toEqual({
+        expired: 0,
+        released: 0,
+      });
+      await expect(repo.expireLockerActionSessions()).resolves.toEqual({
+        expired: 0,
+        released: 0,
+      });
+    });
+
+    it('does not treat occupied compartments as released', async () => {
+      setup((sql) => {
+        if (sqlIncludes(sql, 'FOR UPDATE SKIP LOCKED') && sqlIncludes(sql, "c.status = 'reserved'")) {
+          return { expired: 1, released: 0 };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      });
+      await expect(repo.expireLockerActionSessions('locker-1')).resolves.toEqual({
+        expired: 1,
+        released: 0,
+      });
+    });
+
+    it('reports reserved compartments that have no live session', async () => {
+      setup((sql) => {
+        if (sqlIncludes(sql, "c.status = 'reserved'")) {
+          return { id: 'comp-1', locker_id: 'locker-1' };
+        }
+        if (sqlIncludes(sql, "c.status = 'occupied'")) return [];
+        if (sqlIncludes(sql, 'locker_collection_credentials')) return [];
+        if (sqlIncludes(sql, "s.status = 'confirmed'")) return [];
+        throw new Error(`Unexpected SQL: ${sql}`);
+      });
+      const findings = await repo.inspectLockerIntegrity('locker-1');
+      expect(findings).toEqual([
+        expect.objectContaining({
+          kind: 'reserved_without_session',
+          compartmentId: 'comp-1',
+        }),
+      ]);
+    });
+
+    it('serializes concurrent sweeps with SKIP LOCKED', async () => {
+      let calls = 0;
+      setup((sql) => {
+        if (sqlIncludes(sql, 'FOR UPDATE SKIP LOCKED')) {
+          calls += 1;
+          return calls === 1 ? { expired: 1, released: 1 } : { expired: 0, released: 0 };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      });
+      const [first, second] = await Promise.all([
+        repo.expireLockerActionSessions(),
+        repo.expireLockerActionSessions(),
+      ]);
+      expect([first, second]).toEqual(
+        expect.arrayContaining([
+          { expired: 1, released: 1 },
+          { expired: 0, released: 0 },
+        ]),
+      );
     });
   });
 });

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { requireLockerApi } from './locker-api-session';
+import { requireLockerApi, requireLockerMaintenance } from './locker-api-session';
 
 describe('requireLockerApi', () => {
   const original = process.env.EVEIDER_LOCKER_API_TOKENS;
@@ -31,6 +31,30 @@ describe('requireLockerApi', () => {
     });
     expect(requireLockerApi(request)).toEqual({
       error: 'LOCKER_AUTH_REQUIRED',
+      status: 401,
+    });
+  });
+});
+
+describe('requireLockerMaintenance', () => {
+  const original = process.env.EVEIDER_LOCKER_MAINTENANCE_TOKEN;
+
+  afterEach(() => {
+    if (original === undefined) delete process.env.EVEIDER_LOCKER_MAINTENANCE_TOKEN;
+    else process.env.EVEIDER_LOCKER_MAINTENANCE_TOKEN = original;
+  });
+
+  it('accepts the maintenance token and rejects locker API tokens', () => {
+    process.env.EVEIDER_LOCKER_MAINTENANCE_TOKEN = 'maint-secret';
+    const ok = new Request('http://localhost/api/locker/maintenance/expire-sessions', {
+      headers: { authorization: 'Bearer maint-secret' },
+    });
+    expect(requireLockerMaintenance(ok)).toEqual({ ok: true });
+    const rejected = new Request('http://localhost/api/locker/maintenance/expire-sessions', {
+      headers: { authorization: 'Bearer locker-secret' },
+    });
+    expect(requireLockerMaintenance(rejected)).toEqual({
+      error: 'LOCKER_MAINTENANCE_AUTH_REQUIRED',
       status: 401,
     });
   });

@@ -4,6 +4,7 @@ import { mapParcelPayment } from '../db/mappers.js';
 import type { ParcelPayment, PaymentStatus } from '../db/types.js';
 import { phonesMatch } from '../tracking/guest-track.js';
 import { CommercialRepository } from '../repositories/commercial.repository.js';
+import { CollectionCredentialRepository } from '../repositories/collection-credential.repository.js';
 import {
   PARCEL_CHARGE_KIND_LABELS,
   type ParcelChargeKind,
@@ -495,7 +496,9 @@ export class PaymentRepository {
         payment.id,
       ],
     );
-    return mapParcelPayment(updated.rows[0]!);
+    const mapped = mapParcelPayment(updated.rows[0]!);
+    await this.reconcileCollectionCredentialIfPaid(mapped);
+    return mapped;
   }
 
   private async syncPaymentStatus(payment: ParcelPayment): Promise<ParcelPayment> {
@@ -521,7 +524,14 @@ export class PaymentRepository {
         payment.id,
       ],
     );
-    return mapParcelPayment(updated.rows[0]!);
+    const mapped = mapParcelPayment(updated.rows[0]!);
+    await this.reconcileCollectionCredentialIfPaid(mapped);
+    return mapped;
+  }
+
+  private async reconcileCollectionCredentialIfPaid(payment: ParcelPayment): Promise<void> {
+    if (payment.status !== 'completed') return;
+    await new CollectionCredentialRepository(this.db).reconcileForParcel(payment.parcelId);
   }
 
   private assertCustomerParcelAccess(
