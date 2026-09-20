@@ -1,5 +1,6 @@
 'use client';
 
+import { colors } from '@eveider/config-ui';
 import { ADMIN_ACCOUNT_STATUS_LABELS, type AdminAccountStatus } from '@eveider/domain';
 
 type AdminAccountStatusBadgeProps = {
@@ -11,16 +12,16 @@ const STATUS_STYLES: Record<
   { bg: string; color: string; dot: string; border: string }
 > = {
   active: {
-    bg: '#DCF5D6',
-    color: '#067A07',
-    dot: '#09D40B',
-    border: '#C0EAB7',
+    bg: colors.successMuted,
+    color: colors.successFg,
+    dot: colors.success,
+    border: colors.primaryMuted,
   },
   suspended: {
-    bg: '#F0F4EE',
-    color: '#475467',
-    dot: '#98A2B3',
-    border: '#E2E8E0',
+    bg: colors.surfaceMuted,
+    color: colors.textMuted,
+    dot: colors.textDisabled,
+    border: colors.borderSubtle,
   },
 };
 

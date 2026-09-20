@@ -186,7 +186,7 @@ async function allocatePickupPin(db: Queryable, lockerId: string | null): Promis
     }
     return code;
   }
-  throw new Error('Impossible de générer un code PIN unique');
+  throw new Error('Impossible de générer un code de retrait unique');
 }
 
 export type CreateParcelInput = {
@@ -750,25 +750,70 @@ export class ParcelRepository {
 
   async listAll(
     ctx: DataAccessContext,
-    options?: { status?: ParcelStatus; search?: string },
+    options?: {
+      status?: ParcelStatus;
+      search?: string;
+      attention?:
+        | 'awaiting_assignment'
+        | 'in_transit'
+        | 'at_locker'
+        | 'ready_for_pickup'
+        | 'return_at_locker'
+        | 'returned';
+      pickupType?: ShipmentPickupType;
+      lockerId?: string;
+      businessId?: string;
+    },
   ): Promise<ParcelWithLocker[]> {
     assertAdmin(ctx);
     const params: unknown[] = [];
     const conditions: string[] = [];
 
-    if (options?.status) {
+    if (options?.attention === 'awaiting_assignment') {
+      conditions.push(`p.status = 'created' AND p.pickup_type = 'courier_pickup'`);
+      params.push(['assigned', 'scanned', 'drop_off_pending']);
+      conditions.push(`NOT EXISTS (
+        SELECT 1 FROM deliveries d
+        WHERE d.parcel_id = p.id
+          AND d.kind = 'outbound'
+          AND d.status = ANY($${params.length})
+      )`);
+    } else if (options?.attention === 'in_transit') {
+      conditions.push(`p.status = 'in_transit'`);
+    } else if (options?.attention === 'at_locker') {
+      conditions.push(`p.status = 'delivered_to_locker'`);
+    } else if (options?.attention === 'ready_for_pickup') {
+      conditions.push(`p.status = 'ready_for_pickup'`);
+    } else if (options?.attention === 'return_at_locker') {
+      conditions.push(`p.status = 'return_at_point'`);
+    } else if (options?.attention === 'returned') {
+      conditions.push(`p.status = 'returned'`);
+    } else if (options?.status) {
       params.push(options.status);
-      conditions.push(`status = $${params.length}`);
+      conditions.push(`p.status = $${params.length}`);
+    }
+
+    if (options?.pickupType) {
+      params.push(options.pickupType);
+      conditions.push(`p.pickup_type = $${params.length}`);
+    }
+    if (options?.lockerId) {
+      params.push(options.lockerId);
+      conditions.push(`p.locker_id = $${params.length}`);
+    }
+    if (options?.businessId) {
+      params.push(options.businessId);
+      conditions.push(`p.business_id = $${params.length}`);
     }
     if (options?.search?.trim()) {
       params.push(`%${options.search.trim()}%`);
       conditions.push(
-        `(tracking_number ILIKE $${params.length} OR COALESCE(reference, '') ILIKE $${params.length})`,
+        `(p.tracking_number ILIKE $${params.length} OR COALESCE(p.reference, '') ILIKE $${params.length})`,
       );
     }
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-    const sql = `SELECT id FROM parcels ${where} ORDER BY created_at DESC`;
+    const sql = `SELECT p.id FROM parcels p ${where} ORDER BY p.created_at DESC`;
     const ids = await this.db.query(sql, params);
     return this.loadParcelsWithRelations(ids.rows.map((r) => String(r.id)));
   }
@@ -1005,7 +1050,7 @@ export class ParcelRepository {
       throw new Error('Le dépôt n’est possible qu’avant l’arrivée au point');
     }
     if (!existing.lockerId || !existing.locker) {
-      throw new Error('Point de destination manquant');
+      throw new Error('Casier de destination manquant');
     }
     if (!canAcceptDropOff(existing.locker.status)) {
       throw new Error('Casier indisponible — dépôt impossible');

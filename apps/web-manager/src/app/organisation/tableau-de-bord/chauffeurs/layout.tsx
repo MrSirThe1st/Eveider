@@ -1,23 +1,9 @@
-import { PRODUCT_LOCKS } from '@eveider/domain';
-import { FeatureLocked } from '@/components/feature-locked';
-import { WEB_ROUTES } from '@/lib/auth-routing';
-import { requireBusinessPageContext } from '@/server/business';
+import { redirect } from 'next/navigation';
 
-export default async function LockedBusinessDriversLayout({
+export default function BusinessDriversLegacyLayout({
   children: _children,
 }: {
   children: React.ReactNode;
 }) {
-  await requireBusinessPageContext();
-
-  return (
-    <FeatureLocked
-      title="Chauffeurs"
-      description={PRODUCT_LOCKS.orgDriverManage}
-      breadcrumbs={[
-        { label: 'Tableau de bord', href: WEB_ROUTES.businessDashboard },
-        { label: 'Chauffeurs' },
-      ]}
-    />
-  );
+  redirect('/organisation/tableau-de-bord');
 }

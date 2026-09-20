@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, spacing, typography, webCardStyle } from '@eveider/config-ui';
+import { colors } from '@eveider/config-ui';
 import { useSyncExternalStore } from 'react';
 import {
   applyThemePreference,
@@ -8,6 +8,7 @@ import {
   subscribeTheme,
   type ThemePreference,
 } from '@/lib/theme';
+import { SettingsFormSection } from '@/components/ops-ui';
 
 const APPEARANCE_OPTIONS: Array<{
   value: ThemePreference;
@@ -31,36 +32,27 @@ export function AccountPreferencesPanel() {
   const preference = useSyncExternalStore(subscribeTheme, readThemePreference, getServerPreference);
 
   return (
-    <section style={{ display: 'grid', gap: spacing[4] }}>
-      <div style={{ ...webCardStyle, padding: spacing[5], display: 'grid', gap: spacing[3] }}>
-        <div>
-          <h2 style={{ margin: 0, ...typography.sectionTitle }}>Langue</h2>
-          <p style={{ margin: `${spacing[2]}px 0 0`, color: colors.textMuted }}>
-            Eveider s’affiche en français sur le portail.
-          </p>
-        </div>
+    <div className="ops-form">
+      <SettingsFormSection title="Langue" description="Eveider s’affiche en français sur le portail.">
         <p
           style={{
             margin: 0,
             fontWeight: 600,
-            padding: `${spacing[3]}px ${spacing[4]}px`,
+            padding: '0.65rem 0.85rem',
             background: colors.surfaceSubtle,
             borderRadius: 8,
+            border: `1px solid ${colors.borderSubtle}`,
           }}
         >
           Français
         </p>
-      </div>
+      </SettingsFormSection>
 
-      <div style={{ ...webCardStyle, padding: spacing[5], display: 'grid', gap: spacing[3] }}>
-        <div>
-          <h2 style={{ margin: 0, ...typography.sectionTitle }}>Apparence</h2>
-          <p style={{ margin: `${spacing[2]}px 0 0`, color: colors.textMuted }}>
-            Choisissez un affichage clair, sombre, ou qui suit votre appareil.
-          </p>
-        </div>
-
-        <div role="radiogroup" aria-label="Apparence" style={{ display: 'grid', gap: spacing[2] }}>
+      <SettingsFormSection
+        title="Apparence"
+        description="Choisissez un affichage clair, sombre, ou qui suit votre appareil."
+      >
+        <div role="radiogroup" aria-label="Apparence" style={{ display: 'grid', gap: 8 }}>
           {APPEARANCE_OPTIONS.map((option) => {
             const selected = preference === option.value;
             return (
@@ -75,10 +67,10 @@ export function AccountPreferencesPanel() {
                   display: 'grid',
                   gap: 4,
                   textAlign: 'left',
-                  padding: `${spacing[3]}px ${spacing[4]}px`,
+                  padding: '0.75rem 0.9rem',
                   borderRadius: 8,
                   border: selected ? `2px solid ${colors.secondary}` : `1px solid ${colors.border}`,
-                  background: selected ? colors.surfaceSubtle : 'transparent',
+                  background: selected ? colors.surfaceSubtle : colors.surface,
                   color: colors.secondary,
                   cursor: 'pointer',
                 }}
@@ -89,12 +81,11 @@ export function AccountPreferencesPanel() {
             );
           })}
         </div>
-
-        <p style={{ margin: 0, color: colors.textMuted, fontSize: 13 }}>
+        <p style={{ margin: '0.85rem 0 0', color: colors.textMuted, fontSize: 13 }}>
           Si les cookies de préférence sont acceptés, ce choix d’apparence est mémorisé sur cet
           appareil.
         </p>
-      </div>
-    </section>
+      </SettingsFormSection>
+    </div>
   );
 }

@@ -6,6 +6,7 @@ import {
   resolveCommercialPricingModel,
   returnChargeKind,
   roundFeeAmount,
+  ZONE_PRICING_NOT_CONFIGURED_MESSAGE,
   type ChargePayer,
   type DeliveryPricingCurrency,
   type ParcelChargeKind,
@@ -13,6 +14,7 @@ import {
   type RecipientCollectionDecision,
   type RecipientServiceChargeKind,
   type ShipmentPickupType,
+  type ZonePricingAmount,
 } from '@eveider/domain';
 import type { Queryable } from '../db/index.js';
 import type { ParcelCharge } from '../db/types.js';
@@ -24,8 +26,10 @@ export type PricingZone = {
   id: string;
   code: string;
   name: string;
-  outboundDeliveryAmount: number;
-  returnDeliveryAmount: number;
+  status: string;
+  cityStatus: string;
+  outboundDeliveryAmount: ZonePricingAmount;
+  returnDeliveryAmount: ZonePricingAmount;
 };
 
 export type CanonicalQuote = {
@@ -43,9 +47,13 @@ export class CommercialRepository {
 
   async resolveZoneForLocker(lockerId: string): Promise<PricingZone> {
     const result = await this.db.query(
-      `SELECT sa.id, sa.code, sa.name, sa.outbound_delivery_amount, sa.return_delivery_amount
+      `SELECT sa.id, sa.code, sa.name, sa.status,
+              c.status AS city_status,
+              zp.outbound_delivery_amount, zp.return_delivery_amount
        FROM lockers l
        JOIN service_areas sa ON sa.id = l.service_area_id
+       JOIN cities c ON c.id = sa.city_id
+       LEFT JOIN zone_pricing zp ON zp.zone_id = sa.id
        WHERE l.id = $1
        LIMIT 1`,
       [lockerId],
@@ -54,13 +62,30 @@ export class CommercialRepository {
     if (!row) {
       throw new Error('Zone tarifaire introuvable pour ce casier');
     }
+    if (String(row.status) !== 'active') {
+      throw new Error('Cette zone de service n’est plus active');
+    }
+    if (String(row.city_status) !== 'active') {
+      throw new Error('Cette ville n’est plus active');
+    }
     return {
       id: String(row.id),
       code: String(row.code),
       name: String(row.name),
-      outboundDeliveryAmount: Number(row.outbound_delivery_amount ?? 0),
-      returnDeliveryAmount: Number(row.return_delivery_amount ?? 0),
+      status: String(row.status),
+      cityStatus: String(row.city_status),
+      outboundDeliveryAmount:
+        row.outbound_delivery_amount == null ? null : Number(row.outbound_delivery_amount),
+      returnDeliveryAmount:
+        row.return_delivery_amount == null ? null : Number(row.return_delivery_amount),
     };
+  }
+
+  private requireConfiguredAmount(amount: ZonePricingAmount): number {
+    if (amount == null) {
+      throw new Error(ZONE_PRICING_NOT_CONFIGURED_MESSAGE);
+    }
+    return amount;
   }
 
   async quoteOutbound(input: {
@@ -83,10 +108,11 @@ export class CommercialRepository {
     }
 
     const zone = await this.resolveZoneForLocker(input.lockerId);
+    const amount = this.requireConfiguredAmount(zone.outboundDeliveryAmount);
     return {
       kind,
       payer: 'recipient',
-      amount: roundFeeAmount(zone.outboundDeliveryAmount, currency),
+      amount: roundFeeAmount(amount, currency),
       currency,
       pricingZoneId: zone.id,
       zoneCode: zone.code,
@@ -114,10 +140,11 @@ export class CommercialRepository {
     }
 
     const zone = await this.resolveZoneForLocker(input.returnLockerId);
+    const amount = this.requireConfiguredAmount(zone.returnDeliveryAmount);
     return {
       kind,
       payer: 'business',
-      amount: roundFeeAmount(zone.returnDeliveryAmount, currency),
+      amount: roundFeeAmount(amount, currency),
       currency,
       pricingZoneId: zone.id,
       zoneCode: zone.code,

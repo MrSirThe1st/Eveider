@@ -99,7 +99,7 @@ export function LockerList({ lockers, serviceAreas = [] }: LockerListProps) {
           {filteredLockers.map((locker) => (
             <Link
               key={locker.id}
-              href={`/tableau-de-bord/points/${locker.id}`}
+              href={`/tableau-de-bord/casiers/${locker.id}`}
               style={{
                 display: 'block',
                 ...webCardStyle,

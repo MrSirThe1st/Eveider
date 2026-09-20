@@ -46,6 +46,8 @@ export type DriverRosterRecord = {
   serviceAreaId: string | null;
   serviceAreaName: string | null;
   serviceAreaCode: string | null;
+  serviceAreaCity: string | null;
+  serviceAreaCityId: string | null;
   idDocumentUrl: string;
   notes: string | null;
   reviewNotes: string | null;
@@ -72,6 +74,8 @@ const ROSTER_SELECT = `
     d.service_area_id,
     sa.name AS service_area_name,
     sa.code AS service_area_code,
+    sa.city_id AS service_area_city_id,
+    city.name AS service_area_city,
     d.id_document_url,
     d.notes,
     d.review_notes,
@@ -86,6 +90,7 @@ const ROSTER_SELECT = `
   LEFT JOIN users u ON u.id = d.user_id
   LEFT JOIN businesses b ON b.id = d.business_id
   LEFT JOIN service_areas sa ON sa.id = d.service_area_id
+  LEFT JOIN cities city ON city.id = sa.city_id
   LEFT JOIN LATERAL (
     SELECT p.tracking_number, l.name AS locker_name
     FROM deliveries del
@@ -122,6 +127,8 @@ function mapRosterRow(row: Record<string, unknown>): DriverRosterRecord {
     serviceAreaId: row.service_area_id == null ? null : String(row.service_area_id),
     serviceAreaName: row.service_area_name == null ? null : String(row.service_area_name),
     serviceAreaCode: row.service_area_code == null ? null : String(row.service_area_code),
+    serviceAreaCity: row.service_area_city == null ? null : String(row.service_area_city),
+    serviceAreaCityId: row.service_area_city_id == null ? null : String(row.service_area_city_id),
     idDocumentUrl: String(row.id_document_url),
     notes: row.notes == null ? null : String(row.notes),
     reviewNotes: row.review_notes == null ? null : String(row.review_notes),
@@ -488,13 +495,20 @@ export class CourierDossierRepository {
       return null;
     }
     const result = await this.db.query(
-      `SELECT id, status FROM service_areas WHERE id = $1 LIMIT 1`,
+      `SELECT sa.id, sa.status, c.status AS city_status
+       FROM service_areas sa
+       JOIN cities c ON c.id = sa.city_id
+       WHERE sa.id = $1
+       LIMIT 1`,
       [serviceAreaId],
     );
     const row = result.rows[0];
     if (!row) throw new Error('Zone de service introuvable');
     if (String(row.status) !== 'active') {
       throw new Error('Cette zone de service n’est plus active');
+    }
+    if (String(row.city_status) !== 'active') {
+      throw new Error('Cette ville n’est plus active');
     }
     return String(row.id);
   }

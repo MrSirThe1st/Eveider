@@ -124,7 +124,7 @@ export function LockerNetworkSettingsForm({ initialSettings }: LockerNetworkSett
           </select>
         </label>
         <p style={{ margin: 0, fontSize: '0.75rem', color: colors.secondary, opacity: 0.75 }}>
-          Ces règles suggèrent un compartiment ; le coursier ou l’opérateur garde le dernier mot.
+          Ces règles suggèrent un compartiment ; le chauffeur Eveider ou l’opérateur garde le dernier mot.
         </p>
       </section>
 
@@ -167,7 +167,7 @@ export function LockerNetworkSettingsForm({ initialSettings }: LockerNetworkSett
           </label>
         </div>
         <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>
-          Après ce délai gratuit à partir de « prêt pour retrait », la location casier (tarif
+          Après ce délai gratuit à partir de « prêt au retrait », le stockage (tarif
           Facturation) s’applique par période de 24 h pour les casiers à compartiments.
         </p>
       </section>

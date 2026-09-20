@@ -21,7 +21,9 @@ export async function GET(_request: Request, { params }: RouteParams) {
       return NextResponse.json(fail('Colis introuvable'), { status: 404 });
     }
 
-    return NextResponse.json(ok({ parcel: await buildCustomerParcelDto(parcel) }));
+    return NextResponse.json(
+      ok({ parcel: await buildCustomerParcelDto(parcel, { includeReturnCode: false }) }),
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur serveur';
     return NextResponse.json(fail(message), { status: 500 });

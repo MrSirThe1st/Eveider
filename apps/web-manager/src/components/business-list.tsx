@@ -114,7 +114,7 @@ export function BusinessList({ businesses }: BusinessListProps) {
         emptyDescription={
           searchQuery.trim()
             ? 'Essayez un autre nom ou contact.'
-            : 'Les comptes partenaires vérifiés apparaîtront ici une fois activés.'
+            : 'Les organisations Eveider apparaîtront ici.'
         }
         emptyIcon={searchQuery.trim() ? <IconSearch /> : <IconBuilding />}
         initialSortId="createdAt"
@@ -123,7 +123,7 @@ export function BusinessList({ businesses }: BusinessListProps) {
           {
             id: 'view',
             label: 'Voir le dossier',
-            href: `/tableau-de-bord/organisations/applications/${row.id}`,
+            href: `/tableau-de-bord/organisations/${row.id}`,
           },
         ]}
       />

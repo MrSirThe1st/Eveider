@@ -11,6 +11,8 @@ type ParcelExportMenuProps = {
     location?: string;
     search?: string;
     status?: string;
+    attention?: string;
+    pickupType?: string;
     view?: string;
     courierId?: string;
     lockerId?: string;
@@ -33,6 +35,8 @@ export function ParcelExportMenu({ exportPath, filters = {}, compact = false }: 
           location: filters.location,
           search: filters.search,
           status: filters.status,
+          attention: filters.attention,
+          pickupType: filters.pickupType,
           view: filters.view,
           courierId: filters.courierId,
           lockerId: filters.lockerId,

@@ -8,28 +8,29 @@ import type { ParcelEventActorType, ParcelEventType } from './parcel-event.js';
 import type { ChargePayer } from './commercial.js';
 import type { ParcelChargeKind } from './pricing.js';
 import type { BusinessParcelLocation, BusinessParcelProgressionStep } from './parcel-location.js';
+import type { CityStatus } from './cities.js';
 import type { ServiceAreaStatus } from './service-area.js';
 
 /** French UI labels — ALL CAPS per design DNA. */
 export const PARCEL_STATUS_LABELS: Record<ParcelStatus, string> = {
   created: 'CRÉÉ',
   in_transit: 'EN TRANSIT',
-  delivered_to_locker: 'LIVRÉ AU POINT',
-  ready_for_pickup: 'PRÊT POUR RETRAIT',
+  delivered_to_locker: 'AU CASIER',
+  ready_for_pickup: 'PRÊT AU RETRAIT',
   collected: 'RETIRÉ',
   return_at_point: 'RETOUR AU CASIER',
   returning: 'RETOUR EN COURS',
-  returned: 'RETOURNÉ AU MARCHAND',
+  returned: 'RETOURNÉ',
 };
 
 /** Business Colis location — derived, not a stored parcel status. */
 export const BUSINESS_PARCEL_LOCATION_LABELS: Record<BusinessParcelLocation, string> = {
-  awaiting_courier: 'EN ATTENTE DU COURSIER',
+  awaiting_courier: 'EN ATTENTE DE PRISE EN CHARGE',
   awaiting_dropoff: 'EN ATTENTE DE DÉPÔT',
   courier_assigned: 'CHAUFFEUR ASSIGNÉ',
   in_transit: 'EN TRANSIT',
   at_locker: 'AU CASIER',
-  ready_for_pickup: 'PRÊT POUR RETRAIT',
+  ready_for_pickup: 'PRÊT AU RETRAIT',
   return_in_progress: 'RETOUR EN COURS',
   returned_to_business: 'RETOURNÉ',
   collected: 'RETIRÉ',
@@ -37,7 +38,7 @@ export const BUSINESS_PARCEL_LOCATION_LABELS: Record<BusinessParcelLocation, str
   customer_return_authorized: 'RETOUR AUTORISÉ',
   customer_return_at_locker: 'RETOUR AU CASIER',
   customer_return_in_transit: 'RETOUR EN COURS',
-  customer_return_completed: 'RETOURNÉ AU MARCHAND',
+  customer_return_completed: 'RETOURNÉ À L’ENTREPRISE',
 };
 
 export const BUSINESS_PARCEL_PROGRESSION_LABELS: Record<BusinessParcelProgressionStep, string> = {
@@ -57,13 +58,13 @@ export const PARCEL_RETURN_STATUS_LABELS: Record<ParcelReturnStatus, string> = {
 
 export const PARCEL_RETURN_METHOD_LABELS: Record<ParcelReturnMethod, string> = {
   eveider_return: 'RETOUR EVEIDER',
-  business_pickup: 'RETRAIT MARCHAND',
+  business_pickup: 'RETRAIT PAR L’ENTREPRISE',
 };
 
 export const LOCKER_TYPE_LABELS: Record<LockerType, string> = {
-  SMART_LOCKER: 'CASIER INTELLIGENT',
-  PARTNER_POINT: 'POINT PARTENAIRE',
-  RESIDENTIAL_LOCKER: 'POINT RÉSIDENTIEL',
+  SMART_LOCKER: 'CASIER EVEIDER',
+  PARTNER_POINT: 'POINT PARTENAIRE (HISTORIQUE)',
+  RESIDENTIAL_LOCKER: 'POINT RÉSIDENTIEL (HISTORIQUE)',
 };
 
 export const BUSINESS_STATUS_LABELS: Record<BusinessStatus, string> = {
@@ -164,14 +165,16 @@ export const SERVICE_AREA_STATUS_LABELS: Record<ServiceAreaStatus, string> = {
   archived: 'ARCHIVÉE',
 };
 
+export const CITY_STATUS_LABELS: Record<CityStatus, string> = SERVICE_AREA_STATUS_LABELS;
+
 export const PARCEL_CHARGE_KIND_LABELS: Record<ParcelChargeKind, string> = {
   delivery_fee: 'Livraison Eveider (historique)',
   drop_off_fee: 'Dépôt marchand (historique)',
-  locker_rental: 'Location casier',
+  locker_rental: 'Stockage',
   outbound_delivery: 'Livraison Eveider',
-  locker_collection: 'Frais de casier',
+  locker_collection: 'Retrait au casier',
   return_delivery: 'Retour Eveider',
-  return_locker: 'Retrait marchand au casier',
+  return_locker: 'Retrait du retour par l’entreprise',
 };
 
 export const CHARGE_PAYER_LABELS: Record<ChargePayer, string> = {

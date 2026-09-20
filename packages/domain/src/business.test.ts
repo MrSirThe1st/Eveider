@@ -26,11 +26,11 @@ describe('business account lifecycle', () => {
     );
   });
 
-  it('only operationally active organizations can submit parcels', () => {
+  it('lets organizations ship regardless of leftover KYC account statuses', () => {
     expect(canSubmitParcelsAsBusiness('active')).toBe(true);
-    expect(canSubmitParcelsAsBusiness('pending_review')).toBe(false);
-    expect(canSubmitParcelsAsBusiness('pending_correction')).toBe(false);
-    expect(canSubmitParcelsAsBusiness('onboarding')).toBe(false);
+    expect(canSubmitParcelsAsBusiness('pending_review')).toBe(true);
+    expect(canSubmitParcelsAsBusiness('pending_correction')).toBe(true);
+    expect(canSubmitParcelsAsBusiness('onboarding')).toBe(true);
     expect(canSubmitParcelsAsBusiness('suspended')).toBe(false);
     expect(canSubmitParcelsAsBusiness('blocked')).toBe(false);
   });

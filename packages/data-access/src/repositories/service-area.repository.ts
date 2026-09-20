@@ -1,8 +1,9 @@
-import { isDrcCity, type ServiceAreaStatus } from '@eveider/domain';
+import { isDrcCity, type ServiceAreaStatus, type ZonePricingAmount } from '@eveider/domain';
 import { assertAdmin, assertBusinessRole, type DataAccessContext } from '../context.js';
 import type { Queryable } from '../db/index.js';
 import { mapServiceArea } from '../db/mappers.js';
 import type { ServiceArea } from '../db/types.js';
+import { CityRepository } from './city.repository.js';
 
 export type ServiceAreaSummary = ServiceArea & {
   lockerCount: number;
@@ -11,25 +12,58 @@ export type ServiceAreaSummary = ServiceArea & {
 export type CreateServiceAreaInput = {
   code: string;
   name: string;
-  city: string;
+  city?: string;
+  cityId?: string;
   notes?: string | null;
   status?: ServiceAreaStatus;
-  outboundDeliveryAmount?: number;
-  returnDeliveryAmount?: number;
+  outboundDeliveryAmount?: ZonePricingAmount;
+  returnDeliveryAmount?: ZonePricingAmount;
 };
 
 export type UpdateServiceAreaInput = {
   code?: string;
   name?: string;
   city?: string;
+  cityId?: string;
   notes?: string | null;
   status?: ServiceAreaStatus;
-  outboundDeliveryAmount?: number;
-  returnDeliveryAmount?: number;
+  outboundDeliveryAmount?: ZonePricingAmount;
+  returnDeliveryAmount?: ZonePricingAmount;
 };
+
+const ZONE_SELECT = `SELECT sa.id, sa.code, sa.name, sa.city, sa.city_id, sa.status, sa.notes,
+              sa.created_at, sa.updated_at,
+              c.name AS city_name,
+              zp.outbound_delivery_amount,
+              zp.return_delivery_amount,
+              COALESCE(l.locker_count, 0)::int AS locker_count
+       FROM service_areas sa
+       JOIN cities c ON c.id = sa.city_id
+       LEFT JOIN zone_pricing zp ON zp.zone_id = sa.id
+       LEFT JOIN (
+         SELECT service_area_id, COUNT(*)::int AS locker_count
+         FROM lockers
+         WHERE archived_at IS NULL AND status <> 'archived'
+         GROUP BY service_area_id
+       ) l ON l.service_area_id = sa.id`;
 
 function normalizeCode(code: string): string {
   return code.trim().toUpperCase();
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && String(error.code) === '23505';
+}
+
+function isArchiveBlocked(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('ZONE_HAS_ACTIVE_LOCKERS');
+}
+
+function mapSummary(row: Record<string, unknown>): ServiceAreaSummary {
+  return {
+    ...mapServiceArea(row),
+    lockerCount: Number(row.locker_count ?? 0),
+  };
 }
 
 export class ServiceAreaRepository {
@@ -37,7 +71,7 @@ export class ServiceAreaRepository {
 
   async list(
     ctx: DataAccessContext,
-    options?: { status?: ServiceAreaStatus; city?: string; includeArchived?: boolean },
+    options?: { status?: ServiceAreaStatus; city?: string; cityId?: string; includeArchived?: boolean },
   ): Promise<ServiceAreaSummary[]> {
     assertAdmin(ctx);
 
@@ -51,79 +85,67 @@ export class ServiceAreaRepository {
       conditions.push(`sa.status = 'active'`);
     }
 
-    if (options?.city) {
+    if (options?.cityId) {
+      params.push(options.cityId);
+      conditions.push(`sa.city_id = $${params.length}`);
+    } else if (options?.city) {
       params.push(options.city);
-      conditions.push(`sa.city = $${params.length}`);
+      conditions.push(`c.name = $${params.length}`);
     }
 
     const where = conditions.length > 0 ? conditions.join(' AND ') : 'TRUE';
     const result = await this.db.query(
-      `SELECT sa.*,
-              COALESCE(l.locker_count, 0)::int AS locker_count
-       FROM service_areas sa
-       LEFT JOIN (
-         SELECT service_area_id, COUNT(*)::int AS locker_count
-         FROM lockers
-         WHERE archived_at IS NULL AND status <> 'archived'
-         GROUP BY service_area_id
-       ) l ON l.service_area_id = sa.id
+      `${ZONE_SELECT}
        WHERE ${where}
-       ORDER BY sa.city ASC, sa.name ASC`,
+       ORDER BY c.name ASC, sa.name ASC`,
       params,
     );
 
-    return result.rows.map((row) => ({
-      ...mapServiceArea(row),
-      lockerCount: Number(row.locker_count ?? 0),
-    }));
+    return result.rows.map(mapSummary);
   }
 
-  async listActiveOptions(ctx: DataAccessContext): Promise<Array<Pick<ServiceArea, 'id' | 'code' | 'name' | 'city'>>> {
-    // Active zone pickers are needed on admin and organisation driver screens.
+  async listActiveOptions(
+    ctx: DataAccessContext,
+  ): Promise<Array<Pick<ServiceArea, 'id' | 'code' | 'name' | 'city' | 'cityId'>>> {
     if (ctx.role !== 'admin') {
       assertBusinessRole(ctx);
     }
     const result = await this.db.query(
-      `SELECT id, code, name, city
-       FROM service_areas
-       WHERE status = 'active'
-       ORDER BY city ASC, name ASC`,
+      `SELECT sa.id, sa.code, sa.name, c.name AS city, sa.city_id
+       FROM service_areas sa
+       JOIN cities c ON c.id = sa.city_id
+       WHERE sa.status = 'active' AND c.status = 'active'
+       ORDER BY c.name ASC, sa.name ASC`,
     );
     return result.rows.map((row) => ({
       id: String(row.id),
       code: String(row.code),
       name: String(row.name),
       city: String(row.city),
+      cityId: String(row.city_id),
     }));
   }
 
   async findById(ctx: DataAccessContext, id: string): Promise<ServiceAreaSummary | null> {
     assertAdmin(ctx);
-    const result = await this.db.query(
-      `SELECT sa.*,
-              COALESCE(l.locker_count, 0)::int AS locker_count
-       FROM service_areas sa
-       LEFT JOIN (
-         SELECT service_area_id, COUNT(*)::int AS locker_count
-         FROM lockers
-         WHERE archived_at IS NULL AND status <> 'archived'
-         GROUP BY service_area_id
-       ) l ON l.service_area_id = sa.id
-       WHERE sa.id = $1
-       LIMIT 1`,
-      [id],
-    );
+    const result = await this.db.query(`${ZONE_SELECT} WHERE sa.id = $1 LIMIT 1`, [id]);
     const row = result.rows[0];
-    if (!row) return null;
-    return {
-      ...mapServiceArea(row),
-      lockerCount: Number(row.locker_count ?? 0),
-    };
+    return row ? mapSummary(row) : null;
   }
 
   async assertActive(id: string): Promise<ServiceArea> {
     const result = await this.db.query(
-      `SELECT * FROM service_areas WHERE id = $1 LIMIT 1`,
+      `SELECT sa.id, sa.code, sa.name, sa.city, sa.city_id, sa.status, sa.notes,
+              sa.created_at, sa.updated_at,
+              c.name AS city_name,
+              c.status AS city_status,
+              zp.outbound_delivery_amount,
+              zp.return_delivery_amount
+       FROM service_areas sa
+       JOIN cities c ON c.id = sa.city_id
+       LEFT JOIN zone_pricing zp ON zp.zone_id = sa.id
+       WHERE sa.id = $1
+       LIMIT 1`,
       [id],
     );
     const row = result.rows[0];
@@ -132,31 +154,49 @@ export class ServiceAreaRepository {
     if (area.status !== 'active') {
       throw new Error('Cette zone de service n’est plus active');
     }
+    if (String(row.city_status) !== 'active') {
+      throw new Error('Cette ville n’est plus active');
+    }
     return area;
   }
 
   async create(ctx: DataAccessContext, input: CreateServiceAreaInput): Promise<ServiceAreaSummary> {
     assertAdmin(ctx);
-    if (!isDrcCity(input.city)) {
-      throw new Error('Ville invalide');
-    }
+    const city = await this.resolveCity(input.cityId, input.city);
     const code = normalizeCode(input.code);
-    const created = await this.db.query(
-      `INSERT INTO service_areas (code, name, city, status, notes, outbound_delivery_amount, return_delivery_amount)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING *`,
-      [
-        code,
-        input.name.trim(),
-        input.city,
-        input.status ?? 'active',
-        input.notes?.trim() || null,
-        input.outboundDeliveryAmount ?? 0,
-        input.returnDeliveryAmount ?? 0,
-      ],
-    );
-    const area = mapServiceArea(created.rows[0]!);
-    return { ...area, lockerCount: 0 };
+    try {
+      const created = await this.db.query(
+        `INSERT INTO service_areas (code, name, city, city_id, status, notes)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING id`,
+        [
+          code,
+          input.name.trim(),
+          city.name,
+          city.id,
+          input.status ?? 'active',
+          input.notes?.trim() || null,
+        ],
+      );
+      const id = String(created.rows[0]!.id);
+      await this.db.query(
+        `INSERT INTO zone_pricing (zone_id, outbound_delivery_amount, return_delivery_amount)
+         VALUES ($1, $2, $3)`,
+        [
+          id,
+          input.outboundDeliveryAmount ?? null,
+          input.returnDeliveryAmount ?? null,
+        ],
+      );
+      const loaded = await this.findById(ctx, id);
+      if (!loaded) throw new Error('Zone de service introuvable');
+      return loaded;
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new Error('Ce nom de zone existe déjà dans cette ville');
+      }
+      throw error;
+    }
   }
 
   async update(
@@ -168,38 +208,84 @@ export class ServiceAreaRepository {
     const existing = await this.findById(ctx, id);
     if (!existing) throw new Error('Zone de service introuvable');
 
-    if (input.city != null && !isDrcCity(input.city)) {
-      throw new Error('Ville invalide');
-    }
+    const nextCity =
+      input.cityId != null || input.city != null
+        ? await this.resolveCity(input.cityId, input.city)
+        : { id: existing.cityId, name: existing.city };
 
     const nextCode = input.code != null ? normalizeCode(input.code) : existing.code;
     const nextName = input.name?.trim() ?? existing.name;
-    const nextCity = input.city ?? existing.city;
     const nextStatus = input.status ?? existing.status;
     const nextNotes =
       input.notes !== undefined ? input.notes?.trim() || null : existing.notes;
-    const nextOutbound =
-      input.outboundDeliveryAmount ?? existing.outboundDeliveryAmount;
-    const nextReturn = input.returnDeliveryAmount ?? existing.returnDeliveryAmount;
 
-    const updated = await this.db.query(
-      `UPDATE service_areas SET
-         code = $1,
-         name = $2,
-         city = $3,
-         status = $4,
-         notes = $5,
-         outbound_delivery_amount = $6,
-         return_delivery_amount = $7,
-         updated_at = NOW()
-       WHERE id = $8
-       RETURNING *`,
-      [nextCode, nextName, nextCity, nextStatus, nextNotes, nextOutbound, nextReturn, id],
-    );
+    try {
+      await this.db.query(
+        `UPDATE service_areas SET
+           code = $1,
+           name = $2,
+           city = $3,
+           city_id = $4,
+           status = $5,
+           notes = $6,
+           updated_at = NOW()
+         WHERE id = $7`,
+        [nextCode, nextName, nextCity.name, nextCity.id, nextStatus, nextNotes, id],
+      );
+    } catch (error) {
+      if (isArchiveBlocked(error)) {
+        throw new Error('Impossible d’archiver une zone qui a encore des casiers actifs');
+      }
+      if (isUniqueViolation(error)) {
+        throw new Error('Ce nom de zone existe déjà dans cette ville');
+      }
+      throw error;
+    }
 
-    return {
-      ...mapServiceArea(updated.rows[0]!),
-      lockerCount: existing.lockerCount,
-    };
+    if (input.outboundDeliveryAmount !== undefined || input.returnDeliveryAmount !== undefined) {
+      await this.db.query(
+        `INSERT INTO zone_pricing (zone_id, outbound_delivery_amount, return_delivery_amount, updated_at, updated_by)
+         VALUES ($1, $2, $3, NOW(), $4)
+         ON CONFLICT (zone_id) DO UPDATE SET
+           outbound_delivery_amount = EXCLUDED.outbound_delivery_amount,
+           return_delivery_amount = EXCLUDED.return_delivery_amount,
+           updated_at = NOW(),
+           updated_by = EXCLUDED.updated_by`,
+        [
+          id,
+          input.outboundDeliveryAmount !== undefined
+            ? input.outboundDeliveryAmount
+            : existing.outboundDeliveryAmount,
+          input.returnDeliveryAmount !== undefined
+            ? input.returnDeliveryAmount
+            : existing.returnDeliveryAmount,
+          ctx.userId ?? null,
+        ],
+      );
+    }
+
+    const loaded = await this.findById(ctx, id);
+    if (!loaded) throw new Error('Zone de service introuvable');
+    return loaded;
+  }
+
+  private async resolveCity(
+    cityId: string | undefined,
+    cityName: string | undefined,
+  ): Promise<{ id: string; name: string }> {
+    const cities = new CityRepository(this.db);
+    if (cityId) {
+      const city = await cities.assertActive(cityId);
+      return { id: city.id, name: city.name };
+    }
+    if (!cityName || !isDrcCity(cityName)) {
+      throw new Error('Ville invalide');
+    }
+    const city = await cities.findByName(cityName);
+    if (!city) throw new Error('Ville introuvable');
+    if (city.status !== 'active') {
+      throw new Error('Cette ville n’est plus active');
+    }
+    return { id: city.id, name: city.name };
   }
 }

@@ -1,10 +1,6 @@
-import { SettingsComingSoon } from '@/components/settings-coming-soon';
+import { redirect } from 'next/navigation';
+import { ADMIN_SETTINGS_ROUTES } from '@/lib/settings-nav';
 
 export default function AdminApiSettingsPage() {
-  return (
-    <SettingsComingSoon
-      title="API"
-      description="Pour relier Eveider à un autre logiciel (clé d’accès, webhooks)."
-    />
-  );
+  redirect(ADMIN_SETTINGS_ROUTES.integrations);
 }

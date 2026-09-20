@@ -49,62 +49,67 @@ export function AdminDashboardView({ stats, children }: AdminDashboardViewProps)
     <>
       <AdminKpiRow stats={stats} />
 
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '1rem',
-          marginBottom: '1rem',
-          flexWrap: 'wrap',
-        }}
-      >
-        <h2 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700, opacity: 0.7 }}>
-          Activité réseau
-        </h2>
-
-        <div
+      <details style={{ marginTop: '0.5rem' }}>
+        <summary
           style={{
-            display: 'inline-flex',
-            border: `1px solid ${colors.border}`,
-            borderRadius: 999,
-            overflow: 'hidden',
-            background: colors.surface,
+            cursor: 'pointer',
+            fontSize: '0.8125rem',
+            fontWeight: 600,
+            color: colors.textMuted,
           }}
         >
-          {DASHBOARD_DAY_OPTIONS.map((option) => {
-            const active = days === option;
-            return (
-              <button
-                key={option}
-                type="button"
-                disabled={loading}
-                onClick={() => setDays(option)}
-                style={{
-                  border: 'none',
-                  background: active ? colors.primary : 'transparent',
-                  color: active ? '#ffffff' : colors.secondary,
-                  padding: '0.45rem 0.9rem',
-                  fontSize: '0.6875rem',
-                  fontWeight: 700,
-                  letterSpacing: '0.06em',
-                  cursor: loading ? 'wait' : 'pointer',
-                }}
-              >
-                {option} J
-              </button>
-            );
-          })}
+          Activité récente
+        </summary>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: '1rem',
+            margin: '0.75rem 0',
+          }}
+        >
+          <div
+            style={{
+              display: 'inline-flex',
+              border: `1px solid ${colors.border}`,
+              borderRadius: 999,
+              overflow: 'hidden',
+              background: colors.surface,
+            }}
+          >
+            {DASHBOARD_DAY_OPTIONS.map((option) => {
+              const active = days === option;
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  disabled={loading}
+                  onClick={() => setDays(option)}
+                  style={{
+                    border: 'none',
+                    background: active ? colors.primary : 'transparent',
+                    color: active ? '#ffffff' : colors.secondary,
+                    padding: '0.35rem 0.8rem',
+                    fontSize: '0.6875rem',
+                    fontWeight: 700,
+                    cursor: loading ? 'wait' : 'pointer',
+                  }}
+                >
+                  {option} J
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
-
-      {loading ? (
-        <CardListSkeleton cards={1} />
-      ) : analytics ? (
-        <AdminAnalyticsPanel analytics={analytics} days={days} />
-      ) : (
-        children
-      )}
+        {loading ? (
+          <CardListSkeleton cards={1} />
+        ) : analytics ? (
+          <AdminAnalyticsPanel analytics={analytics} days={days} />
+        ) : (
+          children
+        )}
+      </details>
     </>
   );
 }

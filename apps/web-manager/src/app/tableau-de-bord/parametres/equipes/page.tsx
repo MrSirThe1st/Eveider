@@ -9,8 +9,8 @@ export default async function AdminTeamsSettingsPage() {
 
   return (
     <PageFrame
-      title="Dispatchers & chauffeurs"
-      description="Personnel terrain Eveider : dispatchers et chauffeurs."
+      title="Personnel interne"
+      description="Dispatchers et accès plateforme. La flotte opérationnelle se gère dans Flotte."
       layout="wide"
     >
       <AdminEveiderTeamPanel

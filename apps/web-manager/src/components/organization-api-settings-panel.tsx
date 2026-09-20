@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, spacing, typography, webCardStyle } from '@eveider/config-ui';
+import { colors, spacing } from '@eveider/config-ui';
 import { Button, ConfirmDialog, EmptyState, IconLock, InlineAlert, TextField } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -8,6 +8,7 @@ import type {
   OrganizationApiEndpointView,
   OrganizationApiKeyView,
 } from '@/server/organization-api';
+import { SettingsFormSection } from '@/components/ops-ui';
 
 type OrganizationApiSettingsPanelProps = {
   apiAccessEnabled: boolean;
@@ -43,13 +44,12 @@ export function OrganizationApiSettingsPanel({
 
   if (!apiAccessEnabled) {
     return (
-      <div style={{ ...webCardStyle, padding: spacing[5] }}>
-        <h2 style={{ margin: 0, ...typography.sectionTitle }}>Connexion à un logiciel</h2>
-        <p style={{ margin: `${spacing[2]}px 0 0`, color: colors.textMuted }}>
-          Eveider doit activer « Connecter un logiciel » pour votre entreprise avant que vous
-          puissiez créer une clé d’accès ou recevoir des notifications.
-        </p>
-      </div>
+      <SettingsFormSection
+        title="Connexion à un logiciel"
+        description="Eveider doit activer « Connecter un logiciel » pour votre entreprise avant que vous puissiez créer une clé d’accès ou recevoir des notifications."
+      >
+        <p style={{ margin: 0, color: colors.textMuted }}>Cette fonctionnalité n’est pas encore active pour votre boutique.</p>
+      </SettingsFormSection>
     );
   }
 
@@ -159,18 +159,14 @@ export function OrganizationApiSettingsPanel({
   const revokedKeys = keys.filter((key) => key.revokedAt);
 
   return (
-    <section style={{ display: 'grid', gap: spacing[4] }}>
+    <div className="ops-form">
       {error ? <InlineAlert message={error} variant="error" /> : null}
       {success ? <InlineAlert message={success} variant="success" /> : null}
 
-      <div style={{ ...webCardStyle, padding: spacing[5], display: 'grid', gap: spacing[3] }}>
-        <div>
-          <h2 style={{ margin: 0, ...typography.sectionTitle }}>Clé d’accès</h2>
-          <p style={{ margin: `${spacing[2]}px 0 0`, color: colors.textMuted }}>
-            Votre logiciel envoie cette clé dans l’en-tête d’autorisation pour créer et lire vos
-            colis.
-          </p>
-        </div>
+      <SettingsFormSection
+        title="Clé d’accès"
+        description="Votre logiciel envoie cette clé dans l’en-tête d’autorisation pour créer et lire vos colis."
+      >
 
         {revealedKey ? (
           <div
@@ -250,16 +246,12 @@ export function OrganizationApiSettingsPanel({
             {revokedKeys.length > 1 ? 's' : ''}.
           </p>
         ) : null}
-      </div>
+      </SettingsFormSection>
 
-      <div style={{ ...webCardStyle, padding: spacing[5], display: 'grid', gap: spacing[3] }}>
-        <div>
-          <h2 style={{ margin: 0, ...typography.sectionTitle }}>Adresse de notification</h2>
-          <p style={{ margin: `${spacing[2]}px 0 0`, color: colors.textMuted }}>
-            Eveider envoie un message à cette adresse quand un colis change d’étape. Le secret de
-            signature permet à votre logiciel de vérifier que le message vient bien d’Eveider.
-          </p>
-        </div>
+      <SettingsFormSection
+        title="Adresse de notification"
+        description="Eveider envoie un message à cette adresse quand un colis change d’étape. Le secret de signature permet à votre logiciel de vérifier que le message vient bien d’Eveider."
+      >
 
         <TextField
           id="org-api-notification-url"
@@ -300,7 +292,7 @@ export function OrganizationApiSettingsPanel({
             {testing ? 'Envoi…' : 'Envoyer un essai'}
           </Button>
         </div>
-      </div>
+      </SettingsFormSection>
 
       <ConfirmDialog
         open={revokeId != null}
@@ -312,6 +304,6 @@ export function OrganizationApiSettingsPanel({
         tone="danger"
         loading={revoking}
       />
-    </section>
+    </div>
   );
 }

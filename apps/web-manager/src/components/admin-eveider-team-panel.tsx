@@ -408,11 +408,9 @@ export function AdminEveiderTeamPanel({
                 ))}
               </select>
             ) : null}
-            {canManage ? (
-              <Link href={addDriverHref} className="nb-btn nb-btn-primary nb-btn--sm">
-                Ajouter
-              </Link>
-            ) : null}
+            <Link href={addDriverHref} className="nb-btn nb-btn-secondary nb-btn--sm">
+              Gérer dans Flotte
+            </Link>
           </div>
         }
       />

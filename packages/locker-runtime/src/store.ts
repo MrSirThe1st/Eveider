@@ -1,3 +1,5 @@
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
 import type { LockerOccupancy } from '@eveider/domain';
 
 export type LocalCollectionCredential = {
@@ -85,5 +87,30 @@ export class StubHardwareAdapter implements LockerHardwareAdapter {
 
   async readEvidence(_compartmentId: string): Promise<PhysicalEvidence> {
     return this.evidence;
+  }
+}
+
+export class FileLockerRuntimeStore implements LockerRuntimeStore {
+  constructor(
+    private readonly filePath: string,
+    private readonly lockerId: string,
+  ) {}
+
+  async load(): Promise<LockerRuntimeSnapshot> {
+    try {
+      const raw = await readFile(this.filePath, 'utf8');
+      const parsed = JSON.parse(raw) as LockerRuntimeSnapshot;
+      if (!parsed || parsed.lockerId !== this.lockerId) {
+        return emptyLockerRuntimeSnapshot(this.lockerId);
+      }
+      return parsed;
+    } catch {
+      return emptyLockerRuntimeSnapshot(this.lockerId);
+    }
+  }
+
+  async save(snapshot: LockerRuntimeSnapshot): Promise<void> {
+    await mkdir(dirname(this.filePath), { recursive: true });
+    await writeFile(this.filePath, JSON.stringify(cloneSnapshot(snapshot)), 'utf8');
   }
 }

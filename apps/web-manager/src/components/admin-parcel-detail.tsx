@@ -2,9 +2,6 @@
 
 import { colors, spacing, borderSubtle, webCardStyle, webInputStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
 import {
-  DELIVERY_KIND_LABELS,
-  DELIVERY_STATUS_LABELS,
-  PARCEL_STATUS_LABELS,
   adminAdvanceableParcelStatuses,
   type DeliveryKind,
   type DeliveryStatus,
@@ -13,10 +10,19 @@ import {
 import { CardListSkeleton } from '@eveider/ui';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { DeliveryStatusBadge } from '@/components/delivery-status-badge';
 import { FlashBanner } from '@/components/flash-banner';
 import { ParcelEventTimeline } from '@/components/parcel-event-timeline';
 import { ParcelStatusBadge } from '@/components/parcel-status-badge';
-import type { AdminParcelEventDto } from '@/lib/parcel-presenter';
+import {
+  getAdminDeliveryStatusLabel,
+  getAdminParcelDisplayStatus,
+  getAdminReturnMethodLabel,
+  getAdminReturnProcessLabel,
+  getFulfillmentMethodLabel,
+  isEveiderOutboundTransport,
+} from '@/lib/admin-presentation';
+import type { AdminParcelChargeDto, AdminParcelEventDto } from '@/lib/parcel-presenter';
 import type { ParcelReturnView } from '@/lib/parcel-return-presenter';
 
 type ActiveDelivery = {
@@ -46,12 +52,6 @@ type ParcelDetailData = {
   locker: { id: string; name: string; address: string } | null;
   pickupType: 'courier_pickup' | 'merchant_dropoff';
   pickupTypeLabel: string;
-  deliveryFeeAmount: number | null;
-  deliveryFeeCurrency: 'USD' | 'CDF';
-  deliveryFeeLabel: string | null;
-  deliveryDistanceKm: number | null;
-  pricingSizeUsed: string | null;
-  pricingSizeLabel: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -66,8 +66,68 @@ function formatDateTime(iso: string) {
   }).format(new Date(iso));
 }
 
-function getNextStatuses(current: ParcelStatus): ParcelStatus[] {
-  return adminAdvanceableParcelStatuses(current);
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: borderSubtle() }}>
+      <p style={{ margin: '0 0 0.75rem', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.06em', color: colors.textMuted }}>
+        {title}
+      </p>
+      {children}
+    </section>
+  );
+}
+
+function DriverAssignRow({
+  couriers,
+  selectedCourierId,
+  assigning,
+  onSelect,
+  onAssign,
+  label,
+}: {
+  couriers: CourierOption[];
+  selectedCourierId: string;
+  assigning: boolean;
+  onSelect: (id: string) => void;
+  onAssign: () => void;
+  label: string;
+}) {
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+      <select
+        value={selectedCourierId}
+        onChange={(event) => onSelect(event.target.value)}
+        aria-label="Chauffeur Eveider"
+        style={{
+          ...webInputStyle,
+          minWidth: 220,
+          height: spacing.buttonHeight,
+          padding: '0 0.75rem',
+        }}
+      >
+        <option value="">Sélectionner un chauffeur Eveider</option>
+        {couriers.map((courier) => (
+          <option key={courier.id} value={courier.id}>
+            {courier.fullName ?? courier.email ?? courier.phone ?? courier.id}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        disabled={assigning || !selectedCourierId}
+        onClick={onAssign}
+        style={{
+          ...webSecondaryButtonStyle,
+          height: spacing.buttonHeight,
+          padding: '0 1.25rem',
+          fontSize: '0.75rem',
+          cursor: assigning || !selectedCourierId ? 'not-allowed' : 'pointer',
+        }}
+      >
+        {label}
+      </button>
+    </div>
+  );
 }
 
 type AdminParcelDetailProps = {
@@ -78,6 +138,7 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
   const [parcel, setParcel] = useState<ParcelDetailData | null>(null);
   const [activeDelivery, setActiveDelivery] = useState<ActiveDelivery | null>(null);
   const [customerReturn, setCustomerReturn] = useState<ParcelReturnView | null>(null);
+  const [charges, setCharges] = useState<AdminParcelChargeDto[]>([]);
   const [events, setEvents] = useState<AdminParcelEventDto[]>([]);
   const [couriers, setCouriers] = useState<CourierOption[]>([]);
   const [selectedCourierId, setSelectedCourierId] = useState('');
@@ -113,6 +174,7 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
       setParcel(result.data.parcel);
       setActiveDelivery(result.data.activeDelivery ?? null);
       setCustomerReturn(result.data.customerReturn ?? null);
+      setCharges(Array.isArray(result.data.charges) ? result.data.charges : []);
       setEvents(Array.isArray(result.data.events) ? result.data.events : []);
     } catch {
       setError('Impossible de charger le colis.');
@@ -148,11 +210,15 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
         return;
       }
 
-      setSuccessMessage('Coursier Eveider assigné');
+      setSuccessMessage(
+        kind === 'customer_return'
+          ? 'Chauffeur Eveider assigné au retour client'
+          : 'Chauffeur Eveider assigné à l’aller',
+      );
       setSelectedCourierId('');
       await loadParcel();
     } catch {
-      setActionError('Impossible d’assigner le coursier.');
+      setActionError('Impossible d’assigner le chauffeur Eveider.');
     } finally {
       setAssigning(false);
     }
@@ -178,7 +244,12 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
         return;
       }
 
-      setSuccessMessage(`Statut mis à jour : ${PARCEL_STATUS_LABELS[nextStatus]}`);
+      setSuccessMessage(
+        `Mode de secours : ${getAdminParcelDisplayStatus({
+          status: nextStatus,
+          pickupType: parcel.pickupType,
+        })}`,
+      );
       await loadParcel();
     } catch {
       setActionError('Impossible de mettre à jour le statut.');
@@ -202,205 +273,216 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
     );
   }
 
-  const nextStatuses = getNextStatuses(parcel.status);
+  const isFlow2 = parcel.pickupType === 'merchant_dropoff';
+  const nextStatuses = adminAdvanceableParcelStatuses(parcel.status).filter((status) => {
+    if (isFlow2 && status === 'in_transit') return false;
+    return true;
+  });
+  const displayStatus = getAdminParcelDisplayStatus({
+    status: parcel.status,
+    pickupType: parcel.pickupType,
+    hasAssignedOutboundDelivery: activeDelivery?.kind === 'outbound',
+  });
+  const methodLabel = parcel.pickupTypeLabel || getFulfillmentMethodLabel(parcel.pickupType);
+  const showOutboundAssign =
+    isEveiderOutboundTransport(parcel.pickupType) &&
+    !activeDelivery &&
+    (parcel.status === 'created' || parcel.status === 'in_transit');
+  const showReturnAssign =
+    Boolean(customerReturn?.canAssignDriver) &&
+    (!activeDelivery || activeDelivery.kind !== 'customer_return');
+  const isBusinessPickupReturn = customerReturn?.method === 'business_pickup';
 
   return (
     <div style={{ width: '100%' }}>
       {successMessage ? <FlashBanner message={successMessage} /> : null}
       {actionError ? <FlashBanner message={actionError} variant="error" /> : null}
 
-      <section
-        style={{
-          ...webCardStyle,
-          padding: '2rem',
-        }}
-      >
+      <section style={{ ...webCardStyle, padding: '1.5rem 2rem' }}>
         <div
           style={{
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'center',
+            alignItems: 'flex-start',
             gap: '1rem',
             flexWrap: 'wrap',
           }}
         >
-          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>
-            {parcel.trackingNumber}
-          </h2>
-          <ParcelStatusBadge status={parcel.status} />
+          <div>
+            <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>
+              {parcel.trackingNumber}
+            </h2>
+            <p style={{ margin: '0.35rem 0 0', fontSize: '0.875rem', color: colors.textMuted }}>
+              {parcel.business.name}
+              {parcel.reference ? ` · Réf. ${parcel.reference}` : ''}
+            </p>
+          </div>
+          <ParcelStatusBadge status={parcel.status} label={displayStatus} />
         </div>
 
-        <dl style={{ margin: '2rem 0 0', display: 'grid', gap: '1.25rem' }}>
+        <dl
+          style={{
+            margin: '1.5rem 0 0',
+            display: 'grid',
+            gap: '1rem',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          }}
+        >
           <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
-              Entreprise
-            </dt>
-            <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>{parcel.business.name}</dd>
-          </div>
-          <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
-              Destinataire
-            </dt>
+            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, color: colors.textMuted }}>Destinataire</dt>
             <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
-              {parcel.recipientName ?? '—'} · {parcel.recipientPhone}
+              {parcel.recipientName ?? '—'}
+              <br />
+              <span style={{ fontSize: '0.8125rem', color: colors.textMuted }}>
+                {parcel.recipientPhone}
+              </span>
             </dd>
           </div>
           <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
-              Casier de destination
-            </dt>
-            <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
-              {parcel.locker ? (
-                <>
-                  {parcel.locker.name}
-                  <br />
-                  <span style={{ fontSize: '0.875rem' }}>{parcel.locker.address}</span>
-                </>
-              ) : (
-                'Non assigné'
-              )}
-            </dd>
-          </div>
-          {parcel.deliveryFeeLabel ? (
-            <div>
-              <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
-                Frais de livraison
-              </dt>
-              <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
-                {parcel.deliveryFeeLabel}
-                {parcel.deliveryDistanceKm != null ? (
-                  <>
-                    <br />
-                    <span style={{ fontSize: '0.875rem', opacity: 0.85 }}>
-                      Distance estimée : {parcel.deliveryDistanceKm.toLocaleString('fr-CD')} km
-                      {parcel.pricingSizeLabel ? ` · Taille tarifée : ${parcel.pricingSizeLabel}` : ''}
-                    </span>
-                  </>
-                ) : null}
-              </dd>
-            </div>
-          ) : null}
-          <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>Créé le</dt>
+            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, color: colors.textMuted }}>Créé</dt>
             <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>{formatDateTime(parcel.createdAt)}</dd>
-          </div>
-          <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
-              Dernière mise à jour
-            </dt>
-            <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>{formatDateTime(parcel.updatedAt)}</dd>
           </div>
         </dl>
 
-        <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: borderSubtle() }}>
-          <p style={{ margin: '0 0 1rem', fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
-            Livraison coursier
+        <Section title="Exécution">
+          <p style={{ margin: 0, fontWeight: 600 }}>{methodLabel}</p>
+          <p style={{ margin: '0.35rem 0 0', fontSize: '0.875rem' }}>
+            {parcel.locker ? (
+              <>
+                Casier :{' '}
+                <Link href={`/tableau-de-bord/casiers/${parcel.locker.id}`}>
+                  {parcel.locker.name}
+                </Link>
+                <br />
+                <span style={{ color: colors.textMuted }}>{parcel.locker.address}</span>
+              </>
+            ) : (
+              'Casier non assigné'
+            )}
           </p>
+        </Section>
+
+        <Section title="État du colis">
+          <p style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>{displayStatus}</p>
+        </Section>
+
+        <Section title="Livraison">
           {activeDelivery ? (
-            <p style={{ margin: 0, fontWeight: 500 }}>
-              {DELIVERY_KIND_LABELS[activeDelivery.kind]} ·{' '}
-              {activeDelivery.courier.fullName ?? activeDelivery.courier.email ?? 'Coursier'} —{' '}
-              {DELIVERY_STATUS_LABELS[activeDelivery.status]}
-            </p>
-          ) : parcel.locker &&
-            parcel.pickupType === 'courier_pickup' &&
-            (parcel.status === 'created' || parcel.status === 'in_transit') ? (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
-              <select
-                value={selectedCourierId}
-                onChange={(event) => setSelectedCourierId(event.target.value)}
-                style={{
-                  ...webInputStyle,
-                  minWidth: 220,
-                  height: spacing.buttonHeight,
-                  padding: '0 0.75rem',
-                }}
-              >
-                <option value="">Sélectionner un coursier</option>
-                {couriers.map((courier) => (
-                  <option key={courier.id} value={courier.id}>
-                    {courier.fullName ?? courier.email ?? courier.phone ?? courier.id}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                disabled={assigning || !selectedCourierId}
-                onClick={() => void assignCourier('outbound')}
-                style={{
-                  ...webSecondaryButtonStyle,
-                  height: spacing.buttonHeight,
-                  padding: '0 1.25rem',
-                  fontSize: '0.75rem',
-                  cursor: assigning || !selectedCourierId ? 'not-allowed' : 'pointer',
-                }}
-              >
-                Assigner
-              </button>
+            <div>
+              <p style={{ margin: 0, fontWeight: 600 }}>
+                {activeDelivery.kind === 'customer_return'
+                  ? 'Livraison retour client'
+                  : 'Livraison aller'}
+              </p>
+              <p style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
+                Chauffeur Eveider :{' '}
+                {activeDelivery.courier.fullName ?? activeDelivery.courier.email ?? 'Chauffeur'}
+              </p>
+              <div style={{ marginTop: '0.5rem' }}>
+                <DeliveryStatusBadge
+                  status={activeDelivery.status}
+                  label={getAdminDeliveryStatusLabel(activeDelivery.status)}
+                />
+              </div>
             </div>
+          ) : showOutboundAssign ? (
+            <DriverAssignRow
+              couriers={couriers}
+              selectedCourierId={selectedCourierId}
+              assigning={assigning}
+              onSelect={setSelectedCourierId}
+              onAssign={() => void assignCourier('outbound')}
+              label="Assigner l’aller"
+            />
+          ) : isFlow2 ? (
+            <p style={{ margin: 0, fontWeight: 500, fontSize: '0.875rem' }}>
+              Aucun transport Eveider — dépôt effectué par l’entreprise.
+            </p>
+          ) : isBusinessPickupReturn ? (
+            <p style={{ margin: 0, fontWeight: 500, fontSize: '0.875rem' }}>
+              Retrait par l’entreprise — aucun transport Eveider.
+            </p>
           ) : (
             <p style={{ margin: 0, fontWeight: 500, fontSize: '0.875rem' }}>
-              Aucune livraison active.
+              Aucune livraison Eveider en cours.
             </p>
           )}
-        </div>
+        </Section>
+
+        {parcel.locker ? (
+          <Section title="Casier">
+            <p style={{ margin: 0, fontWeight: 500 }}>
+              <Link href={`/tableau-de-bord/casiers/${parcel.locker.id}`}>{parcel.locker.name}</Link>
+            </p>
+            <p style={{ margin: '0.35rem 0 0', fontSize: '0.875rem', color: colors.textMuted }}>
+              {parcel.locker.address}
+            </p>
+            <p style={{ margin: '0.35rem 0 0', fontSize: '0.875rem' }}>
+              Placement actuel : {displayStatus}
+            </p>
+          </Section>
+        ) : null}
 
         {customerReturn ? (
-          <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: borderSubtle() }}>
-            <p style={{ margin: '0 0 1rem', fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
-              Retour client
-            </p>
-            <p style={{ margin: '0 0 0.75rem', fontWeight: 500 }}>
-              {customerReturn.statusLabel}
-              {customerReturn.methodLabel ? ` · ${customerReturn.methodLabel}` : ''}
+          <Section title="Retour client">
+            <p style={{ margin: 0, fontWeight: 600 }}>
+              {getAdminReturnProcessLabel(customerReturn.status)}
+              {getAdminReturnMethodLabel(customerReturn.method)
+                ? ` · ${getAdminReturnMethodLabel(customerReturn.method)}`
+                : ''}
             </p>
             {customerReturn.returnLocker ? (
-              <p style={{ margin: '0 0 0.75rem', fontSize: '0.875rem' }}>
-                Casier : {customerReturn.returnLocker.name}
+              <p style={{ margin: '0.35rem 0 0', fontSize: '0.875rem' }}>
+                Casier de retour : {customerReturn.returnLocker.name}
               </p>
             ) : null}
-            {customerReturn.canAssignDriver && !activeDelivery ? (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
-                <select
-                  value={selectedCourierId}
-                  onChange={(event) => setSelectedCourierId(event.target.value)}
-                  style={{
-                    ...webInputStyle,
-                    minWidth: 220,
-                    height: spacing.buttonHeight,
-                    padding: '0 0.75rem',
-                  }}
-                >
-                  <option value="">Sélectionner un coursier</option>
-                  {couriers.map((courier) => (
-                    <option key={courier.id} value={courier.id}>
-                      {courier.fullName ?? courier.email ?? courier.phone ?? courier.id}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  disabled={assigning || !selectedCourierId}
-                  onClick={() => void assignCourier('customer_return')}
-                  style={{
-                    ...webSecondaryButtonStyle,
-                    height: spacing.buttonHeight,
-                    padding: '0 1.25rem',
-                    fontSize: '0.75rem',
-                    cursor: assigning || !selectedCourierId ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  Assigner le retour Eveider
-                </button>
+            <p style={{ margin: '0.35rem 0 0', fontSize: '0.8125rem', color: colors.textMuted }}>
+              Demandé le {formatDateTime(customerReturn.requestedAt)}
+              {customerReturn.authorizedAt
+                ? ` · Autorisé le ${formatDateTime(customerReturn.authorizedAt)}`
+                : ''}
+            </p>
+            {isBusinessPickupReturn ? (
+              <p style={{ margin: '0.5rem 0 0', fontSize: '0.875rem' }}>Retrait par l’entreprise</p>
+            ) : null}
+            {showReturnAssign ? (
+              <div style={{ marginTop: '0.75rem' }}>
+                <DriverAssignRow
+                  couriers={couriers}
+                  selectedCourierId={selectedCourierId}
+                  assigning={assigning}
+                  onSelect={setSelectedCourierId}
+                  onAssign={() => void assignCourier('customer_return')}
+                  label="Assigner le retour client"
+                />
               </div>
             ) : null}
-          </div>
+          </Section>
+        ) : null}
+
+        {charges.length > 0 ? (
+          <Section title="Charges">
+            <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: '0.5rem' }}>
+              {charges.map((charge) => (
+                <li key={charge.id} style={{ fontSize: '0.875rem' }}>
+                  <strong>{charge.kindLabel}</strong>
+                  {' · '}
+                  {charge.amountLabel}
+                  {' · Payé par '}
+                  {charge.payerLabel}
+                  {charge.historical ? (
+                    <span style={{ color: colors.textMuted }}> · historique</span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </Section>
         ) : null}
 
         {nextStatuses.length > 0 ? (
-          <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: borderSubtle() }}>
-            <p style={{ margin: '0 0 1rem', fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
-              Avancer le statut
+          <Section title="Mode de secours">
+            <p style={{ margin: '0 0 0.75rem', fontSize: '0.8125rem', color: colors.textMuted }}>
+              Action opérationnelle — ne remplace pas le dépôt ou le retrait au casier.
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
               {nextStatuses.map((status) => (
@@ -415,23 +497,28 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
                     padding: '0 1.25rem',
                     fontSize: '0.75rem',
                     cursor: updating ? 'wait' : 'pointer',
+                    opacity: 0.85,
                   }}
                 >
-                  → {status === 'ready_for_pickup'
-                    ? 'Marquer prêt pour retrait'
-                    : PARCEL_STATUS_LABELS[status]}
+                  {`Forcer : ${
+                    status === 'ready_for_pickup'
+                      ? 'prêt au retrait'
+                      : getAdminParcelDisplayStatus({ status, pickupType: parcel.pickupType })
+                  }`}
                 </button>
               ))}
             </div>
-          </div>
-        ) : (
-          <p style={{ margin: '2rem 0 0', fontWeight: 500, fontSize: '0.875rem' }}>
-            Cycle de vie terminé — aucune transition disponible.
-          </p>
-        )}
+          </Section>
+        ) : null}
       </section>
 
-      <ParcelEventTimeline events={events} />
+      <ParcelEventTimeline
+        events={events}
+        parcelStatusLabel={(status) =>
+          getAdminParcelDisplayStatus({ status, pickupType: parcel.pickupType })
+        }
+        deliveryStatusLabel={getAdminDeliveryStatusLabel}
+      />
     </div>
   );
 }

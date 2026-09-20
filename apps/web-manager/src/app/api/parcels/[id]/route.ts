@@ -1,7 +1,7 @@
 import { fail, ok } from '@eveider/api-contracts';
 import { createRepositories } from '@eveider/data-access';
 import { NextResponse } from 'next/server';
-import { toAdminParcelDto, toAdminParcelEventDto } from '@/lib/parcel-presenter';
+import { toAdminParcelChargeDto, toAdminParcelDto, toAdminParcelEventDto } from '@/lib/parcel-presenter';
 import { toParcelReturnView } from '@/lib/parcel-return-presenter';
 import { requireAdminSession } from '@/lib/session';
 
@@ -16,18 +16,19 @@ export async function GET(_request: Request, { params }: RouteParams) {
   const { id } = await params;
 
   try {
-    const { parcels, deliveries, parcelEvents, parcelReturns } = createRepositories();
+    const { parcels, deliveries, parcelEvents, parcelReturns, parcelCharges } = createRepositories();
     const parcel = await parcels.findById(auth.session.ctx, id);
 
     if (!parcel) {
       return NextResponse.json(fail('Colis introuvable'), { status: 404 });
     }
 
-    const [activeDelivery, events, canCreateReturn, customerReturn] = await Promise.all([
+    const [activeDelivery, events, canCreateReturn, customerReturn, charges] = await Promise.all([
       deliveries.findActiveForParcel(auth.session.ctx, id),
       parcelEvents.listForParcel(auth.session.ctx, id),
       deliveries.canCreateReturn(auth.session.ctx, id),
       parcelReturns.findLatestForParcel(id),
+      parcelCharges.listForParcel(id),
     ]);
 
     return NextResponse.json(
@@ -46,6 +47,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
               createdAt: activeDelivery.createdAt.toISOString(),
             }
           : null,
+        charges: charges.map(toAdminParcelChargeDto),
         events: events.map(toAdminParcelEventDto),
       }),
     );

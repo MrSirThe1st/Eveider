@@ -1,6 +1,5 @@
 'use client';
 
-import { borderSubtle, colors, radius, spacing, typography } from '@eveider/config-ui';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -13,38 +12,18 @@ type SettingsSecondaryNavProps = {
 };
 
 /**
- * PostHog-style secondary settings nav: section headers + links beside page content.
+ * Secondary settings nav: grouped links beside page content.
  */
 export function SettingsSecondaryNav({ groups }: SettingsSecondaryNavProps) {
   const pathname = usePathname();
 
   return (
-    <nav
-      aria-label="Sections des paramètres"
-      className="settings-secondary-nav"
-      style={{
-        paddingTop: 0,
-        paddingBottom: 24,
-        paddingRight: 12,
-      }}
-    >
-      <div style={{ display: 'grid', gap: spacing[4] }}>
+    <nav aria-label="Sections des paramètres" className="settings-secondary-nav">
+      <div className="settings-secondary-nav__groups">
         {groups.map((group) => (
-          <div key={group.id}>
-            <p
-              style={{
-                margin: `0 0 ${spacing[2]}px`,
-                paddingLeft: spacing[2],
-                fontSize: '0.6875rem',
-                fontWeight: typography.weights.semibold,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                color: colors.textMuted,
-              }}
-            >
-              {group.label}
-            </p>
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 2 }}>
+          <div key={group.id} className="settings-secondary-nav__group">
+            <p className="settings-secondary-nav__heading">{group.label}</p>
+            <ul className="settings-secondary-nav__list">
               {group.items.map((item) => {
                 const active = isSettingsNavItemActive(item, pathname);
                 return (
@@ -52,20 +31,9 @@ export function SettingsSecondaryNav({ groups }: SettingsSecondaryNavProps) {
                     <Link
                       href={item.href}
                       title={item.description}
-                      style={{
-                        display: 'block',
-                        padding: `${spacing[1] + 2}px ${spacing[2]}px`,
-                        borderRadius: radius.sm,
-                        fontSize: typography.bodySm.fontSize,
-                        fontWeight: active
-                          ? typography.weights.semibold
-                          : typography.weights.medium,
-                        color: active ? colors.secondary : colors.textMuted,
-                        background: active ? colors.surfaceSubtle : 'transparent',
-                        textDecoration: 'none',
-                        border: active ? borderSubtle() : '1px solid transparent',
-                        lineHeight: 1.35,
-                      }}
+                      className={['settings-secondary-nav__link', active ? 'is-active' : null]
+                        .filter(Boolean)
+                        .join(' ')}
                     >
                       {item.label}
                     </Link>

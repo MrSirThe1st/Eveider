@@ -23,8 +23,6 @@ type CustomerShellValue = {
   requestAuth: (mode?: AuthIntent) => void;
   openSettings: (screen: CustomerSettingsScreen) => void;
   goToReceive: (parcelId?: string) => void;
-  goToSend: () => void;
-  goToPoints: () => void;
   goToHome: () => void;
 };
 

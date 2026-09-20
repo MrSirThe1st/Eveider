@@ -7,7 +7,7 @@ import { useSettings } from '../../context/settings-context';
 import { useColors } from '../../theme';
 
 type NotificationPreferencesScreenProps = {
-  mode: 'CLIENT' | 'COURSIER';
+  mode: 'CLIENT' | 'DRIVER';
   onBack: () => void;
 };
 

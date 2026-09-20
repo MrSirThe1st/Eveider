@@ -18,6 +18,7 @@ import { normalizeDropOffPhoto } from '../deliveries/drop-off-photo.js';
 import {
   AccessDeniedError,
   assertAdmin,
+  assertBusinessScope,
   assertBusinessRole,
   assertCompanyPermission,
   assertCourierRole,
@@ -353,6 +354,39 @@ export class DeliveryRepository {
        ORDER BY d.created_at DESC
        LIMIT 1`,
       [parcelId, ACTIVE_DELIVERY_STATUSES],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+      ...mapDelivery(row),
+      courier: {
+        id: String(row.courier_relation_id),
+        fullName: row.courier_full_name == null ? null : String(row.courier_full_name),
+        email: row.courier_email == null ? null : String(row.courier_email),
+      },
+    };
+  }
+
+  async findActiveForBusinessParcel(
+    ctx: DataAccessContext,
+    businessId: string,
+    parcelId: string,
+  ): Promise<ParcelDeliverySummary | null> {
+    assertBusinessScope(ctx, businessId);
+    const result = await this.db.query(
+      `SELECT d.*,
+              u.id AS courier_relation_id,
+              u.full_name AS courier_full_name,
+              u.email AS courier_email
+       FROM deliveries d
+       JOIN users u ON u.id = d.driver_id
+       JOIN parcels p ON p.id = d.parcel_id
+       WHERE d.parcel_id = $1
+         AND p.business_id = $2
+         AND d.status = ANY($3)
+       ORDER BY d.created_at DESC
+       LIMIT 1`,
+      [parcelId, businessId, ACTIVE_DELIVERY_STATUSES],
     );
     const row = result.rows[0];
     if (!row) return null;
@@ -1160,6 +1194,7 @@ export class DeliveryRepository {
     Array<{
       id: string;
       status: DeliveryStatus;
+      kind: DeliveryKind;
       createdAt: Date;
       completedAt: Date | null;
       trackingNumber: string;
@@ -1171,7 +1206,7 @@ export class DeliveryRepository {
   > {
     assertAdmin(ctx);
     const result = await this.db.query(
-      `SELECT d.id, d.status, d.created_at, d.completed_at,
+      `SELECT d.id, d.status, d.kind, d.created_at, d.completed_at,
               p.tracking_number, p.reference,
               l.name AS locker_name, l.address AS locker_address,
               b.name AS business_name
@@ -1186,6 +1221,7 @@ export class DeliveryRepository {
     return result.rows.map((row) => ({
       id: String(row.id),
       status: row.status as DeliveryStatus,
+      kind: (row.kind as DeliveryKind) ?? 'outbound',
       createdAt: new Date(String(row.created_at)),
       completedAt: row.completed_at ? new Date(String(row.completed_at)) : null,
       trackingNumber: String(row.tracking_number),

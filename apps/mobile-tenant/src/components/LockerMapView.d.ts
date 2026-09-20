@@ -3,5 +3,6 @@ export {
   LockerSelectPanel,
   getCurrentCoordinates,
   openDirections,
+  openAddressSearch,
 } from './locker-map-shared';
 export { LockerMapView } from './LockerMapView.native';

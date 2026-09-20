@@ -46,6 +46,13 @@ export function BusinessDriverDeliveries({
       ...(showOrganization
         ? [
             {
+              id: 'kind',
+              header: 'Type',
+              hideOnMobile: true,
+              cell: (row: DriverDeliveryItem) =>
+                row.kindLabel ?? <span style={{ color: colors.textMuted }}>—</span>,
+            } satisfies DataTableColumn<DriverDeliveryItem>,
+            {
               id: 'organization',
               header: 'Organisation',
               hideOnMobile: true,
@@ -56,7 +63,7 @@ export function BusinessDriverDeliveries({
         : []),
       {
         id: 'locker',
-        header: 'Point',
+        header: 'Casier',
         hideOnMobile: true,
         cell: (row) => row.lockerName ?? <span style={{ color: colors.textMuted }}>—</span>,
       },
@@ -89,7 +96,7 @@ export function BusinessDriverDeliveries({
       rows={deliveries}
       getRowId={(row) => row.id}
       emptyTitle="Aucune livraison"
-      emptyDescription="Les livraisons assignées à ce chauffeur apparaîtront ici."
+      emptyDescription="Les livraisons aller et retours client assignés à ce chauffeur apparaîtront ici."
       emptyIcon={<IconTruck />}
       initialSortId="createdAt"
       initialSortDirection="desc"

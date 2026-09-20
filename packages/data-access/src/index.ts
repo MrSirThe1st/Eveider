@@ -14,7 +14,7 @@ export {
   type BusinessBillingSnapshot,
   type LatestVerificationSnapshot,
 } from './repositories/business-onboarding.repository.js';
-export { DeliveryRepository, type CourierAdminDetail, type CourierHistorySummary } from './repositories/delivery.repository.js';
+export { DeliveryRepository, type CourierAdminDetail, type CourierHistorySummary, type ParcelDeliverySummary } from './repositories/delivery.repository.js';
 export { ParcelRepository } from './repositories/parcel.repository.js';
 export { ParcelReturnRepository } from './repositories/parcel-return.repository.js';
 export { UserRepository } from './repositories/user.repository.js';
@@ -25,9 +25,11 @@ export {
   type DashboardStats,
   type AnalyticsReport,
   type BusinessAnalytics,
+  type BusinessOperationalSnapshot,
   type PublicNetworkStats,
 } from './repositories/stats.repository.js';
 export { PricingRepository, toDeliveryPricingRules } from './repositories/pricing.repository.js';
+export { CityRepository } from './repositories/city.repository.js';
 export { CommercialRepository } from './repositories/commercial.repository.js';
 export {
   ParcelChargeRepository,
@@ -103,6 +105,7 @@ import { LockerRepository } from './repositories/locker.repository.js';
 import { LockerActionRepository } from './repositories/locker-action.repository.js';
 import { CollectionCredentialRepository } from './repositories/collection-credential.repository.js';
 import { ServiceAreaRepository } from './repositories/service-area.repository.js';
+import { CityRepository } from './repositories/city.repository.js';
 import { ParcelRepository } from './repositories/parcel.repository.js';
 import { ParcelReturnRepository } from './repositories/parcel-return.repository.js';
 import { ParcelEventRepository } from './repositories/parcel-event.repository.js';
@@ -146,6 +149,7 @@ export function createRepositories() {
   const parcelReturns = new ParcelReturnRepository(db);
   const organizationApi = new OrganizationApiRepository(db);
   const serviceAreas = new ServiceAreaRepository(db);
+  const cities = new CityRepository(db);
 
   return {
     users,
@@ -161,6 +165,7 @@ export function createRepositories() {
     lockerActions: new LockerActionRepository(db),
     collectionCredentials: new CollectionCredentialRepository(db),
     serviceAreas,
+    cities,
     lockerSettings,
     platformSettings,
     platformStaff,

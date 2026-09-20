@@ -1,8 +1,6 @@
 import { redirect } from 'next/navigation';
-import { deriveOrganizationVerificationStatus } from '@eveider/domain';
 import { PageFrame } from '@eveider/ui';
 import { BusinessSettingsForm } from '@/components/business-settings-form';
-import { OrganizationVerificationBanner } from '@/components/organization-verification-banner';
 import { loadBusinessSettingsPageData, requireBusinessPermission } from '@/server/business';
 import { WEB_ROUTES } from '@/lib/auth-routing';
 
@@ -20,13 +18,9 @@ export default async function OrganizationDetailsSettingsPage() {
   return (
     <PageFrame
       title="Entreprise"
-      description="Les informations de votre boutique. Modifiez, puis enregistrez."
+      description="Informations de votre boutique. Les champs avancés se trouvent plus bas."
       layout="standard"
     >
-      <OrganizationVerificationBanner
-        status={deriveOrganizationVerificationStatus(settings.verificationStatus)}
-        reviewNotes={settings.verificationNotes}
-      />
       <BusinessSettingsForm
         name={settings.name}
         businessType={settings.businessType ?? 'registered_company'}

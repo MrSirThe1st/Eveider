@@ -7,7 +7,7 @@ export default async function OrganizationIntegrationsSettingsPage() {
   return (
     <PageFrame
       title="Excel"
-      description="Importer et exporter vos colis via un fichier Excel."
+      description="Import et export de fichiers. L’import quotidien se fait aussi depuis Colis."
       layout="standard"
     >
       <ExcelIntegrationsPanel variant="business" />

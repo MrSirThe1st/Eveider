@@ -18,7 +18,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
   try {
     const detail = await getCourierDetail(auth.session.ctx, id);
     if (!detail) {
-      return NextResponse.json(fail('Coursier introuvable'), { status: 404 });
+      return NextResponse.json(fail('Chauffeur introuvable'), { status: 404 });
     }
 
     const response = courierDetailResponseSchema.parse(detail);

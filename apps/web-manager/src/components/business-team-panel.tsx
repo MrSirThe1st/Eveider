@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, webCardStyle, webInputStyle } from '@eveider/config-ui';
+import { colors, webInputStyle } from '@eveider/config-ui';
 import {
   INVITABLE_ORGANIZATION_ROLES,
   ORGANIZATION_ROLE_LABELS,
@@ -10,6 +10,7 @@ import { Button, ConfirmDialog, DataTable, InlineAlert, type DataTableColumn } f
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import type { TeamInviteView, TeamMemberView } from '@/server/team';
+import { SettingsFormSection } from '@/components/ops-ui';
 
 type BusinessTeamPanelProps = {
   members: TeamMemberView[];
@@ -260,7 +261,7 @@ export function BusinessTeamPanel({ members, invites }: BusinessTeamPanelProps) 
   ];
 
   return (
-    <div style={{ display: 'grid', gap: '1.25rem' }}>
+    <div className="ops-form">
       {error ? (
         <InlineAlert message={error} variant="error" onDismiss={() => setError(null)} />
       ) : null}
@@ -268,25 +269,26 @@ export function BusinessTeamPanel({ members, invites }: BusinessTeamPanelProps) 
         <InlineAlert message={success} variant="success" onDismiss={() => setSuccess(null)} />
       ) : null}
 
-      <section style={{ ...webCardStyle, padding: '1.5rem' }}>
-        <h2 style={{ margin: '0 0 1rem', fontSize: '1rem' }}>Inviter un membre</h2>
-        <form onSubmit={handleInvite} style={{ display: 'grid', gap: '0.75rem', maxWidth: 640 }}>
-          <label style={{ display: 'grid', gap: 6 }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Email</span>
+      <SettingsFormSection title="Inviter un membre" description="La personne recevra un e-mail pour rejoindre votre entreprise.">
+        <form onSubmit={handleInvite} className="ops-field-grid" style={{ maxWidth: 640 }}>
+          <label className="ops-field">
+            <span className="ops-field-label">Email</span>
             <input
               type="email"
               required
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="marie@commerce.cd"
+              className="nb-input"
               style={webInputStyle}
             />
           </label>
-          <label style={{ display: 'grid', gap: 6 }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Rôle</span>
+          <label className="ops-field">
+            <span className="ops-field-label">Rôle</span>
             <select
               value={role}
               onChange={(event) => setRole(event.target.value as OrganizationRole)}
+              className="nb-input"
               style={{ ...webInputStyle, height: 44 }}
             >
               {INVITABLE_ORGANIZATION_ROLES.map((value) => (
@@ -296,22 +298,26 @@ export function BusinessTeamPanel({ members, invites }: BusinessTeamPanelProps) 
               ))}
             </select>
           </label>
-          <div>
+          <div style={{ display: 'flex', alignItems: 'end' }}>
             <Button type="submit" disabled={saving} loading={saving}>
               {saving ? 'Envoi…' : 'Inviter'}
             </Button>
           </div>
         </form>
-      </section>
+      </SettingsFormSection>
 
       <section>
-        <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Membres</h2>
+        <h2 className="ops-section__title" style={{ marginBottom: '0.75rem' }}>
+          Membres
+        </h2>
         <DataTable columns={memberColumns} rows={members} getRowId={(row) => row.id} />
       </section>
 
       {inviteRows.length > 0 ? (
         <section>
-          <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Invitations en attente</h2>
+          <h2 className="ops-section__title" style={{ marginBottom: '0.75rem' }}>
+            Invitations en attente
+          </h2>
           <DataTable columns={inviteColumns} rows={inviteRows} getRowId={(row) => row.id} />
         </section>
       ) : null}

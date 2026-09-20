@@ -1,12 +1,8 @@
-import { SettingsComingSoon } from '@/components/settings-coming-soon';
+import { redirect } from 'next/navigation';
+import { ORG_SETTINGS_ROUTES } from '@/lib/settings-nav';
 import { requireBusinessPageContext } from '@/server/business';
 
 export default async function OrganizationNotificationSettingsPage() {
   await requireBusinessPageContext();
-  return (
-    <SettingsComingSoon
-      title="Notifications"
-      description="Comment Eveider vous prévient."
-    />
-  );
+  redirect(ORG_SETTINGS_ROUTES.profile);
 }

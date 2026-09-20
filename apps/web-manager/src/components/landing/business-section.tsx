@@ -24,7 +24,7 @@ export function BusinessSection() {
       <div className={styles.splitPhoto}>
         <Image
           src="/landing/shop.jpg"
-          alt="Point de vente, là où les colis partent vers un casier"
+          alt="Commerce, là où les colis partent vers un casier"
           fill
           sizes="(max-width: 960px) 100vw, 50vw"
         />

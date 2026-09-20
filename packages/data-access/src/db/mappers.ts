@@ -27,6 +27,7 @@ import type {
   PlatformAdminInvite,
   ParcelPayment,
   PickupPin,
+  City,
   ServiceArea,
   SettlementAccount,
   User,
@@ -123,16 +124,31 @@ export function mapLocker(row: Record<string, unknown>): Locker {
   };
 }
 
+export function mapCity(row: Record<string, unknown>): City {
+  return {
+    id: String(row.id),
+    code: String(row.code),
+    name: String(row.name),
+    status: row.status as City['status'],
+    notes: row.notes == null ? null : String(row.notes),
+    createdAt: asDate(row.created_at),
+    updatedAt: asDate(row.updated_at),
+  };
+}
+
 export function mapServiceArea(row: Record<string, unknown>): ServiceArea {
   return {
     id: String(row.id),
     code: String(row.code),
     name: String(row.name),
-    city: String(row.city),
+    city: String(row.city_name ?? row.city),
+    cityId: String(row.city_id),
     status: row.status as ServiceArea['status'],
     notes: row.notes == null ? null : String(row.notes),
-    outboundDeliveryAmount: Number(row.outbound_delivery_amount ?? 0),
-    returnDeliveryAmount: Number(row.return_delivery_amount ?? 0),
+    outboundDeliveryAmount:
+      row.outbound_delivery_amount == null ? null : Number(row.outbound_delivery_amount),
+    returnDeliveryAmount:
+      row.return_delivery_amount == null ? null : Number(row.return_delivery_amount),
     createdAt: asDate(row.created_at),
     updatedAt: asDate(row.updated_at),
   };

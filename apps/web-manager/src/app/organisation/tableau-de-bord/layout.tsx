@@ -10,7 +10,11 @@ export default async function BusinessDashboardLayout({
   const { profile } = await requireBusinessPageContext();
 
   return (
-    <BusinessDashboardShell permissions={[...getBusinessPermissions(profile.userRole)]}>
+    <BusinessDashboardShell
+      permissions={[...getBusinessPermissions(profile.userRole)]}
+      userName={profile.fullName}
+      userEmail={profile.email}
+    >
       {children}
     </BusinessDashboardShell>
   );

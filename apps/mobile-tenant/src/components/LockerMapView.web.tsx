@@ -2,6 +2,7 @@ import { Text, View } from 'react-native';
 import {
   getCurrentCoordinates,
   LockerSelectPanel,
+  openAddressSearch,
   openDirections,
   useLockerMapStyles,
   type LockerMapViewProps,
@@ -33,4 +34,4 @@ export function LockerMapView({
   );
 }
 
-export { LockerSelectPanel, getCurrentCoordinates, openDirections };
+export { LockerSelectPanel, getCurrentCoordinates, openAddressSearch, openDirections };

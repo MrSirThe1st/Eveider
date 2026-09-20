@@ -16,7 +16,7 @@ export default async function OrganizationAccountProfilePage() {
   return (
     <PageFrame
       title="Profil"
-      description="Votre nom et votre e-mail."
+      description="Votre nom d’utilisateur. L’e-mail de connexion n’est pas modifiable ici."
       layout="standard"
     >
       <AccountProfileForm

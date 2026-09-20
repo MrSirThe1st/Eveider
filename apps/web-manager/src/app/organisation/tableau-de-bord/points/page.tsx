@@ -10,12 +10,12 @@ export default async function BusinessLockersPage() {
 
   return (
     <PageFrame
-      title="Points Eveider"
-      description="Où envoyer vos colis : lieu, adresse, capacité, compartiments disponibles et statut."
+      title="Casiers Eveider"
+      description="Référence historique du réseau. Pour envoyer un colis, créez-le depuis Colis et choisissez un casier."
       layout="wide"
       breadcrumbs={[
         { label: 'Tableau de bord', href: WEB_ROUTES.businessDashboard },
-        { label: 'Points' },
+        { label: 'Casiers' },
       ]}
     >
       <BusinessLockerDirectory lockers={lockers} />

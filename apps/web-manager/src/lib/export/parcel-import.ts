@@ -5,7 +5,6 @@ import {
 } from '@eveider/api-contracts';
 import { createRepositories } from '@eveider/data-access';
 import {
-  isCodAllowedForLockerType,
   normalizePointCode,
   PACKAGE_CATEGORIES,
   PACKAGE_CATEGORY_LABELS,
@@ -38,6 +37,41 @@ type LockerLookup = {
   status: string;
 };
 
+type ImportField =
+  | 'reference'
+  | 'pickupType'
+  | 'senderName'
+  | 'senderPhone'
+  | 'senderAddress'
+  | 'recipientName'
+  | 'recipientPhone'
+  | 'recipientEmail'
+  | 'lockerCode'
+  | 'packageSize'
+  | 'category'
+  | 'weight'
+  | 'payment'
+  | 'codCdf'
+  | 'codUsd';
+
+const FIELD_ALIASES: Record<ImportField, string[]> = {
+  reference: ['reference', 'référence'],
+  pickupType: ['methode', 'méthode', 'mode enlevement', 'mode enlèvement'],
+  senderName: ['nom expediteur', 'nom expéditeur'],
+  senderPhone: ['telephone expediteur', 'téléphone expéditeur'],
+  senderAddress: ['adresse expediteur', 'adresse expéditeur'],
+  recipientName: ['nom destinataire'],
+  recipientPhone: ['telephone destinataire', 'téléphone destinataire'],
+  recipientEmail: ['email destinataire'],
+  lockerCode: ['code casier', 'code point'],
+  packageSize: ['taille colis'],
+  category: ['categorie', 'catégorie'],
+  weight: ['poids kg', 'poids'],
+  payment: ['paiement'],
+  codCdf: ['montant cod cdf'],
+  codUsd: ['montant cod usd'],
+};
+
 function normalizeKey(value: string): string {
   return value
     .normalize('NFD')
@@ -56,6 +90,12 @@ function buildReverseMap<T extends string>(labels: Record<T, string>, values: re
 }
 
 const pickupTypeMap = buildReverseMap(SHIPMENT_PICKUP_TYPE_LABELS, SHIPMENT_PICKUP_TYPES);
+pickupTypeMap.set(normalizeKey('Collecte Eveider'), 'courier_pickup');
+pickupTypeMap.set(normalizeKey('Un chauffeur vient chercher'), 'courier_pickup');
+pickupTypeMap.set(normalizeKey('Depot au casier'), 'merchant_dropoff');
+pickupTypeMap.set(normalizeKey('Dépôt au casier'), 'merchant_dropoff');
+pickupTypeMap.set(normalizeKey('Depot au point Eveider'), 'merchant_dropoff');
+pickupTypeMap.set(normalizeKey('Dépôt au point Eveider'), 'merchant_dropoff');
 const paymentMap = buildReverseMap(PAYMENT_RESPONSIBILITY_LABELS, PAYMENT_RESPONSIBILITIES);
 const categoryMap = buildReverseMap(PACKAGE_CATEGORY_LABELS, PACKAGE_CATEGORIES);
 const sizeMap = buildReverseMap(PACKAGE_SIZE_LABELS, PACKAGE_SIZES);
@@ -89,12 +129,57 @@ function parseSize(raw: string): PackageSize | null {
   return sizeMap.get(normalized) ?? SIZE_ALIASES[normalized] ?? null;
 }
 
-function rowIsEmpty(values: string[]): boolean {
-  return values.every((value) => value.length === 0);
+function rowIsEmpty(values: Record<ImportField, string>): boolean {
+  return Object.values(values).every((value) => value.length === 0);
 }
 
-function readImportRow(row: ExcelJS.Row): string[] {
-  return PARCEL_IMPORT_HEADERS.map((_, index) => cellToString(row.getCell(index + 1).value));
+function buildHeaderIndex(row: ExcelJS.Row): Map<string, number> {
+  const map = new Map<string, number>();
+  row.eachCell((cell, colNumber) => {
+    const key = normalizeKey(cellToString(cell.value));
+    if (key) map.set(key, colNumber);
+  });
+  return map;
+}
+
+function readField(
+  row: ExcelJS.Row,
+  headerIndex: Map<string, number>,
+  field: ImportField,
+  fallbackCol: number | null,
+): string {
+  for (const alias of FIELD_ALIASES[field]) {
+    const col = headerIndex.get(normalizeKey(alias));
+    if (col) return cellToString(row.getCell(col).value);
+  }
+  if (fallbackCol != null) return cellToString(row.getCell(fallbackCol).value);
+  return '';
+}
+
+function readImportFields(row: ExcelJS.Row, headerIndex: Map<string, number>): Record<ImportField, string> {
+  const positional: Record<ImportField, number | null> = {
+    reference: 1,
+    pickupType: 2,
+    senderName: 3,
+    senderPhone: 4,
+    senderAddress: 5,
+    recipientName: 6,
+    recipientPhone: 7,
+    recipientEmail: 8,
+    lockerCode: 9,
+    packageSize: 10,
+    category: 11,
+    weight: 12,
+    payment: null,
+    codCdf: null,
+    codUsd: null,
+  };
+
+  const values = {} as Record<ImportField, string>;
+  for (const field of Object.keys(positional) as ImportField[]) {
+    values[field] = readField(row, headerIndex, field, positional[field]);
+  }
+  return values;
 }
 
 export async function buildParcelImportTemplateWorkbook() {
@@ -132,10 +217,11 @@ export async function parseParcelImportWorkbook(
     throw new Error('Feuille « Colis » introuvable dans le fichier Excel');
   }
 
-  const parsedRows: Array<{ rowNumber: number; values: string[] }> = [];
+  const headerIndex = buildHeaderIndex(sheet.getRow(1));
+  const parsedRows: Array<{ rowNumber: number; values: Record<ImportField, string> }> = [];
   sheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1) return;
-    const values = readImportRow(row);
+    const values = readImportFields(row, headerIndex);
     if (rowIsEmpty(values)) return;
     parsedRows.push({ rowNumber, values });
   });
@@ -148,75 +234,62 @@ export async function parseParcelImportWorkbook(
   }
 
   const pointCodes = parsedRows
-    .map((row) => normalizePointCode(row.values[8] ?? ''))
+    .map((row) => normalizePointCode(row.values.lockerCode ?? ''))
     .filter(Boolean);
   const { lockers } = createRepositories();
   const lockerByCode = await lockers.findByCodes(pointCodes);
 
   const rows: ParcelImportPreviewRow[] = parsedRows.map(({ rowNumber, values }) => {
     const errors: string[] = [];
-    const [
-      reference,
-      pickupTypeRaw,
-      senderName,
-      senderPhone,
-      senderAddress,
-      recipientName,
-      recipientPhone,
-      recipientEmail,
-      pointCodeRaw,
-      packageSizeRaw,
-      categoryRaw,
-      weightRaw,
-      paymentRaw,
-      codCdfRaw,
-      codUsdRaw,
-    ] = values;
+    const pickupType = parsePickupType(values.pickupType ?? '');
+    if (!pickupType) errors.push('Méthode invalide');
 
-    const pickupType = parsePickupType(pickupTypeRaw ?? '');
-    if (!pickupType) errors.push('Mode enlèvement invalide');
-
-    const packageSize = parseSize(packageSizeRaw ?? '');
+    const packageSize = parseSize(values.packageSize ?? '');
     if (!packageSize) errors.push('Taille colis invalide');
 
-    const packageCategory = parseCategory(categoryRaw ?? '');
+    const packageCategory = parseCategory(values.category ?? '');
     if (!packageCategory) errors.push('Catégorie invalide');
 
-    const paymentResponsibility = parsePayment(paymentRaw ?? '');
-    if (!paymentResponsibility) errors.push('Mode de paiement invalide');
+    const paymentRaw = values.payment.trim();
+    const paymentResponsibility = paymentRaw ? parsePayment(paymentRaw) : 'receiver_pays';
+    if (paymentRaw && !paymentResponsibility) {
+      errors.push('Mode de paiement invalide (colonne héritée)');
+    }
 
-    const pointCode = normalizePointCode(pointCodeRaw ?? '');
+    const pointCode = normalizePointCode(values.lockerCode ?? '');
     const locker: LockerLookup | undefined = pointCode ? lockerByCode.get(pointCode) : undefined;
     if (!pointCode) {
-      errors.push('Code point requis');
+      errors.push('Code casier requis');
     } else if (!locker) {
-      errors.push(`Code point inconnu : ${pointCode}`);
+      errors.push(`Code casier inconnu : ${pointCode}`);
     } else if (locker.status !== 'active') {
-      errors.push(`Point inactif : ${pointCode}`);
+      errors.push(`Casier inactif : ${pointCode}`);
+    } else if (locker.type !== 'SMART_LOCKER') {
+      errors.push(`Seuls les casiers Eveider sont acceptés : ${pointCode}`);
     }
 
-    if (paymentResponsibility === 'cod' && locker && !isCodAllowedForLockerType(locker.type)) {
-      errors.push('Paiement à la livraison indisponible sur ce type de point');
+    if (paymentResponsibility === 'cod') {
+      errors.push('Le paiement à la livraison n’est plus proposé (colonne héritée)');
     }
 
-    const packageWeightKg = cellToNumber(weightRaw);
-    const codAmountCdf = cellToNumber(codCdfRaw);
-    const codAmountUsd = cellToNumber(codUsdRaw);
+    const packageWeightKg = cellToNumber(values.weight);
+    const codAmountCdf = cellToNumber(values.codCdf);
+    const codAmountUsd = cellToNumber(values.codUsd);
 
     const candidate = {
-      reference: reference || undefined,
+      reference: values.reference || undefined,
       pickupType: pickupType ?? 'courier_pickup',
-      senderName,
-      senderPhone,
-      senderAddress: senderAddress || undefined,
-      recipientName,
-      recipientPhone,
-      recipientEmail: recipientEmail || undefined,
+      senderName: values.senderName,
+      senderPhone: values.senderPhone,
+      senderAddress: values.senderAddress || undefined,
+      recipientName: values.recipientName,
+      recipientPhone: values.recipientPhone,
+      recipientEmail: values.recipientEmail || undefined,
       lockerId: locker?.id ?? '00000000-0000-0000-0000-000000000000',
       packageSize: packageSize ?? 'medium',
       packageWeightKg,
       packageCategory: packageCategory ?? 'other',
-      paymentResponsibility: paymentResponsibility ?? 'sender_pays',
+      paymentResponsibility: paymentResponsibility ?? 'receiver_pays',
       codAmountCdf,
       codAmountUsd,
     };

@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       return json(
         ok({
           trackToken,
-          parcel: await buildCustomerParcelDto(parcel),
+          parcel: await buildCustomerParcelDto(parcel, { includeReturnCode: false }),
         }),
       );
     }
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
         return json(
           ok({
             trackToken,
-            parcel: await buildCustomerParcelDto(parcel),
+            parcel: await buildCustomerParcelDto(parcel, { includeReturnCode: false }),
           }),
         );
       }
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
     return json(
       ok({
         trackToken,
-        parcel: await buildCustomerParcelDto(parcel),
+        parcel: await buildCustomerParcelDto(parcel, { includeReturnCode: false }),
       }),
     );
   } catch (err) {

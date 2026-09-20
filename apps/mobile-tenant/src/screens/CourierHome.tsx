@@ -1,10 +1,12 @@
-import { borders, spacing, type ColorTokens } from '@eveider/config-ui';
-import { orderLockerStops, type DeliveryStatus } from '@eveider/domain';
+import { borders, type ColorTokens } from '@eveider/config-ui';
+import { orderLockerStops } from '@eveider/domain';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Image,
-  ImageBackground,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -16,825 +18,744 @@ import {
 import { ActionRow } from '../components/ActionRow';
 import { AppSpinner } from '../components/AppSpinner';
 import { BarcodeScannerCard } from '../components/BarcodeScannerCard';
+import { CommissioningLockerDeposit } from '../components/CommissioningLockerDeposit';
 import { DeliveryCard } from '../components/DeliveryCard';
-import { DeliveryStatusBadge } from '../components/DeliveryStatusBadge';
 import { DeliveryStepIndicator } from '../components/DeliveryStepIndicator';
 import { DispatcherContactButton } from '../components/DispatcherContactButton';
 import { DropOffProofCard } from '../components/DropOffProofCard';
 import { EmptyState } from '../components/EmptyState';
-import { LockerMapView, getCurrentCoordinates, openDirections } from '../components/LockerMapView';
+import {
+  LockerMapView,
+  openAddressSearch,
+  openDirections,
+} from '../components/LockerMapView';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ReportIssueForm } from '../components/ReportIssueForm';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { SuccessBanner } from '../components/SuccessBanner';
-import { useHideTabBar } from '../navigation/useHideTabBar';
 import {
   completeCourierDropOff,
   completeCourierReturnToBusiness,
   fetchCourierDeliveries,
-  fetchCourierDelivery,
   fetchCourierDropOffProof,
+  reportCourierIssue,
   scanCourierDelivery,
   startCourierDropOff,
-  reportCourierIssue,
   type CourierDelivery,
   type CourierHistorySummary,
 } from '../lib/api';
+import {
+  applyDriverMutationResult,
+  canDriverActOnDelivery,
+  getDriverCurrentStop,
+  getDriverDeliveryKindLabel,
+  getDriverDeliveryStep,
+  getDriverDestination,
+  getDriverOrigin,
+  getDriverPackageSizeLabel,
+  getDriverPrimaryAction,
+  getDriverSuccessCopy,
+  getDriverTrackingLabel,
+  isActiveDriverDelivery,
+  isHistoryDriverDelivery,
+  isHistoricalRts,
+  translateDriverError,
+} from '../lib/driver-presentation';
 import { openDispatcherWhatsApp } from '../lib/support';
+import type { CourierStackParamList } from '../navigation/courier-params';
 import { useColors } from '../theme';
 
-const HOME_HERO = require('../assets/delivery.jpeg');
-
-type CourierScreen =
-  | { name: 'list' }
-  | { name: 'detail'; deliveryId: string }
-  | { name: 'scan'; deliveryId: string }
-  | { name: 'proof'; deliveryId: string }
-  | { name: 'report'; deliveryId: string }
-  | { name: 'history' };
-
-const ACTIVE_STATUSES: DeliveryStatus[] = ['assigned', 'scanned', 'drop_off_pending'];
 const EMPTY_SUMMARY: CourierHistorySummary = {
   days: 90,
   completed: 0,
   failed: 0,
   successRate: 0,
 };
-const SUCCESS_MESSAGES: Partial<Record<DeliveryStatus, string>> = {
-  scanned: 'COLIS SCANNÉ — EN ROUTE',
-  drop_off_pending: 'ARRIVÉ AU CASIER',
-  completed: 'DÉPÔT CONFIRMÉ',
+
+type CourierScreen = 'list' | 'detail' | 'scan' | 'proof' | 'report';
+
+type CourierHomeProps = {
+  surface?: 'active' | 'history';
 };
 
-export function CourierHome() {
+export function CourierHome({ surface = 'active' }: CourierHomeProps) {
   const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const [screen, setScreen] = useState<CourierScreen>({ name: 'list' });
+  const navigation = useNavigation<NativeStackNavigationProp<CourierStackParamList>>();
+  const [screen, setScreen] = useState<CourierScreen>('list');
   const [deliveries, setDeliveries] = useState<CourierDelivery[]>([]);
   const [summary, setSummary] = useState<CourierHistorySummary>(EMPTY_SUMMARY);
-  const [delivery, setDelivery] = useState<CourierDelivery | null>(null);
-  const [proofPhoto, setProofPhoto] = useState<string | null>(null);
-  const [proofPreview, setProofPreview] = useState<string | null>(null);
-  const [origin, setOrigin] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [selected, setSelected] = useState<CourierDelivery | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [acting, setActing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [issueSuccess, setIssueSuccess] = useState<string | null>(null);
-  const [showCompleted, setShowCompleted] = useState(false);
-  const [showFailed, setShowFailed] = useState(true);
-  const [scanReference, setScanReference] = useState('');
+  const [success, setSuccess] = useState<{ title: string; detail: string } | null>(null);
+  const [scanCode, setScanCode] = useState('');
+  const [photoBase64, setPhotoBase64] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const loadList = useCallback(async (silent = false) => {
+  const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     setError(null);
     const result = await fetchCourierDeliveries();
     if (!silent) setLoading(false);
     setRefreshing(false);
-
     if (!result.success) {
-      setError(result.error);
-      setDeliveries([]);
+      setError(translateDriverError(result.error));
       return;
     }
-
     setDeliveries(result.data.deliveries);
     setSummary(result.data.summary ?? EMPTY_SUMMARY);
-  }, []);
-
-  const loadDelivery = useCallback(async (deliveryId: string, silent = false) => {
-    if (!silent) setLoading(true);
-    setError(null);
-    const result = await fetchCourierDelivery(deliveryId);
-    if (!silent) setLoading(false);
-
-    if (!result.success) {
-      setError(result.error);
-      setDelivery(null);
-      return;
-    }
-
-    setDelivery(result.data.delivery);
-    setScanReference('');
-    if (result.data.delivery.hasDropOffPhoto && result.data.delivery.status === 'completed') {
-      const proof = await fetchCourierDropOffProof(deliveryId);
-      setProofPreview(proof.success ? proof.data.photo : null);
-    } else {
-      setProofPreview(null);
-    }
+    setSelected((current) =>
+      current
+        ? (result.data.deliveries.find((item) => item.id === current.id) ?? current)
+        : null,
+    );
   }, []);
 
   useEffect(() => {
-    if (screen.name === 'list' || screen.name === 'history') {
-      void loadList();
-    } else if (screen.name === 'detail' || screen.name === 'report') {
-      void loadDelivery(screen.deliveryId);
-    }
-  }, [screen, loadList, loadDelivery]);
+    void load();
+  }, [load]);
 
-  useEffect(() => {
-    void getCurrentCoordinates().then(setOrigin);
-  }, []);
-
-  function goBack() {
-    if (screen.name === 'scan' || screen.name === 'proof' || screen.name === 'report') {
-      setScreen({ name: 'detail', deliveryId: screen.deliveryId });
-      return;
-    }
-    setScreen({ name: 'list' });
-  }
-
-  function showSuccessForStatus(next: CourierDelivery) {
-    if (next.kind === 'return' || next.kind === 'customer_return') {
-      if (next.status === 'scanned') {
-        setSuccessMessage('COLIS SCANNÉ — RETOUR');
-        return;
-      }
-      if (next.status === 'drop_off_pending') {
-        setSuccessMessage('ARRIVÉ CHEZ LE MARCHAND');
-        return;
-      }
-      if (next.status === 'completed') {
-        setSuccessMessage('RETOUR CONFIRMÉ');
-        return;
-      }
-    }
-    const message = SUCCESS_MESSAGES[next.status];
-    if (message) setSuccessMessage(message);
-  }
-
-  async function reconcileAfterMutation(
-    deliveryId: string,
-    previousStatus: CourierDelivery['status'],
-  ): Promise<CourierDelivery | null> {
-    const refreshed = await fetchCourierDelivery(deliveryId);
-    if (!refreshed.success) return null;
-    if (refreshed.data.delivery.status === previousStatus) return null;
-    return refreshed.data.delivery;
-  }
-
-  async function handleScan() {
-    if (screen.name !== 'scan' || !scanReference.trim()) return;
-
-    const previousStatus = delivery?.status ?? 'assigned';
-    setActing(true);
-    setError(null);
-    const result = await scanCourierDelivery(screen.deliveryId, scanReference.trim());
-
-    if (!result.success) {
-      const reconciled = await reconcileAfterMutation(screen.deliveryId, previousStatus);
-      setActing(false);
-      if (reconciled) {
-        setDelivery(reconciled);
-        showSuccessForStatus(reconciled);
-        setScreen({ name: 'detail', deliveryId: screen.deliveryId });
-        return;
-      }
-      setError(result.error);
-      return;
-    }
-
-    setActing(false);
-    setDelivery(result.data.delivery);
-    showSuccessForStatus(result.data.delivery);
-    setScreen({ name: 'detail', deliveryId: screen.deliveryId });
-  }
-
-  async function handleStartDropOff() {
-    if (!delivery) return;
-
-    const previousStatus = delivery.status;
-    setActing(true);
-    setError(null);
-    const result = await startCourierDropOff(delivery.id);
-
-    if (!result.success) {
-      const reconciled = await reconcileAfterMutation(delivery.id, previousStatus);
-      setActing(false);
-      if (reconciled) {
-        setDelivery(reconciled);
-        showSuccessForStatus(reconciled);
-        return;
-      }
-      setError(result.error);
-      return;
-    }
-
-    setActing(false);
-    setDelivery(result.data.delivery);
-    showSuccessForStatus(result.data.delivery);
-  }
-
-  async function handleCompleteDropOff() {
-    if (!delivery || !proofPhoto) return;
-
-    const previousStatus = delivery.status;
-    setActing(true);
-    setError(null);
-    const result = await completeCourierDropOff(delivery.id, {
-      compartmentId: delivery.parcel.compartmentId ?? undefined,
-      photoBase64: proofPhoto,
-    });
-
-    if (!result.success) {
-      const reconciled = await reconcileAfterMutation(delivery.id, previousStatus);
-      setActing(false);
-      if (reconciled) {
-        setDelivery(reconciled);
-        setProofPhoto(null);
-        showSuccessForStatus(reconciled);
-        setScreen({ name: 'detail', deliveryId: delivery.id });
-        return;
-      }
-      setError(result.error);
-      return;
-    }
-
-    setActing(false);
-    setDelivery(result.data.delivery);
-    setProofPhoto(null);
-    showSuccessForStatus(result.data.delivery);
-    setScreen({ name: 'detail', deliveryId: delivery.id });
-  }
-
-  async function handleCompleteCustomerReturn() {
-    if (!delivery) return;
-    const previousStatus = delivery.status;
-    setActing(true);
-    setError(null);
-    const result = await completeCourierReturnToBusiness(delivery.id);
-    if (!result.success) {
-      const reconciled = await reconcileAfterMutation(delivery.id, previousStatus);
-      setActing(false);
-      if (reconciled) {
-        setDelivery(reconciled);
-        showSuccessForStatus(reconciled);
-        return;
-      }
-      setError(result.error);
-      return;
-    }
-    setActing(false);
-    setDelivery(result.data.delivery);
-    showSuccessForStatus(result.data.delivery);
-  }
-
-  const activeDeliveries = sortDeliveriesByRoute(
-    deliveries.filter((d) => ACTIVE_STATUSES.includes(d.status)),
-    origin,
+  const active = useMemo(
+    () => sortDeliveriesByRoute(deliveries.filter(isActiveDriverDelivery)),
+    [deliveries],
   );
-  const completedDeliveries = deliveries.filter((d) => d.status === 'completed');
-  const failedDeliveries = deliveries.filter((d) => d.status === 'failed');
-
-  useHideTabBar(screen.name !== 'list');
-
-  if (screen.name === 'list') {
-    return (
-      <View style={styles.screen}>
-        <ScreenHeader mode="COURSIER" title={t('tabs.home')} />
-        {loading && !refreshing ? <AppSpinner /> : null}
-        {!loading && error ? (
-          <View style={styles.body}>
-            <Text style={styles.error}>{error}</Text>
-            <PrimaryButton label={t('common.retry')} onPress={() => void loadList()} />
-          </View>
-        ) : null}
-        {!loading && !error ? (
-          <ScrollView
-            style={styles.container}
-            contentContainerStyle={styles.content}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={() => {
-                  setRefreshing(true);
-                  void loadList(true);
-                }}
-                tintColor={colors.secondary}
-                colors={[colors.primary]}
-                progressBackgroundColor={colors.surface}
-              />
-            }
-          >
-            <ImageBackground source={HOME_HERO} style={styles.hero} imageStyle={styles.heroImage}>
-              <View style={styles.heroScrim} />
-              <Text style={styles.hello}>
-                {t('courier.greeting')}{' '}
-                <Text style={styles.helloName}>{t('roles.courier')}</Text>
-              </Text>
-              <View style={styles.heroBox}>
-                <Text style={styles.heroTitle}>{t('courier.heroTitle')}</Text>
-                <Text style={styles.heroStat}>
-                  {activeDeliveries.length === 0
-                    ? t('courier.heroIdle')
-                    : t('courier.heroActive', { count: activeDeliveries.length })}
-                </Text>
-                <Text style={styles.heroSub}>
-                  {t('courier.summaryText', {
-                    completed: summary.completed,
-                    failed: summary.failed,
-                    rate: summary.successRate,
-                  })}
-                </Text>
-              </View>
-            </ImageBackground>
-
-            <View style={styles.body}>
-              <ActionRow
-                icon="message-circle"
-                label={t('courier.contactDispatch')}
-                onPress={() => openDispatcherWhatsApp()}
-              />
-              <ActionRow
-                icon="clock"
-                label={t('courier.viewHistory')}
-                onPress={() => setScreen({ name: 'history' })}
-                last
-              />
-
-              {activeDeliveries.length === 0 &&
-              completedDeliveries.length === 0 &&
-              failedDeliveries.length === 0 ? (
-                <EmptyState title={t('courier.emptyTitle')} message={t('courier.emptyMessage')} />
-              ) : null}
-
-              {activeDeliveries.length > 0 ? (
-                <>
-                  <Text style={styles.section}>
-                    {t('courier.activeTitle')} ({activeDeliveries.length})
-                  </Text>
-                  {activeDeliveries.map((item) => (
-                    <Pressable
-                      key={item.id}
-                      onPress={() => setScreen({ name: 'detail', deliveryId: item.id })}
-                      style={styles.rowWrap}
-                    >
-                      <DeliveryCard delivery={item} />
-                    </Pressable>
-                  ))}
-                </>
-              ) : null}
-
-              {failedDeliveries.length > 0 ? (
-                <>
-                  <Pressable
-                    onPress={() => setShowFailed((value) => !value)}
-                    style={styles.sectionToggle}
-                  >
-                    <Text style={styles.section}>
-                      {t('courier.incidentsTitle')} ({failedDeliveries.length}){' '}
-                      {showFailed ? '▲' : '▼'}
-                    </Text>
-                  </Pressable>
-                  {showFailed
-                    ? failedDeliveries.map((item) => (
-                        <Pressable
-                          key={item.id}
-                          onPress={() => setScreen({ name: 'detail', deliveryId: item.id })}
-                          style={styles.rowWrap}
-                        >
-                          <DeliveryCard delivery={item} highlight={false} />
-                        </Pressable>
-                      ))
-                    : null}
-                </>
-              ) : null}
-
-              {completedDeliveries.length > 0 ? (
-                <>
-                  <Pressable
-                    onPress={() => setShowCompleted((value) => !value)}
-                    style={styles.sectionToggle}
-                  >
-                    <Text style={styles.section}>
-                      {t('courier.completedTitle')} ({completedDeliveries.length}){' '}
-                      {showCompleted ? '▲' : '▼'}
-                    </Text>
-                  </Pressable>
-                  {showCompleted
-                    ? completedDeliveries.map((item) => (
-                        <Pressable
-                          key={item.id}
-                          onPress={() => setScreen({ name: 'detail', deliveryId: item.id })}
-                          style={styles.rowWrap}
-                        >
-                          <DeliveryCard delivery={item} highlight={false} />
-                        </Pressable>
-                      ))
-                    : null}
-                </>
-              ) : null}
-            </View>
-          </ScrollView>
-        ) : null}
-      </View>
-    );
-  }
-
-  if (screen.name === 'scan') {
-    return (
-      <View style={styles.screen}>
-        <ScreenHeader mode="COURSIER" title="Scanner" onBack={goBack} />
-        <View style={styles.panel}>
-          <BarcodeScannerCard onScan={setScanReference} />
-          <Text style={styles.hint}>
-            Scannez le colis ou saisissez la référence pour confirmer la prise en charge.
-          </Text>
-          <TextInput
-            style={styles.scanInput}
-            value={scanReference}
-            onChangeText={setScanReference}
-            placeholder="Référence colis"
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="characters"
-            autoCorrect={false}
-            autoFocus
-          />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <PrimaryButton
-            label="Confirmer le scan"
-            onPress={() => void handleScan()}
-            disabled={!scanReference.trim()}
-            loading={acting}
-          />
-        </View>
-      </View>
-    );
-  }
-
-  if (screen.name === 'proof') {
-    return (
-      <View style={styles.screen}>
-        <ScreenHeader mode="COURSIER" title="Preuve de dépôt" onBack={goBack} />
-        <ScrollView contentContainerStyle={styles.panelScroll}>
-          <Text style={styles.hint}>
-            Photographiez le colis dans le compartiment avant de confirmer le dépôt.
-          </Text>
-          <DropOffProofCard
-            photoBase64={proofPhoto}
-            onCapture={setProofPhoto}
-            onRetake={() => setProofPhoto(null)}
-          />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <PrimaryButton
-            label={
-              delivery?.parcel.compartmentLabel
-                ? `Confirmer le dépôt · ${delivery.parcel.compartmentLabel}`
-                : 'Confirmer le dépôt'
-            }
-            onPress={() => void handleCompleteDropOff()}
-            disabled={!proofPhoto}
-            loading={acting}
-          />
-          <DispatcherContactButton
-            context={{
-              trackingNumber: delivery?.parcel.trackingNumber ?? delivery?.parcel.reference,
-              lockerName: delivery?.parcel.locker?.name,
-              statusLabel: delivery?.statusLabel,
-            }}
-            last
-          />
-        </ScrollView>
-      </View>
-    );
-  }
-
-  if (screen.name === 'history') {
-    return (
-      <View style={styles.screen}>
-        <ScreenHeader mode="COURSIER" title={t('courier.viewHistory')} onBack={goBack} />
-        <ScrollView contentContainerStyle={styles.panelScroll}>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>
-              {t('courier.summaryLabel', { days: summary.days })}
-            </Text>
-            <Text style={styles.summaryText}>
-              {t('courier.summaryText', {
-                completed: summary.completed,
-                failed: summary.failed,
-                rate: summary.successRate,
-              })}
-            </Text>
-          </View>
-          {completedDeliveries.length === 0 && failedDeliveries.length === 0 ? (
-            <EmptyState
-              title={t('courier.emptyTitle')}
-              message="Les dépôts des 90 derniers jours apparaîtront ici."
-            />
-          ) : null}
-          {failedDeliveries.map((item) => (
-            <Pressable
-              key={item.id}
-              onPress={() => setScreen({ name: 'detail', deliveryId: item.id })}
-              style={styles.rowWrap}
-            >
-              <DeliveryCard delivery={item} highlight={false} />
-            </Pressable>
-          ))}
-          {completedDeliveries.map((item) => (
-            <Pressable
-              key={item.id}
-              onPress={() => setScreen({ name: 'detail', deliveryId: item.id })}
-              style={styles.rowWrap}
-            >
-              <DeliveryCard delivery={item} highlight={false} />
-            </Pressable>
-          ))}
-        </ScrollView>
-      </View>
-    );
-  }
-
-  if (screen.name === 'report') {
-    if (!delivery || delivery.id !== screen.deliveryId) {
-      if (!loading) void loadDelivery(screen.deliveryId);
-      return (
-        <View style={styles.screen}>
-          <ScreenHeader mode="COURSIER" title={t('courier.reportIssue')} onBack={goBack} />
-          <AppSpinner />
-        </View>
-      );
-    }
-
-    return (
-      <ScrollView style={styles.screen} contentContainerStyle={styles.panelScroll}>
-        <ScreenHeader mode="COURSIER" title={t('courier.reportIssue')} onBack={goBack} />
-        <ReportIssueForm
-          allowedTypes={['failed_delivery', 'locker_unavailable', 'parcel_problem']}
-          parcelId={delivery.parcel.id}
-          lockerId={delivery.parcel.locker?.id}
-          onSubmit={async (input) => {
-            const result = await reportCourierIssue({
-              ...input,
-              parcelId: delivery.parcel.id,
-              lockerId: delivery.parcel.locker?.id,
-            });
-            return result.success ? null : result.error;
-          }}
-          onSuccess={() => {
-            setIssueSuccess("Incident signalé — l'équipe opérations a été notifiée.");
-            setScreen({ name: 'detail', deliveryId: delivery.id });
-          }}
-          onCancel={goBack}
-        />
-        <DispatcherContactButton
-          context={{
-            trackingNumber: delivery.parcel.trackingNumber ?? delivery.parcel.reference,
-            lockerName: delivery.parcel.locker?.name,
-            statusLabel: delivery.statusLabel,
-          }}
-          last
-        />
-      </ScrollView>
-    );
-  }
-
-  if (loading && !delivery) {
-    return (
-      <View style={styles.screen}>
-        <ScreenHeader mode="COURSIER" title={t('tabs.deliveries')} onBack={goBack} />
-        <AppSpinner />
-      </View>
-    );
-  }
-
-  if (error && !delivery) {
-    return (
-      <View style={styles.screen}>
-        <ScreenHeader mode="COURSIER" title={t('tabs.deliveries')} onBack={goBack} />
-        <Text style={[styles.error, styles.body]}>{error}</Text>
-      </View>
-    );
-  }
-
-  if (!delivery) {
-    return (
-      <View style={styles.screen}>
-        <ScreenHeader mode="COURSIER" title={t('tabs.deliveries')} onBack={goBack} />
-        <Text style={[styles.error, styles.body]}>Livraison introuvable</Text>
-      </View>
-    );
-  }
-
-  const showScan = delivery.status === 'assigned';
-  const isReturn = delivery.kind === 'return';
-  const isCustomerReturn = delivery.kind === 'customer_return';
-  const lockerBlocked = Boolean(
-    !isReturn && !isCustomerReturn && delivery.parcel.locker && !delivery.parcel.locker.canAcceptDropOff,
+  const history = useMemo(
+    () =>
+      deliveries
+        .filter(isHistoryDriverDelivery)
+        .sort((a, b) => (b.completedAt ?? b.updatedAt).localeCompare(a.completedAt ?? a.updatedAt)),
+    [deliveries],
   );
-  const showDropOff = delivery.status === 'scanned' && !lockerBlocked && !isCustomerReturn;
-  const showComplete = isCustomerReturn
-    ? delivery.status === 'scanned'
-    : delivery.status === 'drop_off_pending' && !lockerBlocked;
-  const hasAction = showScan || showDropOff || showComplete;
+  const items = surface === 'history' ? history : active;
+  const nextJobId = surface === 'active' ? active[0]?.id : undefined;
+
+  function goList() {
+    setScreen('list');
+    setSelected(null);
+    setScanCode('');
+    setPhotoBase64(null);
+    setError(null);
+  }
+
+  function openContextualRoute(deliveryId?: string) {
+    navigation.getParent()?.navigate('Route', deliveryId ? { deliveryId } : undefined);
+  }
+
+  async function applyAction(
+    previous: CourierDelivery,
+    result: Awaited<ReturnType<typeof scanCourierDelivery>>,
+    action: 'scan' | 'arrive' | 'deposit' | 'handoff',
+  ) {
+    const next = applyDriverMutationResult(previous, result);
+    if (!next.succeeded) {
+      setError(next.error);
+      return false;
+    }
+    const updated = next.delivery as CourierDelivery;
+    setSelected(updated);
+    setDeliveries((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+    setSuccess(getDriverSuccessCopy(updated, action));
+    return true;
+  }
+
+  async function handleScan(code: string) {
+    if (!selected || busy) return;
+    const value = code.trim();
+    if (!value) {
+      setError('Saisissez le numéro de suivi.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    const result = await scanCourierDelivery(selected.id, value);
+    const ok = await applyAction(selected, result, 'scan');
+    setBusy(false);
+    if (ok) {
+      setScanCode('');
+      setScreen('detail');
+    }
+  }
+
+  async function handleArrive() {
+    if (!selected || busy) return;
+    setBusy(true);
+    setError(null);
+    const result = await startCourierDropOff(selected.id);
+    const ok = await applyAction(selected, result, 'arrive');
+    setBusy(false);
+    if (ok) setScreen('proof');
+  }
+
+  async function handleDepositProof() {
+    if (!selected || busy) return;
+    if (!photoBase64) {
+      setError('Photographiez le dépôt avant de confirmer.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    const result = await completeCourierDropOff(selected.id, { photoBase64 });
+    const ok = await applyAction(selected, result, 'deposit');
+    setBusy(false);
+    if (ok) {
+      setPhotoBase64(null);
+      setScreen('detail');
+    }
+  }
+
+  async function handleBusinessHandoff() {
+    if (!selected || busy) return;
+    setBusy(true);
+    setError(null);
+    const result = await completeCourierReturnToBusiness(selected.id);
+    const ok = await applyAction(selected, result, 'handoff');
+    setBusy(false);
+    if (ok) setScreen('detail');
+  }
+
+  async function handleOpenExistingProof() {
+    if (!selected?.hasDropOffPhoto) return;
+    setBusy(true);
+    const result = await fetchCourierDropOffProof(selected.id);
+    setBusy(false);
+    if (!result.success) {
+      setError(translateDriverError(result.error));
+      return;
+    }
+    setPhotoBase64(result.data.photo);
+    setScreen('proof');
+  }
+
+  const headerTitle =
+    screen === 'list'
+      ? surface === 'history'
+        ? t('tabs.history')
+        : t('tabs.deliveries')
+      : screen === 'scan'
+        ? t('courier.scanParcel')
+        : screen === 'proof'
+          ? 'Preuve de dépôt'
+          : screen === 'report'
+            ? t('courier.reportIssue')
+            : getDriverDeliveryKindLabel(selected ?? { kind: 'outbound' });
 
   return (
-    <View style={styles.detailContainer}>
-      <ScrollView
-        style={styles.detailScroll}
-        contentContainerStyle={[
-          styles.detailContent,
-          hasAction && styles.detailContentWithAction,
-        ]}
-      >
-        <ScreenHeader mode="COURSIER" title={t('tabs.deliveries')} onBack={goBack} />
-
-        {successMessage ? (
-          <SuccessBanner message={successMessage} onDismiss={() => setSuccessMessage(null)} />
-        ) : null}
-
-        {issueSuccess ? (
-          <SuccessBanner message={issueSuccess} onDismiss={() => setIssueSuccess(null)} />
-        ) : null}
-
-        <View style={styles.detailBody}>
-          <DeliveryStepIndicator status={delivery.status} />
-
-          <View style={styles.detailHeader}>
-            <Text style={styles.detailReference}>
-              {delivery.parcel.trackingNumber ?? delivery.parcel.reference}
-            </Text>
-            <DeliveryStatusBadge status={delivery.status} />
-          </View>
-          {isReturn || isCustomerReturn ? (
-            <Text style={styles.detailMeta}>
-              {isCustomerReturn ? 'Retour client vers le marchand' : 'Retour vers le marchand'}
-            </Text>
-          ) : null}
-          <Text style={styles.detailMeta}>{delivery.parcel.businessName}</Text>
-
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-
-          <View style={styles.detailSection}>
-            <Text style={styles.sectionLabel}>Destinataire</Text>
-            <Text style={styles.detailText}>{delivery.parcel.recipientName ?? '—'}</Text>
-          </View>
-
-          {delivery.parcel.locker ? (
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionLabel}>
-                {isReturn ? "Point d'enlèvement" : 'Casier de destination'}
-              </Text>
-              <Text style={styles.detailText}>{delivery.parcel.locker.name}</Text>
-              <Text style={styles.detailSubtext}>{delivery.parcel.locker.address}</Text>
-              {delivery.parcel.compartmentLabel ? (
-                <Text style={styles.detailSubtext}>
-                  Compartiment {delivery.parcel.compartmentLabel}
-                </Text>
-              ) : null}
-              {delivery.parcel.locker.statusLabel ? (
-                <Text style={styles.detailSubtext}>
-                  Statut casier : {delivery.parcel.locker.statusLabel}
-                </Text>
-              ) : null}
-              {delivery.parcel.locker.latitude != null &&
-              delivery.parcel.locker.longitude != null ? (
-                <>
-                  <View style={styles.mapWrap}>
-                    <LockerMapView
-                      lockers={[
-                        {
-                          id: delivery.parcel.locker.id,
-                          name: delivery.parcel.locker.name,
-                          address: delivery.parcel.locker.address,
-                          latitude: delivery.parcel.locker.latitude,
-                          longitude: delivery.parcel.locker.longitude,
-                          availableCompartments: 0,
-                        },
-                      ]}
-                      highlightLockerId={delivery.parcel.locker.id}
-                      height={200}
-                    />
-                  </View>
-                  <ActionRow
-                    icon="navigation"
-                    label={t('courier.openMaps')}
-                    onPress={() =>
-                      openDirections(
-                        delivery.parcel.locker!.latitude!,
-                        delivery.parcel.locker!.longitude!,
-                        delivery.parcel.locker!.name,
-                      )
-                    }
-                    last
-                  />
-                </>
-              ) : null}
-            </View>
-          ) : null}
-
-          {lockerBlocked ? (
-            <View style={styles.blockedBanner}>
-              <Text style={styles.blockedText}>
-                Casier {delivery.parcel.locker?.statusLabel?.toLowerCase() ?? 'indisponible'} — dépôt
-                impossible. Signalez l’incident pour notifier les opérations.
-              </Text>
-            </View>
-          ) : null}
-
-          {delivery.status === 'completed' ? (
-            <View style={styles.completedBanner}>
-              <Text style={styles.completedText}>
-                {isReturn ? 'Retour terminé' : 'Livraison terminée'}
-              </Text>
-            </View>
-          ) : null}
-
-          {delivery.status === 'completed' && proofPreview ? (
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionLabel}>Preuve de dépôt</Text>
-              <Image source={{ uri: proofPreview }} style={styles.proofImage} />
-            </View>
-          ) : null}
-
-          <DispatcherContactButton
-            context={{
-              trackingNumber: delivery.parcel.trackingNumber ?? delivery.parcel.reference,
-              lockerName: delivery.parcel.locker?.name,
-              statusLabel: delivery.statusLabel,
-            }}
-          />
-          <ActionRow
-            icon="alert-triangle"
-            label={t('courier.reportIssue')}
-            onPress={() => setScreen({ name: 'report', deliveryId: delivery.id })}
-            last
-          />
+    <View style={styles.screen}>
+      <ScreenHeader
+        mode="DRIVER"
+        title={headerTitle}
+        onBack={screen === 'list' ? undefined : goList}
+      />
+      {loading && !refreshing ? <AppSpinner /> : null}
+      {!loading && error && screen === 'list' ? (
+        <View style={styles.body}>
+          <Text style={styles.error}>{error}</Text>
+          <PrimaryButton label={t('common.retry')} onPress={() => void load()} />
         </View>
-      </ScrollView>
+      ) : null}
+      {!loading && (screen !== 'list' || !error) ? (
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <ScrollView
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            refreshControl={
+              screen === 'list' ? (
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={() => {
+                    setRefreshing(true);
+                    void load(true);
+                  }}
+                  tintColor={colors.secondary}
+                  colors={[colors.primary]}
+                  progressBackgroundColor={colors.surface}
+                />
+              ) : undefined
+            }
+          >
+            {success && screen === 'detail' ? (
+              <SuccessBanner
+                message={success.title}
+                detail={success.detail}
+                onDismiss={() => setSuccess(null)}
+              />
+            ) : null}
 
-      {hasAction ? (
-        <View style={styles.actionBar}>
-          {showScan ? (
-            <PrimaryButton
-              label="Scanner le colis"
-              onPress={() => setScreen({ name: 'scan', deliveryId: delivery.id })}
-            />
-          ) : null}
-          {showDropOff ? (
-            <PrimaryButton
-              label={isReturn ? 'Arrivé chez le marchand' : 'Arrivé au casier'}
-              onPress={() => void handleStartDropOff()}
-              loading={acting}
-            />
-          ) : null}
-          {showComplete ? (
-            <PrimaryButton
-              label={
-                isCustomerReturn
-                  ? 'Confirmer la remise au marchand'
-                  : isReturn
-                    ? 'Photographier la remise'
-                    : delivery.parcel.compartmentLabel
-                      ? `Photographier le dépôt · ${delivery.parcel.compartmentLabel}`
-                      : 'Photographier le dépôt'
-              }
-              onPress={() => {
-                if (isCustomerReturn) {
-                  void handleCompleteCustomerReturn();
-                  return;
+            {screen === 'list' ? (
+              <ListScreen
+                surface={surface}
+                items={items}
+                nextJobId={nextJobId}
+                summary={summary}
+                styles={styles}
+                emptyTitle={
+                  surface === 'history' ? t('courier.historyEmptyTitle') : t('courier.emptyTitle')
                 }
-                setProofPhoto(null);
-                setScreen({ name: 'proof', deliveryId: delivery.id });
-              }}
-              loading={acting}
-            />
-          ) : null}
-        </View>
+                emptyMessage={
+                  surface === 'history'
+                    ? t('courier.historyEmptyMessage')
+                    : t('courier.emptyMessage')
+                }
+                onOpen={(item) => {
+                  setSelected(item);
+                  setError(null);
+                  setScreen('detail');
+                }}
+                onContactDispatch={() => openDispatcherWhatsApp()}
+                onOpenRoute={() => openContextualRoute(nextJobId)}
+              />
+            ) : null}
+
+            {screen === 'detail' && selected ? (
+              <DetailScreen
+                delivery={selected}
+                busy={busy}
+                error={error}
+                styles={styles}
+                onScan={() => {
+                  setError(null);
+                  setScreen('scan');
+                }}
+                onArrive={() => void handleArrive()}
+                onProof={() => {
+                  setError(null);
+                  setScreen('proof');
+                }}
+                onHandoff={() => void handleBusinessHandoff()}
+                onReport={() => {
+                  setError(null);
+                  setScreen('report');
+                }}
+                onOpenProof={() => void handleOpenExistingProof()}
+                onOpenRoute={() => openContextualRoute(selected.id)}
+              />
+            ) : null}
+
+            {screen === 'scan' && selected ? (
+              <ScanScreen
+                delivery={selected}
+                scanCode={scanCode}
+                busy={busy}
+                error={error}
+                styles={styles}
+                onChangeCode={setScanCode}
+                onScan={handleScan}
+              />
+            ) : null}
+
+            {screen === 'proof' && selected ? (
+              <ProofScreen
+                delivery={selected}
+                photoBase64={photoBase64}
+                busy={busy}
+                error={error}
+                styles={styles}
+                onCapture={setPhotoBase64}
+                onRetake={() => setPhotoBase64(null)}
+                onConfirm={() => void handleDepositProof()}
+              />
+            ) : null}
+
+            {screen === 'report' && selected ? (
+              <ReportIssueForm
+                allowedTypes={['failed_delivery', 'locker_unavailable', 'parcel_problem']}
+                parcelId={selected.parcel.id}
+                lockerId={selected.parcel.locker?.id}
+                onSubmit={async ({ type, description }) => {
+                  const result = await reportCourierIssue({
+                    type,
+                    description,
+                    parcelId: selected.parcel.id,
+                    lockerId: selected.parcel.locker?.id,
+                  });
+                  return result.success ? null : translateDriverError(result.error);
+                }}
+                onSuccess={() => {
+                  setSuccess({
+                    title: 'Problème signalé',
+                    detail: 'Le dispatch Eveider a bien reçu votre signalement.',
+                  });
+                  setScreen('detail');
+                }}
+                onCancel={() => setScreen('detail')}
+              />
+            ) : null}
+          </ScrollView>
+        </KeyboardAvoidingView>
       ) : null}
     </View>
   );
 }
 
-function sortDeliveriesByRoute(
-  items: CourierDelivery[],
-  origin: { latitude: number; longitude: number } | null,
-): CourierDelivery[] {
-  if (!origin) return items;
-  const rank = new Map(
-    orderLockerStops(
-      origin,
-      items.flatMap((item) =>
-        item.parcel.locker
-          ? [
-              {
-                id: item.parcel.locker.id,
-                latitude: item.parcel.locker.latitude,
-                longitude: item.parcel.locker.longitude,
-              },
-            ]
-          : [],
-      ),
-    ).map((stop, index) => [stop.id, index]),
-  );
+function ListScreen({
+  surface,
+  items,
+  nextJobId,
+  summary,
+  styles,
+  emptyTitle,
+  emptyMessage,
+  onOpen,
+  onContactDispatch,
+  onOpenRoute,
+}: {
+  surface: 'active' | 'history';
+  items: CourierDelivery[];
+  nextJobId?: string;
+  summary: CourierHistorySummary;
+  styles: ReturnType<typeof createStyles>;
+  emptyTitle: string;
+  emptyMessage: string;
+  onOpen: (item: CourierDelivery) => void;
+  onContactDispatch: () => void;
+  onOpenRoute: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <View>
+      {surface === 'history' ? (
+        <View style={styles.summary}>
+          <Text style={styles.summaryLabel}>{t('courier.summaryLabel', { days: summary.days })}</Text>
+          <Text style={styles.summaryText}>
+            {t('courier.summaryText', {
+              completed: summary.completed,
+              failed: summary.failed,
+              rate: summary.successRate,
+            })}
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.toolbar}>
+          <ActionRow icon="message-circle" label={t('courier.contactDispatch')} onPress={onContactDispatch} />
+          {items.length > 0 ? (
+            <ActionRow icon="navigation" label={t('courier.viewRoute')} onPress={onOpenRoute} last />
+          ) : null}
+        </View>
+      )}
 
-  return [...items].sort((a, b) => {
-    const aRank = a.parcel.locker ? (rank.get(a.parcel.locker.id) ?? 999) : 999;
-    const bRank = b.parcel.locker ? (rank.get(b.parcel.locker.id) ?? 999) : 999;
-    return aRank - bRank;
-  });
+      {items.length === 0 ? (
+        <EmptyState title={emptyTitle} message={emptyMessage} />
+      ) : (
+        <View style={styles.list}>
+          {items.map((item, index) => (
+            <Pressable
+              key={item.id}
+              onPress={() => onOpen(item)}
+              accessibilityRole="button"
+              accessibilityLabel={`${getDriverDeliveryKindLabel(item)} ${getDriverTrackingLabel(item)}`}
+            >
+              {surface === 'active' && item.id === nextJobId && index === 0 ? (
+                <Text style={styles.nextHint}>{t('courier.nextJob')}</Text>
+              ) : null}
+              <DeliveryCard delivery={item} highlight={item.id === nextJobId} />
+            </Pressable>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function DetailScreen({
+  delivery,
+  busy,
+  error,
+  styles,
+  onScan,
+  onArrive,
+  onProof,
+  onHandoff,
+  onReport,
+  onOpenProof,
+  onOpenRoute,
+}: {
+  delivery: CourierDelivery;
+  busy: boolean;
+  error: string | null;
+  styles: ReturnType<typeof createStyles>;
+  onScan: () => void;
+  onArrive: () => void;
+  onProof: () => void;
+  onHandoff: () => void;
+  onReport: () => void;
+  onOpenProof: () => void;
+  onOpenRoute: () => void;
+}) {
+  const { t } = useTranslation();
+  const kindLabel = getDriverDeliveryKindLabel(delivery);
+  const step = getDriverDeliveryStep(delivery);
+  const origin = getDriverOrigin(delivery);
+  const destination = getDriverDestination(delivery);
+  const current = getDriverCurrentStop(delivery);
+  const action = getDriverPrimaryAction(delivery);
+  const tracking = getDriverTrackingLabel(delivery);
+  const sizeLabel = getDriverPackageSizeLabel(delivery.parcel.packageSize);
+  const canAct = canDriverActOnDelivery(delivery);
+  const locker = delivery.parcel.locker;
+  const mapLocker =
+    current.latitude != null && current.longitude != null && locker
+      ? [
+          {
+            id: locker.id,
+            name: current.name,
+            address: current.address ?? locker.address,
+            latitude: current.latitude,
+            longitude: current.longitude,
+            availableCompartments: 0,
+          },
+        ]
+      : [];
+
+  return (
+    <View>
+      <DeliveryStepIndicator status={delivery.status} kind={delivery.kind} />
+      <Text style={styles.kind}>{kindLabel.toUpperCase()}</Text>
+      <Text style={styles.stepTitle}>{step.label}</Text>
+      <Text style={styles.stepDetail}>{step.detail}</Text>
+
+      <View style={styles.panel}>
+        <Text style={styles.panelLabel}>Colis</Text>
+        <Text style={styles.tracking}>{tracking}</Text>
+        {sizeLabel ? <Text style={styles.muted}>{sizeLabel}</Text> : null}
+        {delivery.parcel.recipientName ? (
+          <Text style={styles.muted}>Destinataire · {delivery.parcel.recipientName}</Text>
+        ) : null}
+      </View>
+
+      <PlaceBlock title="Origine" place={origin} styles={styles} />
+      <Text style={styles.arrow}>↓</Text>
+      <PlaceBlock title="Destination" place={destination} styles={styles} />
+
+      {delivery.parcel.compartmentLabel && delivery.status !== 'assigned' ? (
+        <Text style={styles.compartment}>
+          Compartiment {delivery.parcel.compartmentLabel}
+        </Text>
+      ) : null}
+
+      {mapLocker.length > 0 ? (
+        <View style={styles.mapWrap}>
+          <LockerMapView lockers={mapLocker} height={180} />
+        </View>
+      ) : null}
+
+      <PrimaryButton
+        label={t('courier.openMaps')}
+        onPress={() => openStop(current)}
+        variant="secondary"
+      />
+      <View style={styles.spacer} />
+      <ActionRow icon="map" label={t('courier.viewRoute')} onPress={onOpenRoute} last />
+
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
+      {action.id === 'scan_parcel' ? (
+        <PrimaryButton label={action.label} onPress={onScan} loading={busy} variant="brand" />
+      ) : null}
+
+      {action.id === 'commissioning_arrive_locker' && locker ? (
+        <CommissioningLockerDeposit
+          mode="arrive"
+          lockerName={destination.name}
+          lockerAddress={destination.address}
+          onArrive={onArrive}
+          arriving={busy}
+        />
+      ) : null}
+
+      {action.id === 'commissioning_deposit_proof' && locker ? (
+        <>
+          <CommissioningLockerDeposit
+            mode="note"
+            lockerName={destination.name}
+            lockerAddress={destination.address}
+          />
+          <PrimaryButton label="Photographier le dépôt" onPress={onProof} variant="brand" />
+        </>
+      ) : null}
+
+      {action.id === 'confirm_business_handoff' ? (
+        <PrimaryButton
+          label={action.label}
+          onPress={onHandoff}
+          loading={busy}
+          variant="brand"
+        />
+      ) : null}
+
+      {delivery.hasDropOffPhoto ? (
+        <ActionRow icon="image" label="Voir la preuve de dépôt" onPress={onOpenProof} />
+      ) : null}
+
+      {canAct ? (
+        <ActionRow icon="alert-circle" label={t('courier.reportIssue')} onPress={onReport} last />
+      ) : null}
+
+      <View style={styles.whatsapp}>
+        <DispatcherContactButton
+          context={{
+            trackingNumber: tracking,
+            lockerName: locker?.name,
+            statusLabel: step.label,
+          }}
+        />
+      </View>
+    </View>
+  );
+}
+
+function PlaceBlock({
+  title,
+  place,
+  styles,
+}: {
+  title: string;
+  place: ReturnType<typeof getDriverOrigin>;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  return (
+    <View style={styles.panel}>
+      <Text style={styles.panelLabel}>{title}</Text>
+      <Text style={styles.action}>{place.action}</Text>
+      <Text style={styles.placeName}>{place.name}</Text>
+      {place.address ? <Text style={styles.muted}>{place.address}</Text> : null}
+      <Text style={styles.role}>{place.role}</Text>
+    </View>
+  );
+}
+
+function ScanScreen({
+  delivery,
+  scanCode,
+  busy,
+  error,
+  styles,
+  onChangeCode,
+  onScan,
+}: {
+  delivery: CourierDelivery;
+  scanCode: string;
+  busy: boolean;
+  error: string | null;
+  styles: ReturnType<typeof createStyles>;
+  onChangeCode: (value: string) => void;
+  onScan: (value: string) => void;
+}) {
+  const { t } = useTranslation();
+  const origin = getDriverOrigin(delivery);
+  return (
+    <View style={styles.gap}>
+      <Text style={styles.stepTitle}>{getDriverDeliveryStep(delivery).label}</Text>
+      <Text style={styles.muted}>
+        {origin.action} · {origin.name}
+      </Text>
+      <Text style={styles.tracking}>{getDriverTrackingLabel(delivery)}</Text>
+      <BarcodeScannerCard onScan={onScan} />
+      <Text style={styles.panelLabel}>{t('courier.enterTracking')}</Text>
+      <TextInput
+        value={scanCode}
+        onChangeText={onChangeCode}
+        autoCapitalize="characters"
+        autoCorrect={false}
+        placeholder="Numéro de suivi"
+        placeholderTextColor="#8A8A8A"
+        style={styles.input}
+      />
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <PrimaryButton
+        label={t('courier.scanParcel')}
+        onPress={() => onScan(scanCode)}
+        loading={busy}
+        variant="brand"
+      />
+    </View>
+  );
+}
+
+function ProofScreen({
+  delivery,
+  photoBase64,
+  busy,
+  error,
+  styles,
+  onCapture,
+  onRetake,
+  onConfirm,
+}: {
+  delivery: CourierDelivery;
+  photoBase64: string | null;
+  busy: boolean;
+  error: string | null;
+  styles: ReturnType<typeof createStyles>;
+  onCapture: (value: string) => void;
+  onRetake: () => void;
+  onConfirm: () => void;
+}) {
+  const destination = getDriverDestination(delivery);
+  const readOnly = delivery.status === 'completed' || isHistoricalRts(delivery);
+  return (
+    <View style={styles.gap}>
+      <CommissioningLockerDeposit
+        mode="note"
+        lockerName={destination.name}
+        lockerAddress={destination.address}
+      />
+      <DropOffProofCard photoBase64={photoBase64} onCapture={onCapture} onRetake={onRetake} />
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {!readOnly ? (
+        <PrimaryButton
+          label="Envoyer la preuve de dépôt"
+          onPress={onConfirm}
+          loading={busy}
+          disabled={!photoBase64}
+          variant="brand"
+        />
+      ) : null}
+    </View>
+  );
+}
+
+function openStop(place: ReturnType<typeof getDriverCurrentStop>) {
+  if (place.latitude != null && place.longitude != null) {
+    openDirections(place.latitude, place.longitude, place.name);
+    return;
+  }
+  const query = [place.name, place.address].filter(Boolean).join(' ');
+  if (query) openAddressSearch(query);
+}
+
+function sortDeliveriesByRoute(items: CourierDelivery[]): CourierDelivery[] {
+  const withLocker = items.filter(
+    (item) => item.parcel.locker?.latitude != null && item.parcel.locker?.longitude != null,
+  );
+  const withoutLocker = items.filter(
+    (item) => item.parcel.locker?.latitude == null || item.parcel.locker?.longitude == null,
+  );
+  if (withLocker.length <= 1) return [...withLocker, ...withoutLocker];
+  const first = withLocker[0];
+  const originLocker = first?.parcel.locker;
+  if (!originLocker || originLocker.latitude == null || originLocker.longitude == null) {
+    return items;
+  }
+
+  const ranked = orderLockerStops(
+    { latitude: originLocker.latitude, longitude: originLocker.longitude },
+    withLocker.flatMap((item) => {
+      const locker = item.parcel.locker;
+      if (!locker || locker.latitude == null || locker.longitude == null) return [];
+      return [{ id: item.id, latitude: locker.latitude, longitude: locker.longitude }];
+    }),
+  );
+  const byId = new Map(withLocker.map((item) => [item.id, item]));
+  return [
+    ...ranked.map((stop) => byId.get(stop.id)).filter((item): item is CourierDelivery => Boolean(item)),
+    ...withoutLocker,
+  ];
 }
 
 function createStyles(colors: ColorTokens) {
@@ -843,115 +764,28 @@ function createStyles(colors: ColorTokens) {
       flex: 1,
       backgroundColor: colors.background,
     },
-    container: {
+    flex: {
       flex: 1,
     },
     content: {
-      flexGrow: 1,
-      paddingBottom: 40,
-    },
-    hero: {
-      minHeight: 280,
-      justifyContent: 'flex-end',
-      paddingHorizontal: 20,
-      paddingTop: 24,
-      paddingBottom: 20,
-    },
-    heroImage: {
-      resizeMode: 'cover',
-    },
-    heroScrim: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0,0,0,0.42)',
-    },
-    hello: {
-      fontSize: 28,
-      fontWeight: '400',
-      color: '#FFFFFF',
-      marginBottom: 16,
-    },
-    helloName: {
-      fontWeight: '700',
-      color: colors.primary,
-    },
-    heroBox: {
-      backgroundColor: 'rgba(18,18,18,0.72)',
-      padding: 14,
-      gap: 6,
-    },
-    heroTitle: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: '#FFFFFF',
-    },
-    heroStat: {
-      fontSize: 20,
-      fontWeight: '700',
-      color: '#FFFFFF',
-    },
-    heroSub: {
-      fontSize: 13,
-      fontWeight: '400',
-      color: 'rgba(255,255,255,0.72)',
-    },
-    body: {
-      paddingHorizontal: 20,
-      paddingTop: 20,
-    },
-    section: {
-      marginTop: 24,
-      marginBottom: 10,
-      fontSize: 13,
-      fontWeight: '600',
-      color: colors.secondary,
-    },
-    sectionToggle: {
-      marginTop: 8,
-    },
-    rowWrap: {
-      marginBottom: 8,
-    },
-    error: {
-      color: colors.danger,
-      fontWeight: '500',
-      marginBottom: 12,
-    },
-    panel: {
-      margin: 20,
-      borderWidth: borders.width,
-      borderColor: colors.border,
-      backgroundColor: colors.surface,
-      padding: 16,
-      gap: 16,
-    },
-    panelScroll: {
       paddingHorizontal: 20,
       paddingTop: 16,
       paddingBottom: 40,
+    },
+    body: {
+      padding: 20,
       gap: 12,
     },
-    hint: {
-      fontWeight: '400',
-      color: colors.textMuted,
-      fontSize: 14,
-      lineHeight: 20,
+    toolbar: {
+      marginBottom: 16,
+      gap: 0,
     },
-    scanInput: {
-      height: spacing.buttonHeight,
-      borderWidth: borders.width,
-      borderColor: colors.border,
-      paddingHorizontal: 14,
-      fontWeight: '600',
-      fontSize: 16,
-      color: colors.secondary,
-      backgroundColor: colors.background,
-    },
-    summaryCard: {
+    summary: {
       borderWidth: borders.width,
       borderColor: colors.border,
       backgroundColor: colors.surface,
       padding: 14,
-      marginBottom: 8,
+      marginBottom: 16,
     },
     summaryLabel: {
       fontSize: 13,
@@ -961,118 +795,126 @@ function createStyles(colors: ColorTokens) {
     summaryText: {
       marginTop: 6,
       fontSize: 13,
-      fontWeight: '400',
       color: colors.textMuted,
     },
-    detailContainer: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    detailScroll: {
-      flex: 1,
-    },
-    detailContent: {
-      paddingBottom: 24,
-    },
-    detailContentWithAction: {
-      paddingBottom: 100,
-    },
-    detailBody: {
-      paddingHorizontal: 20,
-      paddingTop: 16,
-    },
-    detailHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+    list: {
       gap: 12,
+    },
+    nextHint: {
+      marginBottom: 6,
+      fontSize: 12,
+      fontWeight: '700',
+      letterSpacing: 0.4,
+      color: colors.primary,
+      textTransform: 'uppercase',
+    },
+    kind: {
+      fontSize: 12,
+      fontWeight: '800',
+      letterSpacing: 0.8,
+      color: colors.primary,
+      marginBottom: 6,
+    },
+    stepTitle: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.secondary,
+    },
+    stepDetail: {
+      marginTop: 6,
+      marginBottom: 16,
+      fontSize: 14,
+      lineHeight: 20,
+      color: colors.textMuted,
+    },
+    panel: {
+      borderWidth: borders.width,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      padding: 14,
       marginBottom: 8,
     },
-    detailReference: {
+    panelLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      letterSpacing: 0.5,
+      color: colors.textMuted,
+      textTransform: 'uppercase',
+      marginBottom: 6,
+    },
+    tracking: {
       fontSize: 18,
       fontWeight: '700',
       color: colors.secondary,
       fontVariant: ['tabular-nums'],
-      flex: 1,
     },
-    detailMeta: {
-      fontWeight: '400',
-      marginBottom: 8,
-      color: colors.textMuted,
-      fontSize: 14,
-    },
-    detailSection: {
-      marginTop: 12,
-      marginBottom: 12,
-      backgroundColor: colors.surface,
-      borderWidth: borders.width,
-      borderColor: colors.border,
-      padding: 14,
-    },
-    sectionLabel: {
-      fontSize: 12,
-      fontWeight: '600',
-      marginBottom: 8,
-      color: colors.textMuted,
-    },
-    detailText: {
-      fontWeight: '600',
-      fontSize: 15,
-      color: colors.secondary,
-    },
-    detailSubtext: {
+    muted: {
       marginTop: 4,
       fontSize: 13,
-      fontWeight: '400',
       color: colors.textMuted,
     },
+    action: {
+      fontSize: 11,
+      fontWeight: '700',
+      letterSpacing: 0.4,
+      color: colors.primary,
+      textTransform: 'uppercase',
+    },
+    placeName: {
+      marginTop: 4,
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.secondary,
+    },
+    role: {
+      marginTop: 6,
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+    arrow: {
+      textAlign: 'center',
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.textMuted,
+      marginVertical: 4,
+    },
+    compartment: {
+      marginTop: 4,
+      marginBottom: 12,
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.secondary,
+    },
     mapWrap: {
-      marginTop: 12,
-      marginBottom: 8,
+      marginVertical: 12,
       borderWidth: borders.width,
       borderColor: colors.border,
       overflow: 'hidden',
     },
-    actionBar: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: 20,
-      paddingBottom: 28,
-      backgroundColor: colors.background,
-      borderTopWidth: borders.width,
-      borderTopColor: colors.border,
+    spacer: {
+      height: 8,
     },
-    completedBanner: {
-      backgroundColor: colors.successMuted,
-      borderWidth: borders.width,
-      borderColor: colors.primary,
-      padding: 14,
-      alignItems: 'center',
-      marginBottom: 12,
-    },
-    completedText: {
-      fontWeight: '600',
-      color: colors.successFg,
-    },
-    blockedBanner: {
-      backgroundColor: colors.dangerMuted,
-      borderWidth: borders.width,
-      borderColor: colors.danger,
-      padding: 14,
-      marginBottom: 12,
-    },
-    blockedText: {
+    error: {
+      color: colors.danger,
       fontWeight: '500',
-      fontSize: 13,
-      lineHeight: 20,
-      color: colors.dangerFg,
+      marginVertical: 12,
     },
-    proofImage: {
-      height: 200,
-      marginTop: 8,
-      backgroundColor: colors.secondary,
+    whatsapp: {
+      marginTop: 20,
+    },
+    gap: {
+      gap: 12,
+    },
+    input: {
+      borderWidth: borders.width,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.secondary,
     },
   });
 }

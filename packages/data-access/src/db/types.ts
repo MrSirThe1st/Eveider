@@ -6,6 +6,7 @@
 import type {
   BusinessStatus,
   ChargePayer,
+  CityStatus,
   CommissionType,
   CompartmentSize,
   CompartmentStatus,
@@ -35,6 +36,7 @@ import type {
   PlatformRole,
   ServiceAreaStatus,
   ShipmentPickupType,
+  ZonePricingAmount,
 } from '@eveider/domain';
 export type PaymentStatus = 'pending' | 'processing' | 'completed' | 'failed';
 export type NotificationChannel = 'sms' | 'push' | 'in_app';
@@ -172,17 +174,36 @@ export type Locker = {
   updatedAt: Date;
 };
 
+export type City = {
+  id: string;
+  code: string;
+  name: string;
+  status: CityStatus;
+  notes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export type ServiceArea = {
   id: string;
   code: string;
   name: string;
   city: string;
+  cityId: string;
   status: ServiceAreaStatus;
   notes: string | null;
-  outboundDeliveryAmount: number;
-  returnDeliveryAmount: number;
+  outboundDeliveryAmount: ZonePricingAmount;
+  returnDeliveryAmount: ZonePricingAmount;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type ZonePricing = {
+  zoneId: string;
+  outboundDeliveryAmount: ZonePricingAmount;
+  returnDeliveryAmount: ZonePricingAmount;
+  updatedAt: Date;
+  updatedBy: string | null;
 };
 
 export type Compartment = {

@@ -7,7 +7,7 @@ import { fetchJson } from '@/lib/api/fetch-json';
 
 export const DELIVERIES_REFRESH_MS = 30_000;
 
-export type DeliveryBoardView = 'active' | 'au_casier' | 'collected' | 'all';
+export type DeliveryBoardView = 'active' | 'all';
 export type DeliveryStatusFilter = 'all' | DeliveryStatus;
 
 export type DeliveryFilters = {
@@ -22,9 +22,12 @@ export type DeliveryFilters = {
 export type DeliveryBoardItem = {
   id: string;
   kind: 'delivery' | 'parcel';
+  deliveryKind?: 'outbound' | 'return' | 'customer_return';
+  deliveryKindLabel?: string;
   status: DeliveryStatus | ParcelStatus | string;
   statusLabel: string;
   updatedAt: string;
+  createdAt?: string;
   courier: {
     id: string;
     fullName: string | null;

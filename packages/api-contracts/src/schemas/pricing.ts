@@ -17,11 +17,16 @@ export const updateDeliveryPricingSchema = z.object({
 });
 
 export const deliveryQuoteQuerySchema = z.object({
-  lockerId: z.string().uuid('Point invalide'),
+  lockerId: z.string().uuid('Casier invalide'),
   compartmentId: z.string().uuid('Compartiment invalide').optional(),
-  packageSize: z.enum(['small', 'medium', 'large']),
+  packageSize: z.enum(['small', 'medium', 'large']).optional(),
   senderAddress: z.string().trim().max(255).optional(),
   pickupType: z.enum(['courier_pickup', 'merchant_dropoff']).optional(),
+});
+
+export const returnQuoteQuerySchema = z.object({
+  method: z.enum(['eveider_return', 'business_pickup']),
+  returnLockerId: z.string().uuid('Casier de retour invalide'),
 });
 
 export const confirmMerchantDepositSchema = z.object({
@@ -30,4 +35,5 @@ export const confirmMerchantDepositSchema = z.object({
 
 export type UpdateDeliveryPricingInput = z.infer<typeof updateDeliveryPricingSchema>;
 export type DeliveryQuoteQuery = z.infer<typeof deliveryQuoteQuerySchema>;
+export type ReturnQuoteQuery = z.infer<typeof returnQuoteQuerySchema>;
 export type ConfirmMerchantDepositInput = z.infer<typeof confirmMerchantDepositSchema>;

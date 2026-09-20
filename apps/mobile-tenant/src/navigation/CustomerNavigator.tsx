@@ -1,19 +1,14 @@
-import { Feather } from '@expo/vector-icons';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import type { BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import type { NavigatorScreenParams, RouteProp } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { createContext, memo, useCallback, useContext, useMemo, useRef, useState, type MutableRefObject } from 'react';
+import { createContext, memo, useContext, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ProfileDrawer } from '../components/ProfileDrawer';
+import { RECIPIENT_PRIMARY_TAB } from '../lib/recipient-nav';
 import type { CustomerParcel } from '../lib/api';
-import { CustomerHome } from '../screens/CustomerHome';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
-import { PointsScreen } from '../screens/PointsScreen';
 import { ReceiveScreen } from '../screens/ReceiveScreen';
 import { TrackResultScreen } from '../screens/TrackResultScreen';
 import { AppearanceSettingsScreen } from '../screens/settings/AppearanceSettingsScreen';
@@ -21,24 +16,15 @@ import { CountrySettingsScreen } from '../screens/settings/CountrySettingsScreen
 import { LanguageSettingsScreen } from '../screens/settings/LanguageSettingsScreen';
 import { NotificationPreferencesScreen } from '../screens/settings/NotificationPreferencesScreen';
 import { PlaceholderSettingsScreen } from '../screens/settings/PlaceholderSettingsScreen';
-import { useColors } from '../theme';
 import {
   CustomerShellProvider,
   DrawerOpenContext,
   useCustomerShell,
   type CustomerSettingsScreen,
 } from './customer-shell';
-import { getTabBarStyle } from './useHideTabBar';
-
-export type CustomerTabParamList = {
-  Home: undefined;
-  Send: undefined;
-  Receive: { parcelId?: string; focusNonce?: number } | undefined;
-  Points: undefined;
-};
 
 export type CustomerStackParamList = {
-  Tabs: NavigatorScreenParams<CustomerTabParamList> | undefined;
+  Home: { parcelId?: string; focusNonce?: number } | undefined;
   TrackResult: { parcel: CustomerParcel };
   Notifications: undefined;
   NotificationPreferences: undefined;
@@ -53,14 +39,7 @@ export type CustomerStackParamList = {
   About: undefined;
 };
 
-const Tab = createBottomTabNavigator<CustomerTabParamList>();
 const Stack = createNativeStackNavigator<CustomerStackParamList>();
-
-function tabIcon(name: keyof typeof Feather.glyphMap): BottomTabNavigationOptions['tabBarIcon'] {
-  return ({ focused, color, size }) => (
-    <Feather name={name} size={size} color={color} strokeWidth={focused ? 2.25 : 2} />
-  );
-}
 
 type CustomerNavigatorProps = {
   initialParcelId?: string;
@@ -68,30 +47,19 @@ type CustomerNavigatorProps = {
   onRequestAuth?: (mode?: 'login' | 'register') => void;
 };
 
-const ParcelFocusContext = createContext<{ parcelId?: string; nonce: number }>({ nonce: 0 });
 const StackNavRefContext = createContext<
   MutableRefObject<NativeStackNavigationProp<CustomerStackParamList> | null>
 >({ current: null });
-const FocusParcelRefContext = createContext<MutableRefObject<(parcelId: string) => void>>({
-  current: () => {},
-});
 
 export function CustomerNavigator({
   initialParcelId,
   isGuest = false,
   onRequestAuth,
 }: CustomerNavigatorProps) {
-  const [focusedParcelId, setFocusedParcelId] = useState(initialParcelId);
-  const [parcelFocusNonce, setParcelFocusNonce] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const stackNavRef = useRef<NativeStackNavigationProp<CustomerStackParamList> | null>(null);
   const setDrawerOpenRef = useRef(setDrawerOpen);
-  const focusParcelRef = useRef<(parcelId: string) => void>(() => {});
   setDrawerOpenRef.current = setDrawerOpen;
-  focusParcelRef.current = (parcelId: string) => {
-    setFocusedParcelId(parcelId);
-    setParcelFocusNonce((value) => value + 1);
-  };
 
   const shell = useMemo(
     () => ({
@@ -106,83 +74,59 @@ export function CustomerNavigator({
       },
       goToReceive: (parcelId?: string) => {
         setDrawerOpenRef.current(false);
-        if (parcelId) {
-          setFocusedParcelId(parcelId);
-          setParcelFocusNonce((value) => value + 1);
-        }
-        stackNavRef.current?.navigate('Tabs', {
-          screen: 'Receive',
-          params: parcelId ? { parcelId, focusNonce: Date.now() } : undefined,
-        });
-      },
-      goToSend: () => {
-        setDrawerOpenRef.current(false);
-        stackNavRef.current?.navigate('Tabs', { screen: 'Home' });
-      },
-      goToPoints: () => {
-        setDrawerOpenRef.current(false);
-        stackNavRef.current?.navigate('Tabs', { screen: 'Points' });
+        stackNavRef.current?.navigate(
+          'Home',
+          parcelId ? { parcelId, focusNonce: Date.now() } : undefined,
+        );
       },
       goToHome: () => {
         setDrawerOpenRef.current(false);
-        stackNavRef.current?.navigate('Tabs', { screen: 'Home' });
+        stackNavRef.current?.navigate('Home');
       },
     }),
     [isGuest, onRequestAuth],
-  );
-
-  const parcelFocus = useMemo(
-    () => ({ parcelId: focusedParcelId, nonce: parcelFocusNonce }),
-    [focusedParcelId, parcelFocusNonce],
   );
 
   return (
     <CustomerShellProvider value={shell}>
       <DrawerOpenContext.Provider value={drawerOpen}>
         <StackNavRefContext.Provider value={stackNavRef}>
-          <FocusParcelRefContext.Provider value={focusParcelRef}>
-            <ParcelFocusContext.Provider value={parcelFocus}>
-              <CustomerStack />
-            </ParcelFocusContext.Provider>
-          </FocusParcelRefContext.Provider>
+          <CustomerStack initialParcelId={initialParcelId} />
         </StackNavRefContext.Provider>
       </DrawerOpenContext.Provider>
     </CustomerShellProvider>
   );
 }
 
-const CustomerStack = memo(function CustomerStack() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Tabs" component={CustomerTabs} />
-      <Stack.Screen name="TrackResult" component={TrackResultRoute} />
-      <Stack.Screen name="Notifications" component={NotificationsRoute} />
-      <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesRoute} />
-      <Stack.Screen name="PersonalInfo" component={PersonalInfoRoute} />
-      <Stack.Screen name="Language" component={LanguageRoute} />
-      <Stack.Screen name="Country" component={CountryRoute} />
-      <Stack.Screen name="Appearance" component={AppearanceRoute} />
-      <Stack.Screen name="Help" component={HelpRoute} />
-      <Stack.Screen name="HowItWorks" component={HowItWorksRoute} />
-      <Stack.Screen name="Terms" component={TermsRoute} />
-      <Stack.Screen name="Privacy" component={PrivacyRoute} />
-      <Stack.Screen name="About" component={AboutRoute} />
-    </Stack.Navigator>
-  );
-});
-
-function CustomerTabs() {
-  const navigation = useNavigation<NativeStackNavigationProp<CustomerStackParamList>>();
-  const stackNavRef = useContext(StackNavRefContext);
-  stackNavRef.current = navigation;
-
+const CustomerStack = memo(function CustomerStack({
+  initialParcelId,
+}: {
+  initialParcelId?: string;
+}) {
   return (
     <View style={styles.fill}>
-      <CustomerTabBar />
+      <Stack.Navigator
+        screenOptions={{ headerShown: false }}
+        initialRouteName="Home"
+      >
+        <Stack.Screen name="Home" component={HomeRoute} initialParams={{ parcelId: initialParcelId }} />
+        <Stack.Screen name="TrackResult" component={TrackResultRoute} />
+        <Stack.Screen name="Notifications" component={NotificationsRoute} />
+        <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesRoute} />
+        <Stack.Screen name="PersonalInfo" component={PersonalInfoRoute} />
+        <Stack.Screen name="Language" component={LanguageRoute} />
+        <Stack.Screen name="Country" component={CountryRoute} />
+        <Stack.Screen name="Appearance" component={AppearanceRoute} />
+        <Stack.Screen name="Help" component={HelpRoute} />
+        <Stack.Screen name="HowItWorks" component={HowItWorksRoute} />
+        <Stack.Screen name="Terms" component={TermsRoute} />
+        <Stack.Screen name="Privacy" component={PrivacyRoute} />
+        <Stack.Screen name="About" component={AboutRoute} />
+      </Stack.Navigator>
       <DrawerHost />
     </View>
   );
-}
+});
 
 function DrawerHost() {
   const drawerOpen = useContext(DrawerOpenContext);
@@ -190,74 +134,22 @@ function DrawerHost() {
   return <ProfileDrawer isGuest={isGuest} open={drawerOpen} />;
 }
 
-const CustomerTabBar = memo(function CustomerTabBar() {
-  const { t } = useTranslation();
-  const colors = useColors();
-  const insets = useSafeAreaInsets();
-
-  const tabBarStyle = {
-    ...getTabBarStyle(colors),
-    height: 60 + insets.bottom,
-    paddingBottom: Math.max(insets.bottom, 8),
-  };
-
-  return (
-      <Tab.Navigator
-        screenOptions={{
-          headerShown: false,
-          tabBarStyle,
-          tabBarActiveTintColor: colors.primary,
-          tabBarInactiveTintColor: colors.textMuted,
-          tabBarLabelStyle: {
-            fontSize: 11,
-            fontWeight: '600',
-            letterSpacing: 0,
-            marginTop: 2,
-          },
-          tabBarHideOnKeyboard: true,
-        }}
-      >
-        <Tab.Screen
-          name="Home"
-          component={CustomerHomeScreen}
-          options={{ tabBarLabel: t('tabs.home'), tabBarIcon: tabIcon('home') }}
-        />
-        <Tab.Screen
-          name="Receive"
-          component={ReceiveTab}
-          options={{ tabBarLabel: t('tabs.receive'), tabBarIcon: tabIcon('package') }}
-        />
-        <Tab.Screen
-          name="Points"
-          component={PointsScreen}
-          options={{ tabBarLabel: t('tabs.points'), tabBarIcon: tabIcon('map-pin') }}
-        />
-      </Tab.Navigator>
-  );
-});
-
-function CustomerHomeScreen() {
+function HomeRoute() {
+  const navigation = useNavigation<NativeStackNavigationProp<CustomerStackParamList>>();
+  const route = useRoute<RouteProp<CustomerStackParamList, 'Home'>>();
   const stackNavRef = useContext(StackNavRefContext);
-  const onTrackResult = useCallback(
-    (parcel: CustomerParcel) => {
-      stackNavRef.current?.navigate('TrackResult', { parcel });
-    },
-    [stackNavRef],
-  );
-  return <CustomerHome onTrackResult={onTrackResult} />;
-}
-
-function ReceiveTab() {
-  const { parcelId, nonce } = useContext(ParcelFocusContext);
+  stackNavRef.current = navigation;
   const { isGuest, requestAuth } = useCustomerShell();
-  const stackNavRef = useContext(StackNavRefContext);
+
   return (
     <ReceiveScreen
-      initialParcelId={parcelId}
-      focusNonce={nonce}
+      titleKey={RECIPIENT_PRIMARY_TAB.i18nKey}
+      initialParcelId={route.params?.parcelId}
+      focusNonce={route.params?.focusNonce ?? 0}
       isGuest={isGuest}
       onRequestAuth={() => requestAuth('login')}
-      onOpenNotifications={() => stackNavRef.current?.navigate('Notifications')}
+      onOpenNotifications={() => navigation.navigate('Notifications')}
+      onTrackResult={(parcel) => navigation.navigate('TrackResult', { parcel })}
     />
   );
 }
@@ -270,17 +162,12 @@ function TrackResultRoute() {
 
 function NotificationsRoute() {
   const navigation = useNavigation<NativeStackNavigationProp<CustomerStackParamList>>();
-  const focusParcelRef = useContext(FocusParcelRefContext);
   return (
     <NotificationsScreen
       mode="CLIENT"
       onBack={() => navigation.goBack()}
       onOpenParcel={(parcelId) => {
-        focusParcelRef.current(parcelId);
-        navigation.navigate('Tabs', {
-          screen: 'Receive',
-          params: { parcelId, focusNonce: Date.now() },
-        });
+        navigation.navigate('Home', { parcelId, focusNonce: Date.now() });
       }}
     />
   );
@@ -338,12 +225,6 @@ function PlaceholderRoute({
   const navigation = useNavigation<NativeStackNavigationProp<CustomerStackParamList>>();
   return <SettingsPlaceholder screen={screen} onBack={() => navigation.goBack()} />;
 }
-
-const styles = StyleSheet.create({
-  fill: {
-    flex: 1,
-  },
-});
 
 function SettingsPlaceholder({
   screen,
@@ -408,3 +289,9 @@ function SettingsPlaceholder({
     />
   );
 }
+
+const styles = StyleSheet.create({
+  fill: {
+    flex: 1,
+  },
+});

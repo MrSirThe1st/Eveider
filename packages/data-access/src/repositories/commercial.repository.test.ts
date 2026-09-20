@@ -58,6 +58,8 @@ describe('CommercialRepository', () => {
           id: 'zone-1',
           code: 'LSH',
           name: 'Lubumbashi',
+          status: 'active',
+          city_status: 'active',
           outbound_delivery_amount: 1500,
           return_delivery_amount: 1800,
         };
@@ -110,6 +112,8 @@ describe('CommercialRepository', () => {
           id: 'zone-1',
           code: 'LSH',
           name: 'Lubumbashi',
+          status: 'active',
+          city_status: 'active',
           outbound_delivery_amount: 1500,
           return_delivery_amount: 1800,
         };
@@ -145,6 +149,188 @@ describe('CommercialRepository', () => {
       payer: 'business',
       amount: 400,
     });
+  });
+
+  it('treats a configured 0 CDF outbound price as free', async () => {
+    const db = createSqlMatchMock((sql) => {
+      if (sqlIncludes(sql, 'FROM delivery_pricing_rules')) return pricingRow();
+      if (sqlIncludes(sql, 'FROM lockers l') && sqlIncludes(sql, 'service_areas')) {
+        return {
+          id: 'zone-1',
+          code: 'KIN',
+          name: 'Kinshasa',
+          status: 'active',
+          city_status: 'active',
+          outbound_delivery_amount: 0,
+          return_delivery_amount: 0,
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    repo = new CommercialRepository(db);
+
+    const quote = await repo.quoteOutbound({
+      pickupType: 'courier_pickup',
+      lockerId: 'locker-1',
+    });
+    expect(quote.amount).toBe(0);
+    expect(quote.kind).toBe('outbound_delivery');
+    expect(quote.pricingZoneId).toBe('zone-1');
+  });
+
+  it('fails closed when Flow 1 zone outbound pricing is unconfigured', async () => {
+    const db = createSqlMatchMock((sql) => {
+      if (sqlIncludes(sql, 'FROM delivery_pricing_rules')) return pricingRow();
+      if (sqlIncludes(sql, 'FROM lockers l') && sqlIncludes(sql, 'service_areas')) {
+        return {
+          id: 'zone-golf',
+          code: 'KWZ-GOLF',
+          name: 'Golf',
+          status: 'active',
+          city_status: 'active',
+          outbound_delivery_amount: null,
+          return_delivery_amount: 1500,
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    repo = new CommercialRepository(db);
+
+    await expect(
+      repo.quoteOutbound({ pickupType: 'courier_pickup', lockerId: 'locker-1' }),
+    ).rejects.toThrow('ZONE_PRICING_NOT_CONFIGURED');
+  });
+
+  it('fails closed when Flow 3A zone return pricing is unconfigured', async () => {
+    const db = createSqlMatchMock((sql) => {
+      if (sqlIncludes(sql, 'FROM delivery_pricing_rules')) return pricingRow();
+      if (sqlIncludes(sql, 'FROM lockers l') && sqlIncludes(sql, 'service_areas')) {
+        return {
+          id: 'zone-golf',
+          code: 'KWZ-GOLF',
+          name: 'Golf',
+          status: 'active',
+          city_status: 'active',
+          outbound_delivery_amount: 1500,
+          return_delivery_amount: null,
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    repo = new CommercialRepository(db);
+
+    await expect(
+      repo.quoteReturn({ method: 'eveider_return', returnLockerId: 'locker-1' }),
+    ).rejects.toThrow('ZONE_PRICING_NOT_CONFIGURED');
+  });
+
+  it('rejects Flow 1 quotes from an archived zone', async () => {
+    const db = createSqlMatchMock((sql) => {
+      if (sqlIncludes(sql, 'FROM delivery_pricing_rules')) return pricingRow();
+      if (sqlIncludes(sql, 'FROM lockers l') && sqlIncludes(sql, 'service_areas')) {
+        return {
+          id: 'zone-1',
+          code: 'LSH',
+          name: 'Lubumbashi',
+          status: 'archived',
+          city_status: 'active',
+          outbound_delivery_amount: 1500,
+          return_delivery_amount: 1800,
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    repo = new CommercialRepository(db);
+
+    await expect(
+      repo.quoteOutbound({ pickupType: 'courier_pickup', lockerId: 'locker-1' }),
+    ).rejects.toThrow('n’est plus active');
+  });
+
+  it('rejects Flow 1 quotes from a zone whose city is archived', async () => {
+    const db = createSqlMatchMock((sql) => {
+      if (sqlIncludes(sql, 'FROM delivery_pricing_rules')) return pricingRow();
+      if (sqlIncludes(sql, 'FROM lockers l') && sqlIncludes(sql, 'service_areas')) {
+        return {
+          id: 'zone-1',
+          code: 'LSH',
+          name: 'Lubumbashi',
+          status: 'active',
+          city_status: 'archived',
+          outbound_delivery_amount: 1500,
+          return_delivery_amount: 1800,
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    repo = new CommercialRepository(db);
+
+    await expect(
+      repo.quoteOutbound({ pickupType: 'courier_pickup', lockerId: 'locker-1' }),
+    ).rejects.toThrow('ville n’est plus active');
+  });
+
+  it('keeps a snapshotted charge when a later quote uses a new zone price', async () => {
+    const stored = chargeRow({ amount: 1500, pricing_zone_id: 'zone-1', currency: 'CDF' });
+    let outboundAmount: number | null = 1500;
+    const db = createSqlMatchMock((sql) => {
+      if (sqlIncludes(sql, 'FROM delivery_pricing_rules')) return pricingRow();
+      if (sqlIncludes(sql, 'FROM lockers l') && sqlIncludes(sql, 'service_areas')) {
+        return {
+          id: 'zone-1',
+          code: 'LSH',
+          name: 'Lubumbashi',
+          status: 'active',
+          city_status: 'active',
+          outbound_delivery_amount: outboundAmount,
+          return_delivery_amount: 1800,
+        };
+      }
+      if (sqlIncludes(sql, 'SELECT * FROM parcel_charges')) return stored;
+      if (sqlIncludes(sql, 'INSERT INTO parcel_charges')) return stored;
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    repo = new CommercialRepository(db);
+
+    const first = await repo.quoteOutbound({
+      pickupType: 'courier_pickup',
+      lockerId: 'locker-1',
+    });
+    const charge = await repo.snapshotCharge(db, {
+      parcelId: 'parcel-1',
+      businessId: 'biz-1',
+      kind: first.kind,
+      payer: first.payer,
+      amount: first.amount,
+      currency: first.currency,
+      pricingZoneId: first.pricingZoneId,
+    });
+
+    outboundAmount = 9999;
+    const nextQuote = await repo.quoteOutbound({
+      pickupType: 'courier_pickup',
+      lockerId: 'locker-1',
+    });
+    const still = await repo.snapshotCharge(db, {
+      parcelId: 'parcel-1',
+      businessId: 'biz-1',
+      kind: 'outbound_delivery',
+      payer: 'recipient',
+      amount: nextQuote.amount,
+      currency: 'CDF',
+      pricingZoneId: 'zone-other',
+    });
+
+    expect(charge.amount).toBe(1500);
+    expect(charge.currency).toBe('CDF');
+    expect(charge.pricingZoneId).toBe('zone-1');
+    expect(nextQuote.amount).toBe(9999);
+    expect(still.amount).toBe(1500);
+    expect(still.pricingZoneId).toBe('zone-1');
+    expect(db.query).not.toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE parcel_charges'),
+      expect.anything(),
+    );
   });
 
   it('snapshots a charge once and returns the existing row on retry', async () => {

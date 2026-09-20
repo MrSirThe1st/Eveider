@@ -93,7 +93,7 @@ export async function loadEveiderTeamPage(ctx: DataAccessContext, currentUserId:
           inviteUrl: buildTeamInviteLink(invite.token),
         }),
       ),
-    addDriverHref: '/tableau-de-bord/chauffeurs/nouveau',
+    addDriverHref: '/tableau-de-bord/flotte',
   };
 }
 

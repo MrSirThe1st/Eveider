@@ -10,8 +10,8 @@
   padding: clamp(0.7rem, 1.8vh, 1.25rem) clamp(0.7rem, 1.6vw, 1.35rem);
   padding-bottom: calc(clamp(0.7rem, 1.8vh, 1.25rem) + var(--support-widget-clearance, 96px));
   background:
-    radial-gradient(900px 480px at 8% 0%, rgba(9, 212, 11, 0.16), transparent 55%),
-    radial-gradient(700px 420px at 100% 100%, rgba(9, 212, 11, 0.1), transparent 48%),
+    radial-gradient(900px 480px at 8% 0%, rgba(63, 143, 115, 0.14), transparent 55%),
+    radial-gradient(700px 420px at 100% 100%, rgba(63, 143, 115, 0.08), transparent 48%),
     var(--color-background);
 }
 
@@ -112,7 +112,7 @@
   display: flex;
   flex-direction: column;
   background: var(--color-surface);
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border-subtle);
   border-radius: 20px;
   padding: 1.75rem 1.75rem 1.5rem;
   box-shadow:
@@ -214,7 +214,7 @@
 }
 
 .switchLine a:hover {
-  color: #08bd0a;
+  color: var(--color-primary-hover);
 }
 
 .switchBtn {
@@ -224,10 +224,10 @@
   width: 100%;
   height: 48px;
   margin-top: 0.9rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border-subtle);
   border-radius: 12px;
   background: var(--color-surface);
-  color: #121212;
+  color: var(--color-secondary);
   font: inherit;
   font-size: 0.875rem;
   font-weight: 700;
@@ -235,8 +235,8 @@
 }
 
 .switchBtn:hover {
-  border-color: #08bd0a;
-  background: #f7fff7;
+  border-color: var(--color-primary);
+  background: var(--color-primary-muted);
 }
 
 .form {
@@ -271,7 +271,7 @@
   width: 100%;
   height: 52px;
   padding: 0 16px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border-subtle);
   border-radius: 12px;
   background: var(--color-surface);
   color: var(--color-secondary);
@@ -298,30 +298,30 @@
 .field input:not([type='radio']):not([type='checkbox']):focus {
   outline: none;
   background: var(--color-surface);
-  border-color: #08bd0a;
-  box-shadow: 0 0 0 4px rgba(8, 189, 10, 0.16);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus);
 }
 
 .phoneRow {
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: stretch;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border-subtle);
   border-radius: 12px;
   background: var(--color-surface);
   overflow: hidden;
 }
 
 .phoneRow:focus-within {
-  border-color: #08bd0a;
-  box-shadow: 0 0 0 4px rgba(8, 189, 10, 0.16);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus);
 }
 
 .phonePrefix {
   display: inline-flex;
   align-items: center;
   padding: 0 0.85rem;
-  border-right: 1px solid #e5e7eb;
+  border-right: 1px solid var(--color-border-subtle);
   background: #fafafa;
   color: #6b7280;
   font-size: 0.875rem;
@@ -393,7 +393,7 @@
 .check input {
   width: 16px;
   height: 16px;
-  accent-color: #09d40b;
+  accent-color: var(--color-primary);
 }
 
 .submit {
@@ -406,14 +406,14 @@
   margin-top: 0.35rem;
   border: 0;
   border-radius: 14px;
-  background: #08bd0a;
-  color: #121212;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
   font: inherit;
   font-size: 0.9375rem;
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
-  box-shadow: 0 8px 20px rgba(9, 212, 11, 0.22);
+  box-shadow: 0 8px 20px rgba(63, 143, 115, 0.22);
   transition:
     background 0.15s ease,
     transform 0.15s ease,
@@ -421,7 +421,7 @@
 }
 
 .submit:hover:not(:disabled) {
-  background: #07a609;
+  background: var(--color-primary-hover);
   transform: translateY(-1px);
 }
 
@@ -438,7 +438,7 @@
   flex: 1;
   height: 44px;
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border-subtle);
   background: var(--color-surface);
   color: var(--color-secondary);
   font: inherit;
@@ -453,7 +453,7 @@
   height: 44px;
   border-radius: 12px;
   border: 0;
-  background: #f3f4f6;
+  background: var(--color-surface-subtle);
   color: var(--color-secondary);
   font: inherit;
   font-size: 0.8125rem;
@@ -495,9 +495,9 @@
   align-items: center;
   gap: 0.7rem;
   padding: 0.7rem 0.85rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border-subtle);
   border-radius: 12px;
-  background: #f8faf9;
+  background: var(--color-surface-muted);
   cursor: pointer;
   font-size: 0.8125rem;
   font-weight: 500;
@@ -508,12 +508,12 @@
 }
 
 .roleOption input {
-  accent-color: #09d40b;
+  accent-color: var(--color-primary);
 }
 
 .roleOptionActive {
-  border-color: #08bd0a;
-  background: #f0fdf0;
+  border-color: var(--color-primary);
+  background: var(--color-primary-muted);
   color: var(--color-secondary);
   font-weight: 700;
   box-shadow: none;
@@ -522,7 +522,7 @@
 .otpBox {
   padding: 1rem 1.1rem;
   border-radius: 14px;
-  background: #f8faf9;
+  background: var(--color-surface-muted);
   border: 1px dashed #d1d5db;
   text-align: center;
 }
@@ -541,7 +541,7 @@
   font-size: 1.35rem;
   font-weight: 800;
   letter-spacing: 0.22em;
-  color: #09d40b;
+  color: var(--color-primary);
 }
 
 .otpInput {
@@ -576,7 +576,7 @@
   width: 100%;
   margin: 0;
   padding: 3px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border-subtle);
   border-radius: 999px;
   background: var(--color-surface);
   box-shadow: inset 0 1px 2px rgba(16, 24, 40, 0.04);
@@ -601,7 +601,7 @@
 }
 
 .tabActive {
-  color: #121212;
+  color: var(--color-secondary);
 }
 
 .tabPill {
@@ -612,8 +612,8 @@
   width: calc((100% - 6px) / 2);
   border: 0;
   border-radius: 999px;
-  background: #08bd0a;
-  box-shadow: 0 1px 4px rgba(8, 189, 10, 0.35);
+  background: var(--color-primary);
+  box-shadow: 0 1px 4px rgba(63, 143, 115, 0.28);
   pointer-events: none;
   transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }

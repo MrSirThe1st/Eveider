@@ -2,6 +2,7 @@ import { confirmMerchantDepositSchema, fail, ok } from '@eveider/api-contracts';
 import { createRepositories } from '@eveider/data-access';
 import { NextResponse } from 'next/server';
 import { toParcelDto } from '@/lib/business-parcel-presenter';
+import { resolveAvailableCompartmentId } from '@/lib/resolve-compartment';
 import { requireBusinessSession } from '@/lib/session';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -22,10 +23,24 @@ export async function POST(request: Request, context: RouteContext) {
 
   try {
     const { parcels } = createRepositories();
+    const existing = await parcels.findForBusiness(
+      auth.session.ctx,
+      auth.session.profile.businessId!,
+      id,
+    );
+    if (!existing) {
+      return NextResponse.json(fail('Colis introuvable'), { status: 404 });
+    }
+    const compartmentId =
+      body.data.compartmentId ??
+      existing.compartment?.id ??
+      (existing.lockerId
+        ? await resolveAvailableCompartmentId(existing.lockerId, existing.packageSize)
+        : undefined);
     const parcel = await parcels.confirmMerchantDeposit(
       auth.session.ctx,
       id,
-      body.data.compartmentId,
+      compartmentId,
     );
     if (parcel.businessId !== auth.session.profile.businessId) {
       return NextResponse.json(fail('Colis hors périmètre'), { status: 403 });

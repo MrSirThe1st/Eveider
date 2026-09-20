@@ -22,6 +22,8 @@ import {
   useLockerLayout,
 } from '@/components/locker-layout-preview';
 import { fetchJson } from '@/lib/api/fetch-json';
+import type { CityOptionDto } from '@/lib/city-presenter';
+import { formatZoneCoverageLabel, suggestCityFromAddress, zonesForCity } from '@/lib/geography-presentation';
 import type { LockerLayoutTemplateDto } from '@/server/locker-settings';
 
 const inputStyle: React.CSSProperties = {
@@ -66,13 +68,19 @@ type ServiceAreaOption = {
   id: string;
   label: string;
   city: string;
+  cityId: string;
+  code: string;
+  name: string;
 };
 
 type LockerCreatePanelProps = {
   address: string;
   onAddressChange: (value: string) => void;
   placementConfirmed: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
   saving: boolean;
+  cities?: CityOptionDto[];
   serviceAreas?: ServiceAreaOption[];
   onCreate: (input: CreatePointPayload) => void;
 };
@@ -87,7 +95,10 @@ export function LockerCreatePanel({
   address,
   onAddressChange,
   placementConfirmed,
+  latitude = null,
+  longitude = null,
   saving,
+  cities = [],
   serviceAreas = [],
   onCreate,
 }: LockerCreatePanelProps) {
@@ -106,6 +117,8 @@ export function LockerCreatePanel({
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [status, setStatus] = useState<CreateStatus>('active');
+  const [cityId, setCityId] = useState('');
+  const [cityTouched, setCityTouched] = useState(false);
   const [serviceAreaId, setServiceAreaId] = useState('');
   const [suggesting, setSuggesting] = useState(false);
 
@@ -184,10 +197,28 @@ export function LockerCreatePanel({
     };
   }, [address, placementConfirmed, nameTouched]);
 
+  useEffect(() => {
+    if (cityTouched) return;
+    const suggested = suggestCityFromAddress(address, cities);
+    if (suggested && suggested !== cityId) {
+      setCityId(suggested);
+      setServiceAreaId('');
+    }
+  }, [address, cities, cityTouched, cityId]);
+
+  const zonesInCity = zonesForCity(serviceAreas, cityId);
+  const selectedCity = cities.find((city) => city.id === cityId) ?? null;
+  const selectedZone = serviceAreas.find((area) => area.id === serviceAreaId) ?? null;
+
   const capacityOk = layoutSource === 'template' ? Boolean(selectedTemplateId) : true;
 
   const canCreate =
-    placementConfirmed && code.trim() && name.trim() && address.trim() && capacityOk;
+    placementConfirmed &&
+    code.trim() &&
+    name.trim() &&
+    address.trim() &&
+    Boolean(serviceAreaId) &&
+    capacityOk;
 
   const previewCapacity = `${layout.cells.length} compartiments`;
 
@@ -267,7 +298,7 @@ export function LockerCreatePanel({
       name: name.trim(),
       address: address.trim(),
       status,
-      ...(serviceAreaId ? { serviceAreaId } : {}),
+      serviceAreaId,
     };
 
     payload.rows = layout.rows;
@@ -278,13 +309,79 @@ export function LockerCreatePanel({
   }
 
   return (
-    <div>
-      <p style={{ margin: '0 0 0.5rem', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>
-        CONFIGURER LE CASIER
-      </p>
-      <p style={{ margin: '0 0 1rem', fontSize: '0.75rem', color: colors.secondary, opacity: 0.75 }}>
-        Casier intelligent uniquement. L’emplacement final est celui du repère sur la carte.
-      </p>
+    <div style={{ display: 'grid', gap: '1.5rem' }}>
+      <section>
+        <p style={{ margin: '0 0 0.5rem', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>
+          LOCALISATION
+        </p>
+        <label style={{ display: 'block', marginBottom: '0.85rem' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>ADRESSE</span>
+          <input value={address} onChange={(e) => onAddressChange(e.target.value)} style={inputStyle} />
+        </label>
+        {latitude != null && longitude != null ? (
+          <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>
+            {latitude.toFixed(6)}, {longitude.toFixed(6)}
+          </p>
+        ) : (
+          <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>
+            Placez un repère sur la carte. Le clic carte ne crée pas le casier.
+          </p>
+        )}
+      </section>
+
+      <section>
+        <p style={{ margin: '0 0 0.5rem', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>
+          GÉOGRAPHIE
+        </p>
+        <label style={{ display: 'block', marginBottom: '0.85rem' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>VILLE</span>
+          <select
+            value={cityId}
+            aria-label="Ville"
+            onChange={(e) => {
+              setCityTouched(true);
+              setCityId(e.target.value);
+              setServiceAreaId('');
+            }}
+            style={inputStyle}
+          >
+            <option value="">Choisir une ville</option>
+            {cities.map((city) => (
+              <option key={city.id} value={city.id}>
+                {city.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>ZONE</span>
+          <select
+            value={serviceAreaId}
+            aria-label="Zone"
+            disabled={!cityId}
+            onChange={(e) => setServiceAreaId(e.target.value)}
+            style={inputStyle}
+          >
+            <option value="">{cityId ? 'Choisir une zone' : 'Choisissez d’abord une ville'}</option>
+            {zonesInCity.map((area) => (
+              <option key={area.id} value={area.id}>
+                {formatZoneCoverageLabel(area)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p style={{ margin: 0, fontSize: '0.75rem', color: colors.textMuted }}>
+          L’adresse peut suggérer une ville. La zone n’est jamais choisie automatiquement.
+        </p>
+      </section>
+
+      <section>
+        <p style={{ margin: '0 0 0.5rem', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>
+          CASIER
+        </p>
+        <p style={{ margin: '0 0 1rem', fontSize: '0.75rem', color: colors.secondary, opacity: 0.75 }}>
+          Casier intelligent uniquement. L’emplacement final est celui du repère sur la carte.
+        </p>
 
       <label style={{ display: 'block', marginBottom: '0.85rem' }}>
         <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>CODE</span>
@@ -308,29 +405,12 @@ export function LockerCreatePanel({
           style={inputStyle}
         />
       </label>
+      </section>
 
-      <label style={{ display: 'block', marginBottom: '1rem' }}>
-        <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>ADRESSE</span>
-        <input value={address} onChange={(e) => onAddressChange(e.target.value)} style={inputStyle} />
-      </label>
-
-      {serviceAreas.length > 0 ? (
-        <label style={{ display: 'block', marginBottom: '1rem' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>ZONE DE SERVICE</span>
-          <select
-            value={serviceAreaId}
-            onChange={(e) => setServiceAreaId(e.target.value)}
-            style={inputStyle}
-          >
-            <option value="">Automatique (selon la ville)</option>
-            {serviceAreas.map((area) => (
-              <option key={area.id} value={area.id}>
-                {area.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : null}
+      <section>
+        <p style={{ margin: '0 0 0.75rem', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>
+          CONFIGURATION
+        </p>
 
       {smartLocker ? (
         <>
@@ -529,10 +609,25 @@ export function LockerCreatePanel({
           </label>
         ))}
       </div>
+      </section>
 
-      <div style={{ ...webCardStyle, marginBottom: '1rem', padding: '1rem' }}>
+      <section>
         <p style={{ margin: '0 0 0.75rem', fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>
-          APERÇU DU POINT
+          RÉCAPITULATIF
+        </p>
+      <div style={{ ...webCardStyle, marginBottom: '1rem', padding: '1rem' }}>
+        <p style={{ margin: '0 0 4px', fontSize: '0.8125rem' }}>
+          <strong>Lieu :</strong> {address || '—'}
+          {latitude != null && longitude != null
+            ? ` (${latitude.toFixed(5)}, ${longitude.toFixed(5)})`
+            : ''}
+        </p>
+        <p style={{ margin: '0 0 4px', fontSize: '0.8125rem' }}>
+          <strong>Ville :</strong> {selectedCity?.name ?? '—'}
+        </p>
+        <p style={{ margin: '0 0 4px', fontSize: '0.8125rem' }}>
+          <strong>Zone :</strong>{' '}
+          {selectedZone ? formatZoneCoverageLabel(selectedZone) : '—'}
         </p>
         <p style={{ margin: '0 0 4px', fontSize: '0.8125rem' }}>
           <strong>Type :</strong> {LOCKER_TYPE_LABELS[type]}
@@ -543,16 +638,13 @@ export function LockerCreatePanel({
         <p style={{ margin: '0 0 4px', fontSize: '0.8125rem' }}>
           <strong>Nom :</strong> {name || '—'}
         </p>
-        <p style={{ margin: '0 0 4px', fontSize: '0.8125rem' }}>
-          <strong>Lieu :</strong> {address || '—'}
-        </p>
         {smartLocker && layoutSource === 'template' ? (
           <p style={{ margin: '0 0 4px', fontSize: '0.8125rem' }}>
             <strong>Modèle :</strong> {selectedTemplate?.name ?? '—'}
           </p>
         ) : null}
         <p style={{ margin: '0 0 12px', fontSize: '0.8125rem' }}>
-          <strong>Capacité :</strong> {previewCapacity} — {status === 'active' ? 'Actif' : 'Inactif'}
+          <strong>Compartiments :</strong> {previewCapacity} — {status === 'active' ? 'Actif' : 'Inactif'}
         </p>
         {smartLocker ? <LockerLayoutPreview layout={layout} compact /> : null}
       </div>
@@ -565,8 +657,9 @@ export function LockerCreatePanel({
         onClick={submit}
         style={{ width: '100%', height: spacing.buttonHeight, fontWeight: 700 }}
       >
-        Créer le point
+        Créer le casier
       </Button>
+      </section>
     </div>
   );
 }

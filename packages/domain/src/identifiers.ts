@@ -4,17 +4,17 @@
  */
 export const CROCKFORD_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 
-const CHECK_ALPHABET = `${CROCKFORD_ALPHABET}*~$=`;
+const CHECK_ALPHABET = `${CROCKFORD_ALPHABET}*~$=U`;
 
 export const TRACKING_NUMBER_PREFIX = 'EVD';
 export const POINT_CODE_PREFIX = 'EVP';
 export const BUSINESS_ACCESS_CODE_PREFIX = 'EVB';
 
 /** EVD + YY + 8 body + 1 check → 14 chars */
-export const TRACKING_NUMBER_PATTERN = /^EVD\d{2}[0-9A-HJKMNP-TV-Z]{8}[0-9A-HJKMNP-TV-Z*~$=]$/;
+export const TRACKING_NUMBER_PATTERN = /^EVD\d{2}[0-9A-HJKMNP-TV-Z]{8}[0-9A-HJKMNP-TV-Z*~$=U]$/;
 
 /** EVP + 6 body + 1 check → 10 chars */
-export const POINT_CODE_PATTERN = /^EVP[0-9A-HJKMNP-TV-Z]{6}[0-9A-HJKMNP-TV-Z*~$=]$/;
+export const POINT_CODE_PATTERN = /^EVP[0-9A-HJKMNP-TV-Z]{6}[0-9A-HJKMNP-TV-Z*~$=U]$/;
 
 /** EVB- + 6 Crockford chars → e.g. EVB-A7K3M2 */
 export const BUSINESS_ACCESS_CODE_PATTERN = /^EVB-[0-9A-HJKMNP-TV-Z]{6}$/;

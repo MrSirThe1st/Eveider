@@ -30,6 +30,9 @@ export type LockerSummaryDto = {
   city: string | null;
   serviceAreaId: string | null;
   serviceAreaName: string | null;
+  serviceAreaCode: string | null;
+  serviceAreaCity: string | null;
+  serviceAreaCityId: string | null;
   latitude: number | null;
   longitude: number | null;
   rows: number;
@@ -108,6 +111,9 @@ export type LockerDetailDto = {
   city: string | null;
   serviceAreaId: string | null;
   serviceAreaName: string | null;
+  serviceAreaCode: string | null;
+  serviceAreaCity: string | null;
+  serviceAreaCityId: string | null;
   latitude: number | null;
   longitude: number | null;
   rows: number;
@@ -217,6 +223,9 @@ export function toLockerSummaryDto(locker: {
   city?: string | null;
   serviceAreaId?: string | null;
   serviceAreaName?: string | null;
+  serviceAreaCode?: string | null;
+  serviceAreaCity?: string | null;
+  serviceAreaCityId?: string | null;
   latitude: number | null;
   longitude: number | null;
   rows: number;
@@ -247,6 +256,9 @@ export function toLockerSummaryDto(locker: {
     city: locker.city ?? null,
     serviceAreaId: locker.serviceAreaId ?? null,
     serviceAreaName: locker.serviceAreaName ?? null,
+    serviceAreaCode: locker.serviceAreaCode ?? null,
+    serviceAreaCity: locker.serviceAreaCity ?? null,
+    serviceAreaCityId: locker.serviceAreaCityId ?? null,
     latitude: locker.latitude,
     longitude: locker.longitude,
     rows: locker.rows,
@@ -266,6 +278,9 @@ export function toLockerDetailDto(locker: {
   city?: string | null;
   serviceAreaId?: string | null;
   serviceAreaName?: string | null;
+  serviceAreaCode?: string | null;
+  serviceAreaCity?: string | null;
+  serviceAreaCityId?: string | null;
   latitude: number | null;
   longitude: number | null;
   rows: number;
@@ -303,6 +318,9 @@ export function toLockerDetailDto(locker: {
     city: locker.city ?? null,
     serviceAreaId: locker.serviceAreaId ?? null,
     serviceAreaName: locker.serviceAreaName ?? null,
+    serviceAreaCode: locker.serviceAreaCode ?? null,
+    serviceAreaCity: locker.serviceAreaCity ?? null,
+    serviceAreaCityId: locker.serviceAreaCityId ?? null,
     latitude: locker.latitude,
     longitude: locker.longitude,
     rows: locker.rows,

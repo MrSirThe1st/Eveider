@@ -17,6 +17,10 @@ export async function GET(request: Request) {
   const query = listParcelsQuerySchema.safeParse({
     status: searchParams.get('status') ?? undefined,
     search: searchParams.get('search') ?? undefined,
+    attention: searchParams.get('attention') ?? undefined,
+    pickupType: searchParams.get('pickupType') ?? undefined,
+    lockerId: searchParams.get('lockerId') ?? undefined,
+    businessId: searchParams.get('businessId') ?? undefined,
   });
 
   if (!query.success) {
@@ -30,6 +34,10 @@ export async function GET(request: Request) {
       parcels.listAll(auth.session.ctx, {
         status: query.data.status,
         search: query.data.search,
+        attention: query.data.attention,
+        pickupType: query.data.pickupType,
+        lockerId: query.data.lockerId,
+        businessId: query.data.businessId,
       }),
     );
 

@@ -3,16 +3,18 @@
 import { colors, webCardStyle } from '@eveider/config-ui';
 import { Button, InlineAlert } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FlashBanner } from '@/components/flash-banner';
 import { BusinessReportIssue } from '@/components/business-report-issue';
-import { BusinessParcelLocationBadge } from '@/components/business-parcel-location-badge';
-import {
-  BusinessParcelProgression,
-} from '@/components/business-parcel-progression';
 import { ParcelInvitePanel } from '@/components/parcel-invite-panel';
 import { ParcelEventTimeline } from '@/components/parcel-event-timeline';
+import { ParcelStatusBadge } from '@/components/parcel-status-badge';
 import { ShippingLabel } from '@/components/shipping-label';
+import {
+  getBusinessDeliveryStatusLabel,
+  getBusinessParcelDisplayStatus,
+  getFulfillmentMethodLabel,
+} from '@/lib/business-presentation';
 import type { IssueItem } from '@/server/issues';
 import type { BusinessParcelDetailView, ParcelInviteView } from '@/server/parcels';
 
@@ -49,9 +51,37 @@ export function BusinessParcelDetail({
   const [returnMethod, setReturnMethod] = useState<'eveider_return' | 'business_pickup'>(
     'eveider_return',
   );
-  const [returnLockerId, setReturnLockerId] = useState(
-    parcel.returnLockerOptions[0]?.id ?? '',
-  );
+  const [returnLockerId, setReturnLockerId] = useState(parcel.returnLockerOptions[0]?.id ?? '');
+  const [returnQuoteLabel, setReturnQuoteLabel] = useState<string | null>(null);
+
+  const isFlow2 = parcel.pickupType === 'merchant_dropoff';
+  const statusLabel = getBusinessParcelDisplayStatus({
+    status: parcel.status,
+    pickupType: parcel.pickupType,
+    hasAssignedOutboundDelivery: parcel.activeDelivery?.kind === 'outbound',
+  });
+
+  useEffect(() => {
+    if (!parcel.customerReturn?.canApprove || !returnLockerId) {
+      setReturnQuoteLabel(null);
+      return;
+    }
+    const params = new URLSearchParams({ method: returnMethod, returnLockerId });
+    let cancelled = false;
+    void fetch(`/api/organisation/return-quote?${params.toString()}`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (!cancelled && json.success) {
+          setReturnQuoteLabel(json.data.feeLabel as string);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setReturnQuoteLabel(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [parcel.customerReturn?.canApprove, returnLockerId, returnMethod]);
 
   async function confirmDeposit() {
     setDepositing(true);
@@ -99,51 +129,26 @@ export function BusinessParcelDetail({
     }
   }
 
+  const createdMessage = isFlow2
+    ? `Colis créé. Déposez maintenant le colis au casier ${parcel.locker?.name ?? ''}.`
+    : 'Colis créé. Eveider doit maintenant organiser la collecte auprès de votre entreprise.';
+
   return (
     <div style={{ width: '100%' }}>
-      {justCreated ? (
-        <FlashBanner message={`Colis ${parcel.trackingNumber} créé avec succès.`} />
-      ) : null}
+      {justCreated ? <FlashBanner message={createdMessage} /> : null}
 
-      <section
-        style={{
-          ...webCardStyle,
-          padding: '2rem',
-          marginBottom: '1.25rem',
-        }}
-      >
+      <section style={{ ...webCardStyle, padding: '1.5rem', marginBottom: '1.25rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
-          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>
-            {parcel.trackingNumber}
-          </h2>
-          <BusinessParcelLocationBadge location={parcel.location} />
+          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>{parcel.trackingNumber}</h2>
+          <ParcelStatusBadge status={parcel.status} label={statusLabel} />
         </div>
-
-        <dl style={{ margin: '2rem 0 0', display: 'grid', gap: '1.25rem' }}>
+        <dl style={{ margin: '1.5rem 0 0', display: 'grid', gap: '1rem' }}>
           {parcel.reference ? (
             <div>
-              <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
-                Réf. marchande
-              </dt>
+              <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>Référence</dt>
               <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>{parcel.reference}</dd>
             </div>
           ) : null}
-          <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>Collecte</dt>
-            <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>{parcel.pickupTypeLabel}</dd>
-          </div>
-          <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>Expéditeur</dt>
-            <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
-              {parcel.senderName} · {parcel.senderPhone}
-              {parcel.senderAddress ? (
-                <>
-                  <br />
-                  <span style={{ fontSize: '0.875rem' }}>{parcel.senderAddress}</span>
-                </>
-              ) : null}
-            </dd>
-          </div>
           <div>
             <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>Destinataire</dt>
             <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
@@ -151,75 +156,117 @@ export function BusinessParcelDetail({
             </dd>
           </div>
           <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
-              Point de retrait
-            </dt>
-            <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>
-              {parcel.locker ? (
-                <>
-                  {parcel.locker.name}
-                  <br />
-                  <span style={{ fontSize: '0.875rem' }}>{parcel.locker.address}</span>
-                  {parcel.compartment ? (
-                    <>
-                      <br />
-                      <span style={{ fontSize: '0.875rem' }}>
-                        Compartiment {parcel.compartment.label}
-                      </span>
-                    </>
-                  ) : null}
-                </>
-              ) : (
-                '—'
-              )}
-            </dd>
+            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>Créé</dt>
+            <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>{formatDateTime(parcel.createdAt)}</dd>
           </div>
-          {parcel.deliveryFeeLabel ? (
-            <div>
-              <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
-                {parcel.pickupType === 'merchant_dropoff' ? 'Frais de dépôt' : 'Frais de livraison'}
-              </dt>
-              <dd style={{ margin: '0.35rem 0 0', fontWeight: 500 }}>{parcel.deliveryFeeLabel}</dd>
-            </div>
-          ) : parcel.pickupType === 'merchant_dropoff' && parcel.status === 'created' ? (
-            <div>
-              <dt style={{ fontSize: '0.6875rem', fontWeight: 600, opacity: 0.7 }}>
-                Frais de dépôt
-              </dt>
-              <dd style={{ margin: '0.35rem 0 0', fontWeight: 500, color: colors.textMuted }}>
-                Facturés à la confirmation du dépôt
-              </dd>
-            </div>
-          ) : null}
         </dl>
       </section>
 
-      <BusinessParcelProgression steps={parcel.progression} />
+      <section style={{ ...webCardStyle, padding: '1.25rem', marginBottom: '1.25rem' }}>
+        <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.95rem' }}>Méthode</h3>
+        <p style={{ margin: 0, fontWeight: 600 }}>{getFulfillmentMethodLabel(parcel.pickupType)}</p>
+        {isFlow2 ? (
+          <p style={{ margin: '0.5rem 0 0', fontSize: 14, color: colors.textMuted }}>
+            Aucun transport Eveider. Vous apportez ce colis au casier.
+          </p>
+        ) : (
+          <p style={{ margin: '0.5rem 0 0', fontSize: 14, color: colors.textMuted }}>
+            Un chauffeur Eveider vient récupérer le colis auprès de votre entreprise.
+          </p>
+        )}
+      </section>
+
+      {parcel.activeDelivery && !isFlow2 ? (
+        <section style={{ ...webCardStyle, padding: '1.25rem', marginBottom: '1.25rem' }}>
+          <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.95rem' }}>
+            {parcel.activeDelivery.kindLabel}
+          </h3>
+          <p style={{ margin: 0, fontSize: 14 }}>
+            Chauffeur Eveider : {parcel.activeDelivery.driverName ?? '—'}
+          </p>
+          <p style={{ margin: '0.35rem 0 0', fontSize: 14, color: colors.textMuted }}>
+            État : {parcel.activeDelivery.statusLabel}
+          </p>
+        </section>
+      ) : null}
+
+      {isFlow2 && parcel.status === 'created' ? (
+        <section style={{ ...webCardStyle, padding: '1.25rem', marginBottom: '1.25rem' }}>
+          <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.95rem' }}>Dépôt au casier</h3>
+          <p style={{ margin: 0, fontSize: 14 }}>
+            Déposez le colis au casier {parcel.locker?.name ?? ''}.
+          </p>
+          {parcel.locker?.address ? (
+            <p style={{ margin: '0.35rem 0 0', fontSize: 14, color: colors.textMuted }}>
+              {parcel.locker.address}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
+
+      <section style={{ ...webCardStyle, padding: '1.25rem', marginBottom: '1.25rem' }}>
+        <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.95rem' }}>Casier</h3>
+        {parcel.locker ? (
+          <>
+            <p style={{ margin: 0, fontWeight: 600 }}>{parcel.locker.name}</p>
+            <p style={{ margin: '0.35rem 0 0', fontSize: 14, color: colors.textMuted }}>
+              {parcel.locker.address}
+            </p>
+          </>
+        ) : (
+          <p style={{ margin: 0, color: colors.textMuted }}>—</p>
+        )}
+      </section>
 
       {canManageOperations && parcel.canConfirmDeposit ? (
-        <section style={{ ...webCardStyle, padding: '1.25rem', marginTop: '1.25rem' }}>
-          <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.95rem' }}>Confirmer le dépôt</h3>
+        <section style={{ ...webCardStyle, padding: '1.25rem', marginBottom: '1.25rem' }}>
+          <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.95rem' }}>
+            Confirmer le dépôt — mode de secours
+          </h3>
           <p style={{ margin: '0 0 0.75rem', fontSize: 14, color: colors.textMuted }}>
-            Le colis est au point Eveider. La confirmation le rend prêt au retrait et facture le
-            frais de dépôt.
+            Solution temporaire tant que le casier n’est pas encore commissionné. La confirmation
+            place le colis « Au casier ». Le destinataire n’est prêt au retrait qu’après la
+            préparation Eveider.
           </p>
           {depositError ? <InlineAlert message={depositError} variant="error" /> : null}
           <Button disabled={depositing} onClick={() => void confirmDeposit()}>
-            {depositing ? 'Confirmation…' : 'Confirmer le dépôt au point'}
+            {depositing ? 'Confirmation…' : 'Confirmer le dépôt — mode de secours'}
           </Button>
         </section>
       ) : null}
 
+      {parcel.historicalRts ? (
+        <section style={{ ...webCardStyle, padding: '1.25rem', marginBottom: '1.25rem' }}>
+          <h3 style={{ margin: 0, fontSize: '0.95rem' }}>Retour non retiré (historique)</h3>
+          <p style={{ margin: '0.5rem 0 0', fontSize: 14, color: colors.textMuted }}>
+            Ancien retour de colis non retiré. Ce n’est pas un retour client.
+          </p>
+        </section>
+      ) : null}
+
       {parcel.customerReturn ? (
-        <section style={{ ...webCardStyle, padding: '1.25rem', marginTop: '1.25rem' }}>
+        <section style={{ ...webCardStyle, padding: '1.25rem', marginBottom: '1.25rem' }}>
           <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.95rem' }}>Retour client</h3>
-          <p style={{ margin: '0 0 0.75rem', fontSize: 14 }}>
-            {parcel.customerReturn.statusLabel}
+          <p style={{ margin: '0 0 0.35rem', fontSize: 14 }}>
+            Processus : {parcel.customerReturn.statusLabel}
             {parcel.customerReturn.methodLabel ? ` · ${parcel.customerReturn.methodLabel}` : ''}
           </p>
+          <p style={{ margin: '0 0 0.75rem', fontSize: 14, color: colors.textMuted }}>
+            État physique : {statusLabel}
+          </p>
+          {parcel.customerReturn.requestedAt ? (
+            <p style={{ margin: '0 0 0.75rem', fontSize: 13, color: colors.textMuted }}>
+              Demandé le {formatDateTime(parcel.customerReturn.requestedAt)}
+            </p>
+          ) : null}
+          {parcel.status === 'return_at_point' && parcel.customerReturn.method === 'business_pickup' ? (
+            <p style={{ margin: '0 0 0.75rem', fontSize: 14 }}>
+              Votre entreprise doit récupérer ce retour au casier.
+            </p>
+          ) : null}
           {parcel.customerReturn.returnLocker ? (
             <p style={{ margin: '0 0 0.75rem', fontSize: 14, color: colors.textMuted }}>
-              Casier : {parcel.customerReturn.returnLocker.name}
+              Casier de retour : {parcel.customerReturn.returnLocker.name}
             </p>
           ) : null}
           {returnError ? <InlineAlert message={returnError} variant="error" /> : null}
@@ -235,9 +282,14 @@ export function BusinessParcelDetail({
                   style={{ display: 'block', marginTop: 4, width: '100%', minHeight: 40 }}
                 >
                   <option value="eveider_return">Retour Eveider</option>
-                  <option value="business_pickup">Retrait marchand</option>
+                  <option value="business_pickup">Retrait par l’entreprise</option>
                 </select>
               </label>
+              <p style={{ margin: 0, fontSize: 13, color: colors.textMuted }}>
+                {returnMethod === 'eveider_return'
+                  ? 'Le destinataire dépose le retour au casier. Eveider le ramène ensuite à votre entreprise.'
+                  : 'Le destinataire dépose le retour au casier. Votre entreprise vient le récupérer.'}
+              </p>
               <label style={{ fontSize: 13 }}>
                 Casier de retour
                 <select
@@ -252,6 +304,12 @@ export function BusinessParcelDetail({
                   ))}
                 </select>
               </label>
+              {returnQuoteLabel ? (
+                <p style={{ margin: 0, fontSize: 14 }}>
+                  {returnMethod === 'eveider_return' ? 'Retour Eveider' : 'Retrait par l’entreprise'} :{' '}
+                  {returnQuoteLabel} · Payé par votre entreprise
+                </p>
+              ) : null}
               <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <Button
                   disabled={returnActing || !returnLockerId}
@@ -264,37 +322,55 @@ export function BusinessParcelDetail({
                 >
                   Autoriser
                 </Button>
-                <Button
-                  disabled={returnActing}
-                  onClick={() => void postReturnAction('reject')}
-                >
+                <Button disabled={returnActing} onClick={() => void postReturnAction('reject')}>
                   Refuser
                 </Button>
               </div>
             </div>
           ) : null}
           {canManageOperations && parcel.customerReturn.canConfirmPickup ? (
-            <Button disabled={returnActing} onClick={() => void postReturnAction('pickup')}>
-              Confirmer le retrait marchand
-            </Button>
+            <div>
+              <p style={{ margin: '0 0 0.75rem', fontSize: 13, color: colors.textMuted }}>
+                Confirmation manuelle — mode de secours, tant que le casier n’est pas commissionné.
+              </p>
+              <Button disabled={returnActing} onClick={() => void postReturnAction('pickup')}>
+                Confirmer le retrait — mode de secours
+              </Button>
+            </div>
           ) : null}
         </section>
       ) : null}
 
-      {parcel.charges.length > 0 ? (
-        <section style={{ ...webCardStyle, padding: '1.25rem', marginTop: '1.25rem' }}>
+      {parcel.recipientCharges.length > 0 ? (
+        <section style={{ ...webCardStyle, padding: '1.25rem', marginBottom: '1.25rem' }}>
+          <h3 style={{ margin: '0 0 0.75rem', fontSize: '0.95rem' }}>Frais destinataire</h3>
+          <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: '0.75rem' }}>
+            {parcel.recipientCharges.map((charge) => (
+              <li key={charge.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                <span>{charge.kindLabel}</span>
+                <strong>{charge.amountLabel}</strong>
+              </li>
+            ))}
+          </ul>
+          <p style={{ margin: '0.75rem 0 0', fontSize: 12, color: colors.textMuted }}>
+            À titre d’information — ces montants ne s’ajoutent pas à ce que votre entreprise doit.
+          </p>
+        </section>
+      ) : parcel.deliveryFeeLabel ? (
+        <section style={{ ...webCardStyle, padding: '1.25rem', marginBottom: '1.25rem' }}>
+          <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.95rem' }}>Frais destinataire</h3>
+          <p style={{ margin: 0, fontSize: 14 }}>
+            {isFlow2 ? 'Frais de retrait' : 'Frais de livraison'} : {parcel.deliveryFeeLabel}
+          </p>
+        </section>
+      ) : null}
+
+      {parcel.businessCharges.length > 0 ? (
+        <section style={{ ...webCardStyle, padding: '1.25rem', marginBottom: '1.25rem' }}>
           <h3 style={{ margin: '0 0 0.75rem', fontSize: '0.95rem' }}>Frais entreprise</h3>
           <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: '0.75rem' }}>
-            {parcel.charges.map((charge) => (
-              <li
-                key={charge.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  gap: '1rem',
-                  fontSize: 14,
-                }}
-              >
+            {parcel.businessCharges.map((charge) => (
+              <li key={charge.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
                 <span>
                   {charge.kindLabel}
                   {charge.kind === 'locker_rental' && charge.quantity != null
@@ -309,7 +385,7 @@ export function BusinessParcelDetail({
         </section>
       ) : null}
 
-      <section style={{ ...webCardStyle, padding: '1.5rem', marginTop: '1.25rem' }}>
+      <section style={{ ...webCardStyle, padding: '1.5rem', marginBottom: '1.25rem' }}>
         <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700 }}>Étiquette</h3>
         <ShippingLabel
           data={{
@@ -325,22 +401,19 @@ export function BusinessParcelDetail({
             packageSizeLabel: parcel.packageSizeLabel,
             packageCategoryLabel: parcel.packageCategoryLabel,
             paymentResponsibilityLabel: parcel.paymentResponsibilityLabel,
-            pickupTypeLabel: parcel.pickupTypeLabel,
+            pickupTypeLabel: getFulfillmentMethodLabel(parcel.pickupType),
             reference: parcel.reference,
           }}
         />
       </section>
 
-      {canManageOperations ? (
-        <ParcelInvitePanel parcelId={parcel.id} initialInvite={invite} />
-      ) : null}
+      {canManageOperations ? <ParcelInvitePanel parcelId={parcel.id} initialInvite={invite} /> : null}
 
       {canManageOperations ? (
         <section style={{ ...webCardStyle, padding: '1.5rem', marginTop: '1.25rem' }}>
-          <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700 }}>Signalement</h3>
+          <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700 }}>Signaler un problème</h3>
           <p style={{ margin: '0 0 1rem', fontSize: '0.875rem', color: colors.textMuted }}>
-            Un incident est visible par les opérations Eveider. Le code PIN client n’est jamais
-            affiché ici.
+            L’équipe Eveider verra ce signalement. Le code PIN n’est jamais affiché ici.
           </p>
           <BusinessReportIssue parcelId={parcel.id} initialIssues={issues} />
         </section>
@@ -348,12 +421,17 @@ export function BusinessParcelDetail({
 
       <p style={{ margin: '1rem 0 0', fontSize: '0.75rem', color: colors.textMuted }}>
         Mis à jour le {formatDateTime(parcel.updatedAt)}
-        {parcel.readyForPickupAt
-          ? ` · Prêt depuis le ${formatDateTime(parcel.readyForPickupAt)}`
-          : ''}
+        {parcel.readyForPickupAt ? ` · Prêt depuis le ${formatDateTime(parcel.readyForPickupAt)}` : ''}
       </p>
 
-      <ParcelEventTimeline events={parcel.events} compact />
+      <ParcelEventTimeline
+        events={parcel.events}
+        compact
+        parcelStatusLabel={(status) =>
+          getBusinessParcelDisplayStatus({ status, pickupType: parcel.pickupType })
+        }
+        deliveryStatusLabel={getBusinessDeliveryStatusLabel}
+      />
     </div>
   );
 }

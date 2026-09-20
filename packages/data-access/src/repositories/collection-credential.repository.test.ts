@@ -95,6 +95,7 @@ describe('CollectionCredentialRepository', () => {
       const credential = await repo.reconcileForParcel('parcel-1');
       expect(credential?.status).toBe('pending');
       expect(inserts[0]?.[6]).toBe('pending');
+      expect(inserts[0]?.[7]).toBe(false);
 
       setup((sql, values) => {
         if (sqlIncludes(sql, 'FROM locker_collection_credentials') && sqlIncludes(sql, 'sync_seq')) {

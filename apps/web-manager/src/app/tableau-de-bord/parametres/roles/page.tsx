@@ -1,10 +1,6 @@
-import { SettingsComingSoon } from '@/components/settings-coming-soon';
+import { redirect } from 'next/navigation';
+import { ADMIN_SETTINGS_ROUTES } from '@/lib/settings-nav';
 
 export default function AdminRolesSettingsPage() {
-  return (
-    <SettingsComingSoon
-      title="Droits d’accès"
-      description="Qui peut voir ou modifier quoi sur Eveider."
-    />
-  );
+  redirect(ADMIN_SETTINGS_ROUTES.admins);
 }

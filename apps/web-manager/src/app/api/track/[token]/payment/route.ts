@@ -30,7 +30,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     return NextResponse.json(
       ok({
         payment,
-        parcel: await buildCustomerParcelDto(parcel),
+        parcel: await buildCustomerParcelDto(parcel, { includeReturnCode: false }),
       }),
     );
   } catch (err) {
@@ -73,7 +73,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       ok({
         pawapayStatus: result.pawapayStatus,
         payment: await payments.getPickupPaymentSummary(session.parcelId),
-        parcel: await buildCustomerParcelDto(parcel),
+        parcel: await buildCustomerParcelDto(parcel, { includeReturnCode: false }),
       }),
     );
   } catch (err) {

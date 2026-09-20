@@ -1,4 +1,4 @@
-import type { IssueType, ParcelStatus } from '@eveider/domain';
+import type { IssueType, ParcelStatus, ShipmentPickupType } from '@eveider/domain';
 
 export type DashboardStats = {
   parcelsToday: number;
@@ -6,8 +6,12 @@ export type DashboardStats = {
   completedToday: number;
   readyForPickup: number;
   openIssues: number;
+  awaitingAssignment: number;
+  awaitingReturnAssignment: number;
+  atLocker: number;
   lockerOccupancy: {
     occupied: number;
+    reserved: number;
     total: number;
     available: number;
   };
@@ -31,10 +35,13 @@ export type DashboardParcelItem = {
   trackingNumber: string;
   reference: string | null;
   status: ParcelStatus;
+  statusLabel: string;
+  pickupType: ShipmentPickupType;
+  pickupTypeLabel: string;
   recipientName: string | null;
   recipientPhone: string;
   business: { id: string; name: string };
-  locker: { name: string; address: string } | null;
+  locker: { id: string; name: string; address: string } | null;
   createdAt: string;
 };
 

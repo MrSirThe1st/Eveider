@@ -22,9 +22,11 @@ describe('createParcelSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('accepts optional status filter', () => {
-    expect(listParcelsQuerySchema.safeParse({ status: 'created' }).success).toBe(true);
-    expect(listParcelsQuerySchema.safeParse({}).success).toBe(true);
+  it('accepts operational attention filters', () => {
+    expect(listParcelsQuerySchema.safeParse({ attention: 'awaiting_assignment' }).success).toBe(
+      true,
+    );
+    expect(listParcelsQuerySchema.safeParse({ pickupType: 'merchant_dropoff' }).success).toBe(true);
   });
 
   it('accepts valid status update', () => {

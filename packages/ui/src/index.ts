@@ -1,6 +1,16 @@
 export { colors, typography, radius, spacing } from '@eveider/config-ui';
 
-export { AppShell, type AppShellProps, type NavItem, type NavModule } from './app-shell.js';
+export {
+  AppShell,
+  type AppShellProps,
+  type NavItem,
+  type NavModule,
+} from './app-shell.js';
+export {
+  accountDisplayName,
+  groupNavModules,
+  initialsFromName,
+} from './app-shell-nav.js';
 export {
   PageHeader,
   type BreadcrumbItem,

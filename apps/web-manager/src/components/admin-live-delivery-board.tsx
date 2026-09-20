@@ -1,7 +1,6 @@
 'use client';
 
 import { colors, radius, webSecondaryButtonStyle } from '@eveider/config-ui';
-import { DELIVERY_STATUS_LABELS } from '@eveider/domain';
 import { EmptyState, FilterToolbar, IconTruck, LoadingSpinner, TableSkeleton } from '@eveider/ui';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -10,7 +9,9 @@ import { DeliveryStatusBadge } from '@/components/delivery-status-badge';
 import { FlashBanner } from '@/components/flash-banner';
 import { ListSearchField } from '@/components/list-search-field';
 import { ParcelExportMenu } from '@/components/parcel-export-menu';
-import { ParcelStatusBadge } from '@/components/parcel-status-badge';
+import {
+  getAdminDeliveryStatusLabel,
+} from '@/lib/admin-presentation';
 import {
   type DeliveryBoardView,
   type DeliveryFilters,
@@ -20,13 +21,13 @@ import {
 
 const STATUS_OPTIONS: { value: DeliveryStatusFilter; label: string }[] = [
   { value: 'all', label: 'Toutes actives' },
-  { value: 'assigned', label: DELIVERY_STATUS_LABELS.assigned },
-  { value: 'scanned', label: DELIVERY_STATUS_LABELS.scanned },
-  { value: 'drop_off_pending', label: DELIVERY_STATUS_LABELS.drop_off_pending },
+  { value: 'assigned', label: getAdminDeliveryStatusLabel('assigned') },
+  { value: 'scanned', label: getAdminDeliveryStatusLabel('scanned') },
+  { value: 'drop_off_pending', label: getAdminDeliveryStatusLabel('drop_off_pending') },
 ];
 
 function parseViewParam(raw: string | null): DeliveryBoardView {
-  if (raw === 'au_casier' || raw === 'collected' || raw === 'all') return raw;
+  if (raw === 'all') return 'all';
   return 'active';
 }
 
@@ -52,7 +53,7 @@ function lockerCell(
   return (
     <div>
       <Link
-        href={`/tableau-de-bord/points/${locker.id}`}
+        href={`/tableau-de-bord/casiers/${locker.id}`}
         style={{ color: colors.secondary, textDecoration: 'none', fontWeight: 600 }}
       >
         {locker.name}
@@ -71,6 +72,15 @@ export function AdminLiveDeliveryBoard() {
   const searchParams = useSearchParams();
   const viewFromUrl = parseViewParam(searchParams.get('view'));
   const statusFromUrl = parseStatusParam(searchParams.get('status'));
+
+  useEffect(() => {
+    const legacy = searchParams.get('view');
+    if (legacy === 'au_casier') {
+      router.replace('/tableau-de-bord/colis?attention=at_locker');
+    } else if (legacy === 'collected') {
+      router.replace('/tableau-de-bord/colis?attention=ready_for_pickup');
+    }
+  }, [router, searchParams]);
 
   const [filters, setFilters] = useState<DeliveryFilters>({
     view: viewFromUrl,
@@ -138,11 +148,11 @@ export function AdminLiveDeliveryBoard() {
 
   const summaryCards = useMemo(
     () => [
-      { key: 'assigned' as const, label: DELIVERY_STATUS_LABELS.assigned, value: summary?.assigned ?? 0 },
-      { key: 'scanned' as const, label: DELIVERY_STATUS_LABELS.scanned, value: summary?.scanned ?? 0 },
+      { key: 'assigned' as const, label: getAdminDeliveryStatusLabel('assigned'), value: summary?.assigned ?? 0 },
+      { key: 'scanned' as const, label: getAdminDeliveryStatusLabel('scanned'), value: summary?.scanned ?? 0 },
       {
         key: 'drop_off_pending' as const,
-        label: DELIVERY_STATUS_LABELS.drop_off_pending,
+        label: getAdminDeliveryStatusLabel('drop_off_pending'),
         value: summary?.drop_off_pending ?? 0,
       },
     ],
@@ -305,11 +315,11 @@ export function AdminLiveDeliveryBoard() {
             : []),
           {
             id: 'courier',
-            label: 'Coursier',
+            label: 'Chauffeur',
             value: filters.courierId,
             emptyValue: '',
             options: [
-              { value: '', label: 'Tous les coursiers' },
+              { value: '', label: 'Tous les chauffeurs Eveider' },
               ...couriers.map((c) => ({ value: c.id, label: c.label })),
             ],
             onChange: (value) => updateFilter('courierId', value),
@@ -361,8 +371,8 @@ export function AdminLiveDeliveryBoard() {
       {!showInitialLoader && !showFatalError && items.length === 0 ? (
         <EmptyState
           compact
-          title="Aucun élément pour ces filtres"
-          description="Modifiez les filtres ou changez d’onglet pour voir d’autres livraisons."
+          title="Aucune livraison Eveider"
+          description="Les transports aller et retours client apparaissent ici."
           icon={<IconTruck />}
         />
       ) : null}
@@ -373,7 +383,7 @@ export function AdminLiveDeliveryBoard() {
           <table>
             <thead>
               <tr>
-                {['Colis', 'Statut', 'Coursier', 'Entreprise', 'Casier', 'Destinataire', 'Maj', ''].map(
+                {['Suivi', 'Type', 'État', 'Chauffeur', 'Entreprise', 'Casier', 'Maj', ''].map(
                   (heading) => (
                     <th key={heading || 'actions'}>{heading}</th>
                   ),
@@ -391,20 +401,20 @@ export function AdminLiveDeliveryBoard() {
                       {item.parcel.trackingNumber}
                     </Link>
                   </td>
+                  <td>{item.deliveryKindLabel ?? 'Aller'}</td>
                   <td>
-                    {item.kind === 'delivery' ? (
-                      <DeliveryStatusBadge status={item.status as never} />
-                    ) : (
-                      <ParcelStatusBadge status={item.status as never} />
-                    )}
+                    <DeliveryStatusBadge
+                      status={item.status as never}
+                      label={item.statusLabel}
+                    />
                   </td>
                   <td>
                     {item.courier ? (
                       <Link
-                        href={`/tableau-de-bord/utilisateurs/${item.courier.id}`}
+                        href={`/tableau-de-bord/flotte/${item.courier.id}`}
                         className="nb-data-table__link"
                       >
-                        {item.courier.fullName ?? item.courier.email ?? 'Chauffeur'}
+                        {item.courier.fullName ?? item.courier.email ?? 'Chauffeur Eveider'}
                       </Link>
                     ) : (
                       '—'
@@ -412,13 +422,6 @@ export function AdminLiveDeliveryBoard() {
                   </td>
                   <td>{item.parcel.business.name}</td>
                   <td>{lockerCell(item.parcel.locker, item.parcel.compartment)}</td>
-                  <td>
-                    {item.parcel.recipientName ?? '—'}
-                    <br />
-                    <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>
-                      {item.parcel.recipientPhone}
-                    </span>
-                  </td>
                   <td style={{ whiteSpace: 'nowrap', color: 'var(--color-text-muted)' }}>
                     {formatDateTime(item.updatedAt)}
                   </td>

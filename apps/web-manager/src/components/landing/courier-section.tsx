@@ -3,12 +3,12 @@ import styles from './landing.module.css';
 
 export function CourierSection() {
   return (
-    <section id="coursiers" className={`${styles.split} ${styles.splitReverse}`}>
+    <section id="chauffeurs" className={`${styles.split} ${styles.splitReverse}`}>
       <div className={styles.splitCopy}>
-        <p className={styles.kicker}>Coursiers</p>
+        <p className={styles.kicker}>Chauffeurs Eveider</p>
         <h2 className={styles.title}>Déposer au casier, confirmer, continuer.</h2>
         <p className={styles.lead}>
-          Le coursier reçoit la tournée, se rend au casier, dépose le colis et confirme le dépôt.
+          Le chauffeur Eveider reçoit la livraison, se rend au casier, dépose le colis et confirme le dépôt.
         </p>
         <ul className={styles.plainList}>
           <li>Recevoir l’assignation</li>
@@ -19,7 +19,7 @@ export function CourierSection() {
       <div className={styles.splitPhoto}>
         <Image
           src="/landing/courier.jpg"
-          alt="Coursier chargeant des colis"
+          alt="Chauffeur Eveider chargeant des colis"
           fill
           sizes="(max-width: 960px) 100vw, 50vw"
         />

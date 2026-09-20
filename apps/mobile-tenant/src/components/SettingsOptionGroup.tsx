@@ -12,7 +12,7 @@ type SettingsOption<T extends string> = {
 };
 
 type SettingsOptionGroupProps<T extends string> = {
-  mode: 'CLIENT' | 'COURSIER';
+  mode: 'CLIENT' | 'DRIVER';
   title: string;
   subtitle?: string;
   options: SettingsOption<T>[];

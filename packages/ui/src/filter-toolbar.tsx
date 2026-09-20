@@ -1,7 +1,7 @@
 'use client';
 
 import { colors, radius, spacing, typography, borderSubtle, shadows } from '@eveider/config-ui';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 
 export type FilterMenuOption = {
   value: string;
@@ -24,6 +24,8 @@ export type FilterToolbarProps = {
   filters: FilterDimension[];
   onClearAll: () => void;
   clearLabel?: string;
+  className?: string;
+  style?: CSSProperties;
 };
 
 function isActive(filter: FilterDimension): boolean {
@@ -42,18 +44,21 @@ export function FilterToolbar({
   filters,
   onClearAll,
   clearLabel = 'Effacer les filtres',
+  className,
+  style,
 }: FilterToolbarProps) {
   const anyActive = filters.some(isActive);
 
   return (
     <div
-      className="nb-filter-toolbar"
+      className={['nb-filter-toolbar', className].filter(Boolean).join(' ')}
       style={{
         display: 'flex',
         flexWrap: 'wrap',
         alignItems: 'center',
         gap: spacing[2],
         marginBottom: spacing[6],
+        ...style,
       }}
     >
       {filters.map((filter) => (

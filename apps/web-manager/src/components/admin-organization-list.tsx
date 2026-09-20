@@ -6,10 +6,9 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { AdminAccountStatusBadge } from '@/components/admin-account-status-badge';
 import { ListSearchField } from '@/components/list-search-field';
-import { VerificationStatusBadge } from '@/components/verification-status-badge';
 import { matchesListSearch } from '@/lib/list-search';
 import type { AdminOrganizationListItem } from '@/server/organizations';
-import type { AdminAccountStatus, OrganizationVerificationStatus } from '@eveider/domain';
+import type { AdminAccountStatus } from '@eveider/domain';
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat('fr-CD', {
@@ -26,17 +25,11 @@ type AdminOrganizationListProps = {
 export function AdminOrganizationList({ organizations }: AdminOrganizationListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [accountFilter, setAccountFilter] = useState<AdminAccountStatus | 'all'>('all');
-  const [verificationFilter, setVerificationFilter] = useState<
-    OrganizationVerificationStatus | 'all'
-  >('all');
 
   const filtered = useMemo(
     () =>
       organizations.filter((org) => {
         if (accountFilter !== 'all' && org.accountStatus !== accountFilter) return false;
-        if (verificationFilter !== 'all' && org.verificationStatus !== verificationFilter) {
-          return false;
-        }
         return matchesListSearch(
           searchQuery,
           org.name,
@@ -44,7 +37,7 @@ export function AdminOrganizationList({ organizations }: AdminOrganizationListPr
           org.ownerEmail,
         );
       }),
-    [organizations, searchQuery, accountFilter, verificationFilter],
+    [organizations, searchQuery, accountFilter],
   );
 
   const columns = useMemo<DataTableColumn<AdminOrganizationListItem>[]>(
@@ -79,13 +72,6 @@ export function AdminOrganizationList({ organizations }: AdminOrganizationListPr
         cell: (row) => <AdminAccountStatusBadge status={row.accountStatus} />,
       },
       {
-        id: 'verificationStatus',
-        header: 'Vérification',
-        sortable: true,
-        sortValue: (row) => row.verificationStatus,
-        cell: (row) => <VerificationStatusBadge status={row.verificationStatus} />,
-      },
-      {
         id: 'updatedAt',
         header: 'Mis à jour',
         sortable: true,
@@ -110,6 +96,8 @@ export function AdminOrganizationList({ organizations }: AdminOrganizationListPr
     fontSize: typography.caption.fontSize,
     background: colors.surface,
   };
+
+  const hasFilters = searchQuery.trim() || accountFilter !== 'all';
 
   return (
     <div style={{ display: 'grid', gap: '1rem' }}>
@@ -139,44 +127,19 @@ export function AdminOrganizationList({ organizations }: AdminOrganizationListPr
           <option value="active">Actif</option>
           <option value="suspended">Suspendu</option>
         </select>
-        <select
-          value={verificationFilter}
-          onChange={(e) =>
-            setVerificationFilter(e.target.value as OrganizationVerificationStatus | 'all')
-          }
-          style={selectStyle}
-          aria-label="Filtrer par vérification"
-        >
-          <option value="all">Vérification : tous</option>
-          <option value="not_started">Non vérifié</option>
-          <option value="pending">En attente</option>
-          <option value="correction_requested">Correction requise</option>
-          <option value="approved">Vérifié</option>
-          <option value="rejected">Refusé</option>
-        </select>
       </div>
 
       <DataTable
         columns={columns}
         rows={filtered}
         getRowId={(row) => row.id}
-        emptyTitle={
-          searchQuery.trim() || accountFilter !== 'all' || verificationFilter !== 'all'
-            ? 'Aucune organisation pour ces filtres'
-            : 'Aucune organisation'
-        }
+        emptyTitle={hasFilters ? 'Aucune organisation pour ces filtres' : 'Aucune organisation'}
         emptyDescription={
-          searchQuery.trim() || accountFilter !== 'all' || verificationFilter !== 'all'
+          hasFilters
             ? 'Modifiez les filtres pour élargir la recherche.'
             : 'Les organisations Eveider apparaîtront ici.'
         }
-        emptyIcon={
-          searchQuery.trim() || accountFilter !== 'all' || verificationFilter !== 'all' ? (
-            <IconSearch />
-          ) : (
-            <IconBuilding />
-          )
-        }
+        emptyIcon={hasFilters ? <IconSearch /> : <IconBuilding />}
         rowActions={(row) => [
           {
             id: 'view',

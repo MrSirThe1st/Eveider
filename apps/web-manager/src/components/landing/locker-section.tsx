@@ -10,12 +10,12 @@ export function LockerSection() {
           <p className={styles.kicker}>Le casier</p>
           <h2 className={styles.title}>Dépôt et retrait, sur place.</h2>
           <p className={styles.lead}>
-            Le coursier dépose le colis. Le destinataire l’ouvre avec un PIN.
+            Le chauffeur Eveider dépose le colis. Le destinataire l’ouvre avec un code de retrait.
           </p>
           <ul className={styles.plainList}>
-            <li>Accès par PIN de retrait</li>
+            <li>Accès par code de retrait</li>
             <li>Compartiments petit, moyen et grand</li>
-            <li>Points de dépôt et de retrait à Kinshasa</li>
+            <li>Casiers Eveider à Kinshasa</li>
           </ul>
         </div>
       </div>

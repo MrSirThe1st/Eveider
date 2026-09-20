@@ -6,5 +6,5 @@ type PageProps = {
 
 export default async function LegacyApplicationDetailRedirect({ params }: PageProps) {
   const { id } = await params;
-  redirect(`/tableau-de-bord/organisations/${id}/verification/dossier`);
+  redirect(`/tableau-de-bord/organisations/${id}`);
 }

@@ -284,4 +284,35 @@ describe('PaymentRepository', () => {
       expect.arrayContaining(['completed', 'COMPLETED']),
     );
   });
+
+  it('replays a successful callback without inserting a second payment', async () => {
+    let updates = 0;
+    setup((sql) => {
+      if (sqlIncludes(sql, 'SELECT * FROM parcel_payments') && sqlIncludes(sql, 'deposit_id')) {
+        return paymentRow({ status: 'completed', completed_at: new Date() });
+      }
+      if (sqlIncludes(sql, 'UPDATE parcel_payments')) {
+        updates += 1;
+        return paymentRow({ status: 'completed', completed_at: new Date() });
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const first = await repo.applyDepositCallback({
+      depositId: 'deposit-1',
+      status: 'COMPLETED',
+    });
+    const second = await repo.applyDepositCallback({
+      depositId: 'deposit-1',
+      status: 'COMPLETED',
+    });
+    expect(first?.status).toBe('completed');
+    expect(second?.status).toBe('completed');
+    expect(updates).toBe(2);
+    expect(
+      (db.query as ReturnType<typeof vi.fn>).mock.calls.filter((call) =>
+        String(call[0]).includes('INSERT INTO parcel_payments'),
+      ),
+    ).toHaveLength(0);
+  });
 });

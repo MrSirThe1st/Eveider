@@ -10,7 +10,7 @@
   margin: 0 0 1rem;
   padding: 0.28rem 0.7rem 0.28rem 0.55rem;
   border-radius: 999px;
-  background: rgba(9, 212, 11, 0.12);
+  background: var(--color-primary-muted);
   color: var(--color-success-fg);
   font-size: 0.75rem;
   font-weight: 600;

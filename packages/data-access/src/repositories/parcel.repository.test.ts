@@ -299,6 +299,8 @@ describe('ParcelRepository', () => {
           id: 'zone-1',
           code: 'LSH',
           name: 'Lubumbashi',
+          status: 'active',
+          city_status: 'active',
           outbound_delivery_amount: 1500,
           return_delivery_amount: 1800,
         };

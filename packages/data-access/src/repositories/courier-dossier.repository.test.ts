@@ -172,8 +172,8 @@ describe('CourierDossierRepository', () => {
       if (sqlIncludes(sql, 'SELECT * FROM driver_dossiers WHERE id')) {
         return dossierRow({ status: 'active', service_area_id: null });
       }
-      if (sqlIncludes(sql, 'SELECT id, status FROM service_areas')) {
-        return { id: 'area-kwz', status: 'active' };
+      if (sqlIncludes(sql, 'FROM service_areas sa') && sqlIncludes(sql, 'JOIN cities')) {
+        return { id: 'area-kwz', status: 'active', city_status: 'active' };
       }
       if (sqlIncludes(sql, 'UPDATE driver_dossiers') && sqlIncludes(sql, 'service_area_id')) {
         return dossierRow({ status: 'active', service_area_id: 'area-kwz' });

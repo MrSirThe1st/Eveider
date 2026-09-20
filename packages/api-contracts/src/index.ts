@@ -19,6 +19,7 @@ export * from './schemas/locker-action.js';
 export * from './schemas/locker-collection.js';
 export * from './schemas/locker-settings.js';
 export * from './schemas/service-area.js';
+export * from './schemas/city.js';
 export * from './schemas/delivery.js';
 export * from './schemas/issue.js';
 export * from './schemas/invite.js';

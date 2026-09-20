@@ -9,7 +9,6 @@ import {
   NETWORK_LOCKER_TYPE,
   PRODUCT_LOCKS,
   normalizePointCode,
-  matchDrcCity,
   OCCUPYING_PARCEL_STATUSES,
   sortByDistance,
   transitionCompartment,
@@ -58,6 +57,9 @@ export type LockerSummary = Locker & {
   occupyingCount: number;
   availableSlots: number;
   serviceAreaName: string | null;
+  serviceAreaCode: string | null;
+  serviceAreaCity: string | null;
+  serviceAreaCityId: string | null;
 };
 
 export type LockerWithCompartments = Locker & {
@@ -106,12 +108,6 @@ export type UpdateLockerInput = {
 };
 
 const EMPTY_AVAILABLE_BY_SIZE: AvailableBySize = { small: 0, medium: 0, large: 0 };
-
-function resolveLockerCity(name: string, address: string, explicit?: string | null): string | null {
-  const trimmed = explicit?.trim();
-  if (trimmed) return trimmed;
-  return matchDrcCity(`${name} ${address}`);
-}
 
 function countAvailableBySize(
   compartments: { status: CompartmentStatus; size: 'small' | 'medium' | 'large' }[],
@@ -195,6 +191,23 @@ export class LockerRepository {
       id: String(row.id),
       name: String(row.name),
       address: String(row.address),
+    }));
+  }
+
+  async listAvailableCompartments(
+    lockerId: string,
+  ): Promise<Array<{ id: string; label: string; size: 'small' | 'medium' | 'large' }>> {
+    const result = await this.db.query(
+      `SELECT id, label, size
+       FROM compartments
+       WHERE locker_id = $1 AND status = 'available'
+       ORDER BY label ASC`,
+      [lockerId],
+    );
+    return result.rows.map((row) => ({
+      id: String(row.id),
+      label: String(row.label),
+      size: row.size as 'small' | 'medium' | 'large',
     }));
   }
 
@@ -380,13 +393,17 @@ export class LockerRepository {
     const lockersResult = await this.db.query(
       `SELECT l.*,
               sa.name AS service_area_name,
-              COALESCE(c.available, 0)::int AS available_count,
-              COALESCE(c.occupied, 0)::int AS occupied_count,
-              COALESCE(c.reserved, 0)::int AS reserved_count,
-              COALESCE(c.total, 0)::int AS compartment_total,
+              sa.code AS service_area_code,
+              sa.city_id AS service_area_city_id,
+              city.name AS service_area_city,
+              COALESCE(comp.available, 0)::int AS available_count,
+              COALESCE(comp.occupied, 0)::int AS occupied_count,
+              COALESCE(comp.reserved, 0)::int AS reserved_count,
+              COALESCE(comp.total, 0)::int AS compartment_total,
               COALESCE(o.occupying, 0)::int AS occupying_count
        FROM lockers l
        LEFT JOIN service_areas sa ON sa.id = l.service_area_id
+       LEFT JOIN cities city ON city.id = sa.city_id
        LEFT JOIN (
          SELECT locker_id,
                 COUNT(*) FILTER (WHERE status = 'available')::int AS available,
@@ -395,7 +412,7 @@ export class LockerRepository {
                 COUNT(*)::int AS total
          FROM compartments
          GROUP BY locker_id
-       ) c ON c.locker_id = l.id
+       ) comp ON comp.locker_id = l.id
        LEFT JOIN (
          SELECT locker_id, COUNT(*)::int AS occupying
          FROM parcels
@@ -419,6 +436,10 @@ export class LockerRepository {
       return {
         ...locker,
         serviceAreaName: row.service_area_name == null ? null : String(row.service_area_name),
+        serviceAreaCode: row.service_area_code == null ? null : String(row.service_area_code),
+        serviceAreaCity: row.service_area_city == null ? null : String(row.service_area_city),
+        serviceAreaCityId:
+          row.service_area_city_id == null ? null : String(row.service_area_city_id),
         compartmentCounts,
         occupyingCount,
         availableSlots: availableSlots({
@@ -434,12 +455,25 @@ export class LockerRepository {
   async findById(
     ctx: DataAccessContext,
     id: string,
-  ): Promise<(LockerWithCompartments & { serviceAreaName: string | null }) | null> {
+  ): Promise<
+    | (LockerWithCompartments & {
+        serviceAreaName: string | null;
+        serviceAreaCode: string | null;
+        serviceAreaCity: string | null;
+        serviceAreaCityId: string | null;
+      })
+    | null
+  > {
     assertAdmin(ctx);
     const lockerResult = await this.db.query(
-      `SELECT l.*, sa.name AS service_area_name
+      `SELECT l.*,
+              sa.name AS service_area_name,
+              sa.code AS service_area_code,
+              sa.city_id AS service_area_city_id,
+              city.name AS service_area_city
        FROM lockers l
        LEFT JOIN service_areas sa ON sa.id = l.service_area_id
+       LEFT JOIN cities city ON city.id = sa.city_id
        WHERE l.id = $1
        LIMIT 1`,
       [id],
@@ -458,6 +492,10 @@ export class LockerRepository {
     return {
       ...locker,
       serviceAreaName: lockerRow.service_area_name == null ? null : String(lockerRow.service_area_name),
+      serviceAreaCode: lockerRow.service_area_code == null ? null : String(lockerRow.service_area_code),
+      serviceAreaCity: lockerRow.service_area_city == null ? null : String(lockerRow.service_area_city),
+      serviceAreaCityId:
+        lockerRow.service_area_city_id == null ? null : String(lockerRow.service_area_city_id),
       compartments,
       occupyingCount,
       availableSlots: availableSlots({
@@ -509,32 +547,33 @@ export class LockerRepository {
     return map;
   }
 
-  private async resolveServiceAreaId(
-    serviceAreaId: string | null | undefined,
-    city: string | null,
-  ): Promise<string | null> {
-    if (serviceAreaId === null) return null;
-    if (serviceAreaId) {
-      const result = await this.db.query(
-        `SELECT id, status FROM service_areas WHERE id = $1 LIMIT 1`,
-        [serviceAreaId],
-      );
-      const row = result.rows[0];
-      if (!row) throw new Error('Zone de service introuvable');
-      if (String(row.status) !== 'active') {
-        throw new Error('Cette zone de service n’est plus active');
-      }
-      return String(row.id);
-    }
-    if (!city) return null;
-    const byCity = await this.db.query(
-      `SELECT id FROM service_areas
-       WHERE status = 'active' AND lower(city) = lower($1)
-       ORDER BY created_at ASC
+  private async assertAssignableZone(serviceAreaId: string): Promise<{ id: string; cityName: string }> {
+    const result = await this.db.query(
+      `SELECT sa.id, sa.status, c.name AS city_name, c.status AS city_status
+       FROM service_areas sa
+       JOIN cities c ON c.id = sa.city_id
+       WHERE sa.id = $1
        LIMIT 1`,
-      [city],
+      [serviceAreaId],
     );
-    return byCity.rows[0] ? String(byCity.rows[0].id) : null;
+    const row = result.rows[0];
+    if (!row) throw new Error('Zone de service introuvable');
+    if (String(row.status) !== 'active') {
+      throw new Error('Cette zone de service n’est plus active');
+    }
+    if (String(row.city_status) !== 'active') {
+      throw new Error('Cette ville n’est plus active');
+    }
+    return { id: String(row.id), cityName: String(row.city_name) };
+  }
+
+  private async resolveRequiredZone(
+    serviceAreaId: string | null | undefined,
+  ): Promise<{ id: string; cityName: string }> {
+    if (!serviceAreaId) {
+      throw new Error('Un casier intelligent actif doit appartenir à une zone');
+    }
+    return this.assertAssignableZone(serviceAreaId);
   }
 
   async create(ctx: DataAccessContext, input: CreateLockerInput): Promise<LockerWithCompartments> {
@@ -544,14 +583,15 @@ export class LockerRepository {
     if (!isNetworkLockerType(type)) {
       throw new Error(PRODUCT_LOCKS.nonSmartLocker);
     }
-    const city = resolveLockerCity(input.name, input.address, input.city);
-    const serviceAreaId = await this.resolveServiceAreaId(input.serviceAreaId, city);
+    const zone = await this.resolveRequiredZone(input.serviceAreaId);
+    const city = zone.cityName;
+    const zoneId = zone.id;
     let code = input.code?.trim()
       ? normalizePointCode(input.code)
       : (await this.suggestCode(input.address)).code;
 
     if (input.code?.trim() && !isValidPointCode(code)) {
-      throw new Error('Code point invalide (ex. EVPA7K3M2X)');
+      throw new Error('Code casier invalide (ex. EVPA7K3M2X)');
     }
 
     // Retry once if a suggested code collides.
@@ -588,7 +628,7 @@ export class LockerRepository {
             input.name.trim(),
             input.address.trim(),
             city,
-            serviceAreaId,
+            zoneId,
             input.latitude,
             input.longitude,
             rows,
@@ -643,7 +683,7 @@ export class LockerRepository {
         input.name.trim(),
         input.address.trim(),
         city,
-        serviceAreaId,
+        zoneId,
         input.latitude,
         input.longitude,
         input.status,
@@ -681,16 +721,28 @@ export class LockerRepository {
     const archivedAt =
       nextStatus === 'archived' ? (locker.archivedAt ?? new Date()) : locker.archivedAt;
 
-    const nextName = input.name?.trim() ?? locker.name;
-    const nextAddress = input.address?.trim() ?? locker.address;
-    const nextCity =
-      input.city !== undefined
-        ? input.city?.trim() || null
-        : resolveLockerCity(nextName, nextAddress) ?? locker.city;
-    const nextServiceAreaId =
-      input.serviceAreaId !== undefined
-        ? await this.resolveServiceAreaId(input.serviceAreaId, nextCity)
-        : locker.serviceAreaId;
+    let nextServiceAreaId = locker.serviceAreaId;
+    let nextCity = locker.city;
+
+    if (input.serviceAreaId !== undefined) {
+      if (input.serviceAreaId) {
+        const zone = await this.assertAssignableZone(input.serviceAreaId);
+        nextServiceAreaId = zone.id;
+        nextCity = zone.cityName;
+      } else {
+        nextServiceAreaId = null;
+      }
+    }
+
+    if (input.city !== undefined && !nextServiceAreaId) {
+      nextCity = input.city?.trim() || null;
+    }
+
+    const requiresZone =
+      isNetworkLockerType(locker.type) && nextStatus !== 'archived' && archivedAt == null;
+    if (requiresZone && !nextServiceAreaId) {
+      throw new Error('Un casier intelligent actif doit appartenir à une zone');
+    }
 
     const result = await this.db.query(
       `UPDATE lockers SET
@@ -816,13 +868,13 @@ export class LockerRepository {
     const locker = mapLocker(row);
 
     if (!isLockerSelectable(locker.status)) {
-      throw new Error('Point indisponible');
+      throw new Error('Casier indisponible');
     }
     if (!isNetworkLockerType(locker.type)) {
       throw new Error(PRODUCT_LOCKS.nonSmartLocker);
     }
     if (locker.latitude == null || locker.longitude == null) {
-      throw new Error('Point sans coordonnées GPS');
+      throw new Error('Casier sans coordonnées GPS');
     }
 
     const [compartmentsResult, occupyingCounts] = await Promise.all([

@@ -79,7 +79,7 @@ export function transitionBusiness(from: BusinessStatus, to: BusinessStatus): Bu
 
 /** Platform access and parcel creation follow operational status, not KYC. */
 export function canSubmitParcelsAsBusiness(status: BusinessStatus): boolean {
-  return status === 'active';
+  return status === 'active' || isKycOperationalLeftover(status);
 }
 
 export function isKycOperationalLeftover(status: BusinessStatus): boolean {

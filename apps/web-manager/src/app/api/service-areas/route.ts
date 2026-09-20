@@ -20,6 +20,7 @@ export async function GET(request: Request) {
   const parsed = listServiceAreasQuerySchema.safeParse({
     status: searchParams.get('status') ?? undefined,
     city: searchParams.get('city') ?? undefined,
+    cityId: searchParams.get('cityId') ?? undefined,
     includeArchived: searchParams.get('includeArchived') ?? undefined,
   });
   if (!parsed.success) {
@@ -56,10 +57,10 @@ export async function POST(request: Request) {
     return NextResponse.json(ok({ serviceArea: toServiceAreaDto(area) }), { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur serveur';
-    const status = message.includes('duplicate') || message.includes('unique') ? 409 : 500;
-    return NextResponse.json(
-      fail(status === 409 ? 'Ce code de zone existe déjà' : message),
-      { status },
-    );
+    const status =
+      message.includes('existe déjà') || message.includes('duplicate') || message.includes('unique')
+        ? 409
+        : 500;
+    return NextResponse.json(fail(message), { status });
   }
 }

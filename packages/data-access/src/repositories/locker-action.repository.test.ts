@@ -702,10 +702,12 @@ describe('LockerActionRepository', () => {
   describe('session security', () => {
     it('rejects confirm on an expired session and releases the reservation', async () => {
       const releases: unknown[][] = [];
+      let loaded = 0;
       setup((sql, values) => {
         if (sqlIncludes(sql, 'SELECT * FROM locker_action_sessions')) {
+          loaded += 1;
           return lockerActionSessionRow({
-            status: 'authorized',
+            status: loaded === 1 ? 'authorized' : 'expired',
             expires_at: new Date('2026-01-15T11:00:00.000Z'),
           });
         }

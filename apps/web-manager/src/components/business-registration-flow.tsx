@@ -86,7 +86,7 @@ export function BusinessRegistrationFlow() {
         return;
       }
 
-      router.replace('/onboarding');
+      router.replace('/organisation/tableau-de-bord');
     } catch {
       setError('Erreur de vérification.');
     } finally {

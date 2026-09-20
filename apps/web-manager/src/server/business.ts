@@ -83,11 +83,11 @@ export async function requireBusinessPermission(
 }
 
 export async function loadBusinessDashboard(businessId: string, ctx: DataAccessContext) {
-  const { businesses, stats, businessOnboarding } = createRepositories();
-  const [business, analytics, verification] = await Promise.all([
+  const { businesses, stats } = createRepositories();
+  const [business, analytics, operational] = await Promise.all([
     businesses.findById(ctx, businessId),
     stats.getBusinessAnalytics(ctx, businessId),
-    businessOnboarding.getLatestVerification(businessId),
+    stats.getBusinessOperationalSnapshot(ctx, businessId),
   ]);
 
   if (!business) {
@@ -97,7 +97,7 @@ export async function loadBusinessDashboard(businessId: string, ctx: DataAccessC
   return {
     business,
     analytics,
-    verification,
+    operational,
   };
 }
 
@@ -122,6 +122,15 @@ export async function loadBusinessSettingsPageData(businessId: string) {
 }
 
 export async function loadBusinessBillingPageData(businessId: string) {
-  const { businessOnboarding } = createRepositories();
-  return businessOnboarding.getBillingSnapshot(businessId);
+  const { businessOnboarding, parcelCharges, lockerSettings } = createRepositories();
+  const [billing, owedCharges, networkSettings] = await Promise.all([
+    businessOnboarding.getBillingSnapshot(businessId),
+    parcelCharges.listOwedForBusiness(businessId),
+    lockerSettings.getNetworkSettings(),
+  ]);
+  return {
+    billing,
+    owedCharges,
+    pickupHoldHours: networkSettings.pickupHoldHours,
+  };
 }

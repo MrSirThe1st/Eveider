@@ -33,6 +33,9 @@ export type CommercialPricingModel = 'canonical' | 'legacy';
 
 export const CANONICAL_CHARGE_MISSING = 'CANONICAL_CHARGE_MISSING';
 export const PAYMENT_OUTSTANDING = 'PAYMENT_OUTSTANDING';
+export const ZONE_PRICING_NOT_CONFIGURED = 'ZONE_PRICING_NOT_CONFIGURED';
+export const ZONE_PRICING_NOT_CONFIGURED_MESSAGE =
+  'ZONE_PRICING_NOT_CONFIGURED: tarif de zone non configuré';
 
 export type RecipientCollectionCode =
   | 'NOT_READY'

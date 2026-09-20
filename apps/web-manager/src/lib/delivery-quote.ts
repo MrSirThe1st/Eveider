@@ -1,4 +1,4 @@
-import { formatDeliveryFee, PARCEL_CHARGE_KIND_LABELS, type DeliveryPricingCurrency } from '@eveider/domain';
+import { formatDeliveryFee, type DeliveryPricingCurrency } from '@eveider/domain';
 import { createRepositories } from '@eveider/data-access';
 import type { ShipmentPickupType } from '@eveider/domain';
 
@@ -43,7 +43,10 @@ export async function buildDeliveryQuote(input: DeliveryQuoteInput): Promise<Del
     payer: 'recipient',
     zoneCode: quoted.zoneCode,
     zoneName: quoted.zoneName,
-    purpose: PARCEL_CHARGE_KIND_LABELS[quoted.kind],
+    purpose:
+      quoted.kind === 'locker_collection'
+        ? 'Frais de retrait · payé par le destinataire'
+        : 'Frais de livraison · payé par le destinataire',
     feeChargedOnDeposit: false,
   };
 }

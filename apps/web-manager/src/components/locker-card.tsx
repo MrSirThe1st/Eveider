@@ -62,16 +62,16 @@ export function LockerCard({ locker, selected, onSelect }: LockerCardProps) {
     locker.availableLabel ?? lockerAvailableLabel({ type, availableSlots: slots });
 
   let statusColor: string = colors.success;
-  let statusBg = 'rgba(9, 212, 11, 0.1)';
+  let statusBg = colors.successMuted;
   if (operatingStatus === 'full' || slots === 0) {
     statusColor = colors.danger;
-    statusBg = 'rgba(229, 57, 53, 0.1)';
+    statusBg = colors.dangerMuted;
   } else if (operatingStatus === 'offline') {
     statusColor = colors.textMuted;
-    statusBg = 'rgba(100, 116, 139, 0.12)';
+    statusBg = colors.surfaceMuted;
   } else if (slots === 1) {
     statusColor = colors.warning;
-    statusBg = 'rgba(255, 184, 0, 0.1)';
+    statusBg = colors.warningMuted;
   }
 
   const sizeSummary = locker.availableBySize ?? {

@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       if (body.data.role !== 'customer') {
         return withCors(
           NextResponse.json(
-            fail('Les comptes coursiers sont créés par Eveider. Inscrivez-vous en tant que client.'),
+            fail('Les comptes chauffeurs sont créés par Eveider. Inscrivez-vous en tant que client.'),
             { status: 400 },
           ),
         );

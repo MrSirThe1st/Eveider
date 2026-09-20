@@ -114,8 +114,8 @@ export function OnboardingWizard({
   );
 
   // STEP 4 — Payment & Billing
-  const [paymentRule, setPaymentRule] = useState<DeliveryPaymentRule>(
-    initialSummary?.billingAccount?.paymentRule ?? 'merchant_pays',
+  const [paymentRule] = useState<DeliveryPaymentRule>(
+    initialSummary?.billingAccount?.paymentRule ?? 'customer_pays',
   );
   const [payoutMethod, setPayoutMethod] = useState<SettlementMethod>(
     initialSummary?.settlementAccount?.payoutMethod ?? 'mobile_money_orange',
@@ -253,7 +253,7 @@ export function OnboardingWizard({
     return (
       <div style={{ width: '100%', maxWidth: 'none', margin: 0, padding: '3rem 2rem 1rem' }}>
         <div style={{ ...webCardStyle, padding: '2.5rem', textAlign: 'center', borderRadius: radius.card }}>
-          <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#DCF5D6', color: '#067A07', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.75rem', margin: '0 auto 1.5rem', fontWeight: 800 }}>
+          <div style={{ width: 64, height: 64, borderRadius: '50%', background: colors.successMuted, color: colors.successFg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.75rem', margin: '0 auto 1.5rem', fontWeight: 800 }}>
             ✓
           </div>
           <h2 style={{ margin: '1rem 0 0.5rem', fontSize: '1.5rem', fontWeight: 800 }}>
@@ -337,9 +337,9 @@ export function OnboardingWizard({
                 minWidth: 120,
                 padding: '0.6rem 0.75rem',
                 borderRadius: 8,
-                background: currentStep === item.step ? '#121212' : currentStep > item.step ? '#F0FDF4' : '#F1F5F9',
-                color: currentStep === item.step ? '#09D40B' : currentStep > item.step ? '#166534' : '#64748B',
-                border: currentStep === item.step ? '2px solid #09D40B' : currentStep > item.step ? '1px solid #BBF7D0' : '1px solid #E2E8F0',
+                background: currentStep === item.step ? colors.secondary : currentStep > item.step ? colors.successMuted : colors.surfaceMuted,
+                color: currentStep === item.step ? colors.surface : currentStep > item.step ? colors.successFg : colors.textMuted,
+                border: currentStep === item.step ? `2px solid ${colors.primary}` : currentStep > item.step ? `1px solid ${colors.primaryMuted}` : `1px solid ${colors.borderSubtle}`,
                 fontWeight: 700,
                 fontSize: '0.75rem',
                 cursor: item.step < currentStep ? 'pointer' : 'default',
@@ -352,7 +352,7 @@ export function OnboardingWizard({
       </div>
 
       {verificationStatus === 'correction_requested' || verificationStatus === 'rejected' ? (
-        <div style={{ background: '#FFFBEB', border: '2px solid #F59E0B', color: '#92400E', padding: '1rem 1.25rem', borderRadius: 8, marginBottom: '1.5rem', fontWeight: 600, fontSize: '0.875rem' }}>
+        <div style={{ background: colors.warningMuted, border: `2px solid ${colors.warning}`, color: colors.warningFg, padding: '1rem 1.25rem', borderRadius: 8, marginBottom: '1.5rem', fontWeight: 600, fontSize: '0.875rem' }}>
           ⚠️ <strong>Correction demandée :</strong> Relisez ce qui manque, puis renvoyez.
           {initialSummary?.verifications?.[0]?.reviewNotes ? (
             <pre
@@ -372,7 +372,7 @@ export function OnboardingWizard({
       ) : null}
 
       {error ? (
-        <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', padding: '0.75rem 1rem', borderRadius: 8, fontSize: '0.875rem', fontWeight: 600, marginBottom: '1.5rem' }}>
+        <div style={{ background: colors.dangerMuted, border: `1px solid ${colors.dangerMuted}`, color: colors.dangerFg, padding: '0.75rem 1rem', borderRadius: 8, fontSize: '0.875rem', fontWeight: 600, marginBottom: '1.5rem' }}>
           ⚠️ {error}
         </div>
       ) : null}
@@ -458,12 +458,12 @@ export function OnboardingWizard({
                     alignItems: 'center',
                     gap: '0.5rem',
                     padding: '0.5rem 0.75rem',
-                    border: salesChannels.includes(ch) ? '2px solid #09D40B' : '1px solid #CBD5E1',
+                    border: salesChannels.includes(ch) ? `2px solid ${colors.primary}` : `1px solid ${colors.borderSubtle}`,
                     borderRadius: 6,
                     cursor: 'pointer',
                     fontSize: '0.8125rem',
                     fontWeight: salesChannels.includes(ch) ? 700 : 500,
-                    background: salesChannels.includes(ch) ? '#F0FDF4' : '#FFFFFF',
+                    background: salesChannels.includes(ch) ? colors.successMuted : colors.surface,
                   }}
                 >
                   <input
@@ -548,8 +548,8 @@ export function OnboardingWizard({
                   borderRadius: 6,
                   fontWeight: 700,
                   fontSize: '0.8125rem',
-                  border: isRegistered ? '2px solid #09D40B' : '1px solid #CBD5E1',
-                  background: isRegistered ? '#F0FDF4' : '#FFFFFF',
+                  border: isRegistered ? `2px solid ${colors.primary}` : `1px solid ${colors.borderSubtle}`,
+                  background: isRegistered ? colors.successMuted : colors.surface,
                   color: isRegistered ? '#166534' : '#475569',
                   cursor: 'pointer',
                 }}
@@ -565,8 +565,8 @@ export function OnboardingWizard({
                   borderRadius: 6,
                   fontWeight: 700,
                   fontSize: '0.8125rem',
-                  border: !isRegistered ? '2px solid #09D40B' : '1px solid #CBD5E1',
-                  background: !isRegistered ? '#F0FDF4' : '#FFFFFF',
+                  border: !isRegistered ? `2px solid ${colors.primary}` : `1px solid ${colors.borderSubtle}`,
+                  background: !isRegistered ? colors.successMuted : colors.surface,
                   color: !isRegistered ? '#166534' : '#475569',
                   cursor: 'pointer',
                 }}
@@ -675,13 +675,13 @@ export function OnboardingWizard({
               onClick={() => setPickupMethod('courier_pickup')}
               style={{
                 padding: '1.25rem',
-                border: pickupMethod === 'courier_pickup' ? '2px solid #09D40B' : '1px solid #CBD5E1',
+                border: pickupMethod === 'courier_pickup' ? `2px solid ${colors.primary}` : `1px solid ${colors.borderSubtle}`,
                 borderRadius: 8,
                 cursor: 'pointer',
-                background: pickupMethod === 'courier_pickup' ? '#F0FDF4' : '#FFFFFF',
+                background: pickupMethod === 'courier_pickup' ? colors.successMuted : colors.surface,
               }}
             >
-              <h4 style={{ margin: '0 0 0.5rem', fontWeight: 700, fontSize: '0.9375rem' }}>1. Un chauffeur vient chercher</h4>
+              <h4 style={{ margin: '0 0 0.5rem', fontWeight: 700, fontSize: '0.9375rem' }}>1. Collecte Eveider</h4>
               <p style={{ margin: 0, fontSize: '0.8125rem', color: '#475569' }}>
                 Un chauffeur Eveider vient chercher vos colis à votre adresse.
               </p>
@@ -691,13 +691,13 @@ export function OnboardingWizard({
               onClick={() => setPickupMethod('merchant_dropoff')}
               style={{
                 padding: '1.25rem',
-                border: pickupMethod === 'merchant_dropoff' ? '2px solid #09D40B' : '1px solid #CBD5E1',
+                border: pickupMethod === 'merchant_dropoff' ? `2px solid ${colors.primary}` : `1px solid ${colors.borderSubtle}`,
                 borderRadius: 8,
                 cursor: 'pointer',
-                background: pickupMethod === 'merchant_dropoff' ? '#F0FDF4' : '#FFFFFF',
+                background: pickupMethod === 'merchant_dropoff' ? colors.successMuted : colors.surface,
               }}
             >
-              <h4 style={{ margin: '0 0 0.5rem', fontWeight: 700, fontSize: '0.9375rem' }}>2. Vous déposez au point Eveider</h4>
+              <h4 style={{ margin: '0 0 0.5rem', fontWeight: 700, fontSize: '0.9375rem' }}>2. Vous déposez au casier Eveider</h4>
               <p style={{ margin: 0, fontSize: '0.8125rem', color: '#475569' }}>
                 Vous déposez vous-même les colis dans un casier Eveider.
               </p>
@@ -736,7 +736,7 @@ export function OnboardingWizard({
             </div>
           ) : (
             <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '1.25rem', borderRadius: 8 }}>
-              <span style={{ fontWeight: 700, fontSize: '0.875rem', display: 'block', marginBottom: '0.75rem' }}>Choisissez le point de dépôt habituel</span>
+              <span style={{ fontWeight: 700, fontSize: '0.875rem', display: 'block', marginBottom: '0.75rem' }}>Choisissez le casier de dépôt habituel</span>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {(availableLockers.length > 0
                   ? availableLockers.map((locker) => ({
@@ -753,9 +753,9 @@ export function OnboardingWizard({
                     key={point.id}
                     style={{
                       padding: '0.75rem 1rem',
-                      border: dropoffLockerId === point.id ? '2px solid #09D40B' : '1px solid #CBD5E1',
+                      border: dropoffLockerId === point.id ? `2px solid ${colors.primary}` : `1px solid ${colors.borderSubtle}`,
                       borderRadius: 6,
-                      background: dropoffLockerId === point.id ? '#F0FDF4' : '#FFFFFF',
+                      background: dropoffLockerId === point.id ? colors.successMuted : colors.surface,
                       cursor: 'pointer',
                       fontWeight: dropoffLockerId === point.id ? 700 : 500,
                       fontSize: '0.8125rem',
@@ -791,42 +791,16 @@ export function OnboardingWizard({
       {/* STEP 4 */}
       {currentStep === 4 ? (
         <section style={{ ...webCardStyle, padding: '2rem', borderRadius: radius.card }}>
-          <h2 style={{ margin: '0 0 1.25rem', fontSize: '1.25rem', fontWeight: 700 }}>Paiement</h2>
-          
-          <div style={{ marginBottom: '1.5rem' }}>
-            <span style={{ fontWeight: 700, fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem' }}>
-              Qui paie la livraison ?
-            </span>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.5rem' }}>
-              {[
-                { value: 'merchant_pays', label: 'L’entreprise' },
-                { value: 'customer_pays', label: 'Le destinataire' },
-                { value: 'depends_on_order', label: 'Selon la commande' },
-              ].map((rule) => (
-                <button
-                  type="button"
-                  key={rule.value}
-                  onClick={() => setPaymentRule(rule.value as DeliveryPaymentRule)}
-                  style={{
-                    padding: '0.75rem',
-                    borderRadius: 6,
-                    fontWeight: 700,
-                    fontSize: '0.8125rem',
-                    border: paymentRule === rule.value ? '2px solid #09D40B' : '1px solid #CBD5E1',
-                    background: paymentRule === rule.value ? '#F0FDF4' : '#FFFFFF',
-                    color: paymentRule === rule.value ? '#166534' : '#475569',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {rule.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <h2 style={{ margin: '0 0 1.25rem', fontSize: '1.25rem', fontWeight: 700 }}>Règlement</h2>
+
+          <p style={{ margin: '0 0 1.5rem', fontSize: '0.875rem', color: colors.textMuted, lineHeight: 1.5 }}>
+            Le destinataire paie l’aller. Votre entreprise paie les retours et le stockage après la
+            période gratuite. Ces règles ne se configurent pas ici.
+          </p>
 
           <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '1.25rem', borderRadius: 8, marginBottom: '1.5rem' }}>
             <span style={{ fontWeight: 700, fontSize: '0.875rem', display: 'block', marginBottom: '0.75rem' }}>
-              Compte pour recevoir l’argent (paiement à la livraison)
+              Compte de règlement
             </span>
             
             <label style={{ display: 'block', marginBottom: '1rem' }}>
@@ -860,11 +834,11 @@ export function OnboardingWizard({
               Comment vous êtes facturé
             </span>
             <div style={{ display: 'flex', gap: '1rem' }}>
-              <label style={{ flex: 1, padding: '0.75rem 1rem', border: billingType === 'pay_per_shipment' ? '2px solid #09D40B' : '1px solid #CBD5E1', borderRadius: 6, cursor: 'pointer', background: billingType === 'pay_per_shipment' ? '#F0FDF4' : '#FFFFFF' }}>
+              <label style={{ flex: 1, padding: '0.75rem 1rem', border: billingType === 'pay_per_shipment' ? `2px solid ${colors.primary}` : `1px solid ${colors.borderSubtle}`, borderRadius: 6, cursor: 'pointer', background: billingType === 'pay_per_shipment' ? colors.successMuted : colors.surface }}>
                 <input type="radio" name="billingType" checked={billingType === 'pay_per_shipment'} onChange={() => setBillingType('pay_per_shipment')} />
                 <span style={{ marginLeft: '0.5rem', fontWeight: 700, fontSize: '0.8125rem' }}>À chaque colis</span>
               </label>
-              <label style={{ flex: 1, padding: '0.75rem 1rem', border: billingType === 'monthly_invoice' ? '2px solid #09D40B' : '1px solid #CBD5E1', borderRadius: 6, cursor: 'pointer', background: billingType === 'monthly_invoice' ? '#F0FDF4' : '#FFFFFF' }}>
+              <label style={{ flex: 1, padding: '0.75rem 1rem', border: billingType === 'monthly_invoice' ? `2px solid ${colors.primary}` : `1px solid ${colors.borderSubtle}`, borderRadius: 6, cursor: 'pointer', background: billingType === 'monthly_invoice' ? colors.successMuted : colors.surface }}>
                 <input type="radio" name="billingType" checked={billingType === 'monthly_invoice'} onChange={() => setBillingType('monthly_invoice')} />
                 <span style={{ marginLeft: '0.5rem', fontWeight: 700, fontSize: '0.8125rem' }}>Facture chaque mois</span>
               </label>
@@ -891,16 +865,16 @@ export function OnboardingWizard({
             <div><strong>Type :</strong> {isRegistered ? 'Société enregistrée' : 'Vendeur individuel'}</div>
             <div><strong>Secteur :</strong> {industry}</div>
             <div><strong>Adresse :</strong> {address}, {city}</div>
-            <div><strong>Enlèvement :</strong> {pickupMethod === 'courier_pickup' ? `Un chauffeur vient chercher (${pickupAddress})` : `Dépôt au point (${dropoffLockerId})`}</div>
-            <div><strong>Compte pour recevoir l’argent :</strong> {payoutMethod} — {accountHolder} ({accountNumber})</div>
+            <div><strong>Méthode :</strong> {pickupMethod === 'courier_pickup' ? `Collecte Eveider (${pickupAddress})` : `Dépôt au casier`}</div>
+            <div><strong>Compte de règlement :</strong> {payoutMethod} — {accountHolder} ({accountNumber})</div>
           </div>
 
-          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '1rem', background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: 8, cursor: 'pointer', marginBottom: '1.5rem' }}>
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '1rem', background: colors.successMuted, border: `1px solid ${colors.primaryMuted}`, borderRadius: 8, cursor: 'pointer', marginBottom: '1.5rem' }}>
             <input
               type="checkbox"
               checked={confirmedAccuracy}
               onChange={(e) => setConfirmedAccuracy(e.target.checked)}
-              style={{ marginTop: 2, accentColor: '#09D40B' }}
+              style={{ marginTop: 2, accentColor: colors.primary }}
             />
             <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#166534', lineHeight: 1.5 }}>
               Je confirme que ces informations sont exactes.

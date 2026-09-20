@@ -21,7 +21,7 @@ export function AdminLivraisonsChrome({ children }: { children: ReactNode }) {
       description={
         isIncidents
           ? 'Problèmes signalés, à traiter.'
-          : 'Livraisons en cours et retraits.'
+          : 'Transport Eveider en cours.'
       }
       layout={isIncidents ? 'wide' : 'fluid'}
     >

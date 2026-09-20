@@ -1,23 +1,24 @@
 import { nativeRadius as radius, borders, type ColorTokens } from '@eveider/config-ui';
-import type { ParcelStatus } from '@eveider/domain';
 import { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
+import type { CustomerParcel } from '../lib/api';
+import { getRecipientParcelStatus } from '../lib/recipient-presentation';
 import { useColors } from '../theme';
 
 type ParcelStatusBadgeProps = {
-  status: ParcelStatus;
+  parcel: CustomerParcel;
 };
 
-export function ParcelStatusBadge({ status }: ParcelStatusBadgeProps) {
-  const { t } = useTranslation();
+export function ParcelStatusBadge({ parcel }: ParcelStatusBadgeProps) {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const ready = status === 'ready_for_pickup' || status === 'collected';
+  const label = getRecipientParcelStatus(parcel);
+  const ready = parcel.status === 'ready_for_pickup';
+  const done = parcel.status === 'collected' || parcel.status === 'returned';
 
   return (
-    <View style={[styles.badge, ready && styles.badgeReady]}>
-      <Text style={[styles.text, ready && styles.textReady]}>{t(`status.${status}`)}</Text>
+    <View style={[styles.badge, ready && styles.badgeReady, done && styles.badgeReady]}>
+      <Text style={[styles.text, (ready || done) && styles.textReady]}>{label}</Text>
     </View>
   );
 }
@@ -31,6 +32,7 @@ function createStyles(colors: ColorTokens) {
       paddingHorizontal: 8,
       paddingVertical: 3,
       backgroundColor: colors.background,
+      maxWidth: 160,
     },
     badgeReady: {
       borderColor: colors.primary,

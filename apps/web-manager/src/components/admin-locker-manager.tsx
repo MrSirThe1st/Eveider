@@ -1,77 +1,108 @@
 'use client';
 
-import { colors, radius, borderSubtle, webCardStyle, webInputStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
+import { colors, spacing, typography } from '@eveider/config-ui';
 import { usesCompartmentGrid } from '@eveider/domain';
-import { LoadingSpinner } from '@eveider/ui';
-import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { FlashBanner } from '@/components/flash-banner';
-import { LockerCreatePanel, type CreatePointPayload } from '@/components/locker-create-panel';
+import { DataTable, FilterToolbar, IconMapPin, IconSearch, type DataTableColumn } from '@eveider/ui';
+import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+import { ListSearchField } from '@/components/list-search-field';
 import { LockerGoogleMap } from '@/components/locker-google-map';
+import { LockerStatusBadge } from '@/components/locker-status-badge';
+import type { CityOptionDto } from '@/lib/city-presenter';
+import { formatLockerZoneLabel, zonesForCity } from '@/lib/geography-presentation';
+import { matchesListSearch } from '@/lib/list-search';
 import type { LockerMapMarkerDto, LockerSummaryDto } from '@/lib/locker-presenter';
 import type { ServiceAreaOptionDto } from '@/lib/service-area-presenter';
-import {
-  reverseGeocodeGoogle,
-  searchGooglePlaces,
-  zoomForPlaceType,
-  type MapPlace,
-  type MapSearchViewport,
-} from '@/lib/google-maps';
-
-type DraftLocker = {
-  latitude: number;
-  longitude: number;
-};
-
-type MapFocus = {
-  latitude: number;
-  longitude: number;
-  zoom?: number;
-  key: number;
-};
-
-type PendingAddress = {
-  address: string;
-  latitude: number;
-  longitude: number;
-};
-
-const inputStyle: React.CSSProperties = {
-  ...webInputStyle,
-  marginTop: '0.35rem',
-  height: 42,
-  padding: '0 10px',
-};
 
 type AdminLockerManagerProps = {
   lockers: LockerSummaryDto[];
   serviceAreas?: ServiceAreaOptionDto[];
+  cities?: CityOptionDto[];
+  initialCityId?: string;
+  initialZoneId?: string;
 };
+
+type StatusFilter = 'all' | 'active' | 'offline' | 'full';
+
+const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
+  { value: 'all', label: 'Tous' },
+  { value: 'active', label: 'Actif' },
+  { value: 'offline', label: 'Hors ligne' },
+  { value: 'full', label: 'Complet' },
+];
 
 export function AdminLockerManager({
   lockers,
   serviceAreas = [],
+  cities = [],
+  initialCityId = '',
+  initialZoneId = '',
 }: AdminLockerManagerProps) {
-  const router = useRouter();
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [selectedLockerId, setSelectedLockerId] = useState<string>('');
-  const [draft, setDraft] = useState<DraftLocker | null>(null);
-  const [placementConfirmed, setPlacementConfirmed] = useState(false);
-  const [address, setAddress] = useState('');
-  const [locationSearch, setLocationSearch] = useState('');
-  const [searchResults, setSearchResults] = useState<MapPlace[]>([]);
-  const [selectedResultId, setSelectedResultId] = useState<string | null>(null);
-  const [searching, setSearching] = useState(false);
-  const [mapFocus, setMapFocus] = useState<MapFocus | null>(null);
-  const [mapViewport, setMapViewport] = useState<MapSearchViewport | null>(null);
-  const [pendingAddress, setPendingAddress] = useState<PendingAddress | null>(null);
-  const [reverseLoading, setReverseLoading] = useState(false);
-  const searchRequestId = useRef(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [cityFilter, setCityFilter] = useState(initialCityId);
+  const [zoneFilter, setZoneFilter] = useState(initialZoneId);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [selectedLockerId, setSelectedLockerId] = useState('');
+  const [hoveredLockerId, setHoveredLockerId] = useState<string | null>(null);
+  const [mapFocus, setMapFocus] = useState<{
+    latitude: number;
+    longitude: number;
+    zoom?: number;
+    key: number;
+  } | null>(null);
+
+  const networkLockers = useMemo(
+    () => lockers.filter((locker) => locker.type === 'SMART_LOCKER'),
+    [lockers],
+  );
+
+  const cityOptions = useMemo(() => {
+    const fromCities = cities.map((city) => ({ value: city.id, label: city.name }));
+    if (fromCities.length > 0) {
+      return [{ value: 'all', label: 'Toutes' }, ...fromCities];
+    }
+    const map = new Map<string, string>();
+    for (const locker of networkLockers) {
+      if (locker.serviceAreaCityId && locker.serviceAreaCity) {
+        map.set(locker.serviceAreaCityId, locker.serviceAreaCity);
+      }
+    }
+    return [
+      { value: 'all', label: 'Toutes' },
+      ...[...map.entries()]
+        .sort((a, b) => a[1].localeCompare(b[1], 'fr'))
+        .map(([value, label]) => ({ value, label })),
+    ];
+  }, [cities, networkLockers]);
+
+  const zoneOptions = useMemo(() => {
+    const scoped = cityFilter && cityFilter !== 'all' ? zonesForCity(serviceAreas, cityFilter) : serviceAreas;
+    return [
+      { value: 'all', label: 'Toutes' },
+      ...scoped.map((area) => ({ value: area.id, label: area.label })),
+    ];
+  }, [serviceAreas, cityFilter]);
+
+  const visibleLockers = useMemo(
+    () =>
+      networkLockers.filter((locker) => {
+        if (cityFilter && cityFilter !== 'all' && locker.serviceAreaCityId !== cityFilter) return false;
+        if (zoneFilter && zoneFilter !== 'all' && locker.serviceAreaId !== zoneFilter) return false;
+        if (statusFilter !== 'all' && locker.status !== statusFilter) return false;
+        return matchesListSearch(
+          searchQuery,
+          locker.name,
+          locker.code,
+          locker.address,
+          locker.serviceAreaName,
+          locker.serviceAreaCity,
+        );
+      }),
+    [networkLockers, cityFilter, zoneFilter, statusFilter, searchQuery],
+  );
 
   const mapMarkers = useMemo<LockerMapMarkerDto[]>(() => {
-    return lockers
+    return visibleLockers
       .filter((locker) => locker.latitude != null && locker.longitude != null)
       .map((locker) => ({
         id: locker.id,
@@ -89,385 +120,195 @@ export function AdminLockerManager({
         columns: locker.columns,
         contactPhone: locker.contactPhone,
       }));
-  }, [lockers]);
+  }, [visibleLockers]);
+
+  function selectLocker(lockerId: string, source: 'map' | 'table' = 'table') {
+    setSelectedLockerId(lockerId);
+    if (source !== 'table') return;
+    const locker = visibleLockers.find((item) => item.id === lockerId);
+    if (locker?.latitude == null || locker.longitude == null) return;
+    setMapFocus({
+      latitude: locker.latitude,
+      longitude: locker.longitude,
+      zoom: 14,
+      key: Date.now(),
+    });
+  }
 
   useEffect(() => {
-    const query = locationSearch.trim();
-    if (query.length < 2) {
-      setSearchResults([]);
-      setSearching(false);
-      return;
-    }
+    if (!selectedLockerId) return;
+    const row = document.querySelector(`[data-row-id="${selectedLockerId}"]`);
+    row?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [selectedLockerId]);
 
-    const requestId = ++searchRequestId.current;
-    setSearching(true);
-    const timer = window.setTimeout(() => {
-      void (async () => {
-        try {
-          const places = await searchGooglePlaces(query, {
-            limit: 8,
-            viewport: mapViewport ?? undefined,
-          });
-          if (requestId !== searchRequestId.current) return;
-          setSearchResults(places);
-          setError(null);
-        } catch {
-          if (requestId !== searchRequestId.current) return;
-          setError('Recherche impossible. Vérifiez votre clé Google Maps.');
-        } finally {
-          if (requestId === searchRequestId.current) {
-            setSearching(false);
-          }
-        }
-      })();
-    }, 320);
-
-    return () => window.clearTimeout(timer);
-  }, [locationSearch, mapViewport]);
-
-  function panMapTo(latitude: number, longitude: number, zoom = 15) {
-    setMapFocus({ latitude, longitude, zoom, key: Date.now() });
-  }
-
-  function setPlacement(coords: { latitude: number; longitude: number }, confirmed = true) {
-    setDraft(coords);
-    setPlacementConfirmed(confirmed);
-    setSelectedLockerId('');
-  }
-
-  function selectSearchResult(place: MapPlace) {
-    setSelectedResultId(place.id);
-    setPendingAddress(null);
-    setError(null);
-    if (!address.trim()) {
-      setAddress(place.label);
-    }
-    panMapTo(place.latitude, place.longitude, zoomForPlaceType(place.placeType));
-    setPlacement({ latitude: place.latitude, longitude: place.longitude }, true);
-    setLocationSearch(place.label);
-    setSearchResults([]);
-  }
-
-  async function handleMapPlacement(coords: { latitude: number; longitude: number }) {
-    setPlacement(coords, true);
-    setSelectedResultId(null);
-
-    if (address.trim()) {
-      setPendingAddress(null);
-      return;
-    }
-
-    setReverseLoading(true);
-    try {
-      const resolved = await reverseGeocodeGoogle(coords.latitude, coords.longitude);
-      if (!resolved) {
-        setPendingAddress(null);
-        return;
-      }
-      setPendingAddress({
-        address: resolved,
-        latitude: coords.latitude,
-        longitude: coords.longitude,
-      });
-    } catch {
-      setPendingAddress(null);
-    } finally {
-      setReverseLoading(false);
-    }
-  }
-
-  function confirmPendingAddress() {
-    if (!pendingAddress) return;
-    setAddress(pendingAddress.address);
-    setPendingAddress(null);
-  }
-
-  async function createLocker(input: CreatePointPayload) {
-    if (!draft || !placementConfirmed) {
-      setError('Cliquez sur la carte ou déplacez le repère pour confirmer l’emplacement exact.');
-      return;
-    }
-
-    setSaving(true);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      const response = await fetch('/api/lockers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...input,
-          latitude: draft.latitude,
-          longitude: draft.longitude,
-        }),
-      });
-      const result = await response.json();
-
-      if (!result.success) {
-        setError(result.error ?? 'Création échouée');
-        return;
-      }
-
-      setSuccess(`Point ${input.name} créé (${result.data.locker.code}).`);
-      setDraft(null);
-      setPlacementConfirmed(false);
-      setAddress('');
-      setLocationSearch('');
-      setSearchResults([]);
-      setSelectedResultId(null);
-      setPendingAddress(null);
-      setMapFocus(null);
-      router.refresh();
-    } catch {
-      setError('Impossible de créer le point.');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  const placementHint = !draft
-    ? 'Zoomez sur la zone, saisissez une adresse (suggestions en direct), ou cliquez sur la carte.'
-    : !placementConfirmed
-      ? 'Repère placé — glissez-le ou cliquez sur la carte pour confirmer l’emplacement exact.'
-      : `Emplacement confirmé : ${draft.latitude.toFixed(6)}, ${draft.longitude.toFixed(6)}`;
-
-  return (
-    <div style={{ display: 'grid', gap: '1.5rem' }}>
-      {error ? <FlashBanner message={error} variant="error" /> : null}
-      {success ? <FlashBanner message={success} /> : null}
-      {saving ? <LoadingSpinner label="Création du point…" /> : null}
-
-      <div style={{ display: 'grid', gap: '1.25rem' }}>
-        <div style={{ width: '100%' }}>
-          <LockerGoogleMap
-            lockers={mapMarkers}
-            selectedLockerId={selectedLockerId}
-            onSelectLocker={setSelectedLockerId}
-            draftMarker={draft}
-            draftMarkerDraggable={Boolean(draft)}
-            onDraftMarkerDrag={(coords) => void handleMapPlacement(coords)}
-            mapFocus={mapFocus}
-            onViewportChange={setMapViewport}
-            onMapClick={(coords) => void handleMapPlacement(coords)}
-            height={520}
-          />
-          <p style={{ margin: '0.75rem 0 0', fontSize: '0.8125rem', fontWeight: 600, color: colors.secondary }}>
-            {placementHint}
-          </p>
-          {reverseLoading ? (
-            <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: colors.textMuted }}>
-              Recherche de l’adresse…
-            </p>
-          ) : null}
-          {pendingAddress ? (
-            <div
-              style={{
-                marginTop: '0.75rem',
-                padding: '0.75rem',
-                border: borderSubtle(),
-                borderRadius: radius.button,
-                background: colors.surface,
-                display: 'grid',
-                gap: '0.5rem',
-              }}
+  const columns = useMemo<DataTableColumn<LockerSummaryDto>[]>(
+    () => [
+      {
+        id: 'name',
+        header: 'Casier',
+        sortable: true,
+        sortValue: (row) => row.name,
+        cell: (row) => (
+          <div>
+            <Link
+              href={`/tableau-de-bord/casiers/${row.id}`}
+              className="nb-data-table__link"
+              onClick={(event) => event.stopPropagation()}
             >
-              <p style={{ margin: 0, fontSize: '0.8125rem', fontWeight: 600 }}>
-                Utiliser cette adresse ?
-              </p>
-              <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>
-                {pendingAddress.address}
-              </p>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button
-                  type="button"
-                  onClick={confirmPendingAddress}
-                  style={{ ...webSecondaryButtonStyle, height: 36, flex: 1 }}
-                >
-                  Oui, remplir
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPendingAddress(null)}
-                  style={{
-                    ...webSecondaryButtonStyle,
-                    height: 36,
-                    flex: 1,
-                    background: colors.surface,
-                  }}
-                >
-                  Ignorer
-                </button>
-              </div>
-            </div>
-          ) : null}
-        </div>
-
-        <section
-          style={{
-            ...webCardStyle,
-            padding: '1rem 1.25rem',
-            position: 'relative',
-            zIndex: 2,
-          }}
-        >
-          <label style={{ display: 'block' }}>
-            <span
+              {row.name}
+            </Link>
+            <p
               style={{
-                display: 'block',
-                marginBottom: '0.35rem',
-                fontSize: '0.6875rem',
-                fontWeight: 700,
-                letterSpacing: '0.08em',
+                margin: `${spacing[1]}px 0 0`,
+                fontSize: typography.caption.fontSize,
                 color: colors.textMuted,
               }}
             >
-              RECHERCHER UN LIEU
-            </span>
-            <input
-              value={locationSearch}
-              onChange={(e) => setLocationSearch(e.target.value)}
-              placeholder="Avenue, bâtiment, quartier, ville…"
-              style={{ ...inputStyle, marginTop: 0, width: '100%' }}
-              autoComplete="off"
-              aria-label="Rechercher un lieu"
-            />
-          </label>
-          <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: colors.textMuted }}>
-            Suggestions Google Places, priorisées autour de la carte. Ou cliquez / glissez un repère sur la carte.
-          </p>
-          {searching ? (
-            <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: colors.textMuted }}>
-              Recherche…
+              {row.code}
             </p>
-          ) : null}
-          {searchResults.length > 0 ? (
-            <div
-              style={{
-                marginTop: '0.75rem',
-                border: borderSubtle(),
-                borderRadius: radius.button,
-                overflow: 'hidden',
-                maxHeight: 280,
-                overflowY: 'auto',
-              }}
-            >
-              {searchResults.map((place, index) => {
-                const isSelected = place.id === selectedResultId;
-                return (
-                  <button
-                    key={place.id}
-                    type="button"
-                    onClick={() => selectSearchResult(place)}
-                    style={{
-                      display: 'block',
-                      width: '100%',
-                      textAlign: 'left',
-                      padding: '0.75rem 1rem',
-                      border: 'none',
-                      borderBottom:
-                        index < searchResults.length - 1 ? borderSubtle() : 'none',
-                      background: isSelected ? colors.successMuted : colors.surface,
-                      color: isSelected ? colors.successFg : colors.secondary,
-                      fontWeight: isSelected ? 600 : 500,
-                      fontSize: '0.8125rem',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <span style={{ fontWeight: 700, marginRight: 6 }}>{index + 1}.</span>
-                    {place.label}
-                    <span
-                      style={{
-                        display: 'block',
-                        marginTop: 2,
-                        fontSize: '0.6875rem',
-                        color: colors.textMuted,
-                      }}
-                    >
-                      {place.placeTypeLabel}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
-        </section>
+          </div>
+        ),
+      },
+      {
+        id: 'location',
+        header: 'Adresse',
+        sortable: true,
+        sortValue: (row) => row.address,
+        hideOnMobile: true,
+        cell: (row) => row.address,
+      },
+      {
+        id: 'zone',
+        header: 'Zone',
+        sortable: true,
+        sortValue: (row) => formatLockerZoneLabel(row),
+        cell: (row) => (
+          <span style={{ color: colors.textMuted }}>{formatLockerZoneLabel(row)}</span>
+        ),
+      },
+      {
+        id: 'status',
+        header: 'Statut',
+        sortable: true,
+        sortValue: (row) => row.statusLabel,
+        cell: (row) => <LockerStatusBadge status={row.status} />,
+      },
+      {
+        id: 'occupancy',
+        header: 'Compartiments',
+        hideOnMobile: true,
+        cell: (row) =>
+          usesCompartmentGrid(row.type) ? (
+            <span style={{ whiteSpace: 'nowrap', fontSize: typography.caption.fontSize }}>
+              {row.compartmentCounts.available} disp. · {row.compartmentCounts.reserved} rés.{' '}
+              · {row.compartmentCounts.occupied} occ. / {row.compartmentCounts.total}
+            </span>
+          ) : (
+            `${row.availableSlots} / ${row.maxCapacity ?? '—'}`
+          ),
+      },
+    ],
+    [],
+  );
 
-        <section style={{ ...webCardStyle, padding: '1.25rem' }}>
-          <LockerCreatePanel
-            address={address}
-            onAddressChange={setAddress}
-            placementConfirmed={placementConfirmed}
-            saving={saving}
-            serviceAreas={serviceAreas}
-            onCreate={(input) => void createLocker(input)}
-          />
-        </section>
+  return (
+    <div className="locker-network-split">
+      <div className="locker-network-split__map">
+        <LockerGoogleMap
+          lockers={mapMarkers}
+          selectedLockerId={selectedLockerId}
+          hoveredLockerId={hoveredLockerId ?? undefined}
+          onSelectLocker={(lockerId) => selectLocker(lockerId, 'map')}
+          onHoverLocker={setHoveredLockerId}
+          mapFocus={mapFocus}
+          height="100%"
+        />
       </div>
 
-      {lockers.length > 0 ? (
-        <section>
-          <p
-            style={{
-              margin: '0 0 0.75rem',
-              fontSize: '0.6875rem',
-              fontWeight: 700,
-              letterSpacing: '0.08em',
-              color: colors.textMuted,
-            }}
-          >
-            POINTS EXISTANTS ({lockers.length})
-          </p>
-          <div className="nb-data-table">
-            <div className="nb-data-table__scroll">
-              <table>
-                <thead>
-                  <tr>
-                    {['Code', 'Point', 'Type', 'Statut', 'Capacité', ''].map((heading) => (
-                      <th key={heading || 'link'}>{heading}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {lockers.map((locker) => (
-                    <tr
-                      key={locker.id}
-                      className={[
-                        'nb-data-table__row',
-                        'is-interactive',
-                        selectedLockerId === locker.id ? 'is-selected' : '',
-                      ]
-                        .filter(Boolean)
-                        .join(' ')}
-                      onClick={() => setSelectedLockerId(locker.id)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <td style={{ fontWeight: 600 }}>{locker.code}</td>
-                      <td>{locker.name}</td>
-                      <td style={{ color: 'var(--color-text-muted)' }}>{locker.typeLabel}</td>
-                      <td>{locker.statusLabel}</td>
-                      <td>
-                        {usesCompartmentGrid(locker.type)
-                          ? `${locker.availableSlots} / ${locker.compartmentCounts.total}`
-                          : `${locker.availableSlots} / ${locker.maxCapacity ?? '—'}`}
-                      </td>
-                      <td className="nb-data-table__actions">
-                        <a
-                          href={`/tableau-de-bord/points/${locker.id}`}
-                          className="nb-data-table__link"
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          Détail
-                        </a>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-      ) : null}
+      <div className="locker-network-split__list">
+        <FilterToolbar
+        onClearAll={() => {
+          setCityFilter('all');
+          setZoneFilter('all');
+          setStatusFilter('all');
+        }}
+        filters={[
+          {
+            id: 'locker-city',
+            label: 'Ville',
+            value: cityFilter || 'all',
+            emptyValue: 'all',
+            options: cityOptions,
+            onChange: (next) => {
+              setCityFilter(next);
+              if (next !== 'all' && zoneFilter !== 'all') {
+                const stillValid = zonesForCity(serviceAreas, next).some((area) => area.id === zoneFilter);
+                if (!stillValid) setZoneFilter('all');
+              }
+            },
+          },
+          {
+            id: 'locker-zone',
+            label: 'Zone',
+            value: zoneFilter || 'all',
+            emptyValue: 'all',
+            options: zoneOptions,
+            onChange: setZoneFilter,
+          },
+          {
+            id: 'locker-status',
+            label: 'Statut',
+            value: statusFilter,
+            emptyValue: 'all',
+            options: STATUS_OPTIONS,
+            onChange: (next) => setStatusFilter(next as StatusFilter),
+          },
+        ]}
+      />
+
+      <DataTable
+        columns={columns}
+        rows={visibleLockers}
+        getRowId={(row) => row.id}
+        selectedRowId={selectedLockerId}
+        hoveredRowId={hoveredLockerId}
+        onRowSelect={selectLocker}
+        onRowHover={setHoveredLockerId}
+        caption={
+          visibleLockers.length > 0
+            ? zoneFilter && zoneFilter !== 'all'
+              ? `${visibleLockers.length} casier${visibleLockers.length > 1 ? 's' : ''} sur ${networkLockers.length}`
+              : `${visibleLockers.length} casier${visibleLockers.length > 1 ? 's' : ''}`
+            : undefined
+        }
+        toolbar={
+          <ListSearchField
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Rechercher un casier…"
+            ariaLabel="Rechercher un casier"
+          />
+        }
+        emptyTitle={
+          searchQuery.trim() || cityFilter !== 'all' || zoneFilter !== 'all' || statusFilter !== 'all'
+            ? 'Aucun casier pour ces filtres'
+            : 'Aucun casier intelligent'
+        }
+        emptyDescription="Le réseau Eveider se construit casier par casier, avec une ville et une zone explicites."
+        emptyIcon={searchQuery.trim() ? <IconSearch /> : <IconMapPin />}
+        emptyAction={
+          <Link href="/tableau-de-bord/casiers/nouveau" className="nb-btn nb-btn-primary nb-btn--sm">
+            Nouveau casier
+          </Link>
+        }
+        initialSortId="name"
+        initialSortDirection="asc"
+        rowPrimaryAction={(row) => ({
+          label: 'Détail',
+          href: `/tableau-de-bord/casiers/${row.id}`,
+        })}
+      />
+      </div>
     </div>
   );
 }

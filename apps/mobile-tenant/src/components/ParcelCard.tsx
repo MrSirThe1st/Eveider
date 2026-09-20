@@ -2,11 +2,12 @@ import { borders, type ColorTokens } from '@eveider/config-ui';
 import { Feather } from '@expo/vector-icons';
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { useTranslation } from 'react-i18next';
 import type { CustomerParcel } from '../lib/api';
-import { needsPickupPayment } from '../lib/pickup-payment';
+import {
+  getRecipientNextActionHint,
+  getRecipientParcelStatus,
+} from '../lib/recipient-presentation';
 import { useColors } from '../theme';
-import { ParcelStatusBadge } from './ParcelStatusBadge';
 
 type ParcelCardProps = {
   parcel: CustomerParcel;
@@ -20,33 +21,24 @@ function formatDate(iso: string) {
 }
 
 export function ParcelCard({ parcel }: ParcelCardProps) {
-  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const needsPayment = needsPickupPayment(parcel);
-  const hint = needsPayment
-    ? parcel.pickupPayment?.amount && parcel.pickupPayment.currency
-      ? t('home.paymentAmount', {
-          amount: parcel.pickupPayment.amount,
-          currency: parcel.pickupPayment.currency,
-        })
-      : t('home.paymentRequired')
-    : parcel.status === 'ready_for_pickup'
-      ? t('home.pickupCodeAvailable')
-      : null;
+  const status = getRecipientParcelStatus(parcel);
+  const hint = getRecipientNextActionHint(parcel);
+  const lockerName = parcel.customerReturn?.returnLocker?.name ?? parcel.locker?.name;
 
   return (
     <View style={styles.row}>
       <View style={styles.body}>
         <View style={styles.header}>
           <Text style={styles.reference}>{parcel.trackingNumber ?? parcel.reference}</Text>
-          <ParcelStatusBadge status={parcel.status} />
+          <Text style={styles.status}>{status}</Text>
         </View>
         <Text style={styles.meta}>
-          {parcel.businessName} · {formatDate(parcel.createdAt)}
+          {parcel.businessName} · {formatDate(parcel.updatedAt)}
         </Text>
-        <Text style={styles.locker}>{parcel.locker ? parcel.locker.name : '—'}</Text>
-        {hint ? <Text style={styles.pinHint}>{hint}</Text> : null}
+        {lockerName ? <Text style={styles.locker}>Casier Eveider {lockerName}</Text> : null}
+        {hint ? <Text style={styles.hint}>{hint}</Text> : null}
       </View>
       <Feather name="chevron-right" size={18} color={colors.primary} />
     </View>
@@ -81,6 +73,13 @@ function createStyles(colors: ColorTokens) {
       fontVariant: ['tabular-nums'],
       flex: 1,
     },
+    status: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.primary,
+      flexShrink: 1,
+      textAlign: 'right',
+    },
     meta: {
       marginTop: 6,
       fontSize: 13,
@@ -93,7 +92,7 @@ function createStyles(colors: ColorTokens) {
       fontWeight: '500',
       color: colors.secondary,
     },
-    pinHint: {
+    hint: {
       marginTop: 8,
       fontSize: 12,
       fontWeight: '500',

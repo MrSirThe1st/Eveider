@@ -8,83 +8,56 @@ import {
   IconMapPin,
   IconPackage,
   IconTruck,
-  IconUser,
+  IconUsers,
   type NavModule,
 } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { AdminSettingsChrome } from '@/components/settings-chrome';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { ADMIN_PRIMARY_NAV } from '@/lib/admin-nav';
 import { createClient } from '@/lib/supabase/client';
 
 
 type AdminShellProps = {
   children: React.ReactNode;
+  userName?: string | null;
+  userEmail?: string | null;
 };
 
 const NAV_ICON_PROPS = { width: 16, height: 16 } as const;
 
-const ADMIN_MODULES: NavModule[] = [
-  {
-    id: 'dashboard',
-    label: 'Tableau de bord',
-    href: '/tableau-de-bord',
-    icon: <IconHome {...NAV_ICON_PROPS} />,
-    match: (p) => p === '/tableau-de-bord',
-  },
-  {
-    id: 'colis',
-    label: 'Colis',
-    href: '/tableau-de-bord/colis',
-    icon: <IconPackage {...NAV_ICON_PROPS} />,
-    match: (p) => p.startsWith('/tableau-de-bord/colis'),
-  },
-  {
-    id: 'livraisons',
-    label: 'Livraisons',
-    href: '/tableau-de-bord/livraisons',
-    icon: <IconTruck {...NAV_ICON_PROPS} />,
-    match: (p) =>
-      p.startsWith('/tableau-de-bord/livraisons') || p.startsWith('/tableau-de-bord/incidents'),
-  },
-  {
-    id: 'organisations',
-    label: 'Organisations',
-    href: '/tableau-de-bord/organisations',
-    icon: <IconBuilding {...NAV_ICON_PROPS} />,
-    match: (p) => p.startsWith('/tableau-de-bord/organisations'),
-  },
-  {
-    id: 'points',
-    label: 'Points',
-    href: '/tableau-de-bord/points',
-    icon: <IconMapPin {...NAV_ICON_PROPS} />,
-    match: (p) =>
-      p.startsWith('/tableau-de-bord/points') || p.startsWith('/tableau-de-bord/casiers'),
-  },
-  {
-    id: 'chauffeurs',
-    label: 'Chauffeurs',
-    href: '/tableau-de-bord/chauffeurs',
-    icon: <IconTruck {...NAV_ICON_PROPS} />,
-    match: (p) => p.startsWith('/tableau-de-bord/chauffeurs'),
-  },
-  {
-    id: 'utilisateurs',
-    label: 'Utilisateurs',
-    href: '/tableau-de-bord/utilisateurs',
-    icon: <IconUser {...NAV_ICON_PROPS} />,
-    match: (p) => p.startsWith('/tableau-de-bord/utilisateurs'),
-  },
-  {
-    id: 'parametres',
-    label: 'Paramètres',
-    href: '/tableau-de-bord/parametres',
-    icon: <IconLayout {...NAV_ICON_PROPS} />,
-    match: (p) => p.startsWith('/tableau-de-bord/parametres'),
-  },
-];
+const NAV_ICONS: Record<(typeof ADMIN_PRIMARY_NAV)[number]['id'], React.ReactNode> = {
+  dashboard: <IconHome {...NAV_ICON_PROPS} />,
+  colis: <IconPackage {...NAV_ICON_PROPS} />,
+  livraisons: <IconTruck {...NAV_ICON_PROPS} />,
+  casiers: <IconMapPin {...NAV_ICON_PROPS} />,
+  flotte: <IconUsers {...NAV_ICON_PROPS} />,
+  organisations: <IconBuilding {...NAV_ICON_PROPS} />,
+  parametres: <IconLayout {...NAV_ICON_PROPS} />,
+};
 
-export function AdminShell({ children }: AdminShellProps) {
+const ADMIN_MODULES: NavModule[] = ADMIN_PRIMARY_NAV.map((item) => ({
+  id: item.id,
+  label: item.label,
+  href: item.href,
+  icon: NAV_ICONS[item.id],
+  section: 'section' in item ? item.section : undefined,
+  match: (p: string) => {
+    if (item.id === 'dashboard') return p === '/tableau-de-bord';
+    if (item.id === 'livraisons') {
+      return p.startsWith('/tableau-de-bord/livraisons') || p.startsWith('/tableau-de-bord/incidents');
+    }
+    if (item.id === 'casiers') {
+      return p.startsWith('/tableau-de-bord/casiers') || p.startsWith('/tableau-de-bord/points');
+    }
+    if (item.id === 'flotte') {
+      return p.startsWith('/tableau-de-bord/flotte') || p.startsWith('/tableau-de-bord/chauffeurs');
+    }
+    return p.startsWith(item.href);
+  },
+}));
+
+export function AdminShell({ children, userName, userEmail }: AdminShellProps) {
   const router = useRouter();
 
   async function handleSignOut() {
@@ -101,6 +74,8 @@ export function AdminShell({ children }: AdminShellProps) {
       modules={ADMIN_MODULES}
       profileHref="/tableau-de-bord/parametres/mon-compte/profil"
       profileLabel="Mon compte"
+      userName={userName}
+      userEmail={userEmail}
       toolbar={<ThemeToggle />}
     >
       <AdminSettingsChrome>{children}</AdminSettingsChrome>

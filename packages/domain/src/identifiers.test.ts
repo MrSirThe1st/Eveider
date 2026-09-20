@@ -13,7 +13,7 @@ import {
 describe('identifiers', () => {
   it('generates valid tracking numbers with checksum', () => {
     const tracking = generateTrackingNumber(new Date('2026-07-23T00:00:00Z'));
-    expect(tracking).toMatch(/^EVD26[0-9A-HJKMNP-TV-Z]{8}[0-9A-HJKMNP-TV-Z*~$=]$/);
+    expect(tracking).toMatch(/^EVD26[0-9A-HJKMNP-TV-Z]{8}[0-9A-HJKMNP-TV-Z*~$=U]$/);
     expect(isValidTrackingNumber(tracking)).toBe(true);
     expect(isValidTrackingNumber(tracking.slice(0, -1) + '0')).toBe(
       crockfordCheckSymbol(tracking.slice(0, -1)) === '0',
@@ -29,7 +29,7 @@ describe('identifiers', () => {
 
   it('generates valid Eveider Point codes', () => {
     const code = generatePointCode();
-    expect(code).toMatch(/^EVP[0-9A-HJKMNP-TV-Z]{6}[0-9A-HJKMNP-TV-Z*~$=]$/);
+    expect(code).toMatch(/^EVP[0-9A-HJKMNP-TV-Z]{6}[0-9A-HJKMNP-TV-Z*~$=U]$/);
     expect(isValidPointCode(code)).toBe(true);
   });
 
@@ -38,6 +38,12 @@ describe('identifiers', () => {
       const pin = generatePickupPinCode();
       expect(pin).toMatch(/^[1-9]\d{5}$/);
     }
+  });
+
+  it('always emits a Crockford check symbol, including remainder 36 (U)', () => {
+    const check = crockfordCheckSymbol('EVD26F8G0TET0');
+    expect(check).toHaveLength(1);
+    expect(isValidTrackingNumber(`EVD26F8G0TET0${check}`)).toBe(true);
   });
 
   it('builds compartment QR payloads', () => {

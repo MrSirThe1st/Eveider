@@ -36,9 +36,14 @@ export async function dismissCookieBanner(page: Page) {
 
 export async function signIn(page: Page, email: string, password = SEED_PASSWORD) {
   await seedConsentCookie(page);
-  await page.goto('/connexion');
+  await page.goto('/connexion', { waitUntil: 'domcontentloaded', timeout: 20_000 });
+  try {
+    await page.waitForLoadState('load', { timeout: 8_000 });
+  } catch {
+    /* Chat widgets can prevent the window load event. */
+  }
   await page.locator('input[type="email"]').fill(email);
   await page.locator('input[type="password"]').fill(password);
-  await page.getByRole('button', { name: /Se connecter|Connexion/i }).click();
-  await page.waitForURL((url) => !url.pathname.startsWith('/connexion'), { timeout: 60_000 });
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await page.waitForURL((url) => !url.pathname.startsWith('/connexion'), { timeout: 45_000 });
 }

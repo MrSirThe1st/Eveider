@@ -5,22 +5,29 @@ import { useColors } from '../theme';
 
 type SuccessBannerProps = {
   message: string;
+  detail?: string;
   onDismiss: () => void;
   durationMs?: number;
 };
 
-export function SuccessBanner({ message, onDismiss, durationMs = 3000 }: SuccessBannerProps) {
+export function SuccessBanner({
+  message,
+  detail,
+  onDismiss,
+  durationMs = 4000,
+}: SuccessBannerProps) {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   useEffect(() => {
     const timer = setTimeout(onDismiss, durationMs);
     return () => clearTimeout(timer);
-  }, [message, durationMs, onDismiss]);
+  }, [message, detail, durationMs, onDismiss]);
 
   return (
     <View style={styles.banner}>
       <Text style={styles.text}>{message}</Text>
+      {detail ? <Text style={styles.detail}>{detail}</Text> : null}
     </View>
   );
 }
@@ -35,8 +42,15 @@ function createStyles(colors: ColorTokens) {
     },
     text: {
       fontWeight: '700',
-      fontSize: 12,
-      letterSpacing: 0.5,
+      fontSize: 14,
+      textAlign: 'center',
+      color: colors.onPrimary,
+    },
+    detail: {
+      marginTop: 6,
+      fontWeight: '500',
+      fontSize: 13,
+      lineHeight: 18,
       textAlign: 'center',
       color: colors.onPrimary,
     },

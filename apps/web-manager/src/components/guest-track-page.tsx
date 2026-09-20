@@ -3,6 +3,12 @@
 import { colors, radius, spacing, borderSubtle, webCardStyle } from '@eveider/config-ui';
 import { Spinner } from '@eveider/ui';
 import type { CustomerParcelDto } from '@/lib/customer-parcel-presenter';
+import {
+  canShowPublicCollectionCode,
+  getPublicJourney,
+  hasMissingCanonicalCharge,
+  needsPublicPayment,
+} from '@/lib/public-parcel-presentation';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
@@ -230,7 +236,7 @@ export function GuestTrackPage() {
       setParcel(json.data.parcel);
       const status = json.data.payment?.status;
       if (status === 'completed') {
-        setMessage('Paiement confirmé. Votre code PIN est affiché ci-dessous.');
+        setMessage('Paiement confirmé. Votre code de retrait est affiché ci-dessous.');
       } else {
         setMessage('Paiement initié. Confirmez sur votre téléphone, puis actualisez.');
       }
@@ -254,7 +260,7 @@ export function GuestTrackPage() {
       }
       setParcel(json.data.parcel);
       if (json.data.payment?.status === 'completed') {
-        setMessage('Paiement confirmé. Votre code PIN est affiché ci-dessous.');
+        setMessage('Paiement confirmé. Votre code de retrait est affiché ci-dessous.');
       }
     } catch {
       setError('Erreur réseau');
@@ -263,11 +269,12 @@ export function GuestTrackPage() {
     }
   }
 
-  const needsPayment =
-    parcel?.status === 'ready_for_pickup' &&
-    parcel.pickupPayment?.required &&
-    parcel.pickupPayment.status !== 'completed';
-  const showPin = Boolean(parcel?.pickupPin);
+  const needsPayment = parcel ? needsPublicPayment(parcel) : false;
+  const showPin = parcel ? canShowPublicCollectionCode(parcel) : false;
+  const missingCharge = parcel ? hasMissingCanonicalCharge(parcel.pickupPayment) : false;
+  const journey = parcel ? getPublicJourney(parcel) : null;
+  const providerUnavailable =
+    needsPayment && parcel?.pickupPayment?.paymentProviderAvailable === false;
 
   return (
     <div style={{ minHeight: '100vh', background: colors.background, display: 'flex', flexDirection: 'column' }}>
@@ -471,12 +478,36 @@ export function GuestTrackPage() {
             </p>
             {parcel.locker ? (
               <p style={{ margin: '0 0 1rem', fontWeight: 600 }}>
-                Casier : {parcel.locker.name}
-                {parcel.compartmentLabel ? ` · Comp. ${parcel.compartmentLabel}` : ''}
+                Casier Eveider : {parcel.locker.name}
               </p>
             ) : (
               <p style={{ margin: '0 0 1rem', fontWeight: 500, color: colors.textMuted }}>Casier non assigné</p>
             )}
+            {journey ? (
+              <ol
+                style={{
+                  margin: '0 0 1.25rem',
+                  padding: 0,
+                  listStyle: 'none',
+                  display: 'grid',
+                  gap: '0.35rem',
+                }}
+              >
+                {journey.steps.map((step) => (
+                  <li
+                    key={step.id}
+                    style={{
+                      fontSize: '0.8125rem',
+                      fontWeight: step.current ? 700 : 500,
+                      color: step.current || step.done ? colors.secondary : colors.textMuted,
+                    }}
+                  >
+                    {step.current ? '● ' : step.done ? '✓ ' : '○ '}
+                    {step.label}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
 
             <button
               type="button"
@@ -502,7 +533,7 @@ export function GuestTrackPage() {
                   Payez {parcel.pickupPayment?.amount ?? providers?.amount}{' '}
                   {parcel.pickupPayment?.currency ?? providers?.currency}
                   {parcel.pickupPayment?.purpose ? ` (${parcel.pickupPayment.purpose})` : ''} pour
-                  révéler votre code PIN.
+                  révéler votre code de retrait.
                 </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
                   {(providers?.providers ?? []).map((provider) => (
@@ -543,7 +574,7 @@ export function GuestTrackPage() {
                   style={{ width: '100%', marginBottom: '0.75rem', opacity: paying ? 0.7 : 1 }}
                   onClick={() => void pay()}
                 >
-                  {paying ? 'TRAITEMENT…' : 'PAYER ET RÉVÉLER LE PIN'}
+                  {paying ? 'TRAITEMENT…' : 'PAYER ET RÉVÉLER LE CODE'}
                 </button>
                 <button
                   type="button"
@@ -567,7 +598,7 @@ export function GuestTrackPage() {
                 }}
               >
                 <p style={{ margin: 0, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.12em' }}>
-                  CODE PIN DE RETRAIT
+                  CODE DE RETRAIT
                 </p>
                 <p
                   style={{
@@ -589,9 +620,15 @@ export function GuestTrackPage() {
               </div>
             ) : null}
 
-            {parcel.status === 'ready_for_pickup' && !needsPayment && !showPin ? (
+            {missingCharge ? (
+              <p style={{ marginTop: '1rem', fontWeight: 500, color: colors.danger }}>
+                Les frais de ce colis ne sont pas encore disponibles. Contactez le support Eveider.
+              </p>
+            ) : null}
+            {providerUnavailable ? (
               <p style={{ marginTop: '1rem', fontWeight: 500, color: colors.textMuted }}>
-                Code PIN en cours de génération. Actualisez dans un instant.
+                Le paiement est toujours dû. Réessayez dans un instant — le code de retrait reste
+                masqué.
               </p>
             ) : null}
           </section>

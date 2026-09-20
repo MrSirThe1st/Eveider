@@ -27,13 +27,13 @@ export function TrackResultScreen({ parcel, onBack }: TrackResultScreenProps) {
 
       <View style={styles.header}>
         <Text style={styles.reference}>{parcel.trackingNumber ?? parcel.reference}</Text>
-        <ParcelStatusBadge status={parcel.status} />
+        <ParcelStatusBadge parcel={parcel} />
       </View>
       <Text style={styles.meta}>{parcel.businessName}</Text>
 
       <View style={styles.section}>
         <Text style={styles.label}>{t('customer.tracking')}</Text>
-        <ParcelTimeline currentStatus={parcel.status} pickupType={parcel.pickupType} />
+        <ParcelTimeline parcel={parcel} />
       </View>
 
       {parcel.locker ? (

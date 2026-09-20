@@ -11,7 +11,7 @@ export type { ServiceAreaDto, ServiceAreaOptionDto };
 
 export async function listServiceAreas(
   ctx: DataAccessContext,
-  options?: { status?: 'active' | 'archived'; city?: string; includeArchived?: boolean },
+  options?: { status?: 'active' | 'archived'; city?: string; cityId?: string; includeArchived?: boolean },
 ): Promise<ServiceAreaDto[]> {
   const { serviceAreas } = createRepositories();
   const items = await serviceAreas.list(ctx, options);

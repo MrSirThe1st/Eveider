@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { ParcelExportMenu } from '@/components/parcel-export-menu';
 import { ParcelImportWizard } from '@/components/parcel-import-wizard';
 import { WEB_ROUTES } from '@/lib/auth-routing';
+import { SettingsFormSection } from '@/components/ops-ui';
 
 type ExcelIntegrationsPanelProps = {
   variant: 'business' | 'admin';
@@ -17,33 +18,27 @@ export function ExcelIntegrationsPanel({ variant }: ExcelIntegrationsPanelProps)
 
   if (variant === 'business') {
     return (
-      <section style={{ display: 'grid', gap: spacing[4] }}>
-        <div style={{ ...webCardStyle, padding: spacing[5], display: 'grid', gap: spacing[3] }}>
-          <div>
-            <h2 style={{ margin: 0, ...typography.sectionTitle }}>Import colis</h2>
-            <p style={{ margin: `${spacing[2]}px 0 0`, color: colors.textMuted }}>
-              Créez plusieurs colis à partir d’un fichier Excel avec aperçu et rapport d’erreurs.
-            </p>
-          </div>
+      <section className="ops-form">
+        <SettingsFormSection
+          title="Import colis"
+          description="Créez plusieurs colis à partir d’un fichier Excel avec aperçu et rapport d’erreurs. L’import quotidien se fait aussi depuis Colis."
+        >
           <div style={{ display: 'flex', gap: spacing[2], flexWrap: 'wrap' }}>
             <Button variant="primary" onClick={() => setImportOpen(true)}>
               Importer un fichier Excel
             </Button>
-            <Link href={WEB_ROUTES.businessParcels} className="nb-btn nb-btn-secondary nb-btn--sm">
+            <Link href={WEB_ROUTES.businessParcels} className="nb-btn nb-btn-secondary">
               Voir les colis
             </Link>
           </div>
-        </div>
+        </SettingsFormSection>
 
-        <div style={{ ...webCardStyle, padding: spacing[5], display: 'grid', gap: spacing[3] }}>
-          <div>
-            <h2 style={{ margin: 0, ...typography.sectionTitle }}>Export colis</h2>
-            <p style={{ margin: `${spacing[2]}px 0 0`, color: colors.textMuted }}>
-              Exportez vos colis au format .xlsx depuis la liste ou directement ici.
-            </p>
-          </div>
+        <SettingsFormSection
+          title="Export colis"
+          description="Exportez vos colis au format .xlsx depuis la liste ou directement ici."
+        >
           <ParcelExportMenu exportPath="/api/organisation/parcels/export" />
-        </div>
+        </SettingsFormSection>
 
         <ParcelImportWizard open={importOpen} onClose={() => setImportOpen(false)} />
       </section>

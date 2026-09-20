@@ -5,7 +5,6 @@ import { Button, Card, CardHeader, InlineAlert, useToast } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { AdminAccountStatusBadge } from '@/components/admin-account-status-badge';
-import { VerificationStatusBadge } from '@/components/verification-status-badge';
 import { AdminOrganizationOperatingAccess } from '@/components/admin-organization-operating-access';
 import { fetchJson } from '@/lib/api/fetch-json';
 import type { AdminOrganizationSummary, OrganizationOperatingAccessDto } from '@/server/organizations';
@@ -68,7 +67,6 @@ export function AdminOrganizationOverview({
         <CardHeader title="Statuts" />
         <div style={{ display: 'flex', gap: spacing[3], flexWrap: 'wrap', alignItems: 'center' }}>
           <AdminAccountStatusBadge status={organization.accountStatus} />
-          <VerificationStatusBadge status={organization.verificationStatus} />
         </div>
         <div style={{ display: 'flex', gap: spacing[3], marginTop: spacing[4], flexWrap: 'wrap' }}>
           {organization.accountStatus === 'active' ? (

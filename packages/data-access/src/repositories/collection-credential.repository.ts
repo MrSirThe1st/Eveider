@@ -363,7 +363,7 @@ export class CollectionCredentialRepository {
          parcel_id, locker_id, compartment_id, tracking_number,
          recipient_phone_normalized, pin_hash, status, version,
          activated_at
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, 1, CASE WHEN $7 = 'active' THEN NOW() ELSE NULL END)
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, 1, CASE WHEN $8 THEN NOW() ELSE NULL END)
        RETURNING *`,
       [
         input.parcelId,
@@ -373,6 +373,7 @@ export class CollectionCredentialRepository {
         input.recipientPhoneNormalized,
         input.pinHash,
         input.activate ? 'active' : 'pending',
+        input.activate,
       ],
     );
     const credential = mapLockerCollectionCredential(result.rows[0]!);
@@ -425,7 +426,7 @@ export class CollectionCredentialRepository {
            recipient_phone_normalized = $4,
            status = $5,
            activated_at = CASE
-             WHEN $5 = 'active' THEN COALESCE(activated_at, NOW())
+             WHEN $6 THEN COALESCE(activated_at, NOW())
              ELSE activated_at
            END,
            sync_seq = ${bumpSyncSql()},
@@ -440,6 +441,7 @@ export class CollectionCredentialRepository {
         next.trackingNumber,
         next.recipientPhoneNormalized,
         desired,
+        next.activate,
       ],
     );
     const row = result.rows[0];

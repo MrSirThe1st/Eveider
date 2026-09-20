@@ -18,7 +18,6 @@ export function OrganizationDetailTabs({ basePath }: OrganizationDetailTabsProps
         },
         { href: `${basePath}/membres`, label: 'Membres' },
         { href: `${basePath}/livraisons`, label: 'Livraisons' },
-        { href: `${basePath}/verification`, label: 'Vérification' },
       ]}
     />
   );

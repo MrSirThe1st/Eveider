@@ -38,6 +38,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       message.includes('dépôt') ||
       message.includes('préparation du retrait') ||
       message.includes('prêt pour retrait') ||
+      message.includes('prêt au retrait') ||
       message.includes('transit Eveider')
         ? 400
         : message.includes('Paiement requis') || message.includes('CANONICAL_CHARGE_MISSING')

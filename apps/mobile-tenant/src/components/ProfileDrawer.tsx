@@ -24,7 +24,7 @@ const CLOSE_EASE = Easing.bezier(0.4, 0, 1, 1);
 type ProfileDrawerProps = {
   isGuest: boolean;
   open: boolean;
-  mode?: 'CLIENT' | 'COURSIER';
+  mode?: 'CLIENT' | 'DRIVER';
 };
 
 export function ProfileDrawer({ isGuest, open, mode = 'CLIENT' }: ProfileDrawerProps) {
@@ -145,7 +145,7 @@ const DrawerBody = memo(function DrawerBody({
   mode,
 }: {
   isGuest: boolean;
-  mode: 'CLIENT' | 'COURSIER';
+  mode: 'CLIENT' | 'DRIVER';
 }) {
   const {
     requestAuth,

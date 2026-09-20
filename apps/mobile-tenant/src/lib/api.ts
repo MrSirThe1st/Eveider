@@ -14,6 +14,8 @@ export type PickupPayment = {
   failureReason: string | null;
   kind?: string | null;
   purpose?: string | null;
+  integrityError?: 'CANONICAL_CHARGE_MISSING' | null;
+  paymentProviderAvailable?: boolean;
 };
 
 export type PaymentProvider = {
@@ -79,6 +81,8 @@ export type CourierDelivery = {
     status: string;
     recipientName: string | null;
     businessName: string;
+    senderAddress?: string | null;
+    packageSize?: string | null;
     locker: {
       id: string;
       name: string;

@@ -233,7 +233,9 @@ export class LockerActionRepository {
       };
     }
 
-    const mismatch = lockerActionSessionConfirmDenial(current, { lockerId });
+    // SQL expiry is authoritative. TIMESTAMP WITHOUT TIME ZONE mapped into a JS
+    // Date is not timezone-safe, so do not re-check the clock in-process.
+    const mismatch = lockerActionSessionConfirmDenial(current, { lockerId }, new Date(0));
     if (mismatch) deny(mismatch);
 
     const ctx = systemCtx();
@@ -311,15 +313,14 @@ export class LockerActionRepository {
     }
 
     const occupied = await this.db.query(
-      `SELECT c.id, c.locker_id, c.current_parcel_id, p.status AS parcel_status
+      `SELECT c.id, c.locker_id, p.id AS parcel_id, p.status AS parcel_status
        FROM compartments c
-       LEFT JOIN parcels p ON p.id = c.current_parcel_id
+       LEFT JOIN parcels p ON p.compartment_id = c.id
        WHERE c.status = 'occupied'
          AND ($1::uuid IS NULL OR c.locker_id = $1)
          AND (
-           c.current_parcel_id IS NULL
-           OR p.id IS NULL
-           OR p.status NOT IN ('at_point', 'ready_for_pickup', 'return_at_point')
+           p.id IS NULL
+           OR p.status NOT IN ('delivered_to_locker', 'ready_for_pickup', 'return_at_point')
            OR p.locker_id IS DISTINCT FROM c.locker_id
          )`,
       [lockerId ?? null],
@@ -329,7 +330,7 @@ export class LockerActionRepository {
         kind: 'occupied_without_expected_parcel',
         lockerId: String(row.locker_id),
         compartmentId: String(row.id),
-        parcelId: row.current_parcel_id == null ? null : String(row.current_parcel_id),
+        parcelId: row.parcel_id == null ? null : String(row.parcel_id),
         sessionId: null,
         credentialId: null,
         detail: `Occupied compartment parcel status=${row.parcel_status ?? 'missing'}`,
@@ -364,8 +365,8 @@ export class LockerActionRepository {
        WHERE s.status = 'confirmed'
          AND ($1::uuid IS NULL OR s.locker_id = $1)
          AND (
-           (s.action = 'deposit' AND p.status NOT IN ('at_point', 'ready_for_pickup', 'return_at_point', 'collected', 'returning', 'returned'))
-           OR (s.action = 'recipient_collection' AND p.status NOT IN ('collected', 'return_requested', 'return_authorized', 'return_at_point', 'returning', 'returned'))
+           (s.action = 'deposit' AND p.status NOT IN ('delivered_to_locker', 'ready_for_pickup', 'return_at_point', 'collected', 'returning', 'returned'))
+           OR (s.action = 'recipient_collection' AND p.status NOT IN ('collected', 'return_at_point', 'returning', 'returned'))
            OR (s.action = 'driver_pickup' AND p.status NOT IN ('returning', 'returned'))
            OR (s.action = 'business_return_pickup' AND p.status <> 'returned')
          )`,

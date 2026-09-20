@@ -17,9 +17,16 @@ type ParcelEventTimelineProps = {
   events: AdminParcelEventDto[];
   /** Optional tighter card padding for denser layouts. */
   compact?: boolean;
+  parcelStatusLabel?: (status: NonNullable<AdminParcelEventDto['newParcelStatus']>) => string;
+  deliveryStatusLabel?: (status: NonNullable<AdminParcelEventDto['newDeliveryStatus']>) => string;
 };
 
-export function ParcelEventTimeline({ events, compact = false }: ParcelEventTimelineProps) {
+export function ParcelEventTimeline({
+  events,
+  compact = false,
+  parcelStatusLabel,
+  deliveryStatusLabel,
+}: ParcelEventTimelineProps) {
   return (
     <section
       style={{
@@ -84,14 +91,25 @@ export function ParcelEventTimeline({ events, compact = false }: ParcelEventTime
                 ) : null}
                 {event.previousParcelStatus && event.newParcelStatus ? (
                   <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', opacity: 0.65 }}>
-                    {PARCEL_STATUS_LABELS[event.previousParcelStatus]} →{' '}
-                    {PARCEL_STATUS_LABELS[event.newParcelStatus]}
+                    {(parcelStatusLabel
+                      ? parcelStatusLabel(event.previousParcelStatus)
+                      : PARCEL_STATUS_LABELS[event.previousParcelStatus])}{' '}
+                    →{' '}
+                    {parcelStatusLabel
+                      ? parcelStatusLabel(event.newParcelStatus)
+                      : PARCEL_STATUS_LABELS[event.newParcelStatus]}
                   </p>
                 ) : null}
                 {event.previousDeliveryStatus && event.newDeliveryStatus ? (
                   <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', opacity: 0.65 }}>
-                    Livraison : {DELIVERY_STATUS_LABELS[event.previousDeliveryStatus]} →{' '}
-                    {DELIVERY_STATUS_LABELS[event.newDeliveryStatus]}
+                    Livraison :{' '}
+                    {deliveryStatusLabel
+                      ? deliveryStatusLabel(event.previousDeliveryStatus)
+                      : DELIVERY_STATUS_LABELS[event.previousDeliveryStatus]}{' '}
+                    →{' '}
+                    {deliveryStatusLabel
+                      ? deliveryStatusLabel(event.newDeliveryStatus)
+                      : DELIVERY_STATUS_LABELS[event.newDeliveryStatus]}
                   </p>
                 ) : null}
               </div>

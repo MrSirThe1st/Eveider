@@ -1,18 +1,25 @@
 import {
+  CHARGE_PAYER_LABELS,
   formatDeliveryFee,
   PACKAGE_SIZE_LABELS,
+  PARCEL_CHARGE_KIND_LABELS,
   PARCEL_EVENT_ACTOR_TYPE_LABELS,
   PARCEL_EVENT_TYPE_LABELS,
-  PARCEL_STATUS_LABELS,
-  SHIPMENT_PICKUP_TYPE_LABELS,
+  type ChargePayer,
   type DeliveryPricingCurrency,
   type DeliveryStatus,
   type PackageSize,
+  type ParcelChargeKind,
   type ParcelEventActorType,
   type ParcelEventType,
   type ParcelStatus,
   type ShipmentPickupType,
 } from '@eveider/domain';
+import {
+  getAdminParcelDisplayStatus,
+  getFulfillmentMethodLabel,
+  summarizeAdminParcelEvent,
+} from '@/lib/admin-presentation';
 
 export type LockerSummaryDto = {
   id: string;
@@ -73,7 +80,10 @@ export function toAdminParcelDto(parcel: {
     trackingNumber: parcel.trackingNumber,
     reference: parcel.reference,
     status: parcel.status,
-    statusLabel: PARCEL_STATUS_LABELS[parcel.status],
+    statusLabel: getAdminParcelDisplayStatus({
+      status: parcel.status,
+      pickupType,
+    }),
     recipientName: parcel.recipientName,
     recipientPhone: parcel.recipientPhone,
     lockerId: parcel.lockerId,
@@ -82,7 +92,7 @@ export function toAdminParcelDto(parcel: {
       : null,
     business: { id: parcel.business.id, name: parcel.business.name },
     pickupType,
-    pickupTypeLabel: SHIPMENT_PICKUP_TYPE_LABELS[pickupType],
+    pickupTypeLabel: getFulfillmentMethodLabel(pickupType),
     deliveryFeeAmount: parcel.deliveryFeeAmount ?? null,
     deliveryFeeCurrency: currency,
     deliveryFeeLabel:
@@ -114,22 +124,7 @@ export type AdminParcelEventDto = {
 };
 
 function eventSummary(payload: Record<string, unknown>): string | null {
-  const parts: string[] = [];
-  if (payload.kind === 'return') parts.push('Retour');
-  if (payload.hasProof === true) parts.push('Preuve photo enregistrée');
-  if (payload.issued === true) parts.push('Code émis');
-  if (payload.pinInvalidated === true) parts.push('Code invalidé');
-  if (typeof payload.channel === 'string') {
-    const channel = payload.channel === 'whatsapp' ? 'WhatsApp' : String(payload.channel);
-    parts.push(channel);
-  }
-  if (typeof payload.template === 'string') parts.push(String(payload.template));
-  if (typeof payload.type === 'string') parts.push(String(payload.type));
-  if (typeof payload.reason === 'string') parts.push(String(payload.reason));
-  if (typeof payload.compartmentLabel === 'string') {
-    parts.push(`Compartiment ${payload.compartmentLabel}`);
-  }
-  return parts.length > 0 ? parts.join(' · ') : null;
+  return summarizeAdminParcelEvent(payload);
 }
 
 /** Shared DTO for admin and organisation Colis Historique timelines. */
@@ -172,3 +167,31 @@ export function toParcelEventDto(event: {
 
 /** @deprecated Use toParcelEventDto */
 export const toAdminParcelEventDto = toParcelEventDto;
+
+export type AdminParcelChargeDto = {
+  id: string;
+  kind: ParcelChargeKind;
+  kindLabel: string;
+  payer: ChargePayer;
+  payerLabel: string;
+  amountLabel: string;
+  historical: boolean;
+};
+
+export function toAdminParcelChargeDto(charge: {
+  id: string;
+  kind: ParcelChargeKind;
+  payer: ChargePayer;
+  amount: number;
+  currency: DeliveryPricingCurrency;
+}): AdminParcelChargeDto {
+  return {
+    id: charge.id,
+    kind: charge.kind,
+    kindLabel: PARCEL_CHARGE_KIND_LABELS[charge.kind],
+    payer: charge.payer,
+    payerLabel: CHARGE_PAYER_LABELS[charge.payer],
+    amountLabel: formatDeliveryFee(charge.amount, charge.currency),
+    historical: charge.kind === 'delivery_fee' || charge.kind === 'drop_off_fee',
+  };
+}

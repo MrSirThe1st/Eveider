@@ -36,6 +36,7 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
 export function AdminDriverList({ drivers }: AdminDriverListProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [orgFilter, setOrgFilter] = useState('all');
+  const [cityFilter, setCityFilter] = useState('all');
   const [zoneFilter, setZoneFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -52,9 +53,31 @@ export function AdminDriverList({ drivers }: AdminDriverListProps) {
     ];
   }, [drivers]);
 
+  const cityOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const driver of drivers) {
+      if (driver.serviceAreaCityId && driver.serviceAreaCity) {
+        map.set(driver.serviceAreaCityId, driver.serviceAreaCity);
+      } else if (driver.serviceAreaCity) {
+        map.set(driver.serviceAreaCity, driver.serviceAreaCity);
+      }
+    }
+    return [
+      { value: 'all', label: 'Toutes' },
+      ...[...map.entries()]
+        .sort((a, b) => a[1].localeCompare(b[1], 'fr'))
+        .map(([value, label]) => ({ value, label })),
+    ];
+  }, [drivers]);
+
   const zoneOptions = useMemo(() => {
     const map = new Map<string, string>();
     for (const driver of drivers) {
+      if (cityFilter !== 'all') {
+        const matchesCity =
+          driver.serviceAreaCityId === cityFilter || driver.serviceAreaCity === cityFilter;
+        if (!matchesCity) continue;
+      }
       if (driver.serviceAreaId && driver.serviceAreaName) {
         map.set(driver.serviceAreaId, driver.serviceAreaName);
       }
@@ -66,12 +89,17 @@ export function AdminDriverList({ drivers }: AdminDriverListProps) {
         .sort((a, b) => a[1].localeCompare(b[1], 'fr'))
         .map(([value, label]) => ({ value, label })),
     ];
-  }, [drivers]);
+  }, [drivers, cityFilter]);
 
   const filtered = useMemo(() => {
     return drivers.filter((driver) => {
       if (statusFilter !== 'all' && driver.status !== statusFilter) return false;
       if (orgFilter !== 'all' && driver.organizationKey !== orgFilter) return false;
+      if (cityFilter !== 'all') {
+        const matchesCity =
+          driver.serviceAreaCityId === cityFilter || driver.serviceAreaCity === cityFilter;
+        if (!matchesCity) return false;
+      }
       if (zoneFilter === 'none' && driver.serviceAreaId) return false;
       if (zoneFilter !== 'all' && zoneFilter !== 'none' && driver.serviceAreaId !== zoneFilter) {
         return false;
@@ -82,10 +110,11 @@ export function AdminDriverList({ drivers }: AdminDriverListProps) {
         driver.email,
         driver.organizationLabel,
         driver.serviceAreaName,
+        driver.serviceAreaCity,
         driver.currentDelivery,
       );
     });
-  }, [drivers, searchQuery, statusFilter, orgFilter, zoneFilter]);
+  }, [drivers, searchQuery, statusFilter, orgFilter, cityFilter, zoneFilter]);
 
   const columns = useMemo<DataTableColumn<DriverListItem>[]>(
     () => [
@@ -171,6 +200,7 @@ export function AdminDriverList({ drivers }: AdminDriverListProps) {
         onClearAll={() => {
           setStatusFilter('all');
           setOrgFilter('all');
+          setCityFilter('all');
           setZoneFilter('all');
         }}
         filters={[
@@ -189,6 +219,17 @@ export function AdminDriverList({ drivers }: AdminDriverListProps) {
             emptyValue: 'all',
             options: orgOptions,
             onChange: setOrgFilter,
+          },
+          {
+            id: 'driver-city',
+            label: 'Ville',
+            value: cityFilter,
+            emptyValue: 'all',
+            options: cityOptions,
+            onChange: (next) => {
+              setCityFilter(next);
+              setZoneFilter('all');
+            },
           },
           {
             id: 'driver-zone',
@@ -218,7 +259,7 @@ export function AdminDriverList({ drivers }: AdminDriverListProps) {
         emptyTitle={
           searchQuery.trim()
             ? 'Aucun chauffeur pour cette recherche'
-            : 'Aucun chauffeur'
+            : 'Aucun chauffeur Eveider disponible.'
         }
         emptyDescription="Ajoutez un chauffeur Eveider."
         emptyIcon={searchQuery.trim() ? <IconSearch /> : <IconTruck />}

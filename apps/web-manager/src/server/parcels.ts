@@ -1,15 +1,17 @@
-import type { DataAccessContext } from '@eveider/data-access';
+import type { DataAccessContext, ParcelCharge, ParcelDeliverySummary } from '@eveider/data-access';
 import {
   createRepositories,
   getPool,
   syncParcelLockerRental,
-  type ParcelCharge,
 } from '@eveider/data-access';
 import {
   formatDeliveryFee,
-  PARCEL_CHARGE_KIND_LABELS,
-  type BusinessParcelLocation,
+  type DeliveryKind,
+  type DeliveryStatus,
   type ParcelChargeKind,
+  type ParcelReturnStatus,
+  type ParcelStatus,
+  type ShipmentPickupType,
 } from '@eveider/domain';
 import {
   toBusinessParcelLocationView,
@@ -17,6 +19,17 @@ import {
   type BusinessParcelProgressionItem,
   type ParcelDto,
 } from '@/lib/business-parcel-presenter';
+import {
+  getBusinessAttentionLabel,
+  getBusinessChargeLabel,
+  getBusinessDeliveryKindLabel,
+  getBusinessDeliveryStatusLabel,
+  getBusinessParcelDisplayStatus,
+  getBusinessReturnMethodLabel,
+  getBusinessReturnProcessLabel,
+  getFulfillmentMethodLabel,
+  isBusinessOwedCharge,
+} from '@/lib/business-presentation';
 import { toParcelEventDto, type ParcelEventDto } from '@/lib/parcel-presenter';
 import { toParcelReturnView, type ParcelReturnView } from '@/lib/parcel-return-presenter';
 import { listBusinessIssues, type IssueItem } from '@/server/issues';
@@ -25,10 +38,15 @@ export type BusinessParcelListItem = {
   id: string;
   trackingNumber: string;
   reference: string | null;
-  location: BusinessParcelLocation;
+  status: ParcelStatus;
+  statusLabel: string;
+  pickupType: ShipmentPickupType;
+  pickupTypeLabel: string;
   recipientName: string | null;
   recipientPhone: string;
   locker: { name: string; address: string } | null;
+  attentionLabel: string | null;
+  customerReturnStatus: ParcelReturnStatus | null;
   createdAt: string;
 };
 
@@ -44,6 +62,7 @@ export type ParcelChargeView = {
   id: string;
   kind: ParcelChargeKind;
   kindLabel: string;
+  payer: ParcelCharge['payer'];
   status: ParcelCharge['status'];
   amount: number;
   currency: ParcelCharge['currency'];
@@ -53,8 +72,17 @@ export type ParcelChargeView = {
   lockedAt: string;
 };
 
+export type BusinessActiveDeliveryView = {
+  id: string;
+  kind: DeliveryKind;
+  kindLabel: string;
+  status: DeliveryStatus;
+  statusLabel: string;
+  driverName: string | null;
+};
+
 export type BusinessParcelDetailView = ParcelDto & {
-  location: BusinessParcelLocation;
+  location: ReturnType<typeof toBusinessParcelLocationView>['location'];
   locationLabel: string;
   progression: BusinessParcelProgressionItem[];
   events: ParcelEventDto[];
@@ -63,6 +91,10 @@ export type BusinessParcelDetailView = ParcelDto & {
   canConfirmDeposit: boolean;
   readyForPickupAt: string | null;
   charges: ParcelChargeView[];
+  recipientCharges: ParcelChargeView[];
+  businessCharges: ParcelChargeView[];
+  activeDelivery: BusinessActiveDeliveryView | null;
+  historicalRts: boolean;
   customerReturn: ParcelReturnView | null;
   returnLockerOptions: Array<{ id: string; name: string; address: string }>;
 };
@@ -72,13 +104,12 @@ export type BusinessParcelOperationsView = {
   issues: IssueItem[];
 };
 
-const CHARGE_KIND_LABELS = PARCEL_CHARGE_KIND_LABELS;
-
 function toChargeView(charge: ParcelCharge): ParcelChargeView {
   return {
     id: charge.id,
     kind: charge.kind,
-    kindLabel: CHARGE_KIND_LABELS[charge.kind],
+    kindLabel: getBusinessChargeLabel(charge.kind),
+    payer: charge.payer,
     status: charge.status,
     amount: charge.amount,
     currency: charge.currency,
@@ -89,6 +120,17 @@ function toChargeView(charge: ParcelCharge): ParcelChargeView {
   };
 }
 
+function toActiveDeliveryView(delivery: ParcelDeliverySummary): BusinessActiveDeliveryView {
+  return {
+    id: delivery.id,
+    kind: delivery.kind,
+    kindLabel: getBusinessDeliveryKindLabel(delivery.kind),
+    status: delivery.status,
+    statusLabel: getBusinessDeliveryStatusLabel(delivery.status),
+    driverName: delivery.courier.fullName,
+  };
+}
+
 export async function listBusinessParcels(
   ctx: DataAccessContext,
   businessId: string,
@@ -96,21 +138,31 @@ export async function listBusinessParcels(
   const { parcels } = createRepositories();
   const items = await parcels.listBusinessColis(ctx, businessId);
   return items.map((parcel) => {
-    const location = toBusinessParcelLocationView({
-      status: parcel.status,
-      pickupType: parcel.pickupType,
-      latestDeliveryStatus: parcel.latestDeliveryStatus,
-      latestDeliveryKind: parcel.latestDeliveryKind,
-      customerReturn: parcel.customerReturn,
-    });
+    const hasAssignedOutboundDelivery =
+      parcel.pickupType === 'courier_pickup' &&
+      parcel.latestDeliveryKind === 'outbound' &&
+      parcel.latestDeliveryStatus === 'assigned';
     return {
       id: parcel.id,
       trackingNumber: parcel.trackingNumber,
       reference: parcel.reference,
-      location: location.location,
+      status: parcel.status,
+      statusLabel: getBusinessParcelDisplayStatus({
+        status: parcel.status,
+        pickupType: parcel.pickupType,
+        hasAssignedOutboundDelivery,
+      }),
+      pickupType: parcel.pickupType,
+      pickupTypeLabel: getFulfillmentMethodLabel(parcel.pickupType),
       recipientName: parcel.recipientName,
       recipientPhone: parcel.recipientPhone,
       locker: parcel.locker,
+      attentionLabel: getBusinessAttentionLabel({
+        status: parcel.status,
+        pickupType: parcel.pickupType,
+        customerReturnStatus: parcel.customerReturn?.status ?? null,
+      }),
+      customerReturnStatus: parcel.customerReturn?.status ?? null,
       createdAt: parcel.createdAt.toISOString(),
     };
   });
@@ -150,13 +202,25 @@ export async function loadBusinessParcelDetail(
     }
   }
 
-  const [events, canCreateReturn, charges, customerReturn, returnLockerOptions] = await Promise.all([
-    parcelEvents.listForParcel(ctx, parcelId),
-    deliveries.canCreateReturn(ctx, parcelId),
-    parcelCharges.listBusinessChargesForParcel(parcelId),
-    parcelReturns.findLatestForParcel(parcelId),
-    lockers.listActivePickerOptions(),
-  ]);
+  const [events, canCreateReturn, charges, customerReturn, returnLockerOptions, activeDelivery] =
+    await Promise.all([
+      parcelEvents.listForParcel(ctx, parcelId),
+      deliveries.canCreateReturn(ctx, parcelId),
+      parcelCharges.listForParcel(parcelId),
+      parcelReturns.findLatestForParcel(parcelId),
+      lockers.listActivePickerOptions(),
+      deliveries.findActiveForBusinessParcel(ctx, businessId, parcelId),
+    ]);
+
+  const chargeViews = charges.map(toChargeView);
+  const returnView = customerReturn
+    ? {
+        ...toParcelReturnView(customerReturn),
+        statusLabel: getBusinessReturnProcessLabel(customerReturn.status),
+        methodLabel: getBusinessReturnMethodLabel(customerReturn.method),
+        canAssignDriver: false,
+      }
+    : null;
 
   return {
     ...toParcelDto(parcel),
@@ -166,11 +230,14 @@ export async function loadBusinessParcelDetail(
     events: events.map(toParcelEventDto),
     canCreateReturn,
     canAssignOutbound: false,
-    canConfirmDeposit:
-      parcel.pickupType === 'merchant_dropoff' && parcel.status === 'created',
+    canConfirmDeposit: parcel.pickupType === 'merchant_dropoff' && parcel.status === 'created',
     readyForPickupAt: parcel.readyForPickupAt?.toISOString() ?? null,
-    charges: charges.map(toChargeView),
-    customerReturn: customerReturn ? toParcelReturnView(customerReturn) : null,
+    charges: chargeViews.filter((charge) => isBusinessOwedCharge(charge.kind, charge.payer)),
+    recipientCharges: chargeViews.filter((charge) => charge.payer === 'recipient'),
+    businessCharges: chargeViews.filter((charge) => isBusinessOwedCharge(charge.kind, charge.payer)),
+    activeDelivery: activeDelivery ? toActiveDeliveryView(activeDelivery) : null,
+    historicalRts: parcel.latestDeliveryKind === 'return',
+    customerReturn: returnView,
     returnLockerOptions,
   };
 }

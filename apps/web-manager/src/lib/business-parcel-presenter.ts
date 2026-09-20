@@ -6,10 +6,8 @@ import {
   markBusinessParcelProgression,
   PACKAGE_CATEGORY_LABELS,
   PACKAGE_SIZE_LABELS,
-  PARCEL_STATUS_LABELS,
   PAYMENT_RESPONSIBILITY_LABELS,
   resolveBusinessParcelLocation,
-  SHIPMENT_PICKUP_TYPE_LABELS,
   type BusinessParcelLocation,
   type BusinessParcelProgressionStep,
   type DeliveryKind,
@@ -23,6 +21,10 @@ import {
   type PaymentResponsibility,
   type ShipmentPickupType,
 } from '@eveider/domain';
+import {
+  getBusinessParcelDisplayStatus,
+  getFulfillmentMethodLabel,
+} from './business-presentation';
 
 export type LockerSummaryDto = {
   id: string;
@@ -115,7 +117,10 @@ export function toParcelDto(parcel: {
     trackingNumber: parcel.trackingNumber,
     reference: parcel.reference,
     status: parcel.status,
-    statusLabel: PARCEL_STATUS_LABELS[parcel.status],
+    statusLabel: getBusinessParcelDisplayStatus({
+      status: parcel.status,
+      pickupType: parcel.pickupType,
+    }),
     recipientName: parcel.recipientName,
     recipientPhone: parcel.recipientPhone,
     lockerId: parcel.lockerId,
@@ -136,7 +141,7 @@ export function toParcelDto(parcel: {
         }
       : null,
     pickupType: parcel.pickupType,
-    pickupTypeLabel: SHIPMENT_PICKUP_TYPE_LABELS[parcel.pickupType],
+    pickupTypeLabel: getFulfillmentMethodLabel(parcel.pickupType),
     senderName: parcel.senderName,
     senderPhone: parcel.senderPhone,
     senderAddress: parcel.senderAddress,

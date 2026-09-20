@@ -79,6 +79,16 @@ export function applySyncChanges(
   const credentials = { ...snapshot.credentials };
   for (const change of page.changes) {
     if (change.lockerId !== snapshot.lockerId || !change.compartmentId) continue;
+    const existing = credentials[change.credentialId];
+    if (existing && change.version < existing.version) continue;
+    if (
+      existing &&
+      change.version === existing.version &&
+      change.type === 'activate' &&
+      existing.status !== 'active'
+    ) {
+      continue;
+    }
     if (change.type === 'activate') {
       credentials[change.credentialId] = {
         credentialId: change.credentialId,
@@ -93,7 +103,6 @@ export function applySyncChanges(
       };
       continue;
     }
-    const existing = credentials[change.credentialId];
     if (!existing) continue;
     credentials[change.credentialId] = {
       ...existing,

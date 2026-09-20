@@ -121,6 +121,16 @@ export function openDirections(latitude: number, longitude: number, label: strin
   void Linking.openURL(url);
 }
 
+export function openAddressSearch(query: string) {
+  const encoded = encodeURIComponent(query.trim());
+  if (!encoded) return;
+  const url =
+    Platform.OS === 'ios'
+      ? `http://maps.apple.com/?q=${encoded}`
+      : `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+  void Linking.openURL(url);
+}
+
 export function useLockerMapStyles() {
   const colors = useColors();
   return useMemo(() => createLockerMapStyles(colors), [colors]);

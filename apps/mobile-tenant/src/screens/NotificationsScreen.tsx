@@ -21,7 +21,7 @@ import {
 } from '../lib/api';
 
 type NotificationsScreenProps = {
-  mode: 'CLIENT' | 'COURSIER';
+  mode: 'CLIENT' | 'DRIVER';
   onBack: () => void;
   onOpenParcel?: (parcelId: string) => void;
 };
@@ -38,7 +38,7 @@ function formatDate(iso: string) {
 export function NotificationsScreen({ mode, onBack, onOpenParcel }: NotificationsScreenProps) {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const isCourier = mode === 'COURSIER';
+  const isCourier = mode === 'DRIVER';
   const [notifications, setNotifications] = useState<CustomerNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

@@ -121,7 +121,7 @@ export function AdminAnalyticsPanel({ analytics, days }: AdminAnalyticsPanelProp
         data: topLockers.map((locker) => locker.parcelCount),
         backgroundColor: topLockers.map((_, index) => {
           const alpha = Math.max(1 - index * 0.16, 0.4);
-          return `rgba(9, 212, 11, ${alpha})`;
+          return `rgba(63, 143, 115, ${alpha})`;
         }),
         borderRadius: 6,
         maxBarThickness: 22,

@@ -6,10 +6,13 @@ import {
   DRIVER_DOSSIER_STATUS_LABELS,
   DRIVER_OPERATIONAL_STATUS_LABELS,
   deriveDriverOperationalStatus,
+  type DeliveryKind,
   type DeliveryStatus,
   type DriverDossierStatus,
   type DriverOperationalStatus,
 } from '@eveider/domain';
+import { getAdminDeliveryKindLabel, getAdminDeliveryStatusLabel } from '@/lib/admin-presentation';
+import { formatZoneCoverageLabel } from '@/lib/geography-presentation';
 
 const EVEIDER_FLEET_LABEL = 'Flotte Eveider';
 
@@ -22,6 +25,9 @@ export type DriverListItem = {
   team: string | null;
   serviceAreaId: string | null;
   serviceAreaName: string | null;
+  serviceAreaCode: string | null;
+  serviceAreaCity: string | null;
+  serviceAreaCityId: string | null;
   status: DriverOperationalStatus;
   statusLabel: string;
   currentDelivery: string | null;
@@ -44,6 +50,8 @@ export type DriverDetail = {
   team: string | null;
   serviceAreaId: string | null;
   serviceArea: string | null;
+  serviceAreaCode: string | null;
+  serviceAreaCity: string | null;
   vehicle: string | null;
   currentLocation: string | null;
   status: DriverOperationalStatus;
@@ -66,6 +74,8 @@ export type DriverDeliveryItem = {
   id: string;
   status: DeliveryStatus;
   statusLabel: string;
+  kind?: DeliveryKind;
+  kindLabel?: string;
   trackingNumber: string;
   reference: string | null;
   lockerName: string | null;
@@ -118,6 +128,15 @@ function toOperational(row: DriverRosterRecord) {
   };
 }
 
+function coverageLabel(row: DriverRosterRecord): string | null {
+  if (!row.serviceAreaName) return null;
+  return formatZoneCoverageLabel({
+    code: row.serviceAreaCode ?? '',
+    name: row.serviceAreaName,
+    city: row.serviceAreaCity ?? row.serviceAreaName,
+  });
+}
+
 function toListItem(row: DriverRosterRecord): DriverListItem {
   const operational = toOperational(row);
   const organization = organizationFromRow(row);
@@ -129,7 +148,10 @@ function toListItem(row: DriverRosterRecord): DriverListItem {
     organizationLabel: organization.organizationLabel,
     team: null,
     serviceAreaId: row.serviceAreaId,
-    serviceAreaName: row.serviceAreaName,
+    serviceAreaName: coverageLabel(row),
+    serviceAreaCode: row.serviceAreaCode,
+    serviceAreaCity: row.serviceAreaCity,
+    serviceAreaCityId: row.serviceAreaCityId,
     status: operational.status,
     statusLabel: operational.statusLabel,
     currentDelivery: operational.currentDelivery,
@@ -152,7 +174,9 @@ function toDetail(row: DriverRosterRecord): DriverDetail {
     organizationLabel: organization.organizationLabel,
     team: null,
     serviceAreaId: row.serviceAreaId,
-    serviceArea: row.serviceAreaName,
+    serviceArea: coverageLabel(row),
+    serviceAreaCode: row.serviceAreaCode,
+    serviceAreaCity: row.serviceAreaCity,
     vehicle: null,
     currentLocation: null,
     status: operational.status,
@@ -229,7 +253,9 @@ export async function loadAdminDriverDeliveries(
   return rows.map((row) => ({
     id: row.id,
     status: row.status,
-    statusLabel: DELIVERY_STATUS_LABELS[row.status],
+    statusLabel: getAdminDeliveryStatusLabel(row.status),
+    kind: row.kind,
+    kindLabel: getAdminDeliveryKindLabel(row.kind),
     trackingNumber: row.trackingNumber,
     reference: row.reference,
     lockerName: row.lockerName,

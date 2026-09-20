@@ -4,7 +4,7 @@ import { useSettings, type AppCountry } from '../../context/settings-context';
 import { APP_COUNTRIES } from '../../lib/countries';
 
 type CountrySettingsScreenProps = {
-  mode: 'CLIENT' | 'COURSIER';
+  mode: 'CLIENT' | 'DRIVER';
   onBack: () => void;
 };
 

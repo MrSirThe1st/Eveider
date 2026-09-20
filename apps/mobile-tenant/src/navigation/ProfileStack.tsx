@@ -25,7 +25,7 @@ export type ProfileStackParamList = {
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
 
 type ProfileStackProps = {
-  mode: 'CLIENT' | 'COURSIER';
+  mode: 'CLIENT' | 'DRIVER';
   isGuest?: boolean;
   onRequestAuth?: () => void;
   onOpenParcel?: (parcelId: string) => void;
@@ -112,7 +112,7 @@ export function ProfileStack({ mode, isGuest = false, onRequestAuth, onOpenParce
             onBack={() => navigation.goBack()}
             intro={
               isCustomer
-                ? 'Centre d’aide Eveider pour clients et coursiers.'
+                ? 'Centre d’aide Eveider pour destinataires et chauffeurs.'
                 : 'Incidents dans l’app pour changer le statut d’une livraison. WhatsApp pour parler au dispatch.'
             }
             bullets={

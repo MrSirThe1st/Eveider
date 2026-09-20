@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     absolute: 'Eveider — Livraison et retrait de colis à Kinshasa',
   },
   description:
-    'Eveider est un réseau de casiers à Kinshasa. Les entreprises expédient, les coursiers déposent, les clients suivent et retirent leur colis — sans créer de compte.',
+    'Eveider est un réseau de casiers à Kinshasa. Les entreprises expédient, les chauffeurs Eveider déposent, les destinataires suivent et retirent leur colis — sans créer de compte.',
   openGraph: {
     title: 'Eveider — Livraison et retrait de colis à Kinshasa',
     description:

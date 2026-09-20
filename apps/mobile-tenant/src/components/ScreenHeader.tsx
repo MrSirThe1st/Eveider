@@ -9,7 +9,7 @@ import { useCustomerShellOptional } from '../navigation/customer-shell';
 import { useColors } from '../theme';
 
 type ScreenHeaderProps = {
-  mode?: 'CLIENT' | 'COURSIER';
+  mode?: 'CLIENT' | 'DRIVER';
   title?: string;
   onBack?: () => void;
   onMenu?: () => void;

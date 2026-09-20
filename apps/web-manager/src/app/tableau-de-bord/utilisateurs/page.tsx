@@ -190,8 +190,8 @@ export default function UsersPage() {
                         padding: '3px 8px',
                         borderRadius: '4px',
                         backgroundColor: user.isBlocked
-                          ? 'rgba(229, 57, 53, 0.1)'
-                          : 'rgba(9, 212, 11, 0.1)',
+                          ? colors.dangerMuted
+                          : colors.successMuted,
                         color: user.isBlocked ? colors.danger : colors.success,
                       }}
                     >
@@ -213,7 +213,7 @@ export default function UsersPage() {
                         letterSpacing: '0.04em',
                         cursor: actingId === user.id ? 'wait' : 'pointer',
                         backgroundColor: user.isBlocked ? colors.primary : colors.danger,
-                        color: colors.secondary,
+                        color: user.isBlocked ? colors.onPrimary : '#FFFFFF',
                         opacity: actingId === user.id ? 0.6 : 1,
                       }}
                     >

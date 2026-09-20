@@ -39,12 +39,12 @@ describe('getParcelJourney', () => {
     );
 
     expect(atPoint.lockerVisual).toBe('incoming');
-    expect(atPoint.headline).toBe('Colis au casier');
-    expect(atPoint.steps.find((step) => step.id === 'ready')?.done).toBe(false);
+    expect(atPoint.headline).toBe('Arrivé au casier');
+    expect(atPoint.steps.find((step) => step.label === 'Prêt au retrait')?.done).toBe(false);
 
     expect(ready.lockerVisual).toBe('ready');
-    expect(ready.headline).toBe('Votre colis est prêt');
-    expect(ready.steps.find((step) => step.id === 'ready')?.done).toBe(true);
+    expect(ready.headline).toBe('Prêt au retrait');
+    expect(ready.steps.find((step) => step.label === 'Prêt au retrait')?.current).toBe(true);
   });
 
   it('does not treat business drop-off AT_POINT as Eveider transit', () => {
@@ -56,7 +56,8 @@ describe('getParcelJourney', () => {
       }),
     );
 
-    expect(journey.steps.find((step) => step.id === 'transit')?.done).toBe(false);
+    expect(journey.steps.some((step) => step.label === 'En cours de transport')).toBe(false);
+    expect(journey.headline).toBe('Déposé au casier');
     expect(journey.lockerVisual).toBe('incoming');
   });
 
@@ -79,8 +80,10 @@ describe('getParcelJourney', () => {
         }),
       ).headline,
     ).toBe('Retour demandé');
-    expect(getParcelJourney(parcel({ status: 'return_at_point' })).headline).toBe('Retour au casier');
+    expect(getParcelJourney(parcel({ status: 'return_at_point' })).headline).toBe(
+      'Retour déposé au casier',
+    );
     expect(getParcelJourney(parcel({ status: 'returning' })).headline).toBe('Retour en cours');
-    expect(getParcelJourney(parcel({ status: 'returned' })).headline).toBe('Retourné au marchand');
+    expect(getParcelJourney(parcel({ status: 'returned' })).headline).toBe('Retour à l’expéditeur');
   });
 });

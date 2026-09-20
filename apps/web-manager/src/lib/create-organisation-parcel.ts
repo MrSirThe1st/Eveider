@@ -2,6 +2,7 @@ import type { CreateParcelInput } from '@eveider/api-contracts';
 import { createRepositories, type DataAccessContext } from '@eveider/data-access';
 import { buildDeliveryQuote } from '@/lib/delivery-quote';
 import { toParcelDto, type ParcelDto } from '@/lib/business-parcel-presenter';
+import { resolveAvailableCompartmentId } from '@/lib/resolve-compartment';
 
 export type CreatedOrganisationParcel = {
   parcel: ParcelDto;
@@ -19,6 +20,9 @@ export async function createOrganisationParcel(
     pickupType: data.pickupType,
   });
 
+  const compartmentId =
+    data.compartmentId ?? (await resolveAvailableCompartmentId(data.lockerId, data.packageSize));
+
   // Web, Excel/import, and organisation API all use this helper.
   // Canonical charge snapshot happens inside parcels.create's transaction.
   const { parcels } = createRepositories();
@@ -33,7 +37,7 @@ export async function createOrganisationParcel(
     recipientName: data.recipientName,
     recipientEmail: data.recipientEmail,
     lockerId: data.lockerId,
-    compartmentId: data.compartmentId,
+    compartmentId,
     packageSize: data.packageSize,
     packageLengthCm: data.packageLengthCm,
     packageWidthCm: data.packageWidthCm,
@@ -73,6 +77,7 @@ export function organisationParcelCreateStatus(err: unknown): { status: number; 
   if (
     message.includes('COD') ||
     message.includes('Compartiment requis') ||
+    message.includes('Aucun compartiment compatible') ||
     message.includes('Adresse expéditeur') ||
     message.includes('Montant COD')
   ) {
@@ -82,7 +87,8 @@ export function organisationParcelCreateStatus(err: unknown): { status: number; 
     message.includes('indisponible') ||
     message.includes('introuvable') ||
     message.includes('Zone tarifaire') ||
-    message.includes('CANONICAL')
+    message.includes('CANONICAL') ||
+    message.includes('ZONE_PRICING_NOT_CONFIGURED')
   ) {
     return { status: 409, message };
   }

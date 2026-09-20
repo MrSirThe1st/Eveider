@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isDrcCity, matchDrcCity } from './cities.js';
+import { DRC_CITIES, DRC_CITY_SEEDS, isDrcCity, matchDrcCity } from './cities.js';
 
 describe('matchDrcCity', () => {
   it('finds a city in an address', () => {
@@ -22,5 +22,17 @@ describe('isDrcCity', () => {
 
   it('rejects unknown values', () => {
     expect(isDrcCity('Paris')).toBe(false);
+  });
+});
+
+describe('DRC_CITY_SEEDS', () => {
+  it('covers every DRC city name exactly once', () => {
+    expect(DRC_CITY_SEEDS.map((row) => row.name)).toEqual([...DRC_CITIES]);
+  });
+
+  it('assigns KIN / LSH / KWZ to the operating cities', () => {
+    expect(DRC_CITY_SEEDS.find((row) => row.name === 'Kinshasa')?.code).toBe('KIN');
+    expect(DRC_CITY_SEEDS.find((row) => row.name === 'Lubumbashi')?.code).toBe('LSH');
+    expect(DRC_CITY_SEEDS.find((row) => row.name === 'Kolwezi')?.code).toBe('KWZ');
   });
 });

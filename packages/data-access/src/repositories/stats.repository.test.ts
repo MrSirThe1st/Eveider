@@ -30,7 +30,11 @@ describe('StatsRepository', () => {
           completed_today: 1,
           ready_for_pickup: 2,
           open_issues: 4,
+          awaiting_assignment: 6,
+          awaiting_return_assignment: 2,
+          at_locker: 41,
           occupied: 8,
+          reserved: 3,
           available: 12,
           total: 22,
         };
@@ -47,7 +51,10 @@ describe('StatsRepository', () => {
     expect(stats.completedToday).toBe(1);
     expect(stats.readyForPickup).toBe(2);
     expect(stats.openIssues).toBe(4);
-    expect(stats.lockerOccupancy).toEqual({ occupied: 8, available: 12, total: 22 });
+    expect(stats.awaitingAssignment).toBe(6);
+    expect(stats.awaitingReturnAssignment).toBe(2);
+    expect(stats.atLocker).toBe(41);
+    expect(stats.lockerOccupancy).toEqual({ occupied: 8, reserved: 3, available: 12, total: 22 });
   });
 
   it('denies non-admin', async () => {
@@ -160,5 +167,34 @@ describe('StatsRepository', () => {
     setup(() => null);
     const ctx = createDataAccessContext('business', { userId: 'u1', businessId: 'biz-1' });
     await expect(repo.getBusinessAnalytics(ctx, 'biz-other')).rejects.toThrow('Business scope violation');
+  });
+
+  it('returns a flow-aware operational snapshot without counting Flow 2 as in transit', async () => {
+    setup((sql) => {
+      if (sqlIncludes(sql, 'AS awaiting_handoff') && sqlIncludes(sql, 'AS returns_to_review')) {
+        return {
+          awaiting_handoff: 2,
+          awaiting_deposit: 3,
+          in_transit: 1,
+          at_locker: 4,
+          ready_for_pickup: 5,
+          collected: 6,
+          returns_to_review: 2,
+          returns_to_collect: 1,
+          owed_amount: 15000,
+          owed_currency: 'CDF',
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const ctx = createDataAccessContext('business', { userId: 'u1', businessId: 'biz-1' });
+    const snapshot = await repo.getBusinessOperationalSnapshot(ctx, 'biz-1');
+
+    expect(snapshot.awaitingHandoff).toBe(2);
+    expect(snapshot.awaitingDeposit).toBe(3);
+    expect(snapshot.inTransit).toBe(1);
+    expect(snapshot.returnsToReview).toBe(2);
+    expect(snapshot.businessOwedAmount).toBe(15000);
   });
 });

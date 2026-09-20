@@ -3,7 +3,7 @@ import { SettingsOptionGroup } from '../../components/SettingsOptionGroup';
 import { LANGUAGE_LABELS, useSettings, type AppLanguage } from '../../context/settings-context';
 
 type LanguageSettingsScreenProps = {
-  mode: 'CLIENT' | 'COURSIER';
+  mode: 'CLIENT' | 'DRIVER';
   onBack: () => void;
 };
 

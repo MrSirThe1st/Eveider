@@ -3,7 +3,7 @@ import { SettingsOptionGroup } from '../../components/SettingsOptionGroup';
 import { useSettings, type ThemePreference } from '../../context/settings-context';
 
 type AppearanceSettingsScreenProps = {
-  mode: 'CLIENT' | 'COURSIER';
+  mode: 'CLIENT' | 'DRIVER';
   onBack: () => void;
 };
 

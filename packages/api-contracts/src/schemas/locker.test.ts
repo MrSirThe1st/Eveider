@@ -26,6 +26,7 @@ describe('createLockerSchema', () => {
       columns: 3,
       compartments: baseCompartments,
       status: 'active',
+      serviceAreaId: '11111111-1111-4111-8111-111111111111',
     });
     expect(result.success).toBe(true);
   });
@@ -41,6 +42,7 @@ describe('createLockerSchema', () => {
       columns: 3,
       compartments: baseCompartments,
       status: 'active',
+      serviceAreaId: '11111111-1111-4111-8111-111111111111',
     });
     expect(result.success).toBe(true);
     if (result.success) {
@@ -58,6 +60,38 @@ describe('createLockerSchema', () => {
         rows: 3,
         columns: 3,
         compartments: baseCompartments.slice(0, 4),
+        serviceAreaId: '11111111-1111-4111-8111-111111111111',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('requires a zone for a smart locker', () => {
+    expect(
+      createLockerSchema.safeParse({
+        name: 'GOMBE',
+        address: 'Avenue du Commerce, Kolwezi',
+        latitude: -4.32,
+        longitude: 15.31,
+        rows: 3,
+        columns: 3,
+        compartments: baseCompartments,
+        status: 'active',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('does not treat an empty zone as assigned', () => {
+    expect(
+      createLockerSchema.safeParse({
+        name: 'GOMBE',
+        address: 'Avenue du Commerce, Kolwezi',
+        latitude: -4.32,
+        longitude: 15.31,
+        rows: 3,
+        columns: 3,
+        compartments: baseCompartments,
+        status: 'active',
+        serviceAreaId: '',
       }).success,
     ).toBe(false);
   });

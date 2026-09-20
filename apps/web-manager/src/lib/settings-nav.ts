@@ -12,6 +12,8 @@ export type SettingsNavItem = {
   permission?: BusinessPermission;
   /** Match nested routes (e.g. casiers/configuration). */
   matchPrefix?: boolean;
+  /** Unfinished screens stay out of the sidebar until they ship. */
+  comingSoon?: boolean;
 };
 
 export type SettingsNavGroup = {
@@ -53,10 +55,19 @@ export const ADMIN_SETTINGS_ROUTES = {
   integrations: `${ADMIN_BASE}/integrations`,
 } as const;
 
-export const ORGANIZATION_SETTINGS_NAV: SettingsNavGroup[] = [
+function publishedSettingsNav(groups: SettingsNavGroup[]): SettingsNavGroup[] {
+  return groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.comingSoon),
+    }))
+    .filter((group) => group.items.length > 0);
+}
+
+const ORGANIZATION_SETTINGS_NAV_ALL: SettingsNavGroup[] = [
   {
     id: 'mon-compte',
-    label: 'Mon compte',
+    label: 'Compte',
     items: [
       {
         id: 'profil',
@@ -71,22 +82,23 @@ export const ORGANIZATION_SETTINGS_NAV: SettingsNavGroup[] = [
         description: 'Mot de passe du compte',
       },
       {
-        id: 'notifications',
-        label: 'Notifications',
-        href: ORG_SETTINGS_ROUTES.notifications,
-        description: 'Comment on vous prévient',
-      },
-      {
         id: 'preferences',
         label: 'Préférences',
         href: ORG_SETTINGS_ROUTES.preferences,
         description: 'Langue et apparence',
       },
+      {
+        id: 'notifications',
+        label: 'Notifications',
+        href: ORG_SETTINGS_ROUTES.notifications,
+        description: 'Comment on vous prévient',
+        comingSoon: true,
+      },
     ],
   },
   {
     id: 'organisation',
-    label: 'Entreprise',
+    label: 'Boutique',
     items: [
       {
         id: 'organisation-details',
@@ -108,25 +120,26 @@ export const ORGANIZATION_SETTINGS_NAV: SettingsNavGroup[] = [
         href: ORG_SETTINGS_ROUTES.roles,
         description: 'Qui peut faire quoi',
         permission: 'settings',
+        comingSoon: true,
       },
     ],
   },
   {
     id: 'facturation',
-    label: 'Paiement',
+    label: 'Facturation',
     items: [
       {
         id: 'plans',
-        label: 'Paiement & limites',
+        label: 'Facturation',
         href: ORG_SETTINGS_ROUTES.billing,
-        description: 'Qui paie et comment vous êtes payé',
+        description: 'Ce que votre entreprise doit à Eveider',
         permission: 'billing',
       },
     ],
   },
   {
     id: 'developpeurs',
-    label: 'Connexions',
+    label: 'Avancé',
     items: [
       {
         id: 'api',
@@ -135,24 +148,20 @@ export const ORGANIZATION_SETTINGS_NAV: SettingsNavGroup[] = [
         description: 'Relier un autre logiciel',
         permission: 'settings',
       },
-    ],
-  },
-  {
-    id: 'integrations',
-    label: 'Fichiers',
-    items: [
       {
-        id: 'external',
+        id: 'excel',
         label: 'Excel',
         href: ORG_SETTINGS_ROUTES.integrations,
-        description: 'Importer / exporter des colis',
+        description: 'Import et export de fichiers',
         permission: 'settings',
       },
     ],
   },
 ];
 
-export const ADMIN_SETTINGS_NAV: SettingsNavGroup[] = [
+export const ORGANIZATION_SETTINGS_NAV = publishedSettingsNav(ORGANIZATION_SETTINGS_NAV_ALL);
+
+const ADMIN_SETTINGS_NAV_ALL: SettingsNavGroup[] = [
   {
     id: 'mon-compte',
     label: 'Mon compte',
@@ -174,6 +183,7 @@ export const ADMIN_SETTINGS_NAV: SettingsNavGroup[] = [
         label: 'Notifications',
         href: ADMIN_SETTINGS_ROUTES.notifications,
         description: 'Comment on vous prévient',
+        comingSoon: true,
       },
       {
         id: 'preferences',
@@ -197,7 +207,7 @@ export const ADMIN_SETTINGS_NAV: SettingsNavGroup[] = [
         id: 'facturation',
         label: 'Tarifs de livraison',
         href: ADMIN_SETTINGS_ROUTES.billing,
-        description: 'Prix selon distance et taille — pour tous les colis',
+        description: 'Livraison par zone, frais fixes de casier et stockage — pour tous les colis',
       },
       {
         id: 'casiers',
@@ -223,12 +233,13 @@ export const ADMIN_SETTINGS_NAV: SettingsNavGroup[] = [
         label: 'Droits d’accès',
         href: ADMIN_SETTINGS_ROUTES.roles,
         description: 'Qui peut voir ou modifier quoi',
+        comingSoon: true,
       },
       {
         id: 'equipes',
-        label: 'Dispatchers & chauffeurs',
+        label: 'Personnel interne',
         href: ADMIN_SETTINGS_ROUTES.teams,
-        description: 'Personnel terrain Eveider',
+        description: 'Dispatchers et accès plateforme — la flotte se gère dans Flotte',
       },
     ],
   },
@@ -241,6 +252,7 @@ export const ADMIN_SETTINGS_NAV: SettingsNavGroup[] = [
         label: 'API',
         href: ADMIN_SETTINGS_ROUTES.api,
         description: 'Relier Eveider à un autre logiciel',
+        comingSoon: true,
       },
       {
         id: 'integrations',
@@ -251,6 +263,8 @@ export const ADMIN_SETTINGS_NAV: SettingsNavGroup[] = [
     ],
   },
 ];
+
+export const ADMIN_SETTINGS_NAV = publishedSettingsNav(ADMIN_SETTINGS_NAV_ALL);
 
 export function filterOrganizationSettingsNav(
   permissions: readonly BusinessPermission[],

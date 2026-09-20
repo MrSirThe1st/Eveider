@@ -14,7 +14,7 @@ export default async function OrganizationMembersSettingsPage() {
       description="Invitez des collègues et choisissez ce qu’ils peuvent faire."
       layout="wide"
       breadcrumbs={[
-        { label: 'Paramètres', href: WEB_ROUTES.businessSettings },
+        { label: 'Organisation', href: WEB_ROUTES.businessSettings },
         { label: 'Membres' },
       ]}
     >

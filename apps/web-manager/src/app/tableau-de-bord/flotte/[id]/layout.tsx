@@ -22,7 +22,7 @@ export default async function AdminDriverDetailLayout({ children, params }: Driv
       description={`${driver.statusLabel} · ${driver.organizationLabel}`}
       layout="wide"
       breadcrumbs={[
-        { label: 'Chauffeurs', href: WEB_ROUTES.adminDrivers },
+        { label: 'Flotte', href: WEB_ROUTES.adminDrivers },
         { label: driver.fullName },
       ]}
     >

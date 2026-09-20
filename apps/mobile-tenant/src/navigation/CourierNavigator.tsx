@@ -2,7 +2,6 @@ import { Feather } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import type { BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
-import type { NavigatorScreenParams } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { createContext, memo, useContext, useMemo, useRef, useState, type MutableRefObject } from 'react';
@@ -10,6 +9,8 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ProfileDrawer } from '../components/ProfileDrawer';
+import { DRIVER_PRIMARY_TABS } from '../lib/driver-nav';
+import { CourierHistoryScreen } from '../screens/CourierHistoryScreen';
 import { CourierHome } from '../screens/CourierHome';
 import { CourierRouteScreen } from '../screens/CourierRouteScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
@@ -25,26 +26,10 @@ import {
   useCustomerShell,
   type CustomerSettingsScreen,
 } from './customer-shell';
+import type { CourierStackParamList, CourierTabParamList } from './courier-params';
 import { getTabBarStyle } from './useHideTabBar';
 
-export type CourierTabParamList = {
-  Home: undefined;
-  Route: undefined;
-};
-
-export type CourierStackParamList = {
-  Tabs: NavigatorScreenParams<CourierTabParamList> | undefined;
-  Notifications: undefined;
-  NotificationPreferences: undefined;
-  PersonalInfo: undefined;
-  Language: undefined;
-  Country: undefined;
-  Appearance: undefined;
-  Help: undefined;
-  Terms: undefined;
-  Privacy: undefined;
-  About: undefined;
-};
+export type { CourierStackParamList, CourierTabParamList };
 
 const Tab = createBottomTabNavigator<CourierTabParamList>();
 const Stack = createNativeStackNavigator<CourierStackParamList>();
@@ -85,14 +70,6 @@ export function CourierNavigator({ onRequestAuth }: CourierNavigatorProps) {
         setDrawerOpenRef.current(false);
         stackNavRef.current?.navigate('Tabs', { screen: 'Home' });
       },
-      goToSend: () => {
-        setDrawerOpenRef.current(false);
-        stackNavRef.current?.navigate('Tabs', { screen: 'Home' });
-      },
-      goToPoints: () => {
-        setDrawerOpenRef.current(false);
-        stackNavRef.current?.navigate('Tabs', { screen: 'Route' });
-      },
       goToHome: () => {
         setDrawerOpenRef.current(false);
         stackNavRef.current?.navigate('Tabs', { screen: 'Home' });
@@ -116,6 +93,7 @@ const CourierStack = memo(function CourierStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Tabs" component={CourierTabs} />
+      <Stack.Screen name="Route" component={CourierRouteScreen} />
       <Stack.Screen name="Notifications" component={NotificationsRoute} />
       <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesRoute} />
       <Stack.Screen name="PersonalInfo" component={PersonalInfoRoute} />
@@ -146,7 +124,7 @@ function CourierTabs() {
 function DrawerHost() {
   const drawerOpen = useContext(DrawerOpenContext);
   const { isGuest } = useCustomerShell();
-  return <ProfileDrawer isGuest={isGuest} open={drawerOpen} mode="COURSIER" />;
+  return <ProfileDrawer isGuest={isGuest} open={drawerOpen} mode="DRIVER" />;
 }
 
 const CourierTabBar = memo(function CourierTabBar() {
@@ -179,12 +157,18 @@ const CourierTabBar = memo(function CourierTabBar() {
       <Tab.Screen
         name="Home"
         component={CourierHome}
-        options={{ tabBarLabel: t('tabs.home'), tabBarIcon: tabIcon('home') }}
+        options={{
+          tabBarLabel: t(DRIVER_PRIMARY_TABS[0].i18nKey),
+          tabBarIcon: tabIcon('package'),
+        }}
       />
       <Tab.Screen
-        name="Route"
-        component={CourierRouteScreen}
-        options={{ tabBarLabel: t('tabs.route'), tabBarIcon: tabIcon('map') }}
+        name="History"
+        component={CourierHistoryScreen}
+        options={{
+          tabBarLabel: t(DRIVER_PRIMARY_TABS[1].i18nKey),
+          tabBarIcon: tabIcon('clock'),
+        }}
       />
     </Tab.Navigator>
   );
@@ -194,7 +178,7 @@ function NotificationsRoute() {
   const navigation = useNavigation<NativeStackNavigationProp<CourierStackParamList>>();
   return (
     <NotificationsScreen
-      mode="COURSIER"
+      mode="DRIVER"
       onBack={() => navigation.goBack()}
       onOpenParcel={() => navigation.navigate('Tabs', { screen: 'Home' })}
     />
@@ -203,22 +187,22 @@ function NotificationsRoute() {
 
 function NotificationPreferencesRoute() {
   const navigation = useNavigation<NativeStackNavigationProp<CourierStackParamList>>();
-  return <NotificationPreferencesScreen mode="COURSIER" onBack={() => navigation.goBack()} />;
+  return <NotificationPreferencesScreen mode="DRIVER" onBack={() => navigation.goBack()} />;
 }
 
 function LanguageRoute() {
   const navigation = useNavigation<NativeStackNavigationProp<CourierStackParamList>>();
-  return <LanguageSettingsScreen mode="COURSIER" onBack={() => navigation.goBack()} />;
+  return <LanguageSettingsScreen mode="DRIVER" onBack={() => navigation.goBack()} />;
 }
 
 function CountryRoute() {
   const navigation = useNavigation<NativeStackNavigationProp<CourierStackParamList>>();
-  return <CountrySettingsScreen mode="COURSIER" onBack={() => navigation.goBack()} />;
+  return <CountrySettingsScreen mode="DRIVER" onBack={() => navigation.goBack()} />;
 }
 
 function AppearanceRoute() {
   const navigation = useNavigation<NativeStackNavigationProp<CourierStackParamList>>();
-  return <AppearanceSettingsScreen mode="COURSIER" onBack={() => navigation.goBack()} />;
+  return <AppearanceSettingsScreen mode="DRIVER" onBack={() => navigation.goBack()} />;
 }
 
 function PersonalInfoRoute() {
@@ -278,7 +262,7 @@ function PlaceholderRoute({
 
   return (
     <PlaceholderSettingsScreen
-      mode="COURSIER"
+      mode="DRIVER"
       title={copy.title}
       onBack={() => navigation.goBack()}
       intro={copy.intro}

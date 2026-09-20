@@ -6,6 +6,7 @@ import { useColors } from '../theme';
 import {
   getCurrentCoordinates,
   LockerSelectPanel,
+  openAddressSearch,
   openDirections,
   useLockerMapStyles,
   type LockerMapViewProps,
@@ -65,4 +66,4 @@ export function LockerMapView({
   );
 }
 
-export { LockerSelectPanel, getCurrentCoordinates, openDirections };
+export { LockerSelectPanel, getCurrentCoordinates, openAddressSearch, openDirections };

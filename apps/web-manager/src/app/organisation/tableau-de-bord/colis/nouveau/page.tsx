@@ -14,8 +14,8 @@ export default async function NewParcelPage({ searchParams }: NewParcelPageProps
 
   return (
     <PageFrame
-      title="Créer un colis"
-      description="Créez un colis Eveider avec suivi, QR et étiquette."
+      title="Nouveau colis"
+      description="Choisissez d’abord comment le colis entre dans le réseau Eveider."
       layout="standard"
       breadcrumbs={[
         { label: 'Colis', href: WEB_ROUTES.businessParcels },

@@ -10,7 +10,7 @@ export default async function OrganizationApiSettingsPage() {
   return (
     <PageFrame
       title="API"
-      description="Reliez Eveider à votre logiciel : clé d’accès et adresse de notification."
+      description="Connexion avancée : clé d’accès et notifications vers un autre logiciel."
       layout="standard"
     >
       <OrganizationApiSettingsPanel

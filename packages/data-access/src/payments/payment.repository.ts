@@ -273,11 +273,11 @@ export class PaymentRepository {
     const updatedResult = await this.db.query(
       `UPDATE parcel_payments
        SET status = $1, pawapay_status = $2,
-           completed_at = CASE WHEN $1 = 'completed' THEN NOW() ELSE NULL END,
+           completed_at = CASE WHEN $4 THEN NOW() ELSE NULL END,
            updated_at = NOW()
        WHERE id = $3
        RETURNING *`,
-      [mappedStatus, result.status, payment.id],
+      [mappedStatus, result.status, payment.id, mappedStatus === 'completed'],
     );
     const updated = mapParcelPayment(updatedResult.rows[0]!);
 
@@ -418,11 +418,11 @@ export class PaymentRepository {
     const updatedResult = await this.db.query(
       `UPDATE parcel_payments
        SET status = $1, pawapay_status = $2,
-           completed_at = CASE WHEN $1 = 'completed' THEN NOW() ELSE NULL END,
+           completed_at = CASE WHEN $4 THEN NOW() ELSE NULL END,
            updated_at = NOW()
        WHERE id = $3
        RETURNING *`,
-      [mappedStatus, result.status, payment.id],
+      [mappedStatus, result.status, payment.id, mappedStatus === 'completed'],
     );
     const updated = mapParcelPayment(updatedResult.rows[0]!);
 
@@ -485,7 +485,7 @@ export class PaymentRepository {
        SET status = $1,
            pawapay_status = $2,
            failure_reason = $3,
-           completed_at = CASE WHEN $1 = 'completed' THEN NOW() ELSE completed_at END,
+           completed_at = CASE WHEN $5 THEN NOW() ELSE completed_at END,
            updated_at = NOW()
        WHERE id = $4
        RETURNING *`,
@@ -494,6 +494,7 @@ export class PaymentRepository {
         callback.status,
         mappedStatus === 'failed' ? (callback.failureReason ?? 'Paiement refusé') : null,
         payment.id,
+        mappedStatus === 'completed',
       ],
     );
     const mapped = mapParcelPayment(updated.rows[0]!);
@@ -513,7 +514,7 @@ export class PaymentRepository {
        SET status = $1,
            pawapay_status = $2,
            failure_reason = $3,
-           completed_at = CASE WHEN $1 = 'completed' THEN NOW() ELSE completed_at END,
+           completed_at = CASE WHEN $5 THEN NOW() ELSE completed_at END,
            updated_at = NOW()
        WHERE id = $4
        RETURNING *`,
@@ -522,6 +523,7 @@ export class PaymentRepository {
         remote.status,
         mappedStatus === 'failed' ? (remote.failureReason ?? 'Paiement refusé') : null,
         payment.id,
+        mappedStatus === 'completed',
       ],
     );
     const mapped = mapParcelPayment(updated.rows[0]!);

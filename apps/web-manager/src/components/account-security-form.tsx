@@ -1,20 +1,12 @@
 'use client';
 
-import { colors, spacing, typography, webCardStyle } from '@eveider/config-ui';
 import { Button, InlineAlert, PasswordInput } from '@eveider/ui';
 import { useState, type FormEvent } from 'react';
+import { SettingsForm, SettingsFormActions, SettingsFormSection } from '@/components/ops-ui';
 
 function FieldLabel({ htmlFor, children }: { htmlFor: string; children: string }) {
   return (
-    <label
-      htmlFor={htmlFor}
-      style={{
-        display: 'block',
-        fontSize: typography.label.fontSize,
-        fontWeight: typography.label.fontWeight,
-        color: colors.secondary,
-      }}
-    >
+    <label htmlFor={htmlFor} className="ops-field-label">
       {children}
     </label>
   );
@@ -57,17 +49,13 @@ export function AccountSecurityForm() {
   }
 
   return (
-    <form onSubmit={(event) => void handleSubmit(event)} style={{ display: 'grid', gap: '1.5rem' }}>
-      <section style={{ ...webCardStyle, padding: '1.5rem', display: 'grid', gap: spacing[4] }}>
-        <div>
-          <h3 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700 }}>Mot de passe</h3>
-          <p style={{ margin: `${spacing[2]}px 0 0`, color: colors.textMuted, fontSize: '0.875rem' }}>
-            Utilisez au moins 8 caractères. Vous devez confirmer votre mot de passe actuel.
-          </p>
-        </div>
-
-        <div style={{ display: 'grid', gap: spacing[3], maxWidth: 420 }}>
-          <div>
+    <SettingsForm onSubmit={(event) => void handleSubmit(event)}>
+      <SettingsFormSection
+        title="Mot de passe"
+        description="Utilisez au moins 8 caractères. Vous devez confirmer votre mot de passe actuel."
+      >
+        <div style={{ display: 'grid', gap: 16, maxWidth: 420 }}>
+          <div className="ops-field">
             <FieldLabel htmlFor="account-current-password">Mot de passe actuel</FieldLabel>
             <PasswordInput
               id="account-current-password"
@@ -78,7 +66,7 @@ export function AccountSecurityForm() {
               minLength={8}
             />
           </div>
-          <div>
+          <div className="ops-field">
             <FieldLabel htmlFor="account-new-password">Nouveau mot de passe</FieldLabel>
             <PasswordInput
               id="account-new-password"
@@ -89,7 +77,7 @@ export function AccountSecurityForm() {
               minLength={8}
             />
           </div>
-          <div>
+          <div className="ops-field">
             <FieldLabel htmlFor="account-confirm-password">Confirmer le nouveau mot de passe</FieldLabel>
             <PasswordInput
               id="account-confirm-password"
@@ -101,16 +89,16 @@ export function AccountSecurityForm() {
             />
           </div>
         </div>
-      </section>
+      </SettingsFormSection>
 
       {error ? <InlineAlert message={error} variant="error" /> : null}
       {success ? <InlineAlert message={success} variant="success" /> : null}
 
-      <div>
+      <SettingsFormActions>
         <Button type="submit" variant="primary" loading={saving}>
           Mettre à jour le mot de passe
         </Button>
-      </div>
-    </form>
+      </SettingsFormActions>
+    </SettingsForm>
   );
 }

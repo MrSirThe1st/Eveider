@@ -26,7 +26,7 @@ export async function apiFetch<T>(
   try {
     const response = await fetch(`${base}${path}`, {
       ...options,
-      signal: controller.signal,
+      signal: controller.signal as never,
     });
 
     try {

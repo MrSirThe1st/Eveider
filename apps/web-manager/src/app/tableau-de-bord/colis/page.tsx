@@ -1,14 +1,17 @@
-import { PageFrame } from '@eveider/ui';
+import { PageFrame, TableSkeleton } from '@eveider/ui';
+import { Suspense } from 'react';
 import { AdminParcelList } from '@/components/admin-parcel-list';
 
 export default function AdminParcelsPage() {
   return (
     <PageFrame
       title="Colis"
-      description="Suivi des colis du réseau Eveider."
+      description="Où se trouve chaque colis, et ce qui demande une action."
       layout="wide"
     >
-      <AdminParcelList />
+      <Suspense fallback={<TableSkeleton />}>
+        <AdminParcelList />
+      </Suspense>
     </PageFrame>
   );
 }

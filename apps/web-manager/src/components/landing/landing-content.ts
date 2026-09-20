@@ -9,7 +9,7 @@ export const HOW_IT_WORKS_STEPS = [
     id: 'livraison',
     step: '02',
     title: 'Livraison au casier',
-    description: 'Le coursier dépose le colis.',
+    description: 'Le chauffeur Eveider dépose le colis.',
   },
   {
     id: 'notification',
@@ -29,9 +29,9 @@ export const SOLUTIONS = [
   {
     id: 'deposer',
     title: 'Déposer',
-    description: 'Le coursier ouvre le compartiment assigné et confirme le dépôt. Le colis n’attend plus en boutique.',
+    description: 'Le chauffeur Eveider ouvre le compartiment assigné et confirme le dépôt. Le colis n’attend plus en boutique.',
     image: '/landing/courier.jpg',
-    imageAlt: 'Coursier en tournée avec des colis',
+    imageAlt: 'Chauffeur Eveider en tournée avec des colis',
     href: '#a-propos',
   },
   {
@@ -82,7 +82,7 @@ export const VOICES = [
     quote:
       'Vous créez le colis. Un chauffeur dépose au casier. Le destinataire retire quand il peut — le colis ne reste pas en boutique.',
     image: '/landing/shop.jpg',
-    imageAlt: 'Point de vente, préparation de commandes',
+    imageAlt: 'Commerce, préparation de commandes',
   },
   {
     id: 'destinataire',
@@ -93,10 +93,10 @@ export const VOICES = [
     imageAlt: 'Colis prêts à être retirés',
   },
   {
-    id: 'coursier',
-    lens: 'Côté coursier',
+    id: 'chauffeur',
+    lens: 'Côté chauffeur Eveider',
     quote:
-      'Vous déposez, vous confirmez, vous continuez. Le point de rendez-vous, c’est le casier, pas le client.',
+      'Vous déposez, vous confirmez, vous continuez. Le rendez-vous, c’est le casier, pas le client.',
     image: '/landing/dispatch.jpg',
     imageAlt: 'Colis en cours d’acheminement',
   },
@@ -119,7 +119,7 @@ export const FAQ_ITEMS = [
     id: 'envoyer',
     question: 'Comment envoyer des colis avec Eveider ?',
     answer:
-      'Créez un compte entreprise, puis un colis : destinataire, casier, suivi. Un chauffeur dépose au casier choisi. Envoyer vos pièces n’est pas obligatoire.',
+      'Créez un compte entreprise, puis un colis : destinataire, casier, suivi. Un chauffeur dépose au casier choisi.',
   },
   {
     id: 'compte-entreprise',
@@ -129,8 +129,8 @@ export const FAQ_ITEMS = [
   },
   {
     id: 'deposer',
-    question: 'Comment déposer un colis en tant que coursier ?',
+    question: 'Comment déposer un colis en tant que chauffeur Eveider ?',
     answer:
-      'Ouvrez la tournée assignée dans l’application coursier, rendez-vous au casier indiqué, déposez le colis, puis confirmez le dépôt.',
+      'Ouvrez la livraison assignée dans l’application chauffeur, rendez-vous au casier indiqué, déposez le colis, puis confirmez le dépôt.',
   },
 ] as const;

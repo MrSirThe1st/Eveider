@@ -5,6 +5,7 @@ export {
 } from './identity.js';
 export {
   MemoryLockerRuntimeStore,
+  FileLockerRuntimeStore,
   StubHardwareAdapter,
   emptyLockerRuntimeSnapshot,
   type LocalCollectionCredential,

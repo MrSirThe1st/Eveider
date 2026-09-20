@@ -6,26 +6,35 @@ import { WEB_ROUTES } from '@/lib/auth-routing';
 
 export default async function OrganizationBillingSettingsPage() {
   const { profile } = await requireBusinessPermission('billing');
-  const billing = await loadBusinessBillingPageData(profile.businessId);
+  const page = await loadBusinessBillingPageData(profile.businessId);
 
-  if (!billing) {
+  if (!page.billing) {
     redirect(WEB_ROUTES.businessDashboard);
   }
 
+  const { billing, owedCharges, pickupHoldHours } = page;
+
   return (
     <PageFrame
-      title="Paiement & limites"
-      description="Pour votre entreprise : qui paie la livraison, comment Eveider vous règle, et vos plafonds."
+      title="Facturation"
+      description="Montants dus à Eveider, compte de règlement et limites."
       layout="standard"
     >
       <BusinessBillingForm
-        paymentRule={billing.paymentRule ?? 'merchant_pays'}
+        paymentRule={billing.paymentRule ?? 'customer_pays'}
         billingType={billing.billingType ?? 'pay_per_shipment'}
         payoutMethod={billing.payoutMethod ?? 'mobile_money_orange'}
         accountHolder={billing.accountHolder ?? ''}
         accountNumber={billing.accountNumber ?? ''}
         dailyShipments={billing.dailyShipments ?? null}
-        codDailyLimitUsd={billing.codDailyLimitUsd ?? null}
+        pickupHoldHours={pickupHoldHours}
+        owedCharges={owedCharges.map((charge) => ({
+          id: charge.id,
+          kind: charge.kind,
+          amount: charge.amount,
+          currency: charge.currency,
+          status: charge.status,
+        }))}
       />
     </PageFrame>
   );

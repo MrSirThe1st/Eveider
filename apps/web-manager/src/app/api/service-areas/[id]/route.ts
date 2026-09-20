@@ -47,11 +47,14 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     return NextResponse.json(ok({ serviceArea: toServiceAreaDto(area) }));
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur serveur';
-    const status =
-      message.includes('introuvable') ? 404 : message.includes('duplicate') || message.includes('unique') ? 409 : 500;
-    return NextResponse.json(
-      fail(status === 409 ? 'Ce code de zone existe déjà' : message),
-      { status },
-    );
+    const status = message.includes('introuvable')
+      ? 404
+      : message.includes('existe déjà') ||
+          message.includes('archiver') ||
+          message.includes('duplicate') ||
+          message.includes('unique')
+        ? 409
+        : 500;
+    return NextResponse.json(fail(message), { status });
   }
 }

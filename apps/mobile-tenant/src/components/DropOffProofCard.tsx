@@ -56,8 +56,8 @@ export function DropOffProofCard({ photoBase64, onCapture, onRetake }: DropOffPr
     return (
       <View style={styles.fallback}>
         <Text style={styles.hint}>
-          La preuve de dépôt se photographie depuis le téléphone du coursier, une fois le colis
-          dans le compartiment.
+          Photographiez le colis dans le compartiment comme preuve de dépôt. Le terminal confirmera
+          le casier une fois en service.
         </Text>
       </View>
     );
@@ -70,7 +70,7 @@ export function DropOffProofCard({ photoBase64, onCapture, onRetake }: DropOffPr
   if (!permission.granted) {
     return (
       <View style={styles.fallback}>
-        <Text style={styles.hint}>Autorisez la caméra pour photographier le dépôt.</Text>
+        <Text style={styles.hint}>Autorisez la caméra pour la preuve de dépôt.</Text>
         <Pressable onPress={() => void requestPermission()} style={styles.permissionButton}>
           <Text style={styles.permissionText}>AUTORISER LA CAMÉRA</Text>
         </Pressable>
@@ -82,7 +82,7 @@ export function DropOffProofCard({ photoBase64, onCapture, onRetake }: DropOffPr
     <View style={styles.frame}>
       <CameraView ref={cameraRef} style={styles.camera} facing="back" />
       <Pressable onPress={() => void handleCapture()} style={styles.shutter} disabled={capturing}>
-        <Text style={styles.shutterText}>{capturing ? '…' : 'PRENDRE LA PHOTO'}</Text>
+        <Text style={styles.shutterText}>{capturing ? '…' : 'PREUVE DE DÉPÔT'}</Text>
       </Pressable>
     </View>
   );

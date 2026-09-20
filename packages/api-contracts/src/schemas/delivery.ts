@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const assignCourierSchema = z.object({
-  courierId: z.string().uuid('Coursier invalide'),
+  courierId: z.string().uuid('Chauffeur invalide'),
   kind: z.enum(['outbound', 'return', 'customer_return']).optional().default('outbound'),
 });
 
@@ -28,9 +28,9 @@ export const completeCustomerReturnToBusinessSchema = z.object({
 });
 
 export const listDeliveriesQuerySchema = z.object({
-  view: z.enum(['active', 'au_casier', 'collected', 'all']).optional(),
+  view: z.enum(['active', 'all']).optional(),
   status: z.enum(['assigned', 'scanned', 'drop_off_pending', 'completed', 'failed']).optional(),
-  courierId: z.string().uuid('Coursier invalide').optional(),
+  courierId: z.string().uuid('Chauffeur invalide').optional(),
   lockerId: z.string().uuid('Casier invalide').optional(),
   businessId: z.string().uuid('Entreprise invalide').optional(),
   search: z.string().trim().max(64).optional(),

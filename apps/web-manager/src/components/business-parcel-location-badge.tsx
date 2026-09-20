@@ -1,97 +1,53 @@
+import { colors } from '@eveider/config-ui';
 import { BUSINESS_PARCEL_LOCATION_LABELS, type BusinessParcelLocation } from '@eveider/domain';
 
 type BusinessParcelLocationBadgeProps = {
   location: BusinessParcelLocation;
 };
 
+const NEUTRAL = {
+  bg: colors.surfaceMuted,
+  color: colors.textMuted,
+  dot: colors.textDisabled,
+  border: colors.borderSubtle,
+};
+const LAVENDER = {
+  bg: colors.infoMuted,
+  color: colors.infoFg,
+  dot: colors.info,
+  border: colors.infoMuted,
+};
+const PEACH = {
+  bg: colors.warningMuted,
+  color: colors.warningFg,
+  dot: colors.warning,
+  border: colors.warningMuted,
+};
+const SAGE = {
+  bg: colors.successMuted,
+  color: colors.successFg,
+  dot: colors.success,
+  border: colors.primaryMuted,
+};
+
 const LOCATION_STYLES: Record<
   BusinessParcelLocation,
   { bg: string; color: string; dot: string; border: string }
 > = {
-  awaiting_courier: {
-    bg: '#F0F4EE',
-    color: '#475467',
-    dot: '#98A2B3',
-    border: '#E2E8E0',
-  },
-  awaiting_dropoff: {
-    bg: '#F0F4EE',
-    color: '#475467',
-    dot: '#98A2B3',
-    border: '#E2E8E0',
-  },
-  courier_assigned: {
-    bg: '#E8F1FB',
-    color: '#175CD3',
-    dot: '#2E90FA',
-    border: '#B2DDFF',
-  },
-  in_transit: {
-    bg: '#FFE4EC',
-    color: '#D92D20',
-    dot: '#FF6B8B',
-    border: '#FFCCD8',
-  },
-  at_locker: {
-    bg: '#FFF3D6',
-    color: '#B54708',
-    dot: '#F79009',
-    border: '#FEDF89',
-  },
-  ready_for_pickup: {
-    bg: '#DCF5D6',
-    color: '#067A07',
-    dot: '#09D40B',
-    border: '#C0EAB7',
-  },
-  return_in_progress: {
-    bg: '#E8F1FB',
-    color: '#175CD3',
-    dot: '#2E90FA',
-    border: '#B2DDFF',
-  },
-  returned_to_business: {
-    bg: '#F0F4EE',
-    color: '#475467',
-    dot: '#98A2B3',
-    border: '#E2E8E0',
-  },
-  collected: {
-    bg: '#F0F4EE',
-    color: '#475467',
-    dot: '#98A2B3',
-    border: '#E2E8E0',
-  },
-  customer_return_requested: {
-    bg: '#E8F1FB',
-    color: '#175CD3',
-    dot: '#2E90FA',
-    border: '#B2DDFF',
-  },
-  customer_return_authorized: {
-    bg: '#E8F1FB',
-    color: '#175CD3',
-    dot: '#2E90FA',
-    border: '#B2DDFF',
-  },
-  customer_return_at_locker: {
-    bg: '#FFF3D6',
-    color: '#B54708',
-    dot: '#F79009',
-    border: '#FEDF89',
-  },
-  customer_return_in_transit: {
-    bg: '#E8F1FB',
-    color: '#175CD3',
-    dot: '#2E90FA',
-    border: '#B2DDFF',
-  },
-  customer_return_completed: {
-    bg: '#F0F4EE',
-    color: '#475467',
-    dot: '#98A2B3',
-    border: '#E2E8E0',
-  },
+  awaiting_courier: NEUTRAL,
+  awaiting_dropoff: NEUTRAL,
+  courier_assigned: LAVENDER,
+  in_transit: LAVENDER,
+  at_locker: PEACH,
+  ready_for_pickup: SAGE,
+  return_in_progress: LAVENDER,
+  returned_to_business: NEUTRAL,
+  collected: NEUTRAL,
+  customer_return_requested: LAVENDER,
+  customer_return_authorized: LAVENDER,
+  customer_return_at_locker: PEACH,
+  customer_return_in_transit: LAVENDER,
+  customer_return_completed: NEUTRAL,
 };
 
 export function BusinessParcelLocationBadge({ location }: BusinessParcelLocationBadgeProps) {

@@ -50,12 +50,12 @@ export function getDefaultMapCenter() {
 }
 
 export const LOCKER_PIN_COLORS = {
-  available: '#09D40B',
-  low: '#FFB74D',
-  full: '#94A3B8',
-  offline: '#64748B',
-  selected: '#FFFFFF',
-  destination: '#3B82F6',
+  available: '#3F8F73',
+  low: '#C9845A',
+  full: '#A39C90',
+  offline: '#6A655C',
+  selected: '#FAF9F7',
+  destination: '#6E6A9A',
 } as const;
 
 export function lockerPinColor(availableCompartments: number, status: string): string {

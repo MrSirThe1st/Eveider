@@ -5,7 +5,7 @@ import { ScreenScaffold } from '../../components/ScreenHeader';
 import { useColors } from '../../theme';
 
 type PlaceholderSettingsScreenProps = {
-  mode: 'CLIENT' | 'COURSIER';
+  mode: 'CLIENT' | 'DRIVER';
   title: string;
   onBack: () => void;
   intro: string;

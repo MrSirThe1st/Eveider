@@ -1,17 +1,19 @@
 import { nativeRadius as radius, borders, type ColorTokens } from '@eveider/config-ui';
-import type { DeliveryStatus } from '@eveider/domain';
-import { DELIVERY_STATUS_LABELS } from '@eveider/domain';
+import type { DeliveryKind, DeliveryStatus } from '@eveider/domain';
 import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { getDriverDeliveryStep } from '../lib/driver-presentation';
 import { useColors } from '../theme';
 
 type DeliveryStatusBadgeProps = {
   status: DeliveryStatus;
+  kind?: DeliveryKind | null;
 };
 
-export function DeliveryStatusBadge({ status }: DeliveryStatusBadgeProps) {
+export function DeliveryStatusBadge({ status, kind }: DeliveryStatusBadgeProps) {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const step = getDriverDeliveryStep({ status, kind });
   const active = status === 'scanned' || status === 'drop_off_pending';
   const done = status === 'completed';
   const failed = status === 'failed';
@@ -33,7 +35,7 @@ export function DeliveryStatusBadge({ status }: DeliveryStatusBadgeProps) {
           failed && styles.textFailed,
         ]}
       >
-        {DELIVERY_STATUS_LABELS[status]}
+        {step.label}
       </Text>
     </View>
   );

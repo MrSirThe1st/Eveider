@@ -51,20 +51,26 @@ export function AdminOrganizationDrivers({ drivers }: AdminOrganizationDriversPr
   );
 
   return (
-    <DataTable
-      columns={columns}
-      rows={drivers}
-      getRowId={(row) => row.id}
-      emptyTitle="Aucun chauffeur pour cette organisation"
-      emptyDescription="Aucun chauffeur rattaché à cette organisation pour le moment."
-      emptyIcon={<IconTruck />}
-      rowActions={(row) => [
-        {
-          id: 'view',
-          label: 'Voir',
-          href: adminDriverPath(row.id),
-        },
-      ]}
-    />
+    <div>
+      <p style={{ margin: '0 0 1rem', fontSize: '0.875rem', color: colors.textMuted }}>
+        Les chauffeurs d’organisation ne font plus partie du modèle opérationnel. La flotte Eveider
+        se gère dans Flotte.
+      </p>
+      <DataTable
+        columns={columns}
+        rows={drivers}
+        getRowId={(row) => row.id}
+        emptyTitle="Aucun chauffeur d’organisation à afficher"
+        emptyDescription="Ce n’est plus un modèle actif. Consultez Flotte pour les chauffeurs Eveider."
+        emptyIcon={<IconTruck />}
+        rowActions={(row) => [
+          {
+            id: 'view',
+            label: 'Voir',
+            href: adminDriverPath(row.id),
+          },
+        ]}
+      />
+    </div>
   );
 }

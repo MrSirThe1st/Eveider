@@ -72,6 +72,13 @@ export const createLockerSchema = createLockerBaseSchema.superRefine((value, ctx
         path: ['compartments'],
       });
     }
+    if (!value.serviceAreaId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Zone requise',
+        path: ['serviceAreaId'],
+      });
+    }
     return;
   }
 

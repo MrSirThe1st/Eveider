@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ADMIN_SETTINGS_NAV,
   filterOrganizationSettingsNav,
   firstOrganizationSettingsPath,
   isSettingsNavItemActive,
+  ORGANIZATION_SETTINGS_NAV,
   ORG_SETTINGS_ROUTES,
 } from './settings-nav';
 
@@ -21,7 +23,6 @@ describe('filterOrganizationSettingsNav', () => {
     expect(groups[0]?.items.map((item) => item.id)).toEqual([
       'profil',
       'securite',
-      'notifications',
       'preferences',
     ]);
   });
@@ -41,11 +42,27 @@ describe('filterOrganizationSettingsNav', () => {
     ]);
     const ids = groups.flatMap((group) => group.items.map((item) => item.id));
     expect(ids).toContain('organisation-details');
+    expect(ids).not.toContain('verification');
     expect(ids).toContain('membres');
     expect(ids).toContain('plans');
     expect(ids).toContain('api');
+    expect(ids).toContain('excel');
+    expect(ids).not.toContain('roles');
+    expect(ids).not.toContain('notifications');
     expect(ids).not.toContain('equipes');
     expect(ids).not.toContain('casiers');
+  });
+});
+
+describe('unpublished settings stay hidden', () => {
+  it('omits coming-soon items from org and admin sidebars', () => {
+    const orgIds = ORGANIZATION_SETTINGS_NAV.flatMap((group) => group.items.map((item) => item.id));
+    const adminIds = ADMIN_SETTINGS_NAV.flatMap((group) => group.items.map((item) => item.id));
+    expect(orgIds).not.toContain('roles');
+    expect(orgIds).not.toContain('notifications');
+    expect(adminIds).not.toContain('roles');
+    expect(adminIds).not.toContain('notifications');
+    expect(adminIds).not.toContain('api');
   });
 });
 

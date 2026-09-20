@@ -1,36 +1,41 @@
-import type { ParcelStatusFilter } from '@eveider/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DashboardParcelItem } from '@/components/admin-dashboard-types';
 import { fetchJson } from '@/lib/api/fetch-json';
+import type { AdminParcelAttentionFilter } from '@/lib/admin-presentation';
 
-function adminParcelsUrl(status: ParcelStatusFilter, search?: string) {
+export type AdminParcelListFilters = {
+  attention: AdminParcelAttentionFilter;
+  pickupType: 'all' | 'courier_pickup' | 'merchant_dropoff';
+  search?: string;
+};
+
+function adminParcelsUrl(filters: AdminParcelListFilters) {
   const params = new URLSearchParams();
-  if (status !== 'all') params.set('status', status);
-  if (search?.trim()) params.set('search', search.trim());
+  if (filters.attention !== 'all') params.set('attention', filters.attention);
+  if (filters.pickupType !== 'all') params.set('pickupType', filters.pickupType);
+  if (filters.search?.trim()) params.set('search', filters.search.trim());
   const query = params.toString();
   return query ? `/api/parcels?${query}` : '/api/parcels';
 }
 
 export async function fetchAdminParcels(
-  status: ParcelStatusFilter,
-  search?: string,
+  filters: AdminParcelListFilters,
 ): Promise<DashboardParcelItem[]> {
-  const data = await fetchJson<{ parcels: DashboardParcelItem[] }>(adminParcelsUrl(status, search));
+  const data = await fetchJson<{ parcels: DashboardParcelItem[] }>(adminParcelsUrl(filters));
   return data.parcels;
 }
 
 type UseAdminParcelsQueryOptions = {
   enabled?: boolean;
   initialData?: DashboardParcelItem[];
-  search?: string;
 };
 
 export function useAdminParcelsQuery(
-  status: ParcelStatusFilter,
+  filters: AdminParcelListFilters,
   options?: UseAdminParcelsQueryOptions,
 ) {
   const enabled = options?.enabled ?? true;
-  const search = options?.search ?? '';
+  const search = filters.search ?? '';
   const [parcels, setParcels] = useState<DashboardParcelItem[]>(options?.initialData ?? []);
   const [isLoading, setIsLoading] = useState(enabled && options?.initialData === undefined);
   const [isFetching, setIsFetching] = useState(false);
@@ -50,7 +55,7 @@ export function useAdminParcelsQuery(
     setError(null);
 
     try {
-      const next = await fetchAdminParcels(status, search);
+      const next = await fetchAdminParcels(filters);
       if (requestId !== requestIdRef.current) return;
       setParcels(next);
       hasDataRef.current = true;
@@ -63,7 +68,7 @@ export function useAdminParcelsQuery(
         setIsFetching(false);
       }
     }
-  }, [enabled, search, status]);
+  }, [enabled, filters.attention, filters.pickupType, filters.search]);
 
   useEffect(() => {
     if (!enabled) {
@@ -74,15 +79,6 @@ export function useAdminParcelsQuery(
         setIsLoading(false);
         setIsFetching(false);
       }
-      return;
-    }
-
-    if (options?.initialData !== undefined && !search) {
-      requestIdRef.current += 1;
-      setParcels(options.initialData);
-      hasDataRef.current = true;
-      setIsLoading(false);
-      setIsFetching(false);
       return;
     }
 

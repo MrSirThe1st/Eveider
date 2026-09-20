@@ -10,8 +10,8 @@ export const WEB_ROUTES = {
   login: '/connexion',
   register: '/inscription',
   adminDashboard: '/tableau-de-bord',
-  adminDrivers: '/tableau-de-bord/chauffeurs',
-  adminNewDriver: '/tableau-de-bord/chauffeurs/nouveau',
+  adminDrivers: '/tableau-de-bord/flotte',
+  adminNewDriver: '/tableau-de-bord/flotte/nouveau',
   businessDashboard: '/organisation/tableau-de-bord',
   businessParcels: '/organisation/tableau-de-bord/colis',
   businessNewParcel: '/organisation/tableau-de-bord/colis/nouveau',
@@ -24,7 +24,7 @@ export const WEB_ROUTES = {
   businessTeam: '/organisation/tableau-de-bord/parametres/membres',
   businessCouriers: '/organisation/tableau-de-bord/chauffeurs',
   businessNewDriver: '/organisation/tableau-de-bord/chauffeurs/nouveau',
-  businessVerification: '/organisation/tableau-de-bord/verification',
+  businessVerification: '/organisation/tableau-de-bord',
 } as const;
 
 export function businessParcelPath(parcelId: string) {
@@ -36,7 +36,7 @@ export function businessDriverPath(driverId: string) {
 }
 
 export function adminDriverPath(driverId: string) {
-  return `/tableau-de-bord/chauffeurs/${driverId}`;
+  return `/tableau-de-bord/flotte/${driverId}`;
 }
 
 export function businessNewParcelPath(lockerId?: string) {

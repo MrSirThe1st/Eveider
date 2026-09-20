@@ -1,12 +1,18 @@
 import {
   canAcceptDropOff,
-  DELIVERY_KIND_LABELS,
   DELIVERY_STATUS_LABELS,
   LOCKER_STATUS_LABELS,
   type DeliveryKind,
   type DeliveryStatus,
   type LockerStatus,
+  type PackageSize,
 } from '@eveider/domain';
+
+function driverKindLabel(kind: DeliveryKind): string {
+  if (kind === 'customer_return') return 'Retour client';
+  if (kind === 'return') return 'Retour non retiré (historique)';
+  return 'Aller';
+}
 
 export type CourierDeliveryDto = {
   id: string;
@@ -26,6 +32,8 @@ export type CourierDeliveryDto = {
     status: string;
     recipientName: string | null;
     businessName: string;
+    senderAddress: string | null;
+    packageSize: PackageSize | null;
     locker: {
       id: string;
       name: string;
@@ -56,6 +64,8 @@ export function toCourierDeliveryDto(delivery: {
     reference: string | null;
     status: string;
     recipientName: string | null;
+    senderAddress?: string | null;
+    packageSize?: PackageSize | null;
     business: { name: string };
     locker: {
       id: string;
@@ -73,7 +83,7 @@ export function toCourierDeliveryDto(delivery: {
     status: delivery.status,
     statusLabel: DELIVERY_STATUS_LABELS[delivery.status],
     kind: delivery.kind ?? 'outbound',
-    kindLabel: DELIVERY_KIND_LABELS[delivery.kind ?? 'outbound'],
+    kindLabel: driverKindLabel(delivery.kind ?? 'outbound'),
     scannedAt: delivery.scannedAt?.toISOString() ?? null,
     completedAt: delivery.completedAt?.toISOString() ?? null,
     createdAt: delivery.createdAt.toISOString(),
@@ -86,6 +96,8 @@ export function toCourierDeliveryDto(delivery: {
       status: delivery.parcel.status,
       recipientName: delivery.parcel.recipientName,
       businessName: delivery.parcel.business.name,
+      senderAddress: delivery.parcel.senderAddress ?? null,
+      packageSize: delivery.parcel.packageSize ?? null,
       locker: delivery.parcel.locker
         ? {
             id: delivery.parcel.locker.id,

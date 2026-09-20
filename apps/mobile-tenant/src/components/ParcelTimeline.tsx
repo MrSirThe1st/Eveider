@@ -1,46 +1,35 @@
 import { type ColorTokens } from '@eveider/config-ui';
-import { PARCEL_STATUSES, type ParcelStatus, type ShipmentPickupType } from '@eveider/domain';
 import { useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
+import type { CustomerParcel } from '../lib/api';
+import { getRecipientJourney } from '../lib/recipient-presentation';
 import { useColors } from '../theme';
 
 type ParcelTimelineProps = {
-  currentStatus: ParcelStatus;
-  pickupType?: ShipmentPickupType;
+  parcel: CustomerParcel;
 };
 
-export function ParcelTimeline({ currentStatus, pickupType }: ParcelTimelineProps) {
-  const { t } = useTranslation();
+export function ParcelTimeline({ parcel }: ParcelTimelineProps) {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const steps =
-    pickupType === 'merchant_dropoff'
-      ? PARCEL_STATUSES.filter((status) => status !== 'in_transit')
-      : PARCEL_STATUSES;
-  const currentIndex = steps.indexOf(currentStatus);
+  const journey = getRecipientJourney(parcel);
 
   return (
     <View style={styles.container}>
-      {steps.map((status, index) => {
-        const reached = index <= currentIndex;
-        const isCurrent = status === currentStatus;
-
-        return (
-          <View key={status} style={styles.step}>
-            <View
-              style={[
-                styles.dot,
-                reached && styles.dotReached,
-                isCurrent && styles.dotCurrent,
-              ]}
-            />
-            <Text style={[styles.label, reached && styles.labelReached]}>
-              {t(`status.${status}`)}
-            </Text>
-          </View>
-        );
-      })}
+      {journey.steps.map((step) => (
+        <View key={step.id} style={styles.step}>
+          <View
+            style={[
+              styles.dot,
+              (step.done || step.current) && styles.dotReached,
+              step.current && styles.dotCurrent,
+            ]}
+          />
+          <Text style={[styles.label, (step.done || step.current) && styles.labelReached]}>
+            {step.label}
+          </Text>
+        </View>
+      ))}
     </View>
   );
 }
@@ -69,7 +58,7 @@ function createStyles(colors: ColorTokens) {
       borderColor: colors.secondary,
     },
     label: {
-      fontSize: 12,
+      fontSize: 13,
       fontWeight: '500',
       color: colors.textMuted,
     },

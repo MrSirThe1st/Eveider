@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useId, useState, useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { IconChevronLeft, IconChevronRight, IconLogOut, IconMenu, IconSettings, IconX } from './icons.js';
+import { accountDisplayName, groupNavModules, initialsFromName } from './app-shell-nav.js';
 
 export type NavItem = {
   href: string;
@@ -21,6 +22,8 @@ export type NavModule = {
   href: string;
   match: (pathname: string) => boolean;
   icon?: ReactNode;
+  /** Optional section heading. Consecutive items with the same section are grouped. */
+  section?: string;
 };
 
 export type AppShellProps = {
@@ -32,6 +35,8 @@ export type AppShellProps = {
   children: ReactNode;
   profileHref?: string;
   profileLabel?: string;
+  userName?: string | null;
+  userEmail?: string | null;
   toolbar?: ReactNode;
 };
 
@@ -94,6 +99,8 @@ export function AppShell({
   children,
   profileHref,
   profileLabel,
+  userName,
+  userEmail,
   toolbar,
 }: AppShellProps) {
   const pathname = usePathname();
@@ -103,6 +110,9 @@ export function AppShell({
   const [navTooltip, setNavTooltip] = useState<NavTooltipState | null>(null);
   const navTooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sidebarId = useId();
+  const sections = groupNavModules(modules);
+  const displayName = accountDisplayName(userName, userEmail, profileLabel ?? 'Mon compte');
+  const profileActive = Boolean(profileHref && pathname.startsWith(profileHref));
 
   function clearNavTooltipTimer() {
     if (navTooltipTimer.current != null) {
@@ -215,7 +225,7 @@ export function AppShell({
         style={{
           alignSelf: 'stretch',
           flexShrink: 0,
-          background: colors.surface,
+          background: colors.surfaceSubtle,
           borderRight: borderSubtle(),
           height: '100%',
           minHeight: 0,
@@ -240,7 +250,7 @@ export function AppShell({
         >
           <div
             className="nb-sidebar-brand"
-            aria-label={`Eveider ${brand}`}
+            aria-label={brand}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -252,29 +262,17 @@ export function AppShell({
             <img
               src="/landing/eveider_logo.png"
               alt=""
-              width={36}
-              height={36}
+              width={28}
+              height={28}
               className="nb-sidebar-logo"
               style={{
                 display: 'block',
-                width: 36,
-                height: 36,
+                width: 28,
+                height: 28,
                 objectFit: 'contain',
                 flexShrink: 0,
               }}
             />
-            <span
-              className="nb-side-nav__label"
-              aria-hidden
-              style={{
-                color: colors.textMuted,
-                fontSize: typography.bodySm.fontSize,
-                fontWeight: typography.weights.medium,
-                lineHeight: 1,
-              }}
-            >
-              /
-            </span>
             <span
               className="nb-side-nav__label"
               style={{
@@ -326,159 +324,195 @@ export function AppShell({
           style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: spacing[1],
+            gap: spacing[4],
             flex: 1,
             overflowY: 'auto',
-            padding: `${spacing[4]}px ${spacing[3]}px`,
+            padding: `${spacing[2]}px ${spacing[3]}px ${spacing[4]}px`,
           }}
         >
-            {modules.map((mod) => {
-              const active = activeModule?.id === mod.id;
-              return (
-                <Link
-                  key={mod.id}
-                  href={mod.href}
-                  className="nb-side-nav__link"
-                  aria-current={active ? 'page' : undefined}
-                  aria-label={collapsed ? mod.label : undefined}
-                  onClick={() => {
-                    setMobileOpen(false);
-                    hideNavTooltip();
-                  }}
-                  onMouseEnter={(event) => scheduleNavTooltip(event.currentTarget, mod.label)}
-                  onMouseLeave={hideNavTooltip}
-                  onFocus={(event) => scheduleNavTooltip(event.currentTarget, mod.label)}
-                  onBlur={hideNavTooltip}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: spacing[3],
-                    padding: `${spacing[2] + 2}px ${spacing[3]}px`,
-                    borderRadius: radius.md,
-                    textDecoration: 'none',
-                    fontSize: typography.bodySm.fontSize,
-                    fontWeight: active ? typography.weights.semibold : typography.weights.medium,
-                    color: active ? colors.secondary : colors.textMuted,
-                    background: active ? colors.successMuted : 'transparent',
-                    minHeight: 40,
-                  }}
-                >
-                  {mod.icon ? (
-                    <span
-                      aria-hidden
-                      className="nb-side-nav__icon"
+          {sections.map((section) => (
+            <div key={section.key} className="nb-side-nav__group">
+              {section.label ? (
+                <p className="nb-side-nav__section">{section.label}</p>
+              ) : null}
+              <div className="nb-side-nav__group-links">
+                {section.items.map((mod) => {
+                  const active = activeModule?.id === mod.id;
+                  return (
+                    <Link
+                      key={mod.id}
+                      href={mod.href}
+                      className="nb-side-nav__link"
+                      aria-current={active ? 'page' : undefined}
+                      aria-label={collapsed ? mod.label : undefined}
+                      onClick={() => {
+                        setMobileOpen(false);
+                        hideNavTooltip();
+                      }}
+                      onMouseEnter={(event) => scheduleNavTooltip(event.currentTarget, mod.label)}
+                      onMouseLeave={hideNavTooltip}
+                      onFocus={(event) => scheduleNavTooltip(event.currentTarget, mod.label)}
+                      onBlur={hideNavTooltip}
                       style={{
-                        display: 'inline-flex',
-                        flexShrink: 0,
-                        color: active ? colors.primary : colors.textMuted,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: spacing[3],
+                        padding: `${spacing[2] + 2}px ${spacing[3]}px`,
+                        borderRadius: radius.md,
+                        textDecoration: 'none',
+                        fontSize: typography.bodySm.fontSize,
+                        fontWeight: active ? typography.weights.semibold : typography.weights.medium,
+                        color: active ? colors.secondary : colors.textMuted,
+                        background: active ? colors.surface : 'transparent',
+                        minHeight: 40,
                       }}
                     >
-                      {mod.icon}
-                    </span>
-                  ) : null}
-                  <span className="nb-side-nav__label">{mod.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-        </aside>
+                      {mod.icon ? (
+                        <span
+                          aria-hidden
+                          className="nb-side-nav__icon"
+                          style={{
+                            display: 'inline-flex',
+                            flexShrink: 0,
+                            color: active ? colors.secondary : colors.textMuted,
+                          }}
+                        >
+                          {mod.icon}
+                        </span>
+                      ) : null}
+                      <span className="nb-side-nav__label">{mod.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
 
-        <div
-          className="portal-main"
+        {profileHref ? (
+          <div className="nb-sidebar-footer">
+            <Link
+              href={profileHref}
+              className="nb-sidebar-profile"
+              aria-current={profileActive ? 'page' : undefined}
+              aria-label={collapsed ? displayName : undefined}
+              title={displayName}
+              onClick={() => {
+                setMobileOpen(false);
+                hideNavTooltip();
+              }}
+              onMouseEnter={(event) => scheduleNavTooltip(event.currentTarget, displayName)}
+              onMouseLeave={hideNavTooltip}
+              onFocus={(event) => scheduleNavTooltip(event.currentTarget, displayName)}
+              onBlur={hideNavTooltip}
+            >
+              <span className="nb-sidebar-profile__avatar" aria-hidden>
+                {initialsFromName(displayName)}
+              </span>
+              <span className="nb-sidebar-profile__meta">
+                <span className="nb-sidebar-profile__name">{displayName}</span>
+              </span>
+            </Link>
+          </div>
+        ) : null}
+      </aside>
+
+      <div
+        className="portal-main"
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
+        }}
+      >
+        <header
+          className="nb-top-bar"
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 30,
+            height: CHROME_HEIGHT,
+            flexShrink: 0,
+            background: colors.surface,
+            borderBottom: borderSubtle(),
+            display: 'flex',
+            alignItems: 'center',
+            gap: spacing[3],
+            paddingLeft: spacing[4],
+            paddingRight: spacing[5],
+            boxSizing: 'border-box',
+          }}
+        >
+          <button
+            type="button"
+            className="nb-menu-button"
+            aria-label={mobileOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+            aria-expanded={mobileOpen}
+            aria-controls={sidebarId}
+            onClick={() => setMobileOpen((open) => !open)}
+            style={{
+              display: 'none',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 36,
+              height: 36,
+              padding: 0,
+              border: `1px solid ${colors.borderSubtle}`,
+              borderRadius: radius.md,
+              background: colors.surface,
+              color: colors.secondary,
+              cursor: 'pointer',
+            }}
+          >
+            {mobileOpen ? <IconX width={20} height={20} /> : <IconMenu width={20} height={20} />}
+          </button>
+
+          <div style={{ flex: 1 }} />
+
+          <div className="nb-top-bar__actions">
+            {toolbar}
+            {profileHref ? (
+              <Link
+                href={profileHref}
+                className="nb-top-bar__icon"
+                aria-label={profileLabel ?? 'Paramètres'}
+                title={profileLabel ?? 'Paramètres'}
+              >
+                <IconSettings width={18} height={18} />
+              </Link>
+            ) : null}
+            <button
+              type="button"
+              className="nb-top-bar__icon"
+              aria-label={signOutLabel}
+              title={signOutLabel}
+              onClick={() => void onSignOut()}
+            >
+              <IconLogOut width={18} height={18} />
+            </button>
+          </div>
+        </header>
+
+        <main
+          id="main-content"
+          className="portal-content"
+          tabIndex={-1}
           style={{
             flex: 1,
             minWidth: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            minHeight: 0,
+            width: '100%',
+            overflowY: 'auto',
+            padding: `${spacing[6]}px ${spacing[8]}px var(--support-widget-clearance, 96px)`,
+            scrollPaddingBottom: 'var(--support-widget-clearance, 96px)',
+            boxSizing: 'border-box',
           }}
         >
-          <header
-            className="nb-top-bar"
-            style={{
-              position: 'sticky',
-              top: 0,
-              zIndex: 30,
-              height: CHROME_HEIGHT,
-              flexShrink: 0,
-              background: colors.surface,
-              borderBottom: borderSubtle(),
-              display: 'flex',
-              alignItems: 'center',
-              gap: spacing[3],
-              paddingLeft: spacing[4],
-              paddingRight: spacing[5],
-              boxSizing: 'border-box',
-            }}
-          >
-            <button
-              type="button"
-              className="nb-menu-button"
-              aria-label={mobileOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
-              aria-expanded={mobileOpen}
-              aria-controls={sidebarId}
-              onClick={() => setMobileOpen((open) => !open)}
-              style={{
-                display: 'none',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 36,
-                height: 36,
-                padding: 0,
-                border: `1px solid ${colors.borderSubtle}`,
-                borderRadius: radius.md,
-                background: colors.surface,
-                color: colors.secondary,
-                cursor: 'pointer',
-              }}
-            >
-              {mobileOpen ? <IconX width={20} height={20} /> : <IconMenu width={20} height={20} />}
-            </button>
-
-            <div style={{ flex: 1 }} />
-
-            <div className="nb-top-bar__actions">
-              {toolbar}
-              {profileHref ? (
-                <Link
-                  href={profileHref}
-                  className="nb-top-bar__icon"
-                  aria-label={profileLabel ?? 'Paramètres'}
-                  title={profileLabel ?? 'Paramètres'}
-                >
-                  <IconSettings width={18} height={18} />
-                </Link>
-              ) : null}
-              <button
-                type="button"
-                className="nb-top-bar__icon"
-                aria-label={signOutLabel}
-                title={signOutLabel}
-                onClick={() => void onSignOut()}
-              >
-                <IconLogOut width={18} height={18} />
-              </button>
-            </div>
-          </header>
-
-          <main
-            id="main-content"
-            className="portal-content"
-            tabIndex={-1}
-            style={{
-              flex: 1,
-              minWidth: 0,
-              width: '100%',
-              overflowY: 'auto',
-              padding: `${spacing[6]}px ${spacing[8]}px var(--support-widget-clearance, 96px)`,
-              scrollPaddingBottom: 'var(--support-widget-clearance, 96px)',
-              boxSizing: 'border-box',
-            }}
-          >
-            {children}
-          </main>
-        </div>
-        <SidebarNavTooltip tooltip={navTooltip} />
+          {children}
+        </main>
       </div>
+      <SidebarNavTooltip tooltip={navTooltip} />
+    </div>
   );
 }

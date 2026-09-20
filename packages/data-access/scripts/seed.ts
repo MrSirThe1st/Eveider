@@ -15,6 +15,7 @@ import {
 } from '@eveider/domain';
 import type { Queryable } from '../src/db/pool.js';
 import { getPgClientConfig, resolveDatabaseUrl } from '../src/db/pool.js';
+import { resetPhase8Fixtures } from '../src/phase8/fixtures.js';
 import pg from 'pg';
 
 dns.setDefaultResultOrder('ipv4first');
@@ -734,6 +735,33 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
      WHERE code = ANY($1)`,
     [['LSH', 'KWZ']],
   );
+  await db.query(
+    `INSERT INTO zone_pricing (zone_id, outbound_delivery_amount, return_delivery_amount, updated_at)
+     SELECT id, 1500, 1500, NOW()
+     FROM service_areas
+     WHERE code = ANY($1)
+     ON CONFLICT (zone_id) DO UPDATE SET
+       outbound_delivery_amount = EXCLUDED.outbound_delivery_amount,
+       return_delivery_amount = EXCLUDED.return_delivery_amount,
+       updated_at = NOW()`,
+    [['LSH', 'KWZ']],
+  );
+  await db.query(
+    `UPDATE lockers l
+     SET service_area_id = sa.id,
+         updated_at = NOW()
+     FROM service_areas sa
+     JOIN cities c ON c.id = sa.city_id
+     WHERE l.service_area_id IS NULL
+       AND l.type = 'SMART_LOCKER'
+       AND l.city IS NOT NULL
+       AND lower(l.city) = lower(c.name)
+       AND sa.status = 'active'
+       AND (
+         SELECT COUNT(*)::int FROM service_areas sa2
+         WHERE sa2.city_id = c.id AND sa2.status = 'active'
+       ) = 1`,
+  );
   const lubumAreaId = areaByCode.get('LSH') ?? null;
   const kolweziAreaId = areaByCode.get('KWZ') ?? null;
 
@@ -1017,6 +1045,8 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
      VALUES ('locker_system', 'in_progress', $1, $2, 'Porte A2 ne se ferme plus correctement')`,
     [lockerIds.get('kenya'), adminId],
   );
+
+  await resetPhase8Fixtures(db);
 }
 
 function printCredentials() {

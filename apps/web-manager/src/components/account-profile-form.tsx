@@ -1,9 +1,9 @@
 'use client';
 
-import { webCardStyle } from '@eveider/config-ui';
 import { Button, InlineAlert, TextField } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
+import { SettingsFieldGrid, SettingsForm, SettingsFormActions, SettingsFormSection } from '@/components/ops-ui';
 
 type AccountProfileFormProps = {
   fullName: string;
@@ -51,16 +51,9 @@ export function AccountProfileForm({
   }
 
   return (
-    <form onSubmit={(event) => void handleSubmit(event)} style={{ display: 'grid', gap: '1.5rem' }}>
-      <section style={{ ...webCardStyle, padding: '1.5rem' }}>
-        <h3 style={{ margin: '0 0 1.25rem', fontSize: '0.875rem', fontWeight: 700 }}>Profil</h3>
-        <div
-          style={{
-            display: 'grid',
-            gap: '1rem',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          }}
-        >
+    <SettingsForm onSubmit={(event) => void handleSubmit(event)}>
+      <SettingsFormSection title="Profil" description="Les informations de votre compte utilisateur.">
+        <SettingsFieldGrid>
           <TextField
             label="Nom de l’utilisateur"
             name="fullName"
@@ -73,6 +66,7 @@ export function AccountProfileForm({
             name="loginEmail"
             value={loginEmail ?? ''}
             disabled
+            hint="L’e-mail de connexion ne peut pas être modifié ici."
           />
           {showAccessCode ? (
             <TextField
@@ -80,19 +74,20 @@ export function AccountProfileForm({
               name="accessCode"
               value={accessCode ?? '—'}
               disabled
+              hint="Fourni par Eveider. Lecture seule."
             />
           ) : null}
-        </div>
-      </section>
+        </SettingsFieldGrid>
+      </SettingsFormSection>
 
       {error ? <InlineAlert message={error} variant="error" /> : null}
       {success ? <InlineAlert message={success} variant="success" /> : null}
 
-      <div>
+      <SettingsFormActions>
         <Button type="submit" variant="primary" loading={saving}>
           Enregistrer
         </Button>
-      </div>
-    </form>
+      </SettingsFormActions>
+    </SettingsForm>
   );
 }

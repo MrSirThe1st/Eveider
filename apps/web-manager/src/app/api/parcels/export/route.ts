@@ -16,6 +16,10 @@ export async function GET(request: Request) {
   const query = listParcelsQuerySchema.safeParse({
     status: searchParams.get('status') ?? undefined,
     search: searchParams.get('search') ?? undefined,
+    attention: searchParams.get('attention') ?? undefined,
+    pickupType: searchParams.get('pickupType') ?? undefined,
+    lockerId: searchParams.get('lockerId') ?? undefined,
+    businessId: searchParams.get('businessId') ?? undefined,
   });
 
   if (!scope.success || !query.success) {
@@ -27,6 +31,10 @@ export async function GET(request: Request) {
     const items = await parcels.listAll(auth.session.ctx, {
       status: scope.data === 'filtered' ? query.data.status : undefined,
       search: scope.data === 'filtered' ? query.data.search : undefined,
+      attention: scope.data === 'filtered' ? query.data.attention : undefined,
+      pickupType: scope.data === 'filtered' ? query.data.pickupType : undefined,
+      lockerId: scope.data === 'filtered' ? query.data.lockerId : undefined,
+      businessId: scope.data === 'filtered' ? query.data.businessId : undefined,
     });
 
     const workbook = await buildAdminParcelsExportWorkbook(items);

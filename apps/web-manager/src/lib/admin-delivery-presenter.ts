@@ -1,10 +1,13 @@
-import { DELIVERY_STATUS_LABELS, type DeliveryStatus } from '@eveider/domain';
 import type { AdminDeliveryListItem } from '@eveider/data-access';
+import type { DeliveryKind, DeliveryStatus } from '@eveider/domain';
+import { getAdminDeliveryKindLabel, getAdminDeliveryStatusLabel } from '@/lib/admin-presentation';
 
 export type AdminDeliveryDto = {
   id: string;
   status: DeliveryStatus;
   statusLabel: string;
+  deliveryKind: DeliveryKind;
+  deliveryKindLabel: string;
   scannedAt: string | null;
   completedAt: string | null;
   createdAt: string;
@@ -29,10 +32,13 @@ export type AdminDeliveryDto = {
 };
 
 export function toAdminDeliveryDto(delivery: AdminDeliveryListItem): AdminDeliveryDto {
+  const deliveryKind = delivery.kind;
   return {
     id: delivery.id,
     status: delivery.status as DeliveryStatus,
-    statusLabel: DELIVERY_STATUS_LABELS[delivery.status as DeliveryStatus],
+    statusLabel: getAdminDeliveryStatusLabel(delivery.status as DeliveryStatus),
+    deliveryKind,
+    deliveryKindLabel: getAdminDeliveryKindLabel(deliveryKind),
     scannedAt: delivery.scannedAt?.toISOString() ?? null,
     completedAt: delivery.completedAt?.toISOString() ?? null,
     createdAt: delivery.createdAt.toISOString(),

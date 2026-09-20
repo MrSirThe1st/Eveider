@@ -18,6 +18,7 @@
     "db:migrate": "dotenv -e ../../.env -- tsx scripts/migrate.ts",
     "db:deploy": "dotenv -e ../../.env -- tsx scripts/migrate.ts",
     "db:seed": "dotenv -e ../../.env -- tsx scripts/seed.ts",
+    "db:seed:phase8": "dotenv -e ../../.env -- tsx scripts/seed-phase8.ts",
     "db:backfill-access-codes": "dotenv -e ../../.env -- tsx scripts/backfill-business-access-codes.ts"
   },
   "dependencies": {

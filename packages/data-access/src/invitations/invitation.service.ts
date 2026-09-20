@@ -31,7 +31,7 @@ export function getInviteExpiryDate(from = new Date()): Date {
 function buildInvitationMessage(businessName: string, links: { deepLink: string; webLink: string }) {
   return (
     `${businessName} vous a envoyé un colis via Eveider.\n\n` +
-    `Suivez votre colis, payez et obtenez votre code PIN (sans compte) :\n${links.webLink}\n\n` +
+    `Suivez votre colis, payez et obtenez votre code de retrait (sans compte) :\n${links.webLink}\n\n` +
     `Application (optionnelle) :\n${links.deepLink}`
   );
 }

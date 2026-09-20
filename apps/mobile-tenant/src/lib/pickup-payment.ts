@@ -1,35 +1,27 @@
+export {
+  canShowCollectionCode as canShowPickupPin,
+  needsRecipientPayment as needsPickupPayment,
+} from './recipient-presentation';
+
 import type { CustomerParcel } from './api';
-
-export function needsPickupPayment(parcel: CustomerParcel): boolean {
-  return (
-    parcel.status === 'ready_for_pickup' &&
-    Boolean(parcel.pickupPayment?.required) &&
-    parcel.pickupPayment?.status !== 'completed'
-  );
-}
-
-export function canShowPickupPin(parcel: CustomerParcel): boolean {
-  if (parcel.status !== 'ready_for_pickup') return false;
-  if (!parcel.pickupPayment?.required) return true;
-  return parcel.pickupPayment.status === 'completed';
-}
+import {
+  canShowCollectionCode,
+  getRecipientPrimaryAction,
+  needsRecipientPayment,
+} from './recipient-presentation';
 
 export function pickupActionLabel(parcel: CustomerParcel): string {
-  return needsPickupPayment(parcel) ? 'PAYER ET RETIRER' : 'VOIR LE CODE DE RETRAIT';
+  return getRecipientPrimaryAction(parcel).label || 'Voir le code de retrait';
 }
 
 export function pickupCardHint(parcel: CustomerParcel): string | null {
   if (parcel.status !== 'ready_for_pickup') return null;
-    if (needsPickupPayment(parcel)) {
+  if (needsRecipientPayment(parcel)) {
     const amount = parcel.pickupPayment?.amount;
     const currency = parcel.pickupPayment?.currency;
-    const purpose = parcel.pickupPayment?.purpose;
-    if (amount && currency) {
-      return purpose
-        ? `${purpose.toUpperCase()} · ${amount} ${currency}`
-        : `PAIEMENT ${amount} ${currency} REQUIS`;
-    }
-    return 'PAIEMENT REQUIS AVANT RETRAIT';
+    if (amount && currency) return `Frais à payer · ${amount} ${currency}`;
+    return 'Frais à payer';
   }
-  return 'CODE DE RETRAIT DISPONIBLE';
+  if (canShowCollectionCode(parcel)) return 'Code de retrait disponible';
+  return null;
 }

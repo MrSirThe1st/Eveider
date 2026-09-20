@@ -28,9 +28,22 @@ const optionalPositiveNumber = z
   .nullable()
   .transform((value) => (value == null ? undefined : value));
 
+export const adminParcelAttentionSchema = z.enum([
+  'awaiting_assignment',
+  'in_transit',
+  'at_locker',
+  'ready_for_pickup',
+  'return_at_locker',
+  'returned',
+]);
+
 export const listParcelsQuerySchema = z.object({
   status: parcelStatusSchema.optional(),
   search: z.string().trim().max(64).optional(),
+  attention: adminParcelAttentionSchema.optional(),
+  pickupType: pickupMethodSchema.optional(),
+  lockerId: z.string().uuid().optional(),
+  businessId: z.string().uuid().optional(),
 });
 
 export const createParcelSchema = z
@@ -53,7 +66,7 @@ export const createParcelSchema = z
     recipientName: z.string().trim().min(2, 'Nom destinataire requis').max(120),
     recipientPhone: phoneSchema,
     recipientEmail: emailSchema.optional(),
-    lockerId: z.string().uuid('Point de retrait requis'),
+    lockerId: z.string().uuid('Casier de destination requis'),
     compartmentId: z.string().uuid('Compartiment invalide').optional(),
     packageSize: packageSizeSchema,
     packageLengthCm: optionalPositiveNumber,

@@ -1,9 +1,26 @@
 'use client';
 
-import { colors, webCardStyle, webInputStyle } from '@eveider/config-ui';
+import { colors } from '@eveider/config-ui';
+import { formatDeliveryFee, type ParcelChargeKind } from '@eveider/domain';
 import { Button, InlineAlert, TextField } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
+import { getBusinessChargeLabel } from '@/lib/business-presentation';
+import {
+  SettingsFieldGrid,
+  SettingsForm,
+  SettingsFormActions,
+  SettingsFormSection,
+  SettingsSelect,
+} from '@/components/ops-ui';
+
+type OwedCharge = {
+  id: string;
+  kind: ParcelChargeKind;
+  amount: number;
+  currency: 'USD' | 'CDF';
+  status: string;
+};
 
 type BillingFormProps = {
   paymentRule: 'merchant_pays' | 'customer_pays' | 'depends_on_order';
@@ -12,21 +29,21 @@ type BillingFormProps = {
   accountHolder: string;
   accountNumber: string;
   dailyShipments: number | null;
-  codDailyLimitUsd: number | null;
+  pickupHoldHours: number;
+  owedCharges: OwedCharge[];
 };
 
-const selectStyle = { ...webInputStyle, width: '100%', height: 44 };
-
 export function BusinessBillingForm({
-  paymentRule: initialRule,
+  paymentRule,
   billingType: initialBillingType,
   payoutMethod: initialPayout,
   accountHolder: initialHolder,
   accountNumber: initialNumber,
   dailyShipments,
+  pickupHoldHours,
+  owedCharges,
 }: BillingFormProps) {
   const router = useRouter();
-  const [paymentRule, setPaymentRule] = useState(initialRule);
   const [billingType, setBillingType] = useState(initialBillingType);
   const [payoutMethod, setPayoutMethod] = useState(initialPayout);
   const [accountHolder, setAccountHolder] = useState(initialHolder);
@@ -34,6 +51,9 @@ export function BusinessBillingForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const owedTotal = owedCharges.reduce((sum, charge) => sum + charge.amount, 0);
+  const owedCurrency = owedCharges[0]?.currency ?? 'CDF';
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -67,64 +87,65 @@ export function BusinessBillingForm({
   }
 
   return (
-    <form onSubmit={(event) => void handleSubmit(event)} style={{ display: 'grid', gap: '1.5rem' }}>
-      <section style={{ ...webCardStyle, padding: '1.5rem' }}>
-        <h3 style={{ margin: '0 0 1.25rem', fontSize: '0.875rem', fontWeight: 700 }}>Qui paie</h3>
-        <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
-          <label>
-            <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 8 }}>
-              Qui paie la livraison
-            </span>
-            <select
-              value={paymentRule}
-              onChange={(e) => setPaymentRule(e.target.value as BillingFormProps['paymentRule'])}
-              style={selectStyle}
-            >
-              <option value="merchant_pays">L’entreprise</option>
-              <option value="customer_pays">Le destinataire</option>
-              <option value="depends_on_order">Selon la commande</option>
-            </select>
-          </label>
-          <label>
-            <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 8 }}>
-              Comment vous êtes facturé
-            </span>
-            <select
-              value={billingType}
-              onChange={(e) => setBillingType(e.target.value as BillingFormProps['billingType'])}
-              style={selectStyle}
-            >
-              <option value="pay_per_shipment">À chaque colis</option>
-              <option value="monthly_invoice">Facture mensuelle</option>
-            </select>
-          </label>
-        </div>
-        <p style={{ margin: '1rem 0 0', fontSize: '0.75rem', color: colors.textMuted }}>
-          Ces règles s’appliquent aux nouveaux colis. Le détail des paiements à la livraison
-          arrivera ici plus tard.
+    <SettingsForm onSubmit={(event) => void handleSubmit(event)}>
+      <SettingsFormSection
+        title="Ce que votre entreprise doit"
+        description="Uniquement retours et stockage. Les frais de livraison et de retrait payés par le destinataire n’apparaissent pas ici."
+      >
+        <p style={{ margin: '0 0 1rem', fontSize: '1.35rem', fontWeight: 700, color: colors.secondary }}>
+          {formatDeliveryFee(owedTotal, owedCurrency)}
         </p>
-      </section>
+        {owedCharges.length === 0 ? (
+          <p className="ops-empty__description" style={{ margin: 0 }}>
+            Aucun montant dû pour le moment.
+          </p>
+        ) : (
+          <ul className="ops-rank-list">
+            {owedCharges.map((charge) => (
+              <li key={charge.id}>
+                <span>
+                  {getBusinessChargeLabel(charge.kind)}
+                  {charge.status === 'pending' ? ' (en cours)' : ''}
+                </span>
+                <strong>{formatDeliveryFee(charge.amount, charge.currency)}</strong>
+              </li>
+            ))}
+          </ul>
+        )}
+      </SettingsFormSection>
 
-      <section style={{ ...webCardStyle, padding: '1.5rem' }}>
-        <h3 style={{ margin: '0 0 1.25rem', fontSize: '0.875rem', fontWeight: 700 }}>
-          Compte pour recevoir l’argent
-        </h3>
-        <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
-          <label>
-            <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 8 }}>
-              Méthode
-            </span>
-            <select
-              value={payoutMethod}
-              onChange={(e) => setPayoutMethod(e.target.value as BillingFormProps['payoutMethod'])}
-              style={selectStyle}
-            >
-              <option value="mobile_money_airtel">Airtel Money</option>
-              <option value="mobile_money_orange">Orange Money</option>
-              <option value="mobile_money_mpesa">M-Pesa</option>
-              <option value="bank_transfer">Virement bancaire</option>
-            </select>
-          </label>
+      <SettingsFormSection title="Stockage">
+        <p style={{ margin: 0, fontSize: 14, color: colors.secondary }}>
+          {pickupHoldHours} h incluses. Puis facturation par période de 24 h, à la charge de votre
+          entreprise.
+        </p>
+      </SettingsFormSection>
+
+      <SettingsFormSection title="Règlement Eveider" description="Comment Eveider vous facture les montants dus.">
+        <SettingsSelect
+          label="Comment vous êtes facturé"
+          name="billingType"
+          value={billingType}
+          onChange={(e) => setBillingType(e.target.value as BillingFormProps['billingType'])}
+        >
+          <option value="pay_per_shipment">À chaque colis</option>
+          <option value="monthly_invoice">Facture mensuelle</option>
+        </SettingsSelect>
+      </SettingsFormSection>
+
+      <SettingsFormSection title="Compte de règlement">
+        <SettingsFieldGrid>
+          <SettingsSelect
+            label="Méthode"
+            name="payoutMethod"
+            value={payoutMethod}
+            onChange={(e) => setPayoutMethod(e.target.value as BillingFormProps['payoutMethod'])}
+          >
+            <option value="mobile_money_airtel">Airtel Money</option>
+            <option value="mobile_money_orange">Orange Money</option>
+            <option value="mobile_money_mpesa">M-Pesa</option>
+            <option value="bank_transfer">Virement bancaire</option>
+          </SettingsSelect>
           <TextField
             label="Titulaire"
             name="accountHolder"
@@ -139,29 +160,31 @@ export function BusinessBillingForm({
             onChange={(e) => setAccountNumber(e.target.value)}
             required
           />
-        </div>
-      </section>
+        </SettingsFieldGrid>
+      </SettingsFormSection>
 
-      <section style={{ ...webCardStyle, padding: '1.5rem' }}>
-        <h3 style={{ margin: '0 0 1rem', fontSize: '0.875rem', fontWeight: 700 }}>Limites Eveider</h3>
-        <dl style={{ margin: 0, display: 'grid', gap: '0.75rem', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
-          <div>
-            <dt style={{ fontSize: '0.6875rem', fontWeight: 600, color: colors.textMuted }}>COLIS PAR JOUR</dt>
-            <dd style={{ margin: '0.25rem 0 0', fontWeight: 600 }}>
-              {dailyShipments == null ? 'Illimité' : `${dailyShipments} colis / jour`}
-            </dd>
-          </div>
+      <SettingsFormSection
+        title="Limites Eveider"
+        description="Ces plafonds sont définis par Eveider et ne peuvent pas être modifiés ici."
+      >
+        <dl style={{ margin: 0 }}>
+          <dt className="ops-field-label" style={{ color: colors.textMuted }}>
+            Colis par jour
+          </dt>
+          <dd style={{ margin: '0.25rem 0 0', fontWeight: 600 }}>
+            {dailyShipments == null ? 'Illimité' : `${dailyShipments} colis / jour`}
+          </dd>
         </dl>
-      </section>
+      </SettingsFormSection>
 
       {error ? <InlineAlert message={error} variant="error" /> : null}
       {success ? <InlineAlert message={success} variant="success" /> : null}
 
-      <div>
+      <SettingsFormActions>
         <Button type="submit" variant="primary" loading={saving}>
           Enregistrer
         </Button>
-      </div>
-    </form>
+      </SettingsFormActions>
+    </SettingsForm>
   );
 }

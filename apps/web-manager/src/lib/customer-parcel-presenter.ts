@@ -1,11 +1,11 @@
 import {
-  PARCEL_STATUS_LABELS,
   canRequestCustomerReturn,
   type DeliveryStatus,
   type ParcelStatus,
   type ShipmentPickupType,
 } from '@eveider/domain';
 import type { PickupPaymentStatus } from '@eveider/api-contracts';
+import { getPublicParcelStatus } from './public-parcel-presentation';
 import type { ParcelReturnView } from '@/lib/parcel-return-presenter';
 
 export type PickupPaymentDto = {
@@ -88,7 +88,11 @@ export function toCustomerParcelDto(
     trackingNumber: parcel.trackingNumber,
     reference: parcel.reference,
     status: parcel.status,
-    statusLabel: PARCEL_STATUS_LABELS[parcel.status],
+    statusLabel: getPublicParcelStatus({
+      status: parcel.status,
+      pickupType: parcel.pickupType,
+      customerReturn: options?.customerReturn ?? null,
+    }),
     recipientName: parcel.recipientName,
     businessName: parcel.business.name,
     pickupType: parcel.pickupType,

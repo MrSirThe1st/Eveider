@@ -19,7 +19,7 @@ import { supabase } from '../lib/supabase';
 import { useColors } from '../theme';
 
 type ProfileScreenProps = {
-  mode: 'CLIENT' | 'COURSIER';
+  mode: 'CLIENT' | 'DRIVER';
   isGuest?: boolean;
   onRequestAuth?: () => void;
   onOpenNotifications?: () => void;
@@ -91,7 +91,7 @@ export function ProfileScreen({
 
     setProfile(result.data);
 
-    if (isCustomer || mode === 'COURSIER') {
+    if (isCustomer || mode === 'DRIVER') {
       const notifications = isCustomer
         ? await fetchCustomerNotifications()
         : await fetchCourierNotifications();
@@ -102,7 +102,7 @@ export function ProfileScreen({
   }, [isCustomer, isGuest, mode]);
 
   function confirmCloseAccount() {
-    const isCourier = mode === 'COURSIER';
+    const isCourier = mode === 'DRIVER';
     Alert.alert(
       isCourier ? t('profile.deactivateAccount') : t('profile.deleteAccount'),
       isCourier ? t('profile.deactivateAccountConfirm') : t('profile.deleteAccountConfirm'),
@@ -139,7 +139,7 @@ export function ProfileScreen({
     ? t('profile.guestRole')
     : profile
       ? t(`roles.${profile.profile.role}`)
-      : mode === 'COURSIER'
+      : mode === 'DRIVER'
         ? t('roles.courier')
         : t('roles.customer');
 
@@ -274,7 +274,7 @@ export function ProfileScreen({
           />
           <ProfileMenuItem
             icon="log-out"
-            label={mode === 'COURSIER' ? t('profile.deactivateAccount') : t('profile.deleteAccount')}
+            label={mode === 'DRIVER' ? t('profile.deactivateAccount') : t('profile.deleteAccount')}
             onPress={() => confirmCloseAccount()}
             destructive
             showChevron={false}

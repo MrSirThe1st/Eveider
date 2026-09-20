@@ -10,7 +10,7 @@ export const LOGIN_VISUAL: AuthVisual = {
   image: '/landing/locker-street.jpg',
   alt: 'Station de casiers Eveider',
   title: 'Livrer et retirer, simplement',
-  body: 'Un portail pour les entreprises. Une app pour les destinataires et les coursiers. Un réseau de casiers au milieu.',
+  body: 'Un portail pour les entreprises. Une app pour les destinataires et les chauffeurs Eveider. Un réseau de casiers au milieu.',
 };
 
 export const SIGNUP_VISUALS = {
@@ -19,7 +19,7 @@ export const SIGNUP_VISUALS = {
     alt: 'Commerce préparant des colis',
     kicker: 'Entreprises',
     title: 'Expédiez vers un casier',
-    body: 'Créez le compte de votre boutique et envoyez des colis dès aujourd’hui. Envoyer vos pièces n’est pas obligatoire.',
+    body: 'Créez le compte de votre boutique et envoyez des colis dès aujourd’hui.',
   },
   customer: {
     image: '/landing/pickup.jpg',
@@ -30,8 +30,8 @@ export const SIGNUP_VISUALS = {
   },
   courier: {
     image: '/landing/courier.jpg',
-    alt: 'Coursier en tournée',
-    kicker: 'Coursiers',
+    alt: 'Chauffeur Eveider en tournée',
+    kicker: 'Chauffeurs Eveider',
     title: 'Déposez au bon casier',
     body: 'Recevez vos tournées, déposez au casier prévu, confirmez le dépôt, passez à la suite.',
   },
@@ -63,7 +63,7 @@ export const SIGNUP_HEADINGS = {
     sub: 'Pour suivre vos colis et retirer avec un PIN.',
   },
   courier: {
-    title: 'Compte coursier',
-    sub: 'Pour les tournées et les dépôts au casier.',
+    title: 'Compte chauffeur',
+    sub: 'Pour les livraisons et les dépôts au casier.',
   },
 } as const;

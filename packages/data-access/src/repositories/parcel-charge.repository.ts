@@ -78,6 +78,20 @@ export class ParcelChargeRepository {
     return result.rows.map((row) => mapParcelCharge(row));
   }
 
+  async listOwedForBusiness(businessId: string): Promise<ParcelCharge[]> {
+    const result = await this.db.query(
+      `SELECT * FROM parcel_charges
+       WHERE business_id = $1
+         AND payer = 'business'
+         AND status <> 'void'
+         AND kind IN ('return_delivery', 'return_locker', 'locker_rental')
+       ORDER BY created_at DESC
+       LIMIT 100`,
+      [businessId],
+    );
+    return result.rows.map((row) => mapParcelCharge(row));
+  }
+
   async recordDeliveryFee(
     db: Queryable,
     input: {
@@ -151,6 +165,9 @@ export class ParcelChargeRepository {
     });
 
     const existing = await findActiveCharge(db, input.parcelId, 'locker_rental');
+    if (existing?.periodEndedAt) {
+      return existing;
+    }
 
     if (periods <= 0 && !existing) return null;
     if (periods <= 0 && existing && !input.finalize) return existing;

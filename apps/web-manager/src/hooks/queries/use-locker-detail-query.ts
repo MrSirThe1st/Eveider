@@ -18,6 +18,9 @@ export type LockerDetailData = {
   city?: string | null;
   serviceAreaId?: string | null;
   serviceAreaName?: string | null;
+  serviceAreaCode?: string | null;
+  serviceAreaCity?: string | null;
+  serviceAreaCityId?: string | null;
   latitude?: number | null;
   longitude?: number | null;
   rows: number;

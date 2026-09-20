@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { deriveOrganizationVerificationStatus } from '@eveider/domain';
+import { hasBusinessPermission } from '@eveider/domain';
 import { MerchantDashboard } from '@/components/merchant-dashboard';
 import { loadBusinessDashboard, requireBusinessPermission } from '@/server/business';
 import { WEB_ROUTES } from '@/lib/auth-routing';
@@ -12,15 +12,15 @@ export default async function BusinessDashboardPage() {
     redirect(WEB_ROUTES.register);
   }
 
-  const { business, analytics, verification } = dashboard;
+  const { business, analytics, operational } = dashboard;
 
   return (
     <MerchantDashboard
       businessName={business.name}
       status={business.status}
-      verificationStatus={deriveOrganizationVerificationStatus(verification?.status)}
-      verificationNotes={verification?.reviewNotes}
       analytics={analytics}
+      operational={operational}
+      canCreateParcels={hasBusinessPermission(profile.userRole, 'create_parcels')}
     />
   );
 }

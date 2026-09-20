@@ -9,8 +9,7 @@ export function ContactBand() {
           <div className={styles.contactCopy}>
             <h2 className={styles.display}>Rejoindre le réseau pour envoyer des colis.</h2>
             <p>
-              Inscrivez votre activité, puis envoyez des colis vers un casier. Envoyer vos
-              pièces n’est pas obligatoire.
+              Inscrivez votre activité, puis envoyez des colis vers un casier.
             </p>
           </div>
           <div className={styles.contactActions}>

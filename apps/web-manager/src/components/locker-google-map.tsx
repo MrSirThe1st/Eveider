@@ -26,7 +26,7 @@ export type LockerGoogleMapProps = {
   onDraftMarkerDrag?: (coords: { latitude: number; longitude: number }) => void;
   mapFocus?: { latitude: number; longitude: number; zoom?: number; key?: number } | null;
   onViewportChange?: (viewport: MapSearchViewport) => void;
-  height?: number;
+  height?: number | string;
   interactive?: boolean;
 };
 
@@ -140,6 +140,8 @@ export function LockerGoogleMap({
   height = 420,
   interactive = true,
 }: LockerGoogleMapProps) {
+  const frameHeight = typeof height === 'number' ? height : undefined;
+  const frameHeightCss = typeof height === 'number' ? undefined : height;
   const apiKey = useMemo(() => {
     try {
       return getGoogleMapsApiKey();
@@ -164,7 +166,8 @@ export function LockerGoogleMap({
       <div
         style={{
           ...webCardStyle,
-          height,
+          height: frameHeight ?? frameHeightCss ?? '100%',
+          minHeight: frameHeight ?? 280,
           borderRadius: 12,
           display: 'flex',
           alignItems: 'center',
@@ -181,7 +184,14 @@ export function LockerGoogleMap({
   }
 
   return (
-    <div style={{ height, borderRadius: 12, overflow: 'hidden' }}>
+    <div
+      style={{
+        height: frameHeight ?? frameHeightCss ?? '100%',
+        minHeight: frameHeight ?? 280,
+        borderRadius: 12,
+        overflow: 'hidden',
+      }}
+    >
       <APIProvider apiKey={apiKey} libraries={['places']}>
         <Map
           defaultCenter={center}

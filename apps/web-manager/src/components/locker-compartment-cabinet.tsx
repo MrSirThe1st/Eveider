@@ -60,14 +60,14 @@ export function LockerCompartmentCabinet({
     grid.push(rowCells);
   }
 
-  const cellMin = rows >= 4 || columns >= 4 ? 56 : 72;
+  const cellMin = rows >= 4 || columns >= 4 ? 48 : 64;
 
   return (
     <div>
       <div
         style={{
           display: 'grid',
-          gap: 8,
+          gap: 6,
           gridTemplateColumns: `repeat(${columns}, minmax(${cellMin}px, 1fr))`,
         }}
       >
@@ -103,7 +103,7 @@ export function LockerCompartmentCabinet({
               }`}
               style={{
                 minHeight: cellMin,
-                borderRadius: 10,
+                borderRadius: 8,
                 border: isSelected ? `2px solid ${colors.primary}` : `1px solid ${colors.borderSubtle}`,
                 outline: 'none',
                 background: visual.background,
@@ -113,8 +113,8 @@ export function LockerCompartmentCabinet({
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 4,
-                padding: '0.35rem',
+                gap: 2,
+                padding: '0.25rem',
                 position: 'relative',
                 boxShadow: isSelected ? `0 0 0 2px ${colors.primaryMuted}` : undefined,
               }}
@@ -137,7 +137,7 @@ export function LockerCompartmentCabinet({
               />
               <span
                 style={{
-                  fontSize: '1rem',
+                  fontSize: '0.875rem',
                   fontWeight: 700,
                   letterSpacing: '0.06em',
                   lineHeight: 1,

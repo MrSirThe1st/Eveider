@@ -31,6 +31,7 @@ pnpm db:migrate
 | `034_20260917210000_parcel_commercial_model.sql` | `parcels.commercial_model` (`canonical` vs `legacy`) |
 | `035_20260917220000_locker_action_sessions.sql` | Hardware locker action sessions (`authorize` / `confirm` / `cancel`) |
 | `036_20260919090000_locker_collection_credentials.sql` | Locker collection credential sync records (Stage IV offline collection) |
+| `037_20260920140000_cities_and_zone_pricing.sql` | City parent entity, `service_areas.city_id`, `zone_pricing` (nullable = unconfigured) |
 
 Hardware locker clients authenticate with `EVEIDER_LOCKER_API_TOKENS` (JSON map of locker UUID → secret) via `Authorization: Bearer <secret>`. The token identifies the locker; the client cannot claim another `locker_id`. Keep secrets out of git. Default authorization TTL is 180 seconds (`EVEIDER_LOCKER_ACTION_TTL_SECONDS`).
 
@@ -57,3 +58,4 @@ pnpm db:seed
 
 pnpm --filter @eveider/web-admin dev
 pnpm --filter @eveider/mobile dev
+pnpm --filter @eveider/web-manager dev

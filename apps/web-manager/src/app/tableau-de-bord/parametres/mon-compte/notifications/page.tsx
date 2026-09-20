@@ -1,10 +1,6 @@
-import { SettingsComingSoon } from '@/components/settings-coming-soon';
+import { redirect } from 'next/navigation';
+import { ADMIN_SETTINGS_ROUTES } from '@/lib/settings-nav';
 
 export default function AdminNotificationSettingsPage() {
-  return (
-    <SettingsComingSoon
-      title="Notifications"
-      description="Comment Eveider vous prévient."
-    />
-  );
+  redirect(ADMIN_SETTINGS_ROUTES.profile);
 }

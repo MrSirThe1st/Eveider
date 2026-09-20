@@ -140,7 +140,7 @@ export function AdminOrganizationOperatingAccess({
     <Card>
       <CardHeader
         title="Accès & plafonds"
-        description="Fonctions et limites opérationnelles pour cette organisation. Indépendant de la vérification."
+        description="Fonctions et limites opérationnelles pour cette organisation."
       />
       <form onSubmit={(event) => void handleSubmit(event)} style={{ display: 'grid', gap: spacing[5] }}>
         <div

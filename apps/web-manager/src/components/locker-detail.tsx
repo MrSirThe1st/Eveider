@@ -24,7 +24,14 @@ import {
   type LockerDetailData,
   useLockerDetailQuery,
 } from '@/hooks/queries/use-locker-detail-query';
+import { isLegacyLockerType } from '@/lib/admin-presentation';
+import {
+  formatLockerZoneLabel,
+  formatZoneCoverageLabel,
+  zonesForCity,
+} from '@/lib/geography-presentation';
 import type { ServiceAreaOptionDto } from '@/lib/service-area-presenter';
+import { LockerGoogleMap } from '@/components/locker-google-map';
 
 function getNextLockerStatuses(current: LockerStatus): LockerStatus[] {
   return LOCKER_STATUSES.filter((status) => canTransitionLocker(current, status));
@@ -86,6 +93,9 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
   const [updatingCompartmentId, setUpdatingCompartmentId] = useState<string | null>(null);
   const [serviceAreas, setServiceAreas] = useState<ServiceAreaOptionDto[]>([]);
   const [savingArea, setSavingArea] = useState(false);
+  const [moveCityOpen, setMoveCityOpen] = useState(false);
+  const [moveCityId, setMoveCityId] = useState('');
+  const [moveZoneId, setMoveZoneId] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -98,6 +108,7 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
           code: string;
           name: string;
           city: string;
+          cityId: string;
           status: string;
         }>)
           .filter((area) => area.status === 'active')
@@ -106,7 +117,8 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
             code: area.code,
             name: area.name,
             city: area.city,
-            label: `${area.name} (${area.city})`,
+            cityId: area.cityId,
+            label: formatZoneCoverageLabel(area),
           }));
         setServiceAreas(options);
       })
@@ -122,7 +134,7 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
   const error = isError
     ? queryError instanceof Error
       ? queryError.message
-      : 'Impossible de charger le point.'
+      : 'Impossible de charger le casier.'
     : null;
 
   function updateLockerCache(nextLocker: LockerDetailData) {
@@ -210,6 +222,35 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
     }
   }
 
+  async function assignZone(nextId: string | null) {
+    setSavingArea(true);
+    setActionError(null);
+    setSuccessMessage(null);
+    try {
+      const response = await fetch(`/api/lockers/${lockerId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serviceAreaId: nextId }),
+      });
+      const result = await response.json();
+      if (!result.success) {
+        setActionError(result.error ?? 'Mise à jour échouée');
+        return false;
+      }
+      updateLockerCache(result.data.locker);
+      setSuccessMessage('Zone mise à jour. Les colis déjà créés conservent leur tarif enregistré.');
+      setMoveCityOpen(false);
+      setMoveCityId('');
+      setMoveZoneId('');
+      return true;
+    } catch {
+      setActionError('Impossible de mettre à jour la zone.');
+      return false;
+    } finally {
+      setSavingArea(false);
+    }
+  }
+
   if (loading) {
     return <CardListSkeleton cards={3} />;
   }
@@ -217,9 +258,9 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
   if (error || !locker) {
     return (
       <div>
-        <p style={{ fontWeight: 500, color: colors.danger }}>{error ?? 'Point introuvable'}</p>
-        <Link href="/tableau-de-bord/points" style={{ fontWeight: 600 }}>
-          Retour aux points
+        <p style={{ fontWeight: 500, color: colors.danger }}>{error ?? 'Casier introuvable'}</p>
+        <Link href="/tableau-de-bord/casiers" style={{ fontWeight: 600 }}>
+          Retour aux casiers
         </Link>
       </div>
     );
@@ -230,6 +271,9 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
     ? getNextCompartmentStatuses(selectedCompartment.status)
     : [];
   const smartLocker = usesCompartmentGrid(locker.type);
+  const sameCityZones = locker.serviceAreaCityId
+    ? zonesForCity(serviceAreas, locker.serviceAreaCityId)
+    : serviceAreas.filter((area) => area.city === locker.serviceAreaCity);
 
   return (
     <div style={{ width: '100%' }}>
@@ -237,106 +281,216 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
       {actionError ? <FlashBanner message={actionError} variant="error" /> : null}
 
       <header style={{ marginBottom: '1.5rem' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            gap: '1rem',
-            flexWrap: 'wrap',
-          }}
-        >
+        {isLegacyLockerType(locker.type) ? (
+          <p
+            style={{
+              margin: '0 0 1rem',
+              padding: '0.65rem 0.85rem',
+              border: '1px solid #FDE68A',
+              background: '#FFFBEB',
+              color: '#92400E',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+            }}
+          >
+            Enregistrement historique — ce n’est plus une destination du réseau actif.
+          </p>
+        ) : null}
+        <div className="locker-detail-hero">
           <div>
-            <p
+            <div
               style={{
-                margin: '0 0 0.35rem',
-                fontSize: '0.6875rem',
-                fontWeight: 700,
-                letterSpacing: '0.12em',
-                color: colors.primary,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                gap: '1rem',
+                flexWrap: 'wrap',
               }}
             >
-              {locker.code} · {locker.typeLabel}
-            </p>
-            <h2
-              style={{
-                margin: 0,
-                fontSize: '1.5rem',
-                fontWeight: 700,
-                letterSpacing: '0.03em',
-                lineHeight: 1.2,
-              }}
-            >
-              {locker.name}
-            </h2>
-            <p style={{ margin: '0.5rem 0 0', fontWeight: 500, fontSize: '0.9375rem', opacity: 0.8 }}>
-              {locker.address}
-            </p>
-            <p style={{ margin: '0.35rem 0 0', fontWeight: 500, fontSize: '0.8125rem', opacity: 0.7 }}>
-              Zone : {locker.serviceAreaName ?? 'Non assignée'}
-              {locker.city ? ` · Ville : ${locker.city}` : ''}
-            </p>
-            {serviceAreas.length > 0 ? (
-              <label
-                style={{
-                  display: 'block',
-                  marginTop: '0.75rem',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  maxWidth: 320,
-                }}
-              >
-                Zone de service
-                <select
-                  value={locker.serviceAreaId ?? ''}
-                  disabled={savingArea || updatingLocker}
-                  onChange={(event) => {
-                    const nextId = event.target.value || null;
-                    void (async () => {
-                      setSavingArea(true);
-                      setActionError(null);
-                      setSuccessMessage(null);
-                      try {
-                        const response = await fetch(`/api/lockers/${lockerId}`, {
-                          method: 'PATCH',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ serviceAreaId: nextId }),
-                        });
-                        const result = await response.json();
-                        if (!result.success) {
-                          setActionError(result.error ?? 'Mise à jour échouée');
-                          return;
-                        }
-                        updateLockerCache(result.data.locker);
-                        setSuccessMessage('Zone de service mise à jour.');
-                      } catch {
-                        setActionError('Impossible de mettre à jour la zone.');
-                      } finally {
-                        setSavingArea(false);
-                      }
-                    })();
+              <div>
+                <p
+                  style={{
+                    margin: '0 0 0.35rem',
+                    fontSize: '0.6875rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.12em',
+                    color: colors.primary,
                   }}
+                >
+                  {locker.code} · {locker.typeLabel}
+                </p>
+                <h2
+                  style={{
+                    margin: 0,
+                    fontSize: '1.5rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.03em',
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {locker.name}
+                </h2>
+                <p style={{ margin: '0.5rem 0 0', fontWeight: 500, fontSize: '0.9375rem', opacity: 0.8 }}>
+                  {locker.address}
+                </p>
+                <p style={{ margin: '0.35rem 0 0', fontWeight: 500, fontSize: '0.8125rem', opacity: 0.7 }}>
+                  {formatLockerZoneLabel(locker)}
+                </p>
+              </div>
+              <LockerStatusToggle
+                status={locker.status}
+                options={nextLockerStatuses}
+                disabled={updatingLocker}
+                onChange={(next) => void advanceLockerStatus(next)}
+              />
+            </div>
+            {serviceAreas.length > 0 ? (
+              <div style={{ marginTop: '0.85rem', maxWidth: 420 }}>
+                <label
                   style={{
                     display: 'block',
-                    marginTop: '0.35rem',
-                    width: '100%',
-                    height: 40,
-                    padding: '0 10px',
-                    borderRadius: radius.button,
-                    border: `1px solid ${colors.border}`,
-                    background: colors.surface,
-                    color: colors.secondary,
+                    fontSize: '0.75rem',
                     fontWeight: 600,
                   }}
                 >
-                  <option value="">Non assignée</option>
-                  {serviceAreas.map((area) => (
-                    <option key={area.id} value={area.id}>
-                      {area.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  Zone (même ville)
+                  <select
+                    value={locker.serviceAreaId ?? ''}
+                    disabled={savingArea || updatingLocker}
+                    aria-label="Zone de service"
+                    onChange={(event) => {
+                      const nextId = event.target.value || null;
+                      void assignZone(nextId);
+                    }}
+                    style={{
+                      display: 'block',
+                      marginTop: '0.35rem',
+                      width: '100%',
+                      height: 40,
+                      padding: '0 10px',
+                      borderRadius: radius.button,
+                      border: `1px solid ${colors.border}`,
+                      background: colors.surface,
+                      color: colors.secondary,
+                      fontWeight: 600,
+                    }}
+                  >
+                    <option value="">Non assignée</option>
+                    {sameCityZones.map((area) => (
+                      <option key={area.id} value={area.id}>
+                        {area.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p style={{ margin: '0.45rem 0 0', fontSize: '0.75rem', color: colors.textMuted }}>
+                  Les colis déjà créés conservent leur tarif enregistré.
+                </p>
+                {!moveCityOpen ? (
+                  <button
+                    type="button"
+                    onClick={() => setMoveCityOpen(true)}
+                    style={{
+                      ...webSecondaryButtonStyle,
+                      marginTop: '0.65rem',
+                      height: 32,
+                      padding: '0 0.75rem',
+                      fontSize: '0.75rem',
+                    }}
+                  >
+                    Déplacer vers une autre ville
+                  </button>
+                ) : (
+                  <div
+                    style={{
+                      marginTop: '0.75rem',
+                      padding: '0.75rem',
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: radius.button,
+                      display: 'grid',
+                      gap: '0.65rem',
+                    }}
+                  >
+                    <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 600 }}>
+                      Changement de ville
+                    </p>
+                    <p style={{ margin: 0, fontSize: '0.75rem', color: colors.textMuted }}>
+                      Les colis déjà créés conservent leur tarif enregistré.
+                    </p>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                      Ville
+                      <select
+                        value={moveCityId}
+                        aria-label="Nouvelle ville"
+                        onChange={(event) => {
+                          setMoveCityId(event.target.value);
+                          setMoveZoneId('');
+                        }}
+                        style={{
+                          display: 'block',
+                          marginTop: '0.35rem',
+                          width: '100%',
+                          height: 40,
+                          padding: '0 10px',
+                        }}
+                      >
+                        <option value="">Choisir une ville</option>
+                        {[...new Map(serviceAreas.map((area) => [area.cityId, area.city])).entries()]
+                          .filter(([cityId]) => cityId !== locker.serviceAreaCityId)
+                          .map(([cityId, cityName]) => (
+                            <option key={cityId} value={cityId}>
+                              {cityName}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                      Zone
+                      <select
+                        value={moveZoneId}
+                        aria-label="Nouvelle zone"
+                        disabled={!moveCityId}
+                        onChange={(event) => setMoveZoneId(event.target.value)}
+                        style={{
+                          display: 'block',
+                          marginTop: '0.35rem',
+                          width: '100%',
+                          height: 40,
+                          padding: '0 10px',
+                        }}
+                      >
+                        <option value="">Choisir une zone</option>
+                        {zonesForCity(serviceAreas, moveCityId).map((area) => (
+                          <option key={area.id} value={area.id}>
+                            {area.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        type="button"
+                        disabled={!moveZoneId || savingArea}
+                        onClick={() => void assignZone(moveZoneId)}
+                        style={{ ...webSecondaryButtonStyle, height: 32, padding: '0 0.75rem', fontSize: '0.75rem' }}
+                      >
+                        Confirmer le déplacement
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMoveCityOpen(false);
+                          setMoveCityId('');
+                          setMoveZoneId('');
+                        }}
+                        style={{ ...webSecondaryButtonStyle, height: 32, padding: '0 0.75rem', fontSize: '0.75rem' }}
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : null}
             <p
               style={{
@@ -362,12 +516,31 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
               </p>
             ) : null}
           </div>
-          <LockerStatusToggle
-            status={locker.status}
-            options={nextLockerStatuses}
-            disabled={updatingLocker}
-            onChange={(next) => void advanceLockerStatus(next)}
-          />
+          {locker.latitude != null && locker.longitude != null ? (
+            <div className="locker-detail-hero__map">
+              <LockerGoogleMap
+                lockers={[
+                  {
+                    id: locker.id,
+                    name: locker.name,
+                    address: locker.address,
+                    latitude: locker.latitude,
+                    longitude: locker.longitude,
+                    type: locker.type,
+                    typeLabel: locker.typeLabel,
+                    status: locker.status,
+                    statusLabel: locker.statusLabel ?? locker.status,
+                    availableCompartments: locker.compartmentCounts.available,
+                    availableSlots: locker.availableSlots,
+                    rows: locker.rows,
+                    columns: locker.columns,
+                  },
+                ]}
+                selectedLockerId={locker.id}
+                height="100%"
+              />
+            </div>
+          ) : null}
         </div>
       </header>
 
@@ -409,7 +582,7 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
         className="locker-detail-split"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1.65fr) minmax(260px, 1fr)',
+          gridTemplateColumns: 'minmax(0, 1.4fr) minmax(240px, 0.9fr)',
           gap: '1.25rem',
           alignItems: 'stretch',
         }}
@@ -545,7 +718,7 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
       </div>
       ) : (
         <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 500, opacity: 0.75 }}>
-          Point sans grille matérielle — le retrait se fait en personne via le contact indiqué.
+          Casier sans grille matérielle — le retrait se fait en personne via le contact indiqué.
         </p>
       )}
     </div>

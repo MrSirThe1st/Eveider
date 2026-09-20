@@ -44,8 +44,8 @@ export const PACKAGE_CATEGORIES: readonly PackageCategory[] = [
 export const PACKAGE_SIZES: readonly PackageSize[] = ['small', 'medium', 'large'] as const;
 
 export const SHIPMENT_PICKUP_TYPE_LABELS: Record<ShipmentPickupType, string> = {
-  courier_pickup: 'Un chauffeur vient chercher',
-  merchant_dropoff: 'Dépôt au point Eveider',
+  courier_pickup: 'Collecte Eveider',
+  merchant_dropoff: 'Dépôt au casier',
 };
 
 export const PAYMENT_RESPONSIBILITY_LABELS: Record<PaymentResponsibility, string> = {

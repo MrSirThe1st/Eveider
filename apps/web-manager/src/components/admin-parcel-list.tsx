@@ -14,16 +14,16 @@ import {
   useToast,
 } from '@eveider/ui';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { DashboardParcelItem } from '@/components/admin-dashboard-types';
+import { AdminParcelFilters } from '@/components/admin-parcel-filters';
 import { ListSearchField } from '@/components/list-search-field';
 import { ParcelExportMenu } from '@/components/parcel-export-menu';
-import {
-  ParcelStatusFilters,
-  type ParcelStatusFilter,
-} from '@/components/parcel-status-filters';
 import { ParcelStatusBadge } from '@/components/parcel-status-badge';
 import { useAdminParcelsQuery } from '@/hooks/queries/use-parcels-query';
+import type { AdminParcelAttentionFilter } from '@/lib/admin-presentation';
+import { getAdminParcelDisplayStatus, getFulfillmentMethodLabel } from '@/lib/admin-presentation';
 import { matchesListSearch } from '@/lib/list-search';
 
 function formatDate(iso: string) {
@@ -34,18 +34,85 @@ function formatDate(iso: string) {
   }).format(new Date(iso));
 }
 
+function parseAttention(raw: string | null): AdminParcelAttentionFilter {
+  if (
+    raw === 'awaiting_assignment' ||
+    raw === 'in_transit' ||
+    raw === 'at_locker' ||
+    raw === 'ready_for_pickup' ||
+    raw === 'return_at_locker' ||
+    raw === 'returned'
+  ) {
+    return raw;
+  }
+  return 'all';
+}
+
+function parsePickupType(raw: string | null): 'all' | 'courier_pickup' | 'merchant_dropoff' {
+  if (raw === 'courier_pickup' || raw === 'merchant_dropoff') return raw;
+  return 'all';
+}
+
+function emptyCopy(attention: AdminParcelAttentionFilter, searching: boolean) {
+  if (searching) {
+    return {
+      title: 'Aucun colis pour cette recherche',
+      description: 'Essayez une autre référence ou un autre numéro de suivi.',
+    };
+  }
+  switch (attention) {
+    case 'awaiting_assignment':
+      return {
+        title: 'Aucun colis à assigner',
+        description: 'Les Collectes Eveider sans chauffeur apparaîtront ici.',
+      };
+    case 'in_transit':
+      return {
+        title: 'Aucun colis en transport',
+        description: 'Les colis actuellement transportés par Eveider apparaîtront ici.',
+      };
+    case 'at_locker':
+      return {
+        title: 'Aucun colis actuellement au casier',
+        description: 'Les colis déposés et pas encore prêts au retrait apparaîtront ici.',
+      };
+    case 'ready_for_pickup':
+      return {
+        title: 'Aucun colis prêt au retrait',
+        description: 'Les colis en attente du destinataire apparaîtront ici.',
+      };
+    case 'return_at_locker':
+      return {
+        title: 'Aucun retour au casier',
+        description: 'Les retours client déposés au casier apparaîtront ici.',
+      };
+    case 'returned':
+      return {
+        title: 'Aucun colis retourné',
+        description: 'Les retours terminés apparaîtront ici.',
+      };
+    default:
+      return {
+        title: 'Aucun colis',
+        description: 'Les nouveaux envois apparaîtront ici dès qu’ils seront créés.',
+      };
+  }
+}
+
 type AdminParcelListProps = {
-  /** Parcels already loaded by the dashboard — avoids a duplicate /api/parcels call. */
   seedParcels?: DashboardParcelItem[];
 };
 
-export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
+export function AdminParcelList(_props: AdminParcelListProps = {}) {
   const toast = useToast();
-  const [statusFilter, setStatusFilter] = useState<ParcelStatusFilter>('all');
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const attention = parseAttention(searchParams.get('attention'));
+  const pickupType = parsePickupType(searchParams.get('pickupType'));
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [previewParcel, setPreviewParcel] = useState<DashboardParcelItem | null>(null);
-  const useSeed = statusFilter === 'all' && seedParcels !== undefined && !debouncedSearch;
   const refreshToastShown = useRef(false);
 
   useEffect(() => {
@@ -53,23 +120,17 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const { data: fetchedParcels = [], isLoading, isFetching, isError, error, refetch } =
-    useAdminParcelsQuery(statusFilter, {
-      enabled: !useSeed || Boolean(debouncedSearch),
-      initialData: useSeed ? seedParcels : undefined,
+  const { data: parcels = [], isLoading, isFetching, isError, error, refetch } =
+    useAdminParcelsQuery({
+      attention,
+      pickupType,
       search: debouncedSearch,
     });
-
-  const parcels = useSeed ? seedParcels ?? [] : fetchedParcels;
 
   const filteredParcels = useMemo(
     () =>
       parcels.filter((parcel) =>
-        matchesListSearch(
-          searchQuery,
-          parcel.reference,
-          parcel.trackingNumber,
-        ),
+        matchesListSearch(searchQuery, parcel.reference, parcel.trackingNumber, parcel.recipientName),
       ),
     [parcels, searchQuery],
   );
@@ -93,6 +154,18 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
       refreshToastShown.current = false;
     }
   }, [errorMessage, isError, showRefreshError, toast]);
+
+  function updateQuery(next: { attention?: AdminParcelAttentionFilter; pickupType?: typeof pickupType }) {
+    const params = new URLSearchParams(searchParams.toString());
+    const nextAttention = next.attention ?? attention;
+    const nextPickup = next.pickupType ?? pickupType;
+    if (nextAttention === 'all') params.delete('attention');
+    else params.set('attention', nextAttention);
+    if (nextPickup === 'all') params.delete('pickupType');
+    else params.set('pickupType', nextPickup);
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
 
   const columns = useMemo<DataTableColumn<DashboardParcelItem>[]>(
     () => [
@@ -147,8 +220,16 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
         ),
       },
       {
+        id: 'method',
+        header: 'Méthode',
+        sortable: true,
+        sortValue: (row) => row.pickupTypeLabel ?? getFulfillmentMethodLabel(row.pickupType),
+        hideOnMobile: true,
+        cell: (row) => row.pickupTypeLabel ?? getFulfillmentMethodLabel(row.pickupType),
+      },
+      {
         id: 'locker',
-        header: 'Point',
+        header: 'Casier',
         sortable: true,
         sortValue: (row) => row.locker?.name ?? '',
         hideOnMobile: true,
@@ -161,14 +242,39 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
       },
       {
         id: 'status',
-        header: 'Statut',
+        header: 'État',
         sortable: true,
         sortValue: (row) => row.status,
-        cell: (row) => <ParcelStatusBadge status={row.status} />,
+        cell: (row) => {
+          const statusLabel =
+            row.statusLabel ??
+            getAdminParcelDisplayStatus({
+              status: row.status,
+              pickupType: row.pickupType,
+            });
+          const needsAttention =
+            statusLabel === 'En attente de prise en charge' || row.status === 'return_at_point';
+          return (
+            <div>
+              <ParcelStatusBadge status={row.status} label={statusLabel} />
+              {needsAttention ? (
+                <p
+                  style={{
+                    margin: `${spacing[1]}px 0 0`,
+                    fontSize: typography.caption.fontSize,
+                    color: colors.textMuted,
+                  }}
+                >
+                  Attention
+                </p>
+              ) : null}
+            </div>
+          );
+        },
       },
       {
         id: 'createdAt',
-        header: 'Créé le',
+        header: 'Créé',
         sortable: true,
         sortValue: (row) => new Date(row.createdAt).getTime(),
         align: 'right',
@@ -185,26 +291,35 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
   const previewRows = previewParcel
     ? [
         { label: 'Entreprise', value: previewParcel.business.name },
-        {
-          label: 'Destinataire',
-          value: previewParcel.recipientName ?? '—',
-        },
+        { label: 'Destinataire', value: previewParcel.recipientName ?? '—' },
         { label: 'Téléphone', value: previewParcel.recipientPhone },
         {
-          label: 'Point',
+          label: 'Méthode',
+          value:
+            previewParcel.pickupTypeLabel ?? getFulfillmentMethodLabel(previewParcel.pickupType),
+        },
+        {
+          label: 'Casier',
           value: previewParcel.locker?.name ?? 'Non assigné',
         },
         {
           label: 'Adresse',
           value: previewParcel.locker?.address ?? '—',
         },
-        { label: 'Créé le', value: formatDate(previewParcel.createdAt) },
+        { label: 'Créé', value: formatDate(previewParcel.createdAt) },
       ]
     : [];
 
+  const empty = emptyCopy(attention, Boolean(searchQuery.trim()));
+
   return (
     <section>
-      <ParcelStatusFilters value={statusFilter} onChange={setStatusFilter} />
+      <AdminParcelFilters
+        attention={attention}
+        pickupType={pickupType}
+        onAttentionChange={(value) => updateQuery({ attention: value })}
+        onPickupTypeChange={(value) => updateQuery({ pickupType: value })}
+      />
 
       <div
         style={{
@@ -220,15 +335,16 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
           <ListSearchField
             value={searchQuery}
             onChange={setSearchQuery}
-            placeholder="Rechercher par référence ou numéro de suivi…"
-            ariaLabel="Rechercher un colis par référence ou numéro de suivi"
+            placeholder="Rechercher par suivi, référence ou destinataire…"
+            ariaLabel="Rechercher un colis par numéro de suivi, référence ou destinataire"
           />
         </div>
         <ParcelExportMenu
           compact
           exportPath="/api/parcels/export"
           filters={{
-            status: statusFilter === 'all' ? undefined : statusFilter,
+            attention: attention === 'all' ? undefined : attention,
+            pickupType: pickupType === 'all' ? undefined : pickupType,
             search: searchQuery.trim() || undefined,
           }}
         />
@@ -273,20 +389,10 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
                 : `${filteredParcels.length} colis`
               : undefined
           }
-          emptyTitle={
-            searchQuery.trim()
-              ? 'Aucun colis pour cette recherche'
-              : statusFilter === 'all'
-                ? 'Aucun colis'
-                : 'Aucun colis pour ce filtre'
-          }
-          emptyDescription={
-            searchQuery.trim()
-              ? 'Essayez une autre référence ou un autre numéro de suivi.'
-              : "Les nouveaux envois apparaîtront ici dès qu'ils seront créés."
-          }
+          emptyTitle={empty.title}
+          emptyDescription={empty.description}
           emptyIcon={
-            searchQuery.trim() || statusFilter !== 'all' ? <IconSearch /> : <IconPackage />
+            searchQuery.trim() || attention !== 'all' ? <IconSearch /> : <IconPackage />
           }
           initialSortId="createdAt"
           initialSortDirection="desc"
@@ -330,7 +436,16 @@ export function AdminParcelList({ seedParcels }: AdminParcelListProps) {
         {previewParcel ? (
           <div>
             <div style={{ marginBottom: spacing[5] }}>
-              <ParcelStatusBadge status={previewParcel.status} />
+              <ParcelStatusBadge
+                status={previewParcel.status}
+                label={
+                  previewParcel.statusLabel ??
+                  getAdminParcelDisplayStatus({
+                    status: previewParcel.status,
+                    pickupType: previewParcel.pickupType,
+                  })
+                }
+              />
             </div>
             <dl style={{ margin: 0, display: 'grid', gap: spacing[3] }}>
               {previewRows.map((row) => (

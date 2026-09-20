@@ -1,65 +1,34 @@
 'use client';
 
 import { colors, borderSubtle } from '@eveider/config-ui';
-import {
-  PACKAGE_CATEGORIES,
-  PACKAGE_CATEGORY_LABELS,
-  PACKAGE_SIZE_LABELS,
-  PACKAGE_SIZES,
-  SHIPMENT_PICKUP_TYPE_LABELS,
-  suggestPackageSizeFromDimensions,
-  usesCompartmentGrid,
-  type PackageCategory,
-  type PackageSize,
-  type ShipmentPickupType,
-} from '@eveider/domain';
-import { InlineAlert, LoadingSpinner, TextField, Wizard, type WizardStep, useToast } from '@eveider/ui';
+import { PACKAGE_SIZE_LABELS, PACKAGE_SIZES, type PackageSize, type ShipmentPickupType } from '@eveider/domain';
+import { InlineAlert, TextField, Wizard, type WizardStep, useToast } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import {
-  CompartmentSelectGrid,
-  type SelectableCompartment,
-} from '@/components/compartment-select-grid';
 import { LockerPicker } from '@/components/locker-picker';
 import type { LockerOption } from '@/components/locker-card';
+import { getFulfillmentMethodLabel } from '@/lib/business-presentation';
 
 const STEPS: WizardStep[] = [
-  {
-    id: 'pickup',
-    title: 'Collecte',
-    description: 'Mode de collecte et coordonnées de l’expéditeur.',
-  },
-  {
-    id: 'recipient',
-    title: 'Destinataire',
-    description: 'Client qui retirera l’envoi.',
-  },
-  {
-    id: 'package',
-    title: 'Point & colis',
-    description: 'Point Eveider et caractéristiques du colis.',
-  },
-  {
-    id: 'review',
-    title: 'Revue',
-    description: 'Vérifiez le colis. Le destinataire paie à la collecte.',
-  },
+  { id: 'method', title: 'Méthode', description: 'Comment le colis entre dans le réseau Eveider.' },
+  { id: 'recipient', title: 'Destinataire', description: 'Qui retirera le colis.' },
+  { id: 'package', title: 'Colis', description: 'Taille pour le casier, et référence si utile.' },
+  { id: 'locker', title: 'Casier', description: 'Casier Eveider de destination.' },
+  { id: 'review', title: 'Revue', description: 'Vérifiez avant de créer le colis.' },
 ];
 
-type LockerCompartmentsResponse = {
-  locker: { id: string; name: string; address: string; rows: number; columns: number };
-  compartments: SelectableCompartment[];
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const METHOD_COPY: Record<ShipmentPickupType, { title: string; body: string }> = {
+  courier_pickup: {
+    title: 'Collecte Eveider',
+    body: 'Un chauffeur Eveider vient récupérer le colis auprès de votre entreprise.',
+  },
+  merchant_dropoff: {
+    title: 'Dépôt au casier',
+    body: 'Vous apportez vous-même le colis au casier Eveider sélectionné.',
+  },
 };
-
-function optionalNumber(value: string): number | undefined {
-  const trimmed = value.trim().replace(',', '.');
-  if (!trimmed) return undefined;
-  const n = Number(trimmed);
-  return Number.isFinite(n) && n > 0 ? n : undefined;
-}
-
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type CreateParcelFormProps = {
   initialLockerId?: string;
@@ -83,23 +52,10 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
   const [lockerId, setLockerId] = useState(
     initialLockerId && UUID_RE.test(initialLockerId) ? initialLockerId : '',
   );
-  const [compartmentId, setCompartmentId] = useState('');
   const [lockers, setLockers] = useState<LockerOption[]>([]);
-  const [compartmentData, setCompartmentData] = useState<LockerCompartmentsResponse | null>(null);
-  const [compartmentError, setCompartmentError] = useState<string | null>(null);
-  const [loadingCompartments, setLoadingCompartments] = useState(false);
-
   const [packageSize, setPackageSize] = useState<PackageSize>('medium');
-  const [sizeManuallySet, setSizeManuallySet] = useState(false);
   const [deliveryQuoteLabel, setDeliveryQuoteLabel] = useState<string | null>(null);
-  const [quotePurpose, setQuotePurpose] = useState<string | null>(null);
-  const [packageCategory, setPackageCategory] = useState<PackageCategory>('other');
-  const [packageLengthCm, setPackageLengthCm] = useState('');
-  const [packageWidthCm, setPackageWidthCm] = useState('');
-  const [packageHeightCm, setPackageHeightCm] = useState('');
-  const [packageWeightKg, setPackageWeightKg] = useState('');
-  const [declaredValueCdf, setDeclaredValueCdf] = useState('');
-  const [declaredValueUsd, setDeclaredValueUsd] = useState('');
+  const [quoteChargeLabel, setQuoteChargeLabel] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -119,7 +75,6 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
         if (data.senderName) setSenderName(data.senderName);
         if (data.senderPhone) setSenderPhone(data.senderPhone);
         if (data.senderAddress) setSenderAddress(data.senderAddress);
-        if (data.pickupType) setPickupType(data.pickupType);
         if (data.dropoffLockerId && UUID_RE.test(data.dropoffLockerId)) {
           setLockerId((current) => current || data.dropoffLockerId!);
         }
@@ -134,7 +89,13 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
       .then((response) => response.json())
       .then((result) => {
         if (result.success) {
-          setLockers(result.data.lockers as LockerOption[]);
+          const all = result.data.lockers as LockerOption[];
+          setLockers(
+            all.filter(
+              (locker) =>
+                locker.selectable !== false && (locker.type == null || locker.type === 'SMART_LOCKER'),
+            ),
+          );
         }
       })
       .catch(() => {
@@ -142,83 +103,21 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
       });
   }, []);
 
-  useEffect(() => {
-    if (!lockerId) {
-      setCompartmentData(null);
-      setCompartmentId('');
-      setCompartmentError(null);
-      return;
-    }
-
-    const selected = lockers.find((locker) => locker.id === lockerId);
-    if (selected && !usesCompartmentGrid(selected.type ?? 'SMART_LOCKER')) {
-      setCompartmentData(null);
-      setCompartmentId('');
-      setCompartmentError(null);
-      setLoadingCompartments(false);
-      return;
-    }
-
-    let cancelled = false;
-    setLoadingCompartments(true);
-    setCompartmentId('');
-    setCompartmentError(null);
-
-    void fetch(`/api/organisation/lockers/${lockerId}/compartments`)
-      .then((res) => res.json())
-      .then((result) => {
-        if (cancelled) return;
-        if (result.success) {
-          setCompartmentData(result.data);
-          setCompartmentError(null);
-        } else {
-          setCompartmentData(null);
-          setCompartmentError(result.error ?? 'Impossible de charger les compartiments');
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setCompartmentData(null);
-          setCompartmentError('Erreur réseau lors du chargement des compartiments');
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingCompartments(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [lockerId, lockers]);
-
   const selectedLocker = useMemo(
     () => lockers.find((locker) => locker.id === lockerId) ?? null,
     [lockers, lockerId],
   );
 
-  const needsCompartment = selectedLocker
-    ? usesCompartmentGrid(selectedLocker.type ?? 'SMART_LOCKER')
-    : false;
-
-  useEffect(() => {
-    const suggested = suggestPackageSizeFromDimensions({
-      lengthCm: optionalNumber(packageLengthCm),
-      widthCm: optionalNumber(packageWidthCm),
-      heightCm: optionalNumber(packageHeightCm),
-    });
-    if (suggested && !sizeManuallySet) {
-      setPackageSize(suggested);
-    }
-  }, [packageLengthCm, packageWidthCm, packageHeightCm, sizeManuallySet]);
-
   useEffect(() => {
     if (!lockerId) {
       setDeliveryQuoteLabel(null);
+      setQuoteChargeLabel(null);
       return;
     }
-    const params = new URLSearchParams({ lockerId, packageSize, pickupType });
-    if (compartmentId) params.set('compartmentId', compartmentId);
-    if (senderAddress.trim()) params.set('senderAddress', senderAddress.trim());
+    const params = new URLSearchParams({ lockerId, pickupType, packageSize });
+    if (pickupType === 'courier_pickup' && senderAddress.trim()) {
+      params.set('senderAddress', senderAddress.trim());
+    }
 
     let cancelled = false;
     void fetch(`/api/organisation/delivery-quote?${params.toString()}`)
@@ -226,35 +125,31 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
       .then((json) => {
         if (!cancelled && json.success) {
           setDeliveryQuoteLabel(json.data.deliveryFeeLabel as string);
-          setQuotePurpose((json.data.purpose as string | undefined) ?? null);
+          setQuoteChargeLabel((json.data.purpose as string | undefined) ?? null);
         }
       })
       .catch(() => {
         if (!cancelled) {
           setDeliveryQuoteLabel(null);
-          setQuotePurpose(null);
+          setQuoteChargeLabel(null);
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [compartmentId, lockerId, packageSize, pickupType, senderAddress]);
+  }, [lockerId, packageSize, pickupType, senderAddress]);
 
-  function validatePickup(): boolean {
+  function validateMethod(): boolean {
     if (senderName.trim().length < 2) {
-      setError('Nom expéditeur requis.');
+      setError('Nom de l’entreprise / contact requis.');
       return false;
     }
     if (!senderPhone.trim()) {
-      setError('Téléphone expéditeur requis.');
+      setError('Téléphone de contact requis.');
       return false;
     }
     if (pickupType === 'courier_pickup' && senderAddress.trim().length < 5) {
-      setError('Adresse expéditeur requise pour une collecte par chauffeur.');
-      return false;
-    }
-    if (pickupType === 'merchant_dropoff' && !lockerId) {
-      setError('Sélectionnez un point de dépôt.');
+      setError('Adresse de collecte requise pour une Collecte Eveider.');
       return false;
     }
     setError(null);
@@ -274,13 +169,9 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
     return true;
   }
 
-  function validatePackage(): boolean {
+  function validateLocker(): boolean {
     if (!lockerId) {
-      setError('Sélectionnez un point de retrait.');
-      return false;
-    }
-    if (needsCompartment && !compartmentId) {
-      setError('Sélectionnez un compartiment pour le casier choisi.');
+      setError('Sélectionnez un casier Eveider.');
       return false;
     }
     setError(null);
@@ -288,16 +179,14 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
   }
 
   function handleNext() {
-    if (stepIndex === 0 && !validatePickup()) return;
+    if (stepIndex === 0 && !validateMethod()) return;
     if (stepIndex === 1 && !validateRecipient()) return;
-    if (stepIndex === 2 && !validatePackage()) return;
+    if (stepIndex === 3 && !validateLocker()) return;
     setStepIndex((current) => Math.min(current + 1, STEPS.length - 1));
   }
 
   async function handleSubmit() {
-    if (!validatePickup() || !validateRecipient() || !validatePackage()) {
-      return;
-    }
+    if (!validateMethod() || !validateRecipient() || !validateLocker()) return;
 
     setLoading(true);
     setError(null);
@@ -311,21 +200,13 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
           pickupType,
           senderName: senderName.trim(),
           senderPhone: senderPhone.trim(),
-          senderAddress:
-            pickupType === 'courier_pickup' ? senderAddress.trim() : undefined,
+          senderAddress: pickupType === 'courier_pickup' ? senderAddress.trim() : undefined,
           recipientName: recipientName.trim(),
           recipientPhone: recipientPhone.trim(),
           recipientEmail: recipientEmail.trim() || undefined,
           lockerId,
-          compartmentId: compartmentId || undefined,
           packageSize,
-          packageCategory,
-          packageLengthCm: optionalNumber(packageLengthCm),
-          packageWidthCm: optionalNumber(packageWidthCm),
-          packageHeightCm: optionalNumber(packageHeightCm),
-          packageWeightKg: optionalNumber(packageWeightKg),
-          declaredValueCdf: optionalNumber(declaredValueCdf),
-          declaredValueUsd: optionalNumber(declaredValueUsd),
+          packageCategory: 'other',
         }),
       });
 
@@ -339,8 +220,7 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
       }
 
       const tracking = result.data.parcel.trackingNumber as string;
-      toast.success(`Envoi ${tracking} créé.`);
-      router.refresh();
+      toast.success(`Colis ${tracking} créé.`);
       router.replace(`/organisation/tableau-de-bord/colis/${result.data.parcel.id}?created=1`);
     } catch {
       const message = 'Erreur réseau. Vérifiez votre connexion et réessayez.';
@@ -360,6 +240,9 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
     background: colors.surface,
   };
 
+  const chargeTitle =
+    pickupType === 'merchant_dropoff' ? 'Frais de retrait' : 'Frais de livraison';
+
   return (
     <Wizard
       steps={STEPS}
@@ -371,7 +254,7 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
       onNext={handleNext}
       onSubmit={() => void handleSubmit()}
       loading={loading}
-      submitLabel="Créer l’envoi"
+      submitLabel="Créer le colis"
       onStepSelect={(index) => {
         if (index < stepIndex) setStepIndex(index);
       }}
@@ -384,7 +267,10 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
 
       {stepIndex === 0 ? (
         <section style={{ display: 'grid', gap: '1rem' }}>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <h2 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>
+            Comment ce colis entre-t-il dans le réseau Eveider ?
+          </h2>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
             {(['courier_pickup', 'merchant_dropoff'] as const).map((type) => (
               <button
                 key={type}
@@ -392,85 +278,77 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
                 disabled={loading}
                 onClick={() => setPickupType(type)}
                 style={{
-                  flex: '1 1 200px',
-                  padding: '0.875rem 1rem',
-                  border:
-                    pickupType === type ? `2px solid ${colors.primary}` : borderSubtle(),
+                  flex: '1 1 240px',
+                  padding: '1rem 1.1rem',
+                  border: pickupType === type ? `2px solid ${colors.primary}` : borderSubtle(),
                   borderRadius: 8,
                   background: pickupType === type ? colors.primaryMuted : colors.surface,
                   color: colors.secondary,
-                  fontWeight: 700,
                   cursor: 'pointer',
                   textAlign: 'left',
                 }}
               >
-                {SHIPMENT_PICKUP_TYPE_LABELS[type]}
+                <strong style={{ display: 'block', fontSize: '0.95rem' }}>{METHOD_COPY[type].title}</strong>
+                <span style={{ display: 'block', marginTop: 6, fontSize: '0.8125rem', fontWeight: 500 }}>
+                  {METHOD_COPY[type].body}
+                </span>
               </button>
             ))}
           </div>
-          <TextField
-            label="Nom expéditeur"
-            name="senderName"
-            value={senderName}
-            onChange={(e) => setSenderName(e.target.value)}
-            disabled={loading}
-            required
-          />
-          <TextField
-            label="Téléphone expéditeur"
-            name="senderPhone"
-            value={senderPhone}
-            onChange={(e) => setSenderPhone(e.target.value)}
-            disabled={loading}
-            required
-          />
+
           {pickupType === 'courier_pickup' ? (
-            <TextField
-              label="Adresse de collecte"
-              name="senderAddress"
-              value={senderAddress}
-              onChange={(e) => setSenderAddress(e.target.value)}
-              disabled={loading}
-              required
-              placeholder="Rue, quartier, ville…"
-            />
-          ) : (
-            <div>
-              <p style={{ margin: '0 0 0.5rem', fontWeight: 700, fontSize: '0.8125rem' }}>
-                Point de dépôt
+            <>
+              <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>
+                Eveider organisera la prise en charge. Vous ne choisissez pas le chauffeur.
               </p>
-              <p style={{ margin: '0 0 0.75rem', fontSize: '0.8125rem', color: colors.textMuted }}>
-                Choisissez le casier où vous déposerez le colis. Le destinataire pourra le retirer
-                au même point, ou à un autre au prochain écran.
-              </p>
-              {selectedLocker ? (
-                <p
-                  style={{
-                    margin: '0 0 0.75rem',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                  }}
-                >
-                  {selectedLocker.networkLabel ?? selectedLocker.name}
-                  <span
-                    style={{
-                      display: 'block',
-                      fontWeight: 500,
-                      color: colors.textMuted,
-                      marginTop: 2,
-                    }}
-                  >
-                    {selectedLocker.availableLabel ??
-                      `${selectedLocker.availableSlots ?? selectedLocker.availableCompartments} compartiments disponibles`}
-                  </span>
-                </p>
-              ) : null}
-              <LockerPicker
-                lockers={lockers}
-                selectedLockerId={lockerId}
-                onSelectLocker={setLockerId}
+              <TextField
+                label="Contact collecte"
+                name="senderName"
+                value={senderName}
+                onChange={(e) => setSenderName(e.target.value)}
+                disabled={loading}
+                required
               />
-            </div>
+              <TextField
+                label="Téléphone de collecte"
+                name="senderPhone"
+                value={senderPhone}
+                onChange={(e) => setSenderPhone(e.target.value)}
+                disabled={loading}
+                required
+              />
+              <TextField
+                label="Adresse de collecte"
+                name="senderAddress"
+                value={senderAddress}
+                onChange={(e) => setSenderAddress(e.target.value)}
+                disabled={loading}
+                required
+                placeholder="Rue, quartier, ville…"
+              />
+            </>
+          ) : (
+            <>
+              <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>
+                Vous devrez déposer ce colis au casier sélectionné. Aucun chauffeur Eveider n’intervient.
+              </p>
+              <TextField
+                label="Contact entreprise"
+                name="senderName"
+                value={senderName}
+                onChange={(e) => setSenderName(e.target.value)}
+                disabled={loading}
+                required
+              />
+              <TextField
+                label="Téléphone entreprise"
+                name="senderPhone"
+                value={senderPhone}
+                onChange={(e) => setSenderPhone(e.target.value)}
+                disabled={loading}
+                required
+              />
+            </>
           )}
         </section>
       ) : null}
@@ -500,8 +378,31 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
             onChange={(e) => setRecipientEmail(e.target.value)}
             disabled={loading}
           />
+        </section>
+      ) : null}
+
+      {stepIndex === 2 ? (
+        <section style={{ display: 'grid', gap: '1rem' }}>
+          <label style={{ display: 'block' }}>
+            <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Taille du colis</span>
+            <select
+              value={packageSize}
+              disabled={loading}
+              onChange={(e) => setPackageSize(e.target.value as PackageSize)}
+              style={selectStyle}
+            >
+              {PACKAGE_SIZES.map((size) => (
+                <option key={size} value={size}>
+                  {PACKAGE_SIZE_LABELS[size]}
+                </option>
+              ))}
+            </select>
+            <p style={{ margin: '0.35rem 0 0', fontSize: '0.8125rem', color: colors.textMuted }}>
+              Sert à trouver un compartiment compatible. Ce n’est pas un facteur de prix.
+            </p>
+          </label>
           <TextField
-            label="Référence marchande (optionnel)"
+            label="Référence interne (optionnel)"
             name="reference"
             value={reference}
             onChange={(e) => setReference(e.target.value)}
@@ -511,163 +412,27 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
         </section>
       ) : null}
 
-      {stepIndex === 2 ? (
-        <section style={{ display: 'grid', gap: '1.25rem' }}>
-          <div>
-            <p style={{ margin: '0 0 0.5rem', fontWeight: 700, fontSize: '0.8125rem' }}>
-              Point de retrait (obligatoire)
+      {stepIndex === 3 ? (
+        <section style={{ display: 'grid', gap: '1rem' }}>
+          <p style={{ margin: 0, fontWeight: 700, fontSize: '0.8125rem' }}>Casier de destination</p>
+          {pickupType === 'merchant_dropoff' ? (
+            <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>
+              Vous devrez déposer ce colis au casier sélectionné.
             </p>
-            {selectedLocker ? (
-              <p style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', fontWeight: 600 }}>
-                {selectedLocker.networkLabel ?? selectedLocker.name}
-                <span
-                  style={{
-                    display: 'block',
-                    fontWeight: 500,
-                    color: colors.textMuted,
-                    marginTop: 2,
-                  }}
-                >
-                  {selectedLocker.availableLabel ??
-                    `${selectedLocker.availableSlots ?? selectedLocker.availableCompartments} compartiments disponibles`}
-                </span>
-              </p>
-            ) : null}
-            <LockerPicker
-              lockers={lockers}
-              selectedLockerId={lockerId}
-              onSelectLocker={setLockerId}
-            />
-          </div>
-
-          {needsCompartment ? (
-            <div>
-              <p style={{ margin: '0 0 0.5rem', fontWeight: 700, fontSize: '0.8125rem' }}>
-                Compartiment
-              </p>
-              {loadingCompartments ? (
-                <LoadingSpinner compact size="sm" label="Chargement des compartiments…" />
-              ) : compartmentError ? (
-                <InlineAlert message={compartmentError} variant="error" />
-              ) : compartmentData ? (
-                <CompartmentSelectGrid
-                  rows={compartmentData.locker.rows}
-                  columns={compartmentData.locker.columns}
-                  compartments={compartmentData.compartments}
-                  selectedId={compartmentId || null}
-                  onSelect={setCompartmentId}
-                />
-              ) : null}
-            </div>
           ) : null}
-
-          <label style={{ display: 'block' }}>
-            <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Taille</span>
-            <select
-              value={packageSize}
-              disabled={loading}
-              onChange={(e) => {
-                setSizeManuallySet(true);
-                setPackageSize(e.target.value as PackageSize);
-              }}
-              style={selectStyle}
-            >
-              {PACKAGE_SIZES.map((size) => (
-                <option key={size} value={size}>
-                  {PACKAGE_SIZE_LABELS[size]}
-                </option>
-              ))}
-            </select>
-            {suggestPackageSizeFromDimensions({
-              lengthCm: optionalNumber(packageLengthCm),
-              widthCm: optionalNumber(packageWidthCm),
-              heightCm: optionalNumber(packageHeightCm),
-            }) ? (
-              <p style={{ margin: '0.35rem 0 0', fontSize: '0.8125rem', color: colors.textMuted }}>
-                Suggestion automatique selon les dimensions — vous pouvez modifier la taille.
-              </p>
-            ) : null}
-          </label>
-
-          <label style={{ display: 'block' }}>
-            <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Catégorie</span>
-            <select
-              value={packageCategory}
-              disabled={loading}
-              onChange={(e) => setPackageCategory(e.target.value as PackageCategory)}
-              style={selectStyle}
-            >
-              {PACKAGE_CATEGORIES.map((category) => (
-                <option key={category} value={category}>
-                  {PACKAGE_CATEGORY_LABELS[category]}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-              gap: '0.75rem',
-            }}
-          >
-            <TextField
-              label="Longueur cm"
-              name="packageLengthCm"
-              value={packageLengthCm}
-              onChange={(e) => setPackageLengthCm(e.target.value)}
-              disabled={loading}
-            />
-            <TextField
-              label="Largeur cm"
-              name="packageWidthCm"
-              value={packageWidthCm}
-              onChange={(e) => setPackageWidthCm(e.target.value)}
-              disabled={loading}
-            />
-            <TextField
-              label="Hauteur cm"
-              name="packageHeightCm"
-              value={packageHeightCm}
-              onChange={(e) => setPackageHeightCm(e.target.value)}
-              disabled={loading}
-            />
-            <TextField
-              label="Poids kg"
-              name="packageWeightKg"
-              value={packageWeightKg}
-              onChange={(e) => setPackageWeightKg(e.target.value)}
-              disabled={loading}
-            />
-          </div>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-              gap: '0.75rem',
-            }}
-          >
-            <TextField
-              label="Valeur déclarée (CDF)"
-              name="declaredValueCdf"
-              value={declaredValueCdf}
-              onChange={(e) => setDeclaredValueCdf(e.target.value)}
-              disabled={loading}
-            />
-            <TextField
-              label="Valeur déclarée (USD)"
-              name="declaredValueUsd"
-              value={declaredValueUsd}
-              onChange={(e) => setDeclaredValueUsd(e.target.value)}
-              disabled={loading}
-            />
-          </div>
+          {selectedLocker ? (
+            <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600 }}>
+              {selectedLocker.networkLabel ?? selectedLocker.name}
+              <span style={{ display: 'block', fontWeight: 500, color: colors.textMuted, marginTop: 2 }}>
+                {selectedLocker.address}
+              </span>
+            </p>
+          ) : null}
+          <LockerPicker lockers={lockers} selectedLockerId={lockerId} onSelectLocker={setLockerId} />
         </section>
       ) : null}
 
-      {stepIndex === 3 ? (
+      {stepIndex === 4 ? (
         <section style={{ display: 'grid', gap: '1rem' }}>
           <div
             style={{
@@ -675,33 +440,27 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
               borderRadius: 8,
               padding: '1rem',
               display: 'grid',
-              gap: '0.35rem',
+              gap: '0.4rem',
               fontSize: '0.875rem',
             }}
           >
             <strong>Revue</strong>
-            <span>
-              Collecte : {SHIPMENT_PICKUP_TYPE_LABELS[pickupType]} · {senderName}
-            </span>
+            <span>Méthode : {getFulfillmentMethodLabel(pickupType)}</span>
             <span>
               Destinataire : {recipientName} · {recipientPhone}
             </span>
-            <span>Point : {selectedLocker?.networkLabel ?? selectedLocker?.name ?? '—'}</span>
-            {selectedLocker?.availableLabel ? (
-              <span>{selectedLocker.availableLabel}</span>
-            ) : null}
+            <span>Casier : {selectedLocker?.networkLabel ?? selectedLocker?.name ?? '—'}</span>
             <span>
-              Colis : {PACKAGE_SIZE_LABELS[packageSize]} ·{' '}
-              {PACKAGE_CATEGORY_LABELS[packageCategory]}
+              {chargeTitle} : {deliveryQuoteLabel ?? 'Tarif indisponible'}
             </span>
-            {deliveryQuoteLabel ? (
-              <span>
-                {quotePurpose ?? 'Frais destinataire'} (payés à la collecte) : {deliveryQuoteLabel}
-              </span>
+            <span>Payé par : Destinataire</span>
+            {quoteChargeLabel ? (
+              <span style={{ fontSize: '0.8125rem', color: colors.textMuted }}>{quoteChargeLabel}</span>
             ) : null}
             <span style={{ fontSize: '0.8125rem', color: colors.textMuted }}>
-              Le destinataire paie ce frais pour autoriser le retrait. L’entreprise n’est pas
-              facturée pour ce service.
+              {pickupType === 'courier_pickup'
+                ? 'Eveider organisera la prise en charge du colis. Votre entreprise ne paie pas ce frais.'
+                : 'Après création, déposez le colis au casier. Votre entreprise ne paie pas ce frais.'}
             </span>
           </div>
         </section>

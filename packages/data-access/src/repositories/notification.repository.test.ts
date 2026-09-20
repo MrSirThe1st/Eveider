@@ -58,7 +58,7 @@ describe('NotificationRepository', () => {
     expect(inserts[0]).toEqual([
       'user-1',
       'parcel-1',
-      'Colis EVD26TEST0001A — PRÊT POUR RETRAIT · GOMBE',
+      'Colis EVD26TEST0001A — PRÊT AU RETRAIT · GOMBE',
     ]);
   });
 

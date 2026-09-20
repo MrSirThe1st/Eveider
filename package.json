@@ -14,6 +14,7 @@
     "db:migrate": "pnpm --filter @eveider/data-access db:migrate",
     "db:deploy": "pnpm --filter @eveider/data-access db:deploy",
     "db:seed": "pnpm --filter @eveider/data-access db:seed",
+    "db:seed:phase8": "pnpm --filter @eveider/data-access db:seed:phase8",
     "db:backfill-access-codes": "pnpm --filter @eveider/data-access db:backfill-access-codes"
   },
   "devDependencies": {

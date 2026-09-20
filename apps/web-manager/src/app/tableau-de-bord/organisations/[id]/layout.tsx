@@ -23,7 +23,7 @@ export default async function AdminOrganizationDetailLayout({
   return (
     <PageFrame
       title={organization.name}
-      description={`${organization.accountStatusLabel} · ${organization.verificationStatusLabel}`}
+      description={organization.accountStatusLabel}
       layout="wide"
       breadcrumbs={[
         { label: 'Organisations', href: '/tableau-de-bord/organisations' },

@@ -1,13 +1,17 @@
 /**
  * Design tokens — Eveider logistics UI.
  *
- * Light: cool gray canvas, white cards, green used sparingly (~5%).
- * Dark: forest ink — green-tinted charcoal, not OLED black. Same hierarchy:
- * canvas < card < muted fill, with the brand green as a *light* accent.
+ * Light: warm paper canvas, near-white cards, restrained sage as the interface
+ * green. The neon brand green stays in identity (logo, email), not chrome.
+ * Dark: forest ink — green-tinted charcoal, not OLED black. Independent of
+ * the light paper palette; neon remains a light accent there.
  *
  * Web colors resolve through CSS variables so `data-theme` switches palettes.
  * React Native should import `nativeColors` (hex), not `colors` (CSS vars).
  */
+
+/** Neon brand green — logo, email, and identity only. Not the light UI primary. */
+export const BRAND_GREEN = '#09D40B';
 
 export type ColorTokens = {
   primary: string;
@@ -51,37 +55,37 @@ export type ShadowTokens = {
 };
 
 const lightColors: ColorTokens = {
-  primary: '#09D40B',
-  primaryHover: '#08BD0A',
-  primaryMuted: 'rgba(9, 212, 11, 0.15)',
-  onPrimary: '#121212',
-  secondary: '#121212',
-  surface: '#FFFFFF',
-  surfaceSubtle: '#F3F4F6',
-  surfaceMuted: '#EEF0F3',
-  background: '#F7F8FA',
-  borderSubtle: '#E5E7EB',
-  border: '#E5E7EB',
-  borderStrong: '#09D40B',
-  borderHover: '#D1D5DB',
-  surfaceHover: '#E5E7EB',
-  textMuted: '#6B7280',
-  textDisabled: '#9CA3AF',
-  tertiary: '#FF99B2',
-  success: '#09D40B',
-  successMuted: '#E8FCE8',
-  successFg: '#067A07',
-  warning: '#FFB800',
-  warningMuted: '#FFF3D6',
-  warningFg: '#9A6B00',
+  primary: '#3F8F73',
+  primaryHover: '#34765F',
+  primaryMuted: '#E8F1EA',
+  onPrimary: '#FFFFFF',
+  secondary: '#1C1A17',
+  surface: '#FAF9F7',
+  surfaceSubtle: '#F1EFEB',
+  surfaceMuted: '#EDE9E3',
+  background: '#F5F3EF',
+  borderSubtle: '#E5E2DC',
+  border: '#E5E2DC',
+  borderStrong: '#3F8F73',
+  borderHover: '#D8D4CC',
+  surfaceHover: '#E8E4DC',
+  textMuted: '#6A655C',
+  textDisabled: '#9A958C',
+  tertiary: '#D4927A',
+  success: '#3F8F73',
+  successMuted: '#E8F1EA',
+  successFg: '#2F6B55',
+  warning: '#C9845A',
+  warningMuted: '#F6E6D8',
+  warningFg: '#8A5A38',
   danger: '#E53935',
   dangerHover: '#C62828',
-  dangerMuted: '#FDECEC',
+  dangerMuted: '#F4E4E1',
   dangerFg: '#C62828',
-  info: '#1677FF',
-  infoMuted: '#E8F1FF',
-  infoFg: '#0B5ED7',
-  focusRing: 'rgba(9, 212, 11, 0.15)',
+  info: '#6E6A9A',
+  infoMuted: '#EDE8F4',
+  infoFg: '#4E4A78',
+  focusRing: 'rgba(63, 143, 115, 0.22)',
   focusRingDanger: 'rgba(229, 57, 53, 0.15)',
 };
 
@@ -122,9 +126,9 @@ const darkColors: ColorTokens = {
 };
 
 const lightShadows: ShadowTokens = {
-  soft: '0 1px 2px rgba(16, 24, 40, 0.05), 0 4px 16px rgba(16, 24, 40, 0.06)',
-  card: '0 1px 2px rgba(16, 24, 40, 0.04), 0 2px 8px rgba(16, 24, 40, 0.05)',
-  hard: '0 2px 4px rgba(16, 24, 40, 0.06), 0 8px 24px rgba(16, 24, 40, 0.08)',
+  soft: '0 1px 2px rgba(60, 50, 40, 0.04), 0 4px 16px rgba(60, 50, 40, 0.05)',
+  card: '0 1px 2px rgba(60, 50, 40, 0.03), 0 2px 8px rgba(60, 50, 40, 0.04)',
+  hard: '0 2px 4px rgba(60, 50, 40, 0.05), 0 8px 24px rgba(60, 50, 40, 0.07)',
 };
 
 const darkShadows: ShadowTokens = {
@@ -401,11 +405,11 @@ export const icons = {
 /* ── Domain status fills ──────────────────────────────────────── */
 
 export const PARCEL_STATUS_FILLS = {
-  created: '#F3F4F6',
-  in_transit: '#FFE4EC',
-  delivered_to_locker: '#FFF3D6',
-  ready_for_pickup: '#DCF5D6',
-  collected: '#F3F4F6',
+  created: '#EFEBE4',
+  in_transit: '#EDE8F4',
+  delivered_to_locker: '#F6E6D8',
+  ready_for_pickup: '#E8F1EA',
+  collected: '#EFEBE4',
 } as const;
 
 export const PARCEL_STATUS_FILLS_DARK = {

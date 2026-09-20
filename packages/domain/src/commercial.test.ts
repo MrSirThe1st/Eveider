@@ -11,6 +11,8 @@ import {
   resolveCommercialPricingModel,
   returnChargeKind,
   returnCommercialCase,
+  ZONE_PRICING_NOT_CONFIGURED,
+  ZONE_PRICING_NOT_CONFIGURED_MESSAGE,
 } from './commercial.js';
 
 describe('commercial cases', () => {
@@ -221,5 +223,12 @@ describe('evaluateRecipientCollection', () => {
     });
     expect(decision.authorized).toBe(true);
     expect(decision.pinAuthorized).toBe(true);
+  });
+});
+
+describe('unconfigured zone pricing', () => {
+  it('exposes a fail-closed error distinct from a configured zero amount', () => {
+    expect(ZONE_PRICING_NOT_CONFIGURED).toBe('ZONE_PRICING_NOT_CONFIGURED');
+    expect(ZONE_PRICING_NOT_CONFIGURED_MESSAGE).toContain(ZONE_PRICING_NOT_CONFIGURED);
   });
 });

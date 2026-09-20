@@ -31,7 +31,7 @@ export const chartPalette = {
   get primary() {
     return readCssColor('primary');
   },
-  primarySoft: 'rgba(9, 212, 11, 0.16)',
+  primarySoft: 'rgba(63, 143, 115, 0.16)',
   get muted() {
     return readCssColor('textMuted');
   },
@@ -60,7 +60,7 @@ export const chartPalette = {
 
 export function parcelStatusColors(): Record<string, string> {
   return {
-    created: '#86EFAC',
+    created: readCssColor('successFg'),
     in_transit: readCssColor('info'),
     delivered_to_locker: readCssColor('warning'),
     ready_for_pickup: readCssColor('primary'),

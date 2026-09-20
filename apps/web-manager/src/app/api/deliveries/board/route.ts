@@ -1,40 +1,11 @@
 import { fail, listDeliveriesQuerySchema, ok } from '@eveider/api-contracts';
 import { createRepositories } from '@eveider/data-access';
-import { DELIVERY_STATUS_LABELS, PARCEL_STATUS_LABELS, type DeliveryStatus } from '@eveider/domain';
 import { NextResponse } from 'next/server';
 import { toAdminDeliveryDto } from '@/lib/admin-delivery-presenter';
 import { toBusinessDto } from '@/lib/business-presenter';
 import { toLockerSummaryDto } from '@/lib/locker-presenter';
 import { createRequestTimer } from '@/lib/perf/request-timer';
 import { requireAdminSession } from '@/lib/session';
-
-function mapParcelBoardItem(
-  item: Awaited<
-    ReturnType<import('@eveider/data-access').ParcelRepository['listForAdminBoard']>
-  >[number],
-) {
-  return {
-    id: item.delivery?.id ?? item.parcelId,
-    kind: item.delivery ? ('delivery' as const) : ('parcel' as const),
-    status: item.delivery?.status ?? item.parcelStatus,
-    statusLabel: item.delivery
-      ? DELIVERY_STATUS_LABELS[item.delivery.status as DeliveryStatus]
-      : PARCEL_STATUS_LABELS[item.parcelStatus],
-    updatedAt: item.updatedAt.toISOString(),
-    courier: item.delivery?.courier ?? null,
-    parcel: {
-      id: item.parcelId,
-      trackingNumber: item.trackingNumber,
-      reference: item.reference,
-      status: item.parcelStatus,
-      recipientName: item.recipientName,
-      recipientPhone: item.recipientPhone,
-      business: item.business,
-      locker: item.locker,
-      compartment: item.compartment,
-    },
-  };
-}
 
 const EMPTY_META = {
   couriers: [] as Array<{
@@ -75,7 +46,7 @@ export async function GET(request: Request) {
   const includeMeta = query.data.includeMeta;
 
   try {
-    const { deliveries, parcels, users, lockers, businesses } = createRepositories();
+    const { deliveries, users, lockers, businesses } = createRepositories();
     const ctx = auth.session.ctx;
 
     const meta = includeMeta
@@ -92,43 +63,13 @@ export async function GET(request: Request) {
               email: courier.email,
               phone: courier.phone,
             })),
-            lockers: lockerItems.map(toLockerSummaryDto),
+            lockers: lockerItems
+              .filter((locker) => locker.type === 'SMART_LOCKER')
+              .map(toLockerSummaryDto),
             businesses: businessItems.map(toBusinessDto),
           };
         })
       : EMPTY_META;
-
-    if (view === 'au_casier') {
-      const parcelItems = await parcels.listForAdminBoard(ctx, {
-        parcelStatuses: ['delivered_to_locker', 'ready_for_pickup'],
-        search: query.data.search,
-      });
-      perf.flush(200);
-      return NextResponse.json(
-        ok({
-          view,
-          items: parcelItems.map(mapParcelBoardItem),
-          summary: null,
-          ...meta,
-        }),
-      );
-    }
-
-    if (view === 'collected') {
-      const parcelItems = await parcels.listForAdminBoard(ctx, {
-        parcelStatuses: ['collected'],
-        search: query.data.search,
-      });
-      perf.flush(200);
-      return NextResponse.json(
-        ok({
-          view,
-          items: parcelItems.map(mapParcelBoardItem),
-          summary: null,
-          ...meta,
-        }),
-      );
-    }
 
     const listFilters = {
       status: query.data.status,
@@ -155,9 +96,12 @@ export async function GET(request: Request) {
           return {
             id: dto.id,
             kind: 'delivery' as const,
+            deliveryKind: dto.deliveryKind,
+            deliveryKindLabel: dto.deliveryKindLabel,
             status: dto.status,
             statusLabel: dto.statusLabel,
             updatedAt: dto.updatedAt,
+            createdAt: dto.createdAt,
             courier: dto.courier,
             parcel: dto.parcel,
           };

@@ -1,3 +1,5 @@
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { hashLocalCollectionPin } from './identity.js';
 import {
@@ -13,7 +15,11 @@ import {
   stableDeviceEventId,
   validateLocalRecipientCollection,
 } from './runtime.js';
-import { MemoryLockerRuntimeStore, emptyLockerRuntimeSnapshot } from './store.js';
+import {
+  FileLockerRuntimeStore,
+  MemoryLockerRuntimeStore,
+  emptyLockerRuntimeSnapshot,
+} from './store.js';
 
 const pinHash = hashLocalCollectionPin('482913');
 
@@ -176,6 +182,54 @@ describe('outbox and restart', () => {
     expect(cleared.credentials['cred-1']?.status).toBe('consumed');
   });
 
+  it('does not replay an older activate over a consumed credential', () => {
+    const snapshot = applySyncChanges(emptyLockerRuntimeSnapshot('locker-1'), {
+      cursor: '20',
+      changes: [
+        {
+          type: 'activate',
+          credentialId: 'cred-1',
+          version: 2,
+          parcelId: 'parcel-1',
+          trackingNumber: 'EVD26TEST0001A',
+          recipientPhoneNormalized: '243000000000',
+          pinHash,
+          lockerId: 'locker-1',
+          compartmentId: 'comp-1',
+        },
+        {
+          type: 'consume',
+          credentialId: 'cred-1',
+          version: 3,
+          parcelId: 'parcel-1',
+          trackingNumber: 'EVD26TEST0001A',
+          recipientPhoneNormalized: '243000000000',
+          pinHash,
+          lockerId: 'locker-1',
+          compartmentId: 'comp-1',
+        },
+      ],
+    });
+    const replayed = applySyncChanges(snapshot, {
+      cursor: '21',
+      changes: [
+        {
+          type: 'activate',
+          credentialId: 'cred-1',
+          version: 2,
+          parcelId: 'parcel-1',
+          trackingNumber: 'EVD26TEST0001A',
+          recipientPhoneNormalized: '243000000000',
+          pinHash,
+          lockerId: 'locker-1',
+          compartmentId: 'comp-1',
+        },
+      ],
+    });
+    expect(replayed.credentials['cred-1']?.status).toBe('consumed');
+    expect(replayed.syncCursor).toBe('21');
+  });
+
   it('does not treat an uncorrelated occupancy change as collection', () => {
     expect(
       occupancyEventMayMutateParcel({ occupancy: 'empty', sessionId: null, credentialId: null }),
@@ -232,5 +286,80 @@ describe('online fail-closed', () => {
       queued: true,
       deviceEventId: 'session-confirm:session-1',
     });
+  });
+
+  it('does not confirm when physical evidence is incomplete', async () => {
+    let confirmCalls = 0;
+    const client: OnlineActionClient = {
+      authorize: async () => ({ ok: true, sessionId: 'session-2', compartmentId: 'comp-1' }),
+      confirm: async () => {
+        confirmCalls += 1;
+        return true;
+      },
+      cancel: async () => true,
+      reportRecipientCollection: async () => true,
+    };
+    const result = await executeOnlineLockerAction({
+      client,
+      authorizeBody: { action: 'deposit' },
+      occupancyRequired: true,
+      open: async () => ({ accepted: true }),
+      evidence: async () => ({ doorOpened: true, doorClosed: false, occupancy: 'unknown' }),
+      success: (evidence) =>
+        evidence.doorOpened && evidence.doorClosed && evidence.occupancy === 'occupied',
+    });
+    expect(result).toMatchObject({ opened: true, confirmed: false, queued: false });
+    expect(confirmCalls).toBe(0);
+  });
+
+  it('retries a queued confirm with the original deviceEventId after restart', async () => {
+    const tmp = join(tmpdir(), `eveider-runtime-${Date.now()}.json`);
+    const store = new FileLockerRuntimeStore(tmp, 'locker-1');
+    const deviceEventId = stableDeviceEventId('session-confirm', 'session-1');
+    let snapshot = await store.load();
+    snapshot = queuePendingEvent(snapshot, {
+      deviceEventId,
+      kind: 'session-confirm',
+      payload: { sessionId: 'session-1' },
+      createdAt: new Date().toISOString(),
+    });
+    snapshot = applySyncChanges(snapshot, {
+      cursor: '9',
+      changes: [
+        {
+          type: 'activate',
+          credentialId: 'cred-1',
+          version: 1,
+          parcelId: 'parcel-1',
+          trackingNumber: 'EVD26TEST0001A',
+          recipientPhoneNormalized: '243000000000',
+          pinHash,
+          lockerId: 'locker-1',
+          compartmentId: 'comp-1',
+        },
+      ],
+    });
+    await store.save(snapshot);
+
+    const recovered = await new FileLockerRuntimeStore(tmp, 'locker-1').load();
+    expect(recovered.syncCursor).toBe('9');
+    expect(recovered.pendingEvents[0]?.deviceEventId).toBe(deviceEventId);
+    expect(recovered.credentials['cred-1']?.status).toBe('active');
+
+    const consumed = consumeLocalCredential(recovered, 'cred-1');
+    expect(
+      validateLocalRecipientCollection(consumed, {
+        lockerId: 'locker-1',
+        phone: '+243000000000',
+        trackingNumber: 'EVD26TEST0001A',
+        pin: '482913',
+      }).authorized,
+    ).toBe(false);
+
+    const acked = acknowledgePendingEvent(consumed, deviceEventId);
+    await store.save(acked);
+    const afterAck = await store.load();
+    expect(afterAck.pendingEvents).toHaveLength(0);
+    expect(afterAck.credentials['cred-1']?.status).toBe('consumed');
   });
 });

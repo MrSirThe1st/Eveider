@@ -1,3 +1,4 @@
+import { colors } from '@eveider/config-ui';
 import { BUSINESS_STATUS_LABELS, type BusinessStatus } from '@eveider/domain';
 
 type BusinessStatusBadgeProps = {
@@ -9,52 +10,52 @@ const STATUS_STYLES: Record<
   { bg: string; color: string; dot: string; border: string }
 > = {
   active: {
-    bg: '#DCF5D6',
-    color: '#067A07',
-    dot: '#09D40B',
-    border: '#C0EAB7',
+    bg: colors.successMuted,
+    color: colors.successFg,
+    dot: colors.success,
+    border: colors.primaryMuted,
   },
   onboarding: {
-    bg: '#EBF3FE',
-    color: '#1677FF',
-    dot: '#1677FF',
-    border: '#D2E3FC',
+    bg: colors.infoMuted,
+    color: colors.infoFg,
+    dot: colors.info,
+    border: colors.infoMuted,
   },
   pending_review: {
-    bg: '#FFFBEB',
-    color: '#B45309',
-    dot: '#F59E0B',
-    border: '#FDE68A',
+    bg: colors.warningMuted,
+    color: colors.warningFg,
+    dot: colors.warning,
+    border: colors.warningMuted,
   },
   pending_correction: {
-    bg: '#FFFBEB',
-    color: '#B45309',
-    dot: '#F59E0B',
-    border: '#FDE68A',
+    bg: colors.warningMuted,
+    color: colors.warningFg,
+    dot: colors.warning,
+    border: colors.warningMuted,
   },
   pending: {
-    bg: '#FFFBEB',
-    color: '#B45309',
-    dot: '#F59E0B',
-    border: '#FDE68A',
+    bg: colors.warningMuted,
+    color: colors.warningFg,
+    dot: colors.warning,
+    border: colors.warningMuted,
   },
   draft: {
-    bg: '#F0F4EE',
-    color: '#475467',
-    dot: '#98A2B3',
-    border: '#E2E8E0',
+    bg: colors.surfaceMuted,
+    color: colors.textMuted,
+    dot: colors.textDisabled,
+    border: colors.borderSubtle,
   },
   suspended: {
-    bg: '#F0F4EE',
-    color: '#475467',
-    dot: '#98A2B3',
-    border: '#E2E8E0',
+    bg: colors.surfaceMuted,
+    color: colors.textMuted,
+    dot: colors.textDisabled,
+    border: colors.borderSubtle,
   },
   blocked: {
-    bg: '#FEF2F2',
-    color: '#E53935',
-    dot: '#E53935',
-    border: '#FCA5A5',
+    bg: colors.dangerMuted,
+    color: colors.dangerFg,
+    dot: colors.danger,
+    border: colors.dangerMuted,
   },
 };
 

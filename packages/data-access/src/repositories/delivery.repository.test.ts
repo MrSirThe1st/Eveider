@@ -114,6 +114,35 @@ describe('DeliveryRepository', () => {
     );
   });
 
+  it('does not consult driver zone when assigning a delivery', async () => {
+    setup((sql) => {
+      if (sqlIncludes(sql, 'SELECT * FROM parcels')) {
+        return parcelRow({ pickup_type: 'courier_pickup' });
+      }
+      if (sqlIncludes(sql, 'SELECT * FROM users')) {
+        return { id: 'courier-1', role: 'courier' };
+      }
+      if (sqlIncludes(sql, 'FROM driver_dossiers')) {
+        return { status: 'active', business_id: null, service_area_id: 'zone-a' };
+      }
+      if (sqlIncludes(sql, 'FROM deliveries') && sqlIncludes(sql, 'status = ANY')) {
+        return null;
+      }
+      if (sqlIncludes(sql, 'INSERT INTO deliveries')) {
+        return deliveryRow();
+      }
+      if (sqlIncludes(sql, 'SELECT name FROM lockers')) {
+        return { name: 'EVEIDER GOMBE' };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    await repo.assign(adminCtx, 'parcel-1', 'courier-1');
+
+    const sqls = (db.query as ReturnType<typeof vi.fn>).mock.calls.map((call) => String(call[0]));
+    expect(sqls.some((sql) => sql.includes('service_area'))).toBe(false);
+  });
+
   it('rejects business assignment of any driver', async () => {
     setup(() => {
       throw new Error('Unexpected SQL');

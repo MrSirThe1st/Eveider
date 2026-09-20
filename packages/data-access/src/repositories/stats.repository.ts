@@ -8,8 +8,12 @@ export type DashboardStats = {
   completedToday: number;
   readyForPickup: number;
   openIssues: number;
+  awaitingAssignment: number;
+  awaitingReturnAssignment: number;
+  atLocker: number;
   lockerOccupancy: {
     occupied: number;
+    reserved: number;
     total: number;
     available: number;
   };
@@ -39,6 +43,19 @@ export type RankedBusiness = {
   businessId: string;
   businessName: string;
   parcelCount: number;
+};
+
+export type BusinessOperationalSnapshot = {
+  awaitingHandoff: number;
+  awaitingDeposit: number;
+  returnsToReview: number;
+  returnsToCollect: number;
+  inTransit: number;
+  atLocker: number;
+  readyForPickup: number;
+  collected: number;
+  businessOwedAmount: number;
+  businessOwedCurrency: 'USD' | 'CDF';
 };
 
 export type BusinessAnalytics = {
@@ -173,7 +190,27 @@ export class StatsRepository {
          (SELECT COUNT(*)::int FROM deliveries WHERE status = 'completed' AND completed_at >= $1) AS completed_today,
          (SELECT COUNT(*)::int FROM parcels WHERE status = 'ready_for_pickup') AS ready_for_pickup,
          (SELECT COUNT(*)::int FROM issues WHERE status = ANY($3)) AS open_issues,
+         (
+           SELECT COUNT(*)::int FROM parcels p
+           WHERE p.status = 'created' AND p.pickup_type = 'courier_pickup'
+             AND NOT EXISTS (
+               SELECT 1 FROM deliveries d
+               WHERE d.parcel_id = p.id AND d.kind = 'outbound' AND d.status = ANY($2)
+             )
+         ) AS awaiting_assignment,
+         (
+           SELECT COUNT(*)::int FROM parcel_returns pr
+           JOIN parcels p ON p.id = pr.parcel_id
+           WHERE pr.status = 'awaiting_pickup' AND pr.method = 'eveider_return'
+             AND p.status = 'return_at_point'
+             AND NOT EXISTS (
+               SELECT 1 FROM deliveries d
+               WHERE d.parcel_id = p.id AND d.kind = 'customer_return' AND d.status = ANY($2)
+             )
+         ) AS awaiting_return_assignment,
+         (SELECT COUNT(*)::int FROM parcels WHERE status = 'delivered_to_locker') AS at_locker,
          (SELECT COUNT(*)::int FROM compartments WHERE status = 'occupied') AS occupied,
+         (SELECT COUNT(*)::int FROM compartments WHERE status = 'reserved') AS reserved,
          (SELECT COUNT(*)::int FROM compartments WHERE status = 'available') AS available,
          (SELECT COUNT(*)::int FROM compartments) AS total`,
       [today, ['assigned', 'scanned', 'drop_off_pending'], ['open', 'in_progress']],
@@ -186,8 +223,12 @@ export class StatsRepository {
       completedToday: Number(row.completed_today ?? 0),
       readyForPickup: Number(row.ready_for_pickup ?? 0),
       openIssues: Number(row.open_issues ?? 0),
+      awaitingAssignment: Number(row.awaiting_assignment ?? 0),
+      awaitingReturnAssignment: Number(row.awaiting_return_assignment ?? 0),
+      atLocker: Number(row.at_locker ?? 0),
       lockerOccupancy: {
         occupied: Number(row.occupied ?? 0),
+        reserved: Number(row.reserved ?? 0),
         available: Number(row.available ?? 0),
         total: Number(row.total ?? 0),
       },
@@ -423,6 +464,63 @@ export class StatsRepository {
         lockerName: String(entry.lockerName),
         parcelCount: Number(entry.parcelCount),
       })),
+    };
+  }
+
+  async getBusinessOperationalSnapshot(
+    ctx: DataAccessContext,
+    businessId: string,
+  ): Promise<BusinessOperationalSnapshot> {
+    assertBusinessScope(ctx, businessId);
+    const result = await this.db.query(
+      `SELECT
+         (SELECT COUNT(*)::int FROM parcels
+           WHERE business_id = $1 AND status = 'created' AND pickup_type = 'courier_pickup') AS awaiting_handoff,
+         (SELECT COUNT(*)::int FROM parcels
+           WHERE business_id = $1 AND status = 'created' AND pickup_type = 'merchant_dropoff') AS awaiting_deposit,
+         (SELECT COUNT(*)::int FROM parcels
+           WHERE business_id = $1 AND status = 'in_transit') AS in_transit,
+         (SELECT COUNT(*)::int FROM parcels
+           WHERE business_id = $1 AND status = 'delivered_to_locker') AS at_locker,
+         (SELECT COUNT(*)::int FROM parcels
+           WHERE business_id = $1 AND status = 'ready_for_pickup') AS ready_for_pickup,
+         (SELECT COUNT(*)::int FROM parcels
+           WHERE business_id = $1 AND status = 'collected') AS collected,
+         (SELECT COUNT(*)::int FROM parcel_returns pr
+           JOIN parcels p ON p.id = pr.parcel_id
+          WHERE p.business_id = $1 AND pr.status = 'requested') AS returns_to_review,
+         (SELECT COUNT(*)::int FROM parcel_returns pr
+           JOIN parcels p ON p.id = pr.parcel_id
+          WHERE p.business_id = $1
+            AND pr.method = 'business_pickup'
+            AND p.status = 'return_at_point') AS returns_to_collect,
+         (SELECT COALESCE(SUM(pc.amount), 0)
+            FROM parcel_charges pc
+            JOIN parcels p ON p.id = pc.parcel_id
+           WHERE p.business_id = $1
+             AND pc.payer = 'business'
+             AND pc.status <> 'void'
+             AND pc.kind IN ('return_delivery', 'return_locker', 'locker_rental')) AS owed_amount,
+         (SELECT COALESCE(MAX(pc.currency), 'CDF')
+            FROM parcel_charges pc
+            JOIN parcels p ON p.id = pc.parcel_id
+           WHERE p.business_id = $1
+             AND pc.payer = 'business'
+             AND pc.status <> 'void') AS owed_currency`,
+      [businessId],
+    );
+    const row = result.rows[0] ?? {};
+    return {
+      awaitingHandoff: Number(row.awaiting_handoff ?? 0),
+      awaitingDeposit: Number(row.awaiting_deposit ?? 0),
+      returnsToReview: Number(row.returns_to_review ?? 0),
+      returnsToCollect: Number(row.returns_to_collect ?? 0),
+      inTransit: Number(row.in_transit ?? 0),
+      atLocker: Number(row.at_locker ?? 0),
+      readyForPickup: Number(row.ready_for_pickup ?? 0),
+      collected: Number(row.collected ?? 0),
+      businessOwedAmount: Number(row.owed_amount ?? 0),
+      businessOwedCurrency: row.owed_currency === 'USD' ? 'USD' : 'CDF',
     };
   }
 
