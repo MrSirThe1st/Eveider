@@ -9,7 +9,7 @@ import { requireAdminSession } from '@/lib/session';
 type RouteParams = { params: Promise<{ key: string[] }> };
 
 function contentDisposition(fileName: string, asAttachment: boolean) {
-  const ascii = fileName.replace(/[^\w.\-]+/g, '_') || 'piece';
+  const ascii = fileName.replace(/[^\w.-]+/g, '_') || 'piece';
   const encoded = encodeURIComponent(fileName);
   const type = asAttachment ? 'attachment' : 'inline';
   return `${type}; filename="${ascii}"; filename*=UTF-8''${encoded}`;
