@@ -27,6 +27,8 @@ export type DropdownMenuProps = {
   items: DropdownMenuItem[];
   /** Accessible name for the trigger. */
   label?: string;
+  /** Hover tooltip. Defaults to the accessible name. Pass `false` to hide it. */
+  tooltip?: string | false;
   align?: 'start' | 'end';
   trigger?: ReactNode;
   className?: string;
@@ -51,6 +53,7 @@ function supportWidgetClearancePx(): number {
 export function DropdownMenu({
   items,
   label = 'Actions',
+  tooltip,
   align = 'end',
   trigger,
   className,
@@ -218,12 +221,12 @@ export function DropdownMenu({
         <button
           ref={triggerRef}
           type="button"
-          className="nb-dropdown__trigger"
+          className="nb-dropdown__trigger nb-icon-btn"
           aria-haspopup="menu"
           aria-expanded={open}
           aria-controls={menuId}
           aria-label={label}
-          title={label}
+          data-tooltip={tooltip === false ? undefined : (tooltip ?? label)}
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();

@@ -100,7 +100,7 @@ export function PlatformSettingsForm({ initialSettings }: PlatformSettingsFormPr
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           pickupFeeAmount: settings.pickupFeeAmount,
-          pickupFeeCurrency: settings.pickupFeeCurrency,
+          platformCurrency: settings.platformCurrency,
           requireOrgApproval: settings.requireOrgApproval,
           defaultDailyShipments: settings.defaultDailyShipments,
           defaultMonthlyShipments: settings.defaultMonthlyShipments,
@@ -125,53 +125,28 @@ export function PlatformSettingsForm({ initialSettings }: PlatformSettingsFormPr
     <form onSubmit={(event) => void handleSubmit(event)} style={{ display: 'grid', gap: '1.5rem' }}>
       <section style={{ ...webCardStyle, padding: '1.5rem' }}>
         <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.875rem', fontWeight: 700 }}>
-          Frais de retrait (historique)
+          Devise de la plateforme
         </h3>
         <p style={{ margin: '0 0 1.25rem', fontSize: '0.8125rem', color: colors.textMuted }}>
-          Conservé pour les anciens colis sans frais canonique. Les nouveaux envois utilisent
-          le tarif de zone ou le frais de casier (Paramètres → Facturation).
+          Tous les nouveaux tarifs et toutes les nouvelles facturations utilisent cette devise.
+          Les montants déjà facturés ne changent pas.
         </p>
-        <div
-          style={{
-            display: 'grid',
-            gap: '1rem',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-            maxWidth: 480,
-          }}
-        >
-          <label>
-            <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 8 }}>
-              Montant
-            </span>
-            <input
-              type="number"
-              step="0.01"
-              min={0.01}
-              value={settings.pickupFeeAmount}
-              onChange={(e) =>
-                setSettings({ ...settings, pickupFeeAmount: Number(e.target.value) })
-              }
-              style={inputStyle}
-            />
-          </label>
-          <label>
-            <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 8 }}>
-              Devise
-            </span>
-            <input
-              type="text"
-              maxLength={3}
-              value={settings.pickupFeeCurrency}
-              onChange={(e) =>
-                setSettings({ ...settings, pickupFeeCurrency: e.target.value.toUpperCase() })
-              }
-              style={inputStyle}
-            />
-          </label>
-        </div>
-        <p style={{ margin: '1rem 0 0', fontSize: '0.75rem', color: colors.textMuted }}>
-          Paiement mobile : {settings.pawapayConfigured ? 'prêt' : 'pas encore configuré'}
-        </p>
+        <label style={{ display: 'grid', gap: 8, maxWidth: 320 }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Devise</span>
+          <select
+            value={settings.platformCurrency}
+            onChange={(e) =>
+              setSettings({
+                ...settings,
+                platformCurrency: e.target.value as 'USD' | 'CDF',
+              })
+            }
+            style={inputStyle}
+          >
+            <option value="CDF">CDF (franc congolais)</option>
+            <option value="USD">USD (dollar)</option>
+          </select>
+        </label>
       </section>
 
       <section style={{ ...webCardStyle, padding: '1.5rem' }}>

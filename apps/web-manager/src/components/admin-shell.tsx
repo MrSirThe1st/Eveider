@@ -15,7 +15,7 @@ import { useRouter } from 'next/navigation';
 import { AdminSettingsChrome } from '@/components/settings-chrome';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { ADMIN_PRIMARY_NAV } from '@/lib/admin-nav';
-import { createClient } from '@/lib/supabase/client';
+import { signOutClient } from '@/lib/supabase/client';
 
 
 type AdminShellProps = {
@@ -61,8 +61,7 @@ export function AdminShell({ children, userName, userEmail }: AdminShellProps) {
   const router = useRouter();
 
   async function handleSignOut() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    await signOutClient();
     router.replace('/');
   }
 

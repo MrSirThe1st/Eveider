@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, type FormEvent } from 'react';
 import { adminDriverPath } from '@/lib/auth-routing';
+import { inviteCooldownButtonLabel, useInviteCooldowns } from '@/lib/invite-cooldown';
 import type { EveiderTeamInviteView, EveiderTeamMemberView } from '@/server/eveider-team';
 
 type AdminEveiderTeamPanelProps = {
@@ -51,6 +52,7 @@ export function AdminEveiderTeamPanel({
   const [revokeId, setRevokeId] = useState<string | null>(null);
   const [revoking, setRevoking] = useState(false);
   const [driverZoneFilter, setDriverZoneFilter] = useState('all');
+  const inviteCooldown = useInviteCooldowns('eveider-team');
 
   async function refresh() {
     router.refresh();
@@ -76,6 +78,7 @@ export function AdminEveiderTeamPanel({
 
   async function handleInvite(event: FormEvent) {
     event.preventDefault();
+    if (!inviteCooldown.guard(inviteEmail)) return;
     resetAlerts();
     setSaving(true);
     try {
@@ -89,8 +92,8 @@ export function AdminEveiderTeamPanel({
         setError(result.error ?? 'Impossible d’envoyer l’invitation');
         return;
       }
+      inviteCooldown.start(inviteEmail, result.data?.invite?.id ?? '');
       setInviteOpen(false);
-      setSuccess('Invitation envoyée par email.');
       await refresh();
     } catch {
       setError('Erreur réseau. Veuillez réessayer.');
@@ -138,7 +141,8 @@ export function AdminEveiderTeamPanel({
     }
   }
 
-  async function handleResend(inviteId: string) {
+  async function handleResend(inviteId: string, inviteEmail?: string) {
+    if (!inviteCooldown.guard(inviteId)) return;
     setError(null);
     const response = await fetch(`/api/admin/eveider-team/invites/${inviteId}`, { method: 'POST' });
     const result = await response.json();
@@ -146,7 +150,7 @@ export function AdminEveiderTeamPanel({
       setError(result.error ?? 'Impossible de renvoyer l’invitation');
       return;
     }
-    setSuccess('Invitation renvoyée par email.');
+    inviteCooldown.start(inviteId, inviteEmail ?? '');
     await refresh();
   }
 
@@ -336,25 +340,24 @@ export function AdminEveiderTeamPanel({
     [],
   );
 
-  const inviteRowActions = useMemo(
-    () =>
-      canManage
-        ? (row: EveiderTeamInviteView): DropdownMenuItem[] => [
-            {
-              id: 'resend',
-              label: 'Renvoyer',
-              onClick: () => void handleResend(row.id),
-            },
-            {
-              id: 'revoke',
-              label: 'Révoquer',
-              tone: 'danger',
-              onClick: () => void handleRevokeInvite(row.id),
-            },
-          ]
-        : undefined,
-    [canManage],
-  );
+  const inviteRowActions = canManage
+    ? (row: EveiderTeamInviteView): DropdownMenuItem[] => {
+        const remaining = inviteCooldown.remainingMs(row.id);
+        return [
+          {
+            id: 'resend',
+            label: inviteCooldownButtonLabel('Renvoyer', remaining),
+            onClick: () => void handleResend(row.id, row.email),
+          },
+          {
+            id: 'revoke',
+            label: 'Révoquer',
+            tone: 'danger',
+            onClick: () => void handleRevokeInvite(row.id),
+          },
+        ];
+      }
+    : undefined;
 
   const promoteModalTitle = promoteDriverId ? 'Promouvoir en dispatcher' : 'Promouvoir un compte existant';
   const promoteModalDescription = promoteDriverId
@@ -363,14 +366,20 @@ export function AdminEveiderTeamPanel({
 
   return (
     <div style={{ display: 'grid', gap: '1.25rem' }}>
-      {error ? <InlineAlert message={error} variant="error" /> : null}
-      {success ? <InlineAlert message={success} variant="success" /> : null}
+      {inviteCooldown.waitMessage ? (
+        <InlineAlert message={inviteCooldown.waitMessage} variant="info" autoDismissMs={0} />
+      ) : error ? (
+        <InlineAlert message={error} variant="error" />
+      ) : success ? (
+        <InlineAlert message={success} variant="success" />
+      ) : null}
 
       <DataTable
         caption={`${dispatchers.length} dispatcher${dispatchers.length === 1 ? '' : 's'}`}
         columns={dispatcherColumns}
         rows={dispatchers}
         getRowId={(row) => row.id}
+        sortBy="name"
         rowActions={dispatcherRowActions}
         toolbar={
           canManage ? (
@@ -386,6 +395,7 @@ export function AdminEveiderTeamPanel({
         columns={driverColumns}
         rows={filteredDrivers}
         getRowId={(row) => row.id}
+        sortBy="name"
         rowActions={driverRowActions}
         toolbar={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -421,6 +431,7 @@ export function AdminEveiderTeamPanel({
           columns={inviteColumns}
           rows={invites}
           getRowId={(row) => row.id}
+          sortBy="email"
           rowActions={inviteRowActions}
         />
       ) : null}
@@ -435,8 +446,13 @@ export function AdminEveiderTeamPanel({
             <Button variant="ghost" onClick={() => setInviteOpen(false)} disabled={saving}>
               Annuler
             </Button>
-            <Button type="submit" form="eveider-team-invite-form" disabled={saving}>
-              {saving ? 'Envoi…' : 'Inviter'}
+            <Button
+              type="submit"
+              form="eveider-team-invite-form"
+              disabled={saving || inviteCooldown.isCooling(inviteEmail)}
+              loading={saving}
+            >
+              {saving ? 'Envoi…' : inviteCooldown.buttonLabel(inviteEmail, 'Inviter')}
             </Button>
           </>
         }

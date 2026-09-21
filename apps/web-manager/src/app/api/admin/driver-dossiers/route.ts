@@ -1,8 +1,15 @@
 import { createCourierDossierSchema, fail, ok } from '@eveider/api-contracts';
-import { AccessDeniedError, createRepositories } from '@eveider/data-access';
+import { AccessDeniedError, createRepositories, uploadIdentityDocument } from '@eveider/data-access';
 import { NextResponse } from 'next/server';
 import { requireAdminSession } from '@/lib/session';
 import { loadAdminDriverRoster } from '@/server/drivers';
+
+function formText(form: FormData, key: string): string | undefined {
+  const value = form.get(key);
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+}
 
 export async function GET() {
   const auth = await requireAdminSession();
@@ -25,7 +32,43 @@ export async function POST(request: Request) {
     return NextResponse.json(fail(auth.error), { status: auth.status });
   }
 
-  const body = createCourierDossierSchema.safeParse(await request.json().catch(() => null));
+  const contentType = request.headers.get('content-type') ?? '';
+  let payload: unknown;
+
+  try {
+    if (contentType.includes('multipart/form-data')) {
+      const form = await request.formData();
+      const file = form.get('idDocument');
+      if (!(file instanceof File) || file.size === 0) {
+        return NextResponse.json(fail('Pièce d’identité requise'), { status: 400 });
+      }
+
+      const uploaded = await uploadIdentityDocument({
+        bytes: new Uint8Array(await file.arrayBuffer()),
+        fileName: file.name,
+        declaredMimeType: file.type || undefined,
+        kind: 'driver_id',
+        uploadedByUserId: auth.session.profile.id,
+      });
+
+      payload = {
+        fullName: formText(form, 'fullName') ?? '',
+        email: formText(form, 'email') ?? '',
+        phone: formText(form, 'phone'),
+        notes: formText(form, 'notes'),
+        serviceAreaId: formText(form, 'serviceAreaId') ?? null,
+        idDocumentUrl: uploaded.storedRef,
+        contractorType: 'eveider',
+      };
+    } else {
+      payload = await request.json().catch(() => null);
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Impossible d’enregistrer la pièce';
+    return NextResponse.json(fail(message), { status: 400 });
+  }
+
+  const body = createCourierDossierSchema.safeParse(payload);
   if (!body.success) {
     return NextResponse.json(fail(body.error.errors[0]?.message ?? 'Données invalides'), {
       status: 400,

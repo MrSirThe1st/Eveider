@@ -1,7 +1,7 @@
 import { fail, ok } from '@eveider/api-contracts';
 import { createRepositories } from '@eveider/data-access';
 import type { User } from '@eveider/data-access';
-import { deriveUserRole } from '@eveider/domain';
+import { deriveUserRole, isMobileDriver } from '@eveider/domain';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
@@ -90,12 +90,13 @@ export async function GET(request: Request) {
 
     const bearer = getBearerToken(request);
     const surface = bearer ? 'mobile' : 'web';
-    const persona = deriveUserRole({
-      isCustomer: profile.isCustomer,
-      platformRole: profile.platformRole,
-      memberships: membershipRefs,
-      surface,
-    });
+    const persona =
+      deriveUserRole({
+        isCustomer: profile.isCustomer,
+        platformRole: profile.platformRole,
+        memberships: membershipRefs,
+        surface,
+      }) ?? (isMobileDriver(membershipRefs) ? 'driver' : null);
 
     if (!persona) {
       return withCors(

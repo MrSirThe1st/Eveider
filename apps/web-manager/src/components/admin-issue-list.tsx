@@ -1,9 +1,19 @@
 'use client';
 
-import { webCardStyle } from '@eveider/config-ui';
 import type { IssueStatus } from '@eveider/domain';
 import { ISSUE_STATUS_LABELS } from '@eveider/domain';
-import { Button, EmptyState, FilterToolbar, IconAlert } from '@eveider/ui';
+import {
+  DataTable,
+  DEFAULT_TABLE_PAGE_SIZE,
+  FilterToolbar,
+  IconAlert,
+  StatusBadge,
+  TableCellStack,
+  TruncatedText,
+  type DataTableColumn,
+  type StatusBadgeTone,
+} from '@eveider/ui';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { FlashBanner } from '@/components/flash-banner';
@@ -15,6 +25,12 @@ const STATUS_OPTIONS: { value: IssueStatusFilter; label: string }[] = [
   { value: 'in_progress', label: ISSUE_STATUS_LABELS.in_progress },
   { value: 'resolved', label: ISSUE_STATUS_LABELS.resolved },
 ];
+
+const STATUS_TONE: Record<IssueStatus, StatusBadgeTone> = {
+  open: 'warning',
+  in_progress: 'info',
+  resolved: 'success',
+};
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat('fr-CD', {
@@ -74,101 +90,134 @@ export function AdminIssueList({ issues }: AdminIssueListProps) {
     }
   }
 
+  const columns = useMemo<DataTableColumn<IssueItem>[]>(
+    () => [
+      {
+        id: 'type',
+        header: 'Incident',
+        sortable: true,
+        sortValue: (row) => row.typeLabel,
+        cell: (row) => (
+          <TableCellStack
+            primary={row.typeLabel}
+            secondary={
+              row.description ? undefined : row.lockerName ? row.lockerName : undefined
+            }
+          />
+        ),
+      },
+      {
+        id: 'description',
+        header: 'Détail',
+        hideOnMobile: true,
+        cell: (row) =>
+          row.description ? <TruncatedText maxWidth={280}>{row.description}</TruncatedText> : '—',
+      },
+      {
+        id: 'parcel',
+        header: 'Colis',
+        sortable: true,
+        sortValue: (row) => row.parcelReference ?? '',
+        cell: (row) =>
+          row.parcelId ? (
+            <Link href={`/tableau-de-bord/colis/${row.parcelId}`} className="nb-data-table__link">
+              {row.parcelReference ?? 'Voir le colis'}
+            </Link>
+          ) : (
+            '—'
+          ),
+      },
+      {
+        id: 'status',
+        header: 'Statut',
+        sortable: true,
+        sortValue: (row) => row.status,
+        cell: (row) => (
+          <StatusBadge tone={STATUS_TONE[row.status] ?? 'neutral'}>{row.statusLabel}</StatusBadge>
+        ),
+      },
+      {
+        id: 'createdAt',
+        header: 'Créé',
+        sortable: true,
+        sortValue: (row) => new Date(row.createdAt).getTime(),
+        numeric: true,
+        cell: (row) => (
+          <TableCellStack
+            primary={formatDate(row.createdAt)}
+            secondary={row.reporterName ?? 'Utilisateur'}
+          />
+        ),
+      },
+    ],
+    [],
+  );
+
   return (
     <div>
-      <FilterToolbar
-        onClearAll={() => setStatusFilter('all')}
-        filters={[
-          {
-            id: 'status',
-            label: 'Statut',
-            value: statusFilter,
-            emptyValue: 'all',
-            options: STATUS_OPTIONS,
-            onChange: (value) => setStatusFilter(value as IssueStatusFilter),
-          },
-        ]}
-      />
-
       {actionError ? <FlashBanner message={actionError} variant="error" /> : null}
 
-      {filtered.length === 0 ? (
-        <EmptyState
-          compact
-          title="Aucun incident pour ce filtre"
-          description="Changez de statut ou attendez de nouveaux signalements."
-          icon={<IconAlert />}
-        />
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {filtered.map((issue) => {
-            const next = NEXT_STATUS[issue.status];
-            return (
-              <article
-                key={issue.id}
-                style={{
-                  ...webCardStyle,
-                  padding: '1rem 1.25rem',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    gap: '1rem',
-                    flexWrap: 'wrap',
-                    marginBottom: '0.5rem',
-                  }}
-                >
-                  <div>
-                    <p style={{ margin: 0, fontWeight: 700 }}>
-                      {issue.typeLabel}
-                    </p>
-                    <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', fontWeight: 500 }}>
-                      {issue.parcelReference ? `Colis ${issue.parcelReference}` : 'Sans colis'}
-                      {issue.lockerName ? ` · ${issue.lockerName}` : ''}
-                    </p>
-                  </div>
-                  <span
-                    style={{
-                      fontSize: '0.6875rem',
-                      fontWeight: 700,
-                      letterSpacing: '0.06em',
-                      alignSelf: 'flex-start',
-                    }}
-                  >
-                    {issue.statusLabel}
-                  </span>
-                </div>
-
-                {issue.description ? (
-                  <p style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', lineHeight: 1.5 }}>
-                    {issue.description}
-                  </p>
-                ) : null}
-
-                <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 500, opacity: 0.7 }}>
-                  {issue.reporterName ?? 'Utilisateur'}
-                  {issue.reporterRole ? ` (${issue.reporterRole.toUpperCase()})` : ''} ·{' '}
-                  {formatDate(issue.createdAt)}
-                </p>
-
-                {next ? (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    loading={actingId === issue.id}
-                    onClick={() => void advanceStatus(issue)}
-                    style={{ marginTop: '0.75rem' }}
-                  >
-                    {next === 'in_progress' ? 'Prendre en charge' : 'Marquer résolu'}
-                  </Button>
-                ) : null}
-              </article>
-            );
-          })}
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        rows={filtered}
+        getRowId={(row) => row.id}
+        filters={
+          <FilterToolbar
+            embedded
+            onClearAll={() => setStatusFilter('all')}
+            filters={[
+              {
+                id: 'status',
+                label: 'Statut',
+                value: statusFilter,
+                emptyValue: 'all',
+                options: STATUS_OPTIONS,
+                onChange: (value) => setStatusFilter(value as IssueStatusFilter),
+              },
+            ]}
+          />
+        }
+        emptyTitle={statusFilter === 'all' ? 'Aucun incident' : 'Aucun résultat'}
+        emptyDescription={
+          statusFilter === 'all'
+            ? 'Les signalements apparaîtront ici.'
+            : 'Aucun incident ne correspond aux filtres actuels.'
+        }
+        emptyIcon={<IconAlert />}
+        emptyAction={
+          statusFilter !== 'all' ? (
+            <button
+              type="button"
+              className="nb-btn nb-btn-secondary nb-btn--sm"
+              onClick={() => setStatusFilter('all')}
+            >
+              Réinitialiser les filtres
+            </button>
+          ) : undefined
+        }
+        sortBy="createdAt"
+        pageSize={DEFAULT_TABLE_PAGE_SIZE}
+        rowPrimaryAction={(row) => {
+          const next = NEXT_STATUS[row.status];
+          if (!next) return null;
+          return {
+            label: next === 'in_progress' ? 'Prendre en charge' : 'Marquer résolu',
+            disabled: actingId === row.id,
+            onClick: () => void advanceStatus(row),
+          };
+        }}
+        rowActions={(row) =>
+          row.parcelId
+            ? [
+                {
+                  id: 'parcel',
+                  label: 'Voir le colis',
+                  href: `/tableau-de-bord/colis/${row.parcelId}`,
+                },
+              ]
+            : []
+        }
+      />
     </div>
   );
 }

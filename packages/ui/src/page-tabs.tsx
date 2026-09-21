@@ -73,8 +73,13 @@ function PageTabsNav({ tabs, 'aria-label': ariaLabel = 'Vues' }: PageTabsProps) 
           <Link
             key={tab.href}
             href={tab.href}
+            prefetch
+            scroll={false}
             className="nb-page-tabs__link"
             aria-current={active ? 'page' : undefined}
+            onPointerDown={() => {
+              if (!routeActive) setPendingHref(tab.href);
+            }}
             onClick={() => {
               if (!routeActive) setPendingHref(tab.href);
             }}

@@ -46,10 +46,24 @@ export function assertDriverDossierTransition(
 }
 
 /**
- * Eveider fleet drivers need platform approval before assignment.
- * Business drivers are operational as soon as invited/active (or still on file
- * in review) — documents stay recorded for Eveider without blocking delivery.
+ * Eveider-added chauffeurs can be invited immediately (documents are on file only).
+ * Business-created chauffeurs wait for an Eveider admin to approve the dossier.
+ * Invited / active may receive a fresh magic link.
  */
+export function canInviteDriverDossier(
+  status: DriverDossierStatus,
+  contractorType: DriverContractorKind | 'business' = 'eveider',
+): boolean {
+  if (status === 'rejected' || status === 'deactivated' || status === 'needs_correction') {
+    return false;
+  }
+  const isBusiness = contractorType === 'business' || contractorType === 'organization';
+  if (isBusiness) {
+    return status === 'approved' || status === 'invited' || status === 'active';
+  }
+  return status === 'pending_review' || status === 'approved' || status === 'invited' || status === 'active';
+}
+
 export function isAssignableDriverDossier(
   status: DriverDossierStatus,
   contractorType: DriverContractorKind | 'business' = 'eveider',
@@ -136,5 +150,6 @@ export type CourierDossierStatus = DriverDossierStatus;
 export const canTransitionCourierDossier = canTransitionDriverDossier;
 export const assertCourierDossierTransition = assertDriverDossierTransition;
 export const isAssignableCourierDossier = isAssignableDriverDossier;
+export const canInviteCourierDossier = canInviteDriverDossier;
 export const COURIER_DOSSIER_STATUS_LABELS = DRIVER_DOSSIER_STATUS_LABELS;
 export const COURIER_DOSSIER_STATUSES = DRIVER_DOSSIER_STATUSES;

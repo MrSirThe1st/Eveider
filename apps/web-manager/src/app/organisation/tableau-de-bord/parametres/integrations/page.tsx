@@ -7,10 +7,10 @@ export default async function OrganizationIntegrationsSettingsPage() {
   return (
     <PageFrame
       title="Excel"
-      description="Import et export de fichiers. L’import quotidien se fait aussi depuis Colis."
+      description="Import de fichiers Excel. L’import quotidien se fait aussi depuis Colis."
       layout="standard"
     >
-      <ExcelIntegrationsPanel variant="business" />
+      <ExcelIntegrationsPanel />
     </PageFrame>
   );
 }

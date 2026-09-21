@@ -1,10 +1,11 @@
 'use client';
 
-import { BUSINESS_INDUSTRY_OPTIONS } from '@eveider/domain';
+import { BUSINESS_INDUSTRY_OPTIONS, normalizeUserRole } from '@eveider/domain';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Spinner } from '@eveider/ui';
-import { WEB_ROUTES } from '@/lib/auth-routing';
+import { getPostLoginPath, WEB_ROUTES } from '@/lib/auth-routing';
+import { createClient } from '@/lib/supabase/client';
 import { AuthPasswordField } from './auth-password-field';
 import { AuthPhoneField } from './auth-phone-field';
 import styles from './auth-shell.module.css';
@@ -79,7 +80,20 @@ export function SignupBusinessForm({ inviteToken }: SignupBusinessFormProps) {
         setError(result.error ?? 'Erreur lors de la création du compte');
         return;
       }
-      router.replace(WEB_ROUTES.businessDashboard);
+
+      const supabase = createClient();
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) {
+        router.replace(WEB_ROUTES.login);
+        return;
+      }
+
+      const meResponse = await fetch('/api/auth/me');
+      const meResult = await meResponse.json();
+      const role = normalizeUserRole(
+        meResult.success ? (meResult.data.profile.persona ?? meResult.data.profile.role) : null,
+      );
+      router.replace(role ? getPostLoginPath(role) : WEB_ROUTES.landing);
     } catch {
       setError('Erreur réseau. Veuillez réessayer.');
     } finally {
@@ -88,7 +102,7 @@ export function SignupBusinessForm({ inviteToken }: SignupBusinessFormProps) {
   }
 
   return (
-    <form className={styles.form} onSubmit={handleRegister}>
+    <form className={styles.form} method="dialog" onSubmit={handleRegister}>
       <div className={styles.row}>
         <label className={styles.field}>
           <span>Prénom</span>

@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { AdminDriverDocuments } from '@/components/admin-driver-documents';
-import { loadAdminDriverDetail } from '@/server/drivers';
+import { loadAdminDriverDetail, loadAdminDriverVehicleDocuments } from '@/server/drivers';
 import { getAdminSession } from '@/server/session';
 
 type PageProps = {
@@ -12,6 +12,7 @@ export default async function AdminDriverDocumentsPage({ params }: PageProps) {
   const session = await getAdminSession();
   const driver = await loadAdminDriverDetail(session.ctx, id);
   if (!driver) notFound();
+  const vehicleDocuments = await loadAdminDriverVehicleDocuments(session.ctx, id);
 
-  return <AdminDriverDocuments driver={driver} />;
+  return <AdminDriverDocuments driver={driver} vehicleDocuments={vehicleDocuments} />;
 }

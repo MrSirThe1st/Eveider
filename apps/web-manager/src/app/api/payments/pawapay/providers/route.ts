@@ -1,7 +1,8 @@
 import { fail, ok } from '@eveider/api-contracts';
 import {
+  buildPawaPayConfig,
+  createRepositories,
   DRC_DEPOSIT_PROVIDERS,
-  getPawaPayConfig,
   listPawaPayDepositProviders,
 } from '@eveider/data-access';
 import { NextResponse } from 'next/server';
@@ -19,7 +20,12 @@ export async function GET(request: Request) {
     );
   }
 
-  const config = getPawaPayConfig();
+  const { platformSettings } = createRepositories();
+  const settings = await platformSettings.getSettings();
+  const config = buildPawaPayConfig({
+    amount: String(settings.pickupFeeAmount),
+    currency: settings.platformCurrency,
+  });
   if (!config) {
     return withMobileCors(
       NextResponse.json(fail('Paiement mobile indisponible pour le moment'), { status: 503 }),

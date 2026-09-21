@@ -20,6 +20,14 @@ export { PageFrame, type PageFrameProps, type PageLayout } from './page-frame.js
 export { PageTabs, type PageTab, type PageTabsProps } from './page-tabs.js';
 export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from './button.js';
 export { TextField, type TextFieldProps } from './text-field.js';
+export { FileField, type FileFieldProps } from './file-field.js';
+export {
+  fileMatchesAccept,
+  formatFileFieldSelection,
+  formatFileSize,
+  isImageFile,
+  rejectDroppedFile,
+} from './file-field-model.js';
 export { Card, CardHeader, type CardPadding, type CardProps, type CardHeaderProps } from './card.js';
 export { StatusBadge, type StatusBadgeProps, type StatusBadgeTone } from './status-badge.js';
 export { EmptyState, type EmptyStateProps } from './empty-state.js';
@@ -35,6 +43,7 @@ export {
   type ToastInput,
   type ToastVariant,
 } from './toast.js';
+export { Disclosure, type DisclosureProps } from './disclosure.js';
 export { Modal, type ModalProps } from './modal.js';
 export { Drawer, type DrawerProps, type DrawerSide } from './drawer.js';
 export { ConfirmDialog, type ConfirmDialogProps } from './confirm-dialog.js';
@@ -45,11 +54,23 @@ export {
 } from './dropdown-menu.js';
 export {
   DataTable,
+  DEFAULT_TABLE_PAGE_SIZE,
+  DEFAULT_TABLE_PAGE_SIZE_OPTIONS,
   type DataTableColumn,
+  type DataTableError,
   type DataTablePrimaryAction,
   type DataTableProps,
+  type DataTableSelection,
   type SortDirection,
 } from './data-table.js';
+export {
+  InlineEditCell,
+  TableCellStack,
+  TruncatedText,
+  type InlineEditCellProps,
+  type TableCellStackProps,
+  type TruncatedTextProps,
+} from './table-cells.js';
 export { Wizard, WizardStepper, type WizardProps, type WizardStep, type WizardStepperProps } from './wizard.js';
 export {
   FilterBar,
@@ -86,10 +107,16 @@ export {
   IconPlus,
   IconReceipt,
   IconSearch,
+  IconDownload,
+  IconUpload,
+  IconCloudUpload,
+  IconFile,
   IconTruck,
   IconUser,
   IconUsers,
   IconX,
+  IconCheck,
+  IconPencil,
   IconInbox,
 } from './icons.js';
 export { PasswordInput, type PasswordInputProps } from './password-input.js';

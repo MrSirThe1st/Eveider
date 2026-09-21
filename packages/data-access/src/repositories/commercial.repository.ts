@@ -2,6 +2,7 @@ import {
   collectionAuthorizationErrorMessage,
   evaluateRecipientCollection,
   outboundChargeKind,
+  parseDeliveryPricingCurrency,
   payerForChargeKind,
   resolveCommercialPricingModel,
   returnChargeKind,
@@ -19,6 +20,7 @@ import {
 import type { Queryable } from '../db/index.js';
 import type { ParcelCharge } from '../db/types.js';
 import { mapParcelCharge } from './parcel-charge.repository.js';
+import { readPlatformCurrency } from './platform-settings.repository.js';
 import { PricingRepository } from './pricing.repository.js';
 import { buildPawaPayConfig, getPawaPayConfig } from '../payments/pawapay-config.js';
 
@@ -272,7 +274,7 @@ export class CommercialRepository {
   private async legacyRecipientFeeRequired(paymentResponsibility: string): Promise<boolean> {
     if (paymentResponsibility !== 'receiver_pays') return false;
     const settingsResult = await this.db.query(
-      `SELECT pickup_fee_amount, pickup_fee_currency
+      `SELECT pickup_fee_amount, pickup_fee_currency, platform_currency
        FROM platform_settings
        ORDER BY updated_at DESC
        LIMIT 1`,
@@ -281,7 +283,9 @@ export class CommercialRepository {
     const config = row
       ? buildPawaPayConfig({
           amount: String(row.pickup_fee_amount),
-          currency: String(row.pickup_fee_currency),
+          currency: parseDeliveryPricingCurrency(
+            row.platform_currency ?? row.pickup_fee_currency,
+          ),
         })
       : getPawaPayConfig();
     return Boolean(config) && Number(config?.pickupFeeAmount) > 0;
@@ -343,8 +347,7 @@ export class CommercialRepository {
   }
 
   private async currency(): Promise<DeliveryPricingCurrency> {
-    const rules = await new PricingRepository(this.db).getDeliveryRules();
-    return rules.currency;
+    return readPlatformCurrency(this.db);
   }
 }
 

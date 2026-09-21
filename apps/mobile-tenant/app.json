@@ -59,6 +59,10 @@
             {
               "scheme": "eveider",
               "host": "reset-password"
+            },
+            {
+              "scheme": "eveider",
+              "host": "auth"
             }
           ],
           "category": ["BROWSABLE", "DEFAULT"]

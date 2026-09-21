@@ -631,3 +631,12 @@ export type DriverDossier = {
   createdAt: Date;
   updatedAt: Date;
 };
+
+export type DriverVehicleDocument = {
+  id: string;
+  driverDossierId: string;
+  storedRef: string;
+  fileName: string;
+  uploadedByUserId: string | null;
+  createdAt: Date;
+};

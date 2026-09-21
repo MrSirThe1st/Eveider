@@ -1,27 +1,42 @@
-# UI verification (Playwright + Cursor Browser)
+# UI verification
 
-Use this when implementing or changing web-manager UI (layout, navigation, forms, role-gated screens).
+Keep Playwright specs and Cursor Browser available. Do **not** use them as the default after a UI change.
 
-## Prefer Cursor Browser when available
+Follow `.cursor/rules/eveider-test-scope.mdc`.
 
-If the session has Cursor Browser / browser MCP tools, exercise the changed flow there first (click, type, navigate). Screenshots alone are not enough.
+## Default (normal UI work)
 
-When Cursor Browser is **not** available, use Playwright against the local portal.
+One targeted typecheck + relevant Vitest only.
 
-## Playwright (web-manager)
+Do **not** browser-verify simple copy, styling tweaks, minor layout changes, or internal refactors.
 
-Installed in `apps/web-manager` (`@playwright/test`). Chromium is installed via `pnpm exec playwright install chromium`.
+Do **not**:
 
-| Command | Purpose |
-|---------|---------|
-| `pnpm --filter @eveider/web-manager test:e2e` | Run headless e2e (expects `pnpm dev` on port 3000) |
-| `pnpm --filter @eveider/web-manager test:e2e:ui` | Playwright UI mode |
-| `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 pnpm --filter @eveider/web-manager test:e2e` | Override base URL |
+- Run Playwright automatically
+- Run the full E2E suite unless the user asks or the task is major E2E verification
+- Use Cursor Browser when automated tests already cover the change
+- Start another Next dev server if one is already running
+- Seed or reset the database unless the task requires it
 
-Config: [`apps/web-manager/playwright.config.ts`](../../../apps/web-manager/playwright.config.ts)  
-Specs: [`apps/web-manager/e2e/`](../../../apps/web-manager/e2e/)
+## When browser or E2E is necessary
 
-### Seed accounts for e2e
+Use Cursor Browser only when **visual or interactive behavior genuinely needs manual verification**.
+
+Use Cursor Browser or Playwright only for **significant interactive** changes, **critical user flows**, or when the user **explicitly** asks.
+
+From `apps/web-manager` (never an extra `--`, never `pnpm --filter … test:e2e -- …`):
+
+```bash
+pnpm test:e2e e2e/<file>.spec.ts
+```
+
+Specs live in `apps/web-manager/e2e/`. Config: `apps/web-manager/playwright.config.ts`. E2E expects the **existing** `pnpm dev` on port 3000.
+
+Full suite (only when asked or major regression): from `apps/web-manager`, `pnpm test:e2e`.
+
+Cursor Browser is only for visual/interactive behavior that needs a manual pass, and only when tests do not already cover it. Screenshots alone are not verification.
+
+### Seed accounts (when a spec runs)
 
 Password: `EveiderDemo2026!` (or `SEED_PASSWORD`).
 
@@ -41,7 +56,7 @@ Add or extend a Playwright spec for:
 - Cross-role visibility differences
 - Critical auth-gated redirects after IA moves
 
-Keep unit tests (Vitest) for pure nav config helpers; keep Playwright for real routes + auth cookies.
+Keep unit tests (Vitest) for pure nav config helpers. Writing a spec is not the same as running the full suite.
 
 ## Settings IA (reference)
 

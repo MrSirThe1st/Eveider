@@ -10,6 +10,7 @@ import type {
   Compartment,
   CourierDossier,
   DriverDossier,
+  DriverVehicleDocument,
   Delivery,
   Issue,
   Locker,
@@ -537,6 +538,17 @@ export function mapCourierDossier(row: Record<string, unknown>): CourierDossier 
     deactivatedAt: asDateOrNull(row.deactivated_at),
     createdAt: asDate(row.created_at),
     updatedAt: asDate(row.updated_at),
+  };
+}
+
+export function mapDriverVehicleDocument(row: Record<string, unknown>): DriverVehicleDocument {
+  return {
+    id: String(row.id),
+    driverDossierId: String(row.driver_dossier_id),
+    storedRef: String(row.stored_ref),
+    fileName: String(row.file_name),
+    uploadedByUserId: row.uploaded_by_user_id == null ? null : String(row.uploaded_by_user_id),
+    createdAt: asDate(row.created_at),
   };
 }
 

@@ -6,7 +6,7 @@ export const updateDeliveryPricingSchema = z.object({
   distanceThresholdKm: z.number().positive('Seuil invalide').max(1000),
   belowThresholdAmount: z.number().positive('Montant invalide').max(10_000_000),
   aboveThresholdAmount: z.number().positive('Montant invalide').max(10_000_000),
-  currency: deliveryPricingCurrencySchema,
+  currency: deliveryPricingCurrencySchema.optional(),
   smallCoefficient: z.number().positive('Coefficient invalide').max(10),
   mediumCoefficient: z.number().positive('Coefficient invalide').max(10),
   largeCoefficient: z.number().positive('Coefficient invalide').max(10),

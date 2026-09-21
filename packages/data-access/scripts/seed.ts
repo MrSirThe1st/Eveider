@@ -456,6 +456,12 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
      ) VALUES (10, 1500, 3000, 'CDF', 1.0, 1.5, 2.0, $1)`,
     [adminId],
   );
+  await db.query(
+    `UPDATE platform_settings
+     SET platform_currency = 'CDF',
+         pickup_fee_currency = 'CDF',
+         updated_at = NOW()`,
+  );
 
   async function seedBusinessOps(
     businessId: string,

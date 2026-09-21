@@ -62,42 +62,10 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  min-height: calc(100svh - 4.5rem);
-  padding: 2rem 0 5.5rem;
+  padding: 2rem 0 0;
   background: var(--color-surface);
   scroll-margin-top: 80px;
   box-sizing: border-box;
-  overflow: hidden;
-}
-
-.heroTracks {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.heroTracksBand {
-  position: absolute;
-  left: -8%;
-  top: 48%;
-  width: 116%;
-  height: 10.25rem;
-  background-color: var(--color-primary);
-  transform: rotate(-13deg);
-  transform-origin: center;
-  -webkit-mask-image: url('/landing/tires.png');
-  mask-image: url('/landing/tires.png');
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
-}
-
-.hero > .shell {
-  position: relative;
-  z-index: 1;
 }
 
 .heroGrid {
@@ -153,7 +121,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 26rem;
 }
 
 .heroLocker {
@@ -165,7 +132,7 @@
 }
 
 .solutions {
-  padding: 7rem 0 2.25rem;
+  padding: 1.5rem 0 2.25rem;
   background: var(--color-surface);
   scroll-margin-top: 80px;
 }
@@ -682,20 +649,11 @@
   }
 
   .hero {
-    min-height: 0;
-    padding: 1.25rem 0 2.75rem;
-  }
-
-  .heroCanvas {
-    min-height: 0;
+    padding: 1.25rem 0 1rem;
   }
 
   .heroLocker {
     max-width: min(28rem, 100%);
-  }
-
-  .heroTracksBand {
-    height: 7.5rem;
   }
 
   .aboutGrid {
@@ -709,7 +667,7 @@
   }
 
   .solutions {
-    padding: 3.5rem 0 1.5rem;
+    padding: 2rem 0 1.5rem;
   }
 
   .solutionGrid {
@@ -836,10 +794,6 @@
 
   .lede {
     font-size: 0.975rem;
-  }
-
-  .heroTracksBand {
-    height: 5.75rem;
   }
 
   .missionGrid {

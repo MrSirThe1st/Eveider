@@ -1,10 +1,12 @@
 'use client';
 
-import { colors, typography } from '@eveider/config-ui';
+import { colors } from '@eveider/config-ui';
 import {
   DataTable,
+  DEFAULT_TABLE_PAGE_SIZE,
   IconBuilding,
   IconSearch,
+  TableCellStack,
   type DataTableColumn,
   StatusBadge,
 } from '@eveider/ui';
@@ -65,23 +67,17 @@ export function AdminBusinessApplications({ applications }: AdminBusinessApplica
         sortable: true,
         sortValue: (row) => row.name,
         cell: (row) => (
-          <div>
-            <Link
-              href={`/tableau-de-bord/organisations/${row.id}/verification/dossier`}
-              className="nb-data-table__link"
-            >
-              {row.name}
-            </Link>
-            <p
-              style={{
-                margin: '4px 0 0',
-                fontSize: typography.caption.fontSize,
-                color: colors.textMuted,
-              }}
-            >
-              {row.locations?.find((l) => l.type === 'business_address')?.street ?? '—'}
-            </p>
-          </div>
+          <TableCellStack
+            primary={
+              <Link
+                href={`/tableau-de-bord/organisations/${row.id}/verification/dossier`}
+                className="nb-data-table__link"
+              >
+                {row.name}
+              </Link>
+            }
+            secondary={row.locations?.find((l) => l.type === 'business_address')?.street ?? '—'}
+          />
         ),
       },
       {
@@ -93,14 +89,7 @@ export function AdminBusinessApplications({ applications }: AdminBusinessApplica
         cell: (row) => {
           const owner = row.users?.[0]?.fullName ?? row.contactEmail ?? '—';
           const contact = row.contactPhone ?? row.contactEmail ?? '—';
-          return (
-            <div>
-              <div style={{ fontWeight: typography.weights.semibold }}>{owner}</div>
-              <div style={{ fontSize: typography.caption.fontSize, color: colors.textMuted }}>
-                {contact}
-              </div>
-            </div>
-          );
+          return <TableCellStack primary={owner} secondary={contact} />;
         },
       },
       {
@@ -138,7 +127,7 @@ export function AdminBusinessApplications({ applications }: AdminBusinessApplica
         header: 'Mis à jour',
         sortable: true,
         sortValue: (row) => new Date(row.updatedAt).getTime(),
-        align: 'right',
+        numeric: true,
         cell: (row) => (
           <span style={{ color: colors.textMuted, whiteSpace: 'nowrap' }}>
             {formatDate(row.updatedAt)}
@@ -150,43 +139,42 @@ export function AdminBusinessApplications({ applications }: AdminBusinessApplica
   );
 
   return (
-    <div>
-      <div style={{ marginBottom: '1rem' }}>
+    <DataTable
+      columns={columns}
+      rows={filteredApplications}
+      getRowId={(row) => row.id}
+      search={
         <ListSearchField
           value={searchQuery}
           onChange={setSearchQuery}
           placeholder="Rechercher un dossier (organisation, propriétaire, contact)…"
           ariaLabel="Rechercher un dossier de vérification"
         />
-      </div>
-      <DataTable
-        columns={columns}
-        rows={filteredApplications}
-        getRowId={(row) => row.id}
-        caption={
-          filteredApplications.length > 0
-            ? searchQuery.trim()
-              ? `${filteredApplications.length} demande${filteredApplications.length > 1 ? 's' : ''} sur ${applications.length}`
-              : `${filteredApplications.length} demande${filteredApplications.length > 1 ? 's' : ''}`
-            : undefined
-        }
-        emptyTitle={searchQuery.trim() ? 'Aucune demande pour cette recherche' : 'Aucune demande'}
-        emptyDescription={
-          searchQuery.trim()
-            ? 'Essayez un autre nom d’organisation ou propriétaire.'
-            : 'Les dossiers de vérification en attente apparaîtront ici.'
-        }
-        emptyIcon={searchQuery.trim() ? <IconSearch /> : <IconBuilding />}
-        initialSortId="updatedAt"
-        initialSortDirection="desc"
-        rowActions={(row) => [
-          {
-            id: 'review',
-            label: 'Examiner',
-            href: `/tableau-de-bord/organisations/${row.id}/verification/dossier`,
-          },
-        ]}
-      />
-    </div>
+      }
+      emptyTitle={searchQuery.trim() ? 'Aucun résultat' : 'Aucune demande'}
+      emptyDescription={
+        searchQuery.trim()
+          ? 'Aucun dossier ne correspond à la recherche actuelle.'
+          : 'Les dossiers de vérification en attente apparaîtront ici.'
+      }
+      emptyIcon={searchQuery.trim() ? <IconSearch /> : <IconBuilding />}
+      emptyAction={
+        searchQuery.trim() ? (
+          <button
+            type="button"
+            className="nb-btn nb-btn-secondary nb-btn--sm"
+            onClick={() => setSearchQuery('')}
+          >
+            Réinitialiser les filtres
+          </button>
+        ) : undefined
+      }
+      sortBy="updatedAt"
+      pageSize={DEFAULT_TABLE_PAGE_SIZE}
+      rowPrimaryAction={(row) => ({
+        label: 'Examiner',
+        href: `/tableau-de-bord/organisations/${row.id}/verification/dossier`,
+      })}
+    />
   );
 }

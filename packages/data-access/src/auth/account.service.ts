@@ -1,15 +1,29 @@
-import { createSupabaseAdminClient } from '../supabase/server.js';
+import { canInviteDriverDossier } from '@eveider/domain';
 import type { DataAccessContext } from '../context.js';
 import { AccessDeniedError } from '../context.js';
-import type { User, CourierDossier } from '../db/types.js';
+import type { CourierDossier, User } from '../db/types.js';
+import {
+  buildDriverAppInviteLink,
+  buildDriverInviteLink,
+  getInviteConfig,
+} from '../invitations/invite-links.js';
+import { sendDriverInviteEmail } from '../messaging/driver-invite-email.js';
+import { getResendConfig } from '../messaging/resend-config.js';
+import { BusinessRepository } from '../repositories/business.repository.js';
 import { CourierDossierRepository } from '../repositories/courier-dossier.repository.js';
 import { DeliveryRepository } from '../repositories/delivery.repository.js';
 import { NotificationRepository } from '../repositories/notification.repository.js';
 import { OrganizationMembershipRepository } from '../repositories/organization-membership.repository.js';
 import { UserRepository } from '../repositories/user.repository.js';
+import { createSupabaseAdminClient } from '../supabase/server.js';
 
 const AUTH_BAN_DURATION = '876000h';
-const DRIVER_INVITE_REDIRECT = 'eveider://auth';
+
+export type DriverInviteResult = {
+  dossier: CourierDossier;
+  inviteUrl: string;
+  delivered: 'email' | 'simulated';
+};
 
 export class AccountService {
   constructor(
@@ -18,6 +32,7 @@ export class AccountService {
     private readonly deliveries: DeliveryRepository,
     private readonly notifications: NotificationRepository,
     private readonly memberships: OrganizationMembershipRepository,
+    private readonly businesses: BusinessRepository,
   ) {}
 
   async deleteCustomer(user: User): Promise<void> {
@@ -67,39 +82,95 @@ export class AccountService {
     }
   }
 
-  async activateOnLogin(user: User): Promise<void> {
-    await this.dossiers.markActive(user.id);
+  async activateOnLogin(user: User): Promise<CourierDossier | null> {
+    return this.dossiers.markActive(user.id);
   }
 
   async inviteApprovedDossier(ctx: DataAccessContext, dossierId: string) {
-    const dossier = await this.dossiers.requireInScope(ctx, dossierId);
-    if (dossier.status !== 'approved') {
-      throw new Error('Le dossier doit être approuvé avant invitation');
-    }
-    return this.completeInvite(dossier);
+    return this.inviteDossier(ctx, dossierId);
   }
 
   async inviteDossier(ctx: DataAccessContext, dossierId: string) {
     const dossier = await this.dossiers.requireInScope(ctx, dossierId);
-    if (dossier.status === 'rejected' || dossier.status === 'deactivated') {
-      throw new Error('Ce chauffeur ne peut pas être invité');
+    if (!canInviteDriverDossier(dossier.status, dossier.contractorType)) {
+      throw new Error(
+        dossier.contractorType === 'business'
+          ? 'Ce chauffeur doit d’abord être approuvé par Eveider'
+          : 'Ce chauffeur ne peut pas être invité',
+      );
     }
-    return this.completeInvite(dossier);
+    return this.completeInvite(ctx, dossier);
   }
 
-  private async completeInvite(dossier: CourierDossier) {
-    const admin = createSupabaseAdminClient();
-    const { data, error } = await admin.auth.admin.generateLink({
-      type: 'magiclink',
-      email: dossier.email,
-      options: { redirectTo: DRIVER_INVITE_REDIRECT },
-    });
-    if (error) {
-      throw new Error(error.message);
+  /**
+   * After the chauffeur opens the magic link, promote Invité → Actif
+   * and make sure they have a driver membership.
+   */
+  async completeDriverMagicLink(authId: string): Promise<{
+    fullName: string | null;
+    status: CourierDossier['status'];
+  }> {
+    const user = await this.users.findByAuthId(authId);
+    if (!user) {
+      throw new Error('Profil chauffeur introuvable');
+    }
+    if (user.isBlocked || user.deactivatedAt || user.deletedAt) {
+      throw new AccessDeniedError('Compte chauffeur indisponible');
     }
 
-    const authId = data.user?.id;
-    if (!authId) {
+    const dossier = await this.dossiers.findByUserId(user.id);
+    if (!dossier) {
+      throw new Error('Aucun dossier chauffeur pour ce compte');
+    }
+
+    await this.ensureDriverMembership(dossier, user.id);
+    const active = await this.dossiers.markActive(user.id);
+    const next = active ?? dossier;
+    return {
+      fullName: user.fullName ?? next.fullName,
+      status: next.status,
+    };
+  }
+
+  private async completeInvite(
+    ctx: DataAccessContext,
+    dossier: CourierDossier,
+  ): Promise<DriverInviteResult> {
+    if (dossier.contractorType === 'eveider' && dossier.status === 'pending_review') {
+      dossier = await this.dossiers.review(ctx, dossier.id, { status: 'approved' });
+    }
+
+    const admin = createSupabaseAdminClient();
+    const { webBaseUrl } = getInviteConfig();
+    const redirectTo = `${webBaseUrl}/invite/chauffeur`;
+
+    let link = await admin.auth.admin.generateLink({
+      type: 'magiclink',
+      email: dossier.email,
+      options: { redirectTo },
+    });
+    if (link.error) {
+      const created = await admin.auth.admin.createUser({
+        email: dossier.email,
+        email_confirm: true,
+        user_metadata: { full_name: dossier.fullName, kind: 'driver' },
+      });
+      if (created.error && !/already|registered|exists|déjà/i.test(created.error.message)) {
+        throw new Error(created.error.message);
+      }
+      link = await admin.auth.admin.generateLink({
+        type: 'magiclink',
+        email: dossier.email,
+        options: { redirectTo },
+      });
+    }
+    if (link.error) {
+      throw new Error(link.error.message);
+    }
+
+    const authId = link.data.user?.id;
+    const tokenHash = link.data.properties?.hashed_token;
+    if (!authId || !tokenHash) {
       throw new Error('Invitation Auth impossible');
     }
 
@@ -113,21 +184,50 @@ export class AccountService {
       });
     }
 
-    if (dossier.businessId) {
-      await this.memberships.upsert({
-        userId: user.id,
-        businessId: dossier.businessId,
-        role: 'driver',
+    await this.ensureDriverMembership(dossier, user.id);
+    const invited = await this.dossiers.attachInvite(dossier, user.id);
+    const inviteUrl = buildDriverInviteLink(tokenHash);
+    const appUrl = buildDriverAppInviteLink(tokenHash);
+
+    let delivered: DriverInviteResult['delivered'] = 'email';
+    try {
+      await sendDriverInviteEmail({
+        to: dossier.email,
+        fullName: dossier.fullName,
+        inviteUrl,
+        appUrl,
       });
+    } catch (error) {
+      if (!getResendConfig()) {
+        console.info('[eveider:driver-invite:simulated]', {
+          email: dossier.email,
+          inviteUrl,
+          appUrl,
+          dossierId: dossier.id,
+        });
+        delivered = 'simulated';
+      } else {
+        throw error;
+      }
     }
 
-    const invited = await this.dossiers.attachInvite(dossier, user.id);
-    console.info('[eveider:driver-invite:simulated]', {
-      email: dossier.email,
-      redirectTo: DRIVER_INVITE_REDIRECT,
-      dossierId: dossier.id,
+    return { dossier: invited, inviteUrl, delivered };
+  }
+
+  private async ensureDriverMembership(dossier: CourierDossier, userId: string): Promise<void> {
+    let organizationId = dossier.businessId;
+    if (!organizationId) {
+      const platform = await this.businesses.findPlatformOrganization();
+      organizationId = platform?.id ?? null;
+    }
+    if (!organizationId) {
+      throw new Error('Organisation Eveider introuvable');
+    }
+    await this.memberships.upsert({
+      userId,
+      businessId: organizationId,
+      role: 'driver',
     });
-    return invited;
   }
 
   private async notifyContractor(

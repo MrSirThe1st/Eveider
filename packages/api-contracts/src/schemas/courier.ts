@@ -1,10 +1,11 @@
 import { z } from 'zod';
+import { storedDocumentRefSchema } from './documents.js';
 
 export const createCourierDossierSchema = z.object({
   fullName: z.string().min(2, 'Nom requis'),
   email: z.string().email('Adresse email invalide'),
   phone: z.string().min(8).optional(),
-  idDocumentUrl: z.string().url('URL de pièce d’identité requise'),
+  idDocumentUrl: storedDocumentRefSchema,
   notes: z.string().max(2000).optional(),
   contractorType: z.enum(['eveider', 'business']).optional(),
   businessId: z.string().uuid().optional(),

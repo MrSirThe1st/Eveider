@@ -52,6 +52,9 @@ describe('CommercialRepository', () => {
 
   it('quotes Flow 1 from the destination locker zone, ignoring size', async () => {
     const db = createSqlMatchMock((sql) => {
+      if (sqlIncludes(sql, 'SELECT platform_currency FROM platform_settings')) {
+        return { platform_currency: 'CDF' };
+      }
       if (sqlIncludes(sql, 'FROM delivery_pricing_rules')) return pricingRow();
       if (sqlIncludes(sql, 'FROM lockers l') && sqlIncludes(sql, 'service_areas')) {
         return {
@@ -81,8 +84,42 @@ describe('CommercialRepository', () => {
     });
   });
 
+  it('quotes new charges in the platform currency even if tariff rules still say CDF', async () => {
+    const db = createSqlMatchMock((sql) => {
+      if (sqlIncludes(sql, 'SELECT platform_currency FROM platform_settings')) {
+        return { platform_currency: 'USD' };
+      }
+      if (sqlIncludes(sql, 'FROM delivery_pricing_rules')) return pricingRow();
+      if (sqlIncludes(sql, 'FROM lockers l') && sqlIncludes(sql, 'service_areas')) {
+        return {
+          id: 'zone-1',
+          code: 'LSH',
+          name: 'Lubumbashi',
+          status: 'active',
+          city_status: 'active',
+          outbound_delivery_amount: 2.5,
+          return_delivery_amount: 3,
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    repo = new CommercialRepository(db);
+
+    const quote = await repo.quoteOutbound({
+      pickupType: 'courier_pickup',
+      lockerId: 'locker-1',
+    });
+    expect(quote).toMatchObject({
+      amount: 2.5,
+      currency: 'USD',
+    });
+  });
+
   it('quotes Flow 2 as a fixed locker collection fee with no zone', async () => {
     const db = createSqlMatchMock((sql) => {
+      if (sqlIncludes(sql, 'SELECT platform_currency FROM platform_settings')) {
+        return { platform_currency: 'CDF' };
+      }
       if (sqlIncludes(sql, 'FROM delivery_pricing_rules')) return pricingRow();
       throw new Error(`Unexpected SQL: ${sql}`);
     });
@@ -106,6 +143,9 @@ describe('CommercialRepository', () => {
 
   it('quotes Flow 3A from the return locker zone, distinct from outbound', async () => {
     const db = createSqlMatchMock((sql) => {
+      if (sqlIncludes(sql, 'SELECT platform_currency FROM platform_settings')) {
+        return { platform_currency: 'CDF' };
+      }
       if (sqlIncludes(sql, 'FROM delivery_pricing_rules')) return pricingRow();
       if (sqlIncludes(sql, 'FROM lockers l') && sqlIncludes(sql, 'service_areas')) {
         return {
@@ -135,6 +175,9 @@ describe('CommercialRepository', () => {
 
   it('quotes Flow 3B as a fixed return locker fee', async () => {
     const db = createSqlMatchMock((sql) => {
+      if (sqlIncludes(sql, 'SELECT platform_currency FROM platform_settings')) {
+        return { platform_currency: 'CDF' };
+      }
       if (sqlIncludes(sql, 'FROM delivery_pricing_rules')) return pricingRow();
       throw new Error(`Unexpected SQL: ${sql}`);
     });
@@ -153,6 +196,9 @@ describe('CommercialRepository', () => {
 
   it('treats a configured 0 CDF outbound price as free', async () => {
     const db = createSqlMatchMock((sql) => {
+      if (sqlIncludes(sql, 'SELECT platform_currency FROM platform_settings')) {
+        return { platform_currency: 'CDF' };
+      }
       if (sqlIncludes(sql, 'FROM delivery_pricing_rules')) return pricingRow();
       if (sqlIncludes(sql, 'FROM lockers l') && sqlIncludes(sql, 'service_areas')) {
         return {
@@ -180,6 +226,9 @@ describe('CommercialRepository', () => {
 
   it('fails closed when Flow 1 zone outbound pricing is unconfigured', async () => {
     const db = createSqlMatchMock((sql) => {
+      if (sqlIncludes(sql, 'SELECT platform_currency FROM platform_settings')) {
+        return { platform_currency: 'CDF' };
+      }
       if (sqlIncludes(sql, 'FROM delivery_pricing_rules')) return pricingRow();
       if (sqlIncludes(sql, 'FROM lockers l') && sqlIncludes(sql, 'service_areas')) {
         return {
@@ -203,6 +252,9 @@ describe('CommercialRepository', () => {
 
   it('fails closed when Flow 3A zone return pricing is unconfigured', async () => {
     const db = createSqlMatchMock((sql) => {
+      if (sqlIncludes(sql, 'SELECT platform_currency FROM platform_settings')) {
+        return { platform_currency: 'CDF' };
+      }
       if (sqlIncludes(sql, 'FROM delivery_pricing_rules')) return pricingRow();
       if (sqlIncludes(sql, 'FROM lockers l') && sqlIncludes(sql, 'service_areas')) {
         return {
@@ -226,6 +278,9 @@ describe('CommercialRepository', () => {
 
   it('rejects Flow 1 quotes from an archived zone', async () => {
     const db = createSqlMatchMock((sql) => {
+      if (sqlIncludes(sql, 'SELECT platform_currency FROM platform_settings')) {
+        return { platform_currency: 'CDF' };
+      }
       if (sqlIncludes(sql, 'FROM delivery_pricing_rules')) return pricingRow();
       if (sqlIncludes(sql, 'FROM lockers l') && sqlIncludes(sql, 'service_areas')) {
         return {
@@ -249,6 +304,9 @@ describe('CommercialRepository', () => {
 
   it('rejects Flow 1 quotes from a zone whose city is archived', async () => {
     const db = createSqlMatchMock((sql) => {
+      if (sqlIncludes(sql, 'SELECT platform_currency FROM platform_settings')) {
+        return { platform_currency: 'CDF' };
+      }
       if (sqlIncludes(sql, 'FROM delivery_pricing_rules')) return pricingRow();
       if (sqlIncludes(sql, 'FROM lockers l') && sqlIncludes(sql, 'service_areas')) {
         return {
@@ -274,6 +332,9 @@ describe('CommercialRepository', () => {
     const stored = chargeRow({ amount: 1500, pricing_zone_id: 'zone-1', currency: 'CDF' });
     let outboundAmount: number | null = 1500;
     const db = createSqlMatchMock((sql) => {
+      if (sqlIncludes(sql, 'SELECT platform_currency FROM platform_settings')) {
+        return { platform_currency: 'CDF' };
+      }
       if (sqlIncludes(sql, 'FROM delivery_pricing_rules')) return pricingRow();
       if (sqlIncludes(sql, 'FROM lockers l') && sqlIncludes(sql, 'service_areas')) {
         return {

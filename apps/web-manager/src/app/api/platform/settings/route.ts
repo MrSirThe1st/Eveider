@@ -7,7 +7,8 @@ function serializeSettings(row: Awaited<ReturnType<ReturnType<typeof createRepos
   return {
     id: row.id,
     pickupFeeAmount: row.pickupFeeAmount,
-    pickupFeeCurrency: row.pickupFeeCurrency,
+    pickupFeeCurrency: row.platformCurrency,
+    platformCurrency: row.platformCurrency,
     requireOrgApproval: row.requireOrgApproval,
     defaultDailyShipments: row.defaultDailyShipments,
     defaultMonthlyShipments: row.defaultMonthlyShipments,

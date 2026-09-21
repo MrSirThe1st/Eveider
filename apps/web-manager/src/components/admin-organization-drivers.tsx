@@ -1,7 +1,7 @@
 'use client';
 
 import { colors } from '@eveider/config-ui';
-import { DataTable, IconTruck, type DataTableColumn } from '@eveider/ui';
+import { DataTable, IconTruck, TableCellStack, type DataTableColumn } from '@eveider/ui';
 import Link from 'next/link';
 import { useMemo } from 'react';
 import { DriverStatusBadge } from '@/components/driver-status-badge';
@@ -21,16 +21,15 @@ export function AdminOrganizationDrivers({ drivers }: AdminOrganizationDriversPr
         sortable: true,
         sortValue: (row) => row.fullName,
         cell: (row) => (
-          <Link href={adminDriverPath(row.id)} className="nb-data-table__link">
-            {row.fullName}
-          </Link>
+          <TableCellStack
+            primary={
+              <Link href={adminDriverPath(row.id)} className="nb-data-table__link">
+                {row.fullName}
+              </Link>
+            }
+            secondary={row.email}
+          />
         ),
-      },
-      {
-        id: 'email',
-        header: 'E-mail',
-        hideOnMobile: true,
-        cell: (row) => row.email,
       },
       {
         id: 'status',
@@ -40,7 +39,7 @@ export function AdminOrganizationDrivers({ drivers }: AdminOrganizationDriversPr
       {
         id: 'deliveriesToday',
         header: 'Aujourd’hui',
-        align: 'right',
+        numeric: true,
         hideOnMobile: true,
         cell: (row) => (
           <span style={{ color: colors.textMuted }}>{row.deliveriesToday}</span>
@@ -60,16 +59,14 @@ export function AdminOrganizationDrivers({ drivers }: AdminOrganizationDriversPr
         columns={columns}
         rows={drivers}
         getRowId={(row) => row.id}
+        sortBy="name"
         emptyTitle="Aucun chauffeur d’organisation à afficher"
         emptyDescription="Ce n’est plus un modèle actif. Consultez Flotte pour les chauffeurs Eveider."
         emptyIcon={<IconTruck />}
-        rowActions={(row) => [
-          {
-            id: 'view',
-            label: 'Voir',
-            href: adminDriverPath(row.id),
-          },
-        ]}
+        rowPrimaryAction={(row) => ({
+          label: 'Détails',
+          href: adminDriverPath(row.id),
+        })}
       />
     </div>
   );

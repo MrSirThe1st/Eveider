@@ -20,6 +20,66 @@ Use this file as the first project memory source before searching the codebase.
 
 ## Entries
 
+## 2026-09-21
+- Change type: Frontend
+- Description: Tawk chat stays on the landing page, public routes, and organisation portal. It is not loaded or shown on the Eveider admin portal (`/tableau-de-bord`), and the reserved bubble inset is removed there.
+- Impact: `TawkToWidget`; `shouldLoadTawk`; `data-support-widget=off` on admin; `--support-widget-clearance` is 0 in admin.
+- Tests: `tawk.test.ts`. Browser check left to the user.
+
+## 2026-09-21
+- Change type: DB | API | Frontend
+- Description: Fleet Documents can attach optional vehicle files (carte grise, assurance…) in the same gallery. Identity stays required. Cap is 8 files in the private `identity-documents` bucket.
+- Impact: `driver_vehicle_documents` (`041_*`); `POST/DELETE /api/admin/driver-dossiers/[id]/vehicle-documents`; `loadAdminDriverVehicleDocuments`; gallery add/remove on `IdentityDocumentPanel`.
+- Tests: api-contracts vehicle id/cap; data-access list/add/cap/delete. Playwright not run.
+
+## 2026-09-21
+- Change type: Frontend
+- Description: Driver Documents is a compact file gallery instead of a full-page identity preview. The pièce opens in a modal; download / print / share stay on the tile menu and in the preview.
+- Impact: `IdentityDocumentPanel`; vehicle empty state folded into the same Documents card.
+- Tests: deferred (layout). Typecheck web-manager.
+
+## 2026-09-21
+- Change type: Frontend
+- Description: Detail tabs (chauffeur, organisation) switch immediately. Layouts no longer wait for the dossier/org header before painting tabs; the header streams, and only the tab body skeletons. PageTabs marks the next tab on pointer-down and does not wait for the route to finish.
+- Impact: `flotte/[id]/layout.tsx`, `organisations/[id]/layout.tsx`; `PageTabs` `prefetch` + `scroll={false}`; per-tab `loading.tsx` on chauffeur livraisons/documents.
+- Tests: browser on chauffeur Livraisons → Documents / Aperçu.
+
+## 2026-09-21
+- Change type: Frontend | API
+- Description: Driver Documents shows the identity piece inline (no locked preview). Staff can download, print, or share the file. `GET /api/documents` accepts `?download=1` for an attachment response.
+- Impact: `IdentityDocumentPanel` on `/flotte/[id]/documents`; `identityDocumentFileName`. KYC application preview stays view-only.
+- Tests: api-contracts file-name helper. Playwright not run.
+
+## 2026-09-21
+- Change type: API | Frontend | Mobile
+- Description: Chauffeur invites now use the same magic-link pattern as staff: no password to invent. Eveider-added fleet drivers skip document approval and can be invited immediately; business-created drivers wait for Eveider approval. Opening the link on web or in the app authenticates them and promotes Invité → Actif. Web `/invite/chauffeur` + `/chauffeur` is the temporary activation path until the app is widely downloadable.
+- Impact: `canInviteDriverDossier`; `AccountService.inviteDossier` / `completeDriverMagicLink`; driver invite email; `POST /api/admin/driver-dossiers/[id]/invite`; `GET|POST /api/driver-invite/complete` (cookie or Bearer); mobile `eveider://auth?token_hash`; first `/api/auth/me` as driver still calls `activateOnLogin`.
+- Tests: domain invite gate; courier-dossier initial status; invite-links; driver-invite-email; mobile auth-links. Playwright not run.
+
+## 2026-09-21
+- Change type: API | Frontend | Infra
+- Description: Platform staff now upload the chauffeur’s identity document instead of pasting a URL. Files go to a private Supabase Storage bucket and are viewed in-app through an authenticated `/api/documents` stream.
+- Impact: `identity-documents` bucket (`040_*`); `POST /api/admin/driver-dossiers` accepts `multipart/form-data` (`idDocument` file); `GET /api/documents/[...key]`; `AddDriverForm` file picker; driver Documents tab opens an in-app preview. `id_document_url` still stores a string (`eveider://…` or legacy https).
+- Tests: api-contracts stored-ref + courier schema; data-access file sniff/validate; UI file-field label; Playwright drivers dialog asserts the file picker (not run in this change).
+
+## 2026-09-20
+- Change type: Frontend
+- Description: Adding an Eveider chauffeur from Flotte opens a modal on the list instead of a separate page. `/flotte/nouveau` (and the old `/chauffeurs/nouveau` alias) redirect to `/flotte?ajouter=1` to auto-open the same popup. After create, the flow still goes to the new chauffeur’s profile.
+- Impact: `AdminFleetView`, `AddDriverModal`; `WEB_ROUTES.adminNewDriver` is now `/tableau-de-bord/flotte?ajouter=1`.
+- Tests: Playwright `drivers.spec.ts` opens the dialog from the list button and from the legacy nouveau URL.
+
+## 2026-09-20
+- Change type: Frontend
+- Description: Paramètres nested sidebar renders each group as a labelled `<section>` with a divider. Section titles are caption labels (small, uppercase, muted, not clickable); links use the secondary text color so they are not confused with headings.
+- Impact: `settings-secondary-nav.tsx`, `globals.css`. No route or permission changes.
+- Tests: Playwright settings-sidebar asserts section headings on org owner, dispatcher, and admin.
+
+## 2026-09-20
+- Change type: Frontend
+- Description: Admin table system remodel. Shared `DataTable` now supports optional search/filters/trailing toolbar, three-state sorting, pagination with page size and jump-to, selection/batch bar, loading skeleton rows, compact empty/error states, truncation, stacked identifier cells, and overflow row actions. Admin operational lists (colis, livraisons, casiers, flotte, organisations, users, verification, incidents, villes et zones, nested org tables) migrated onto that primitive. Business tables keep the previous API and were not remodeled.
+- Impact: `packages/ui` data-table + table-cells; `globals.css` table tokens; admin list panels in `web-manager`. No domain/API changes.
+- Tests: `@eveider/ui` data-table model unit tests; Playwright `admin-tables.spec.ts` plus updated villes/zones row-action flow.
+
 ## 2026-09-02
 - Change type: Frontend
 - Description: Paramètres → Mon compte → Préférences is live on org and admin (langue + apparence). Portal stays French-only. Appearance reuses `eveider_theme` (clair / sombre / automatique) and the cookie-consent gate. Header theme toggle still sets an explicit clair/sombre.

@@ -31,7 +31,7 @@ Defer or reject work that does not advance business onboarding, parcel delivery,
 
 1. Read `docs/blueprint/templates/project-updates.md` first.
 2. Read relevant product context in `docs/blueprint/product/` (start with `overview.md`; see `docs/blueprint/README.md` for the full index).
-3. For UI work, read `docs/blueprint/product/design-dna.md` and `brand.md` — French copy (plain language, no KYC/COD/organisation jargon), RDC locale, no improvised visual styles. Verify with Cursor Browser when available, otherwise Playwright — see `docs/blueprint/ai/ui-verification.md`.
+3. For UI work, read `docs/blueprint/product/design-dna.md` and `brand.md` — French copy (plain language, no KYC/COD/organisation jargon), RDC locale, no improvised visual styles. Verification: one targeted typecheck + relevant tests. Browser/Playwright only for significant interactive or critical flows, or when asked — see `docs/blueprint/ai/ui-verification.md`.
 4. For data loading, new pages, new API routes, or new repository loaders, read `docs/blueprint/ai/data-fetching.md` and follow it strictly. That doc is the architecture: page-specific SQL, RSC lists, one auth profile lookup per request. Do not reuse `getOnboardingSummary` / `loadSummary` / `listActiveWithAvailability` just because they already exist.
 5. If the task is ambiguous or touches schema, auth, packages, or large refactors → ask before proceeding.
 
@@ -56,7 +56,7 @@ type ApiResult<T> = { success: true; data: T } | { success: false; error: string
 
 1. Read `docs/blueprint/templates/project-updates.md` + relevant product docs + code.
 2. Implement the smallest working slice.
-3. Run: `pnpm lint && pnpm typecheck && pnpm test && pnpm build`
+3. Verify with a **single** targeted typecheck and only the relevant package Vitest tests. Do not run root `pnpm lint && pnpm typecheck && pnpm test && pnpm build`. Use Cursor Browser or Playwright only for significant interactive changes, critical user flows, or when explicitly asked (see `.cursor/rules/eveider-test-scope.mdc`).
 4. Append to `docs/blueprint/templates/project-updates.md` if the change is meaningful.
 
 ## PR is blocked if

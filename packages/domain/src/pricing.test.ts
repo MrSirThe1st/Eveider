@@ -5,6 +5,7 @@ import {
   calculateLockerRentalPeriods,
   DEFAULT_DELIVERY_PRICING_RULES,
   formatDeliveryFee,
+  parseDeliveryPricingCurrency,
 } from './pricing.js';
 import { suggestPackageSizeFromDimensions } from './shipment.js';
 
@@ -42,6 +43,15 @@ describe('calculateDeliveryFee', () => {
       sizeCoefficients: { small: 1, medium: 1.33, large: 2 },
     };
     expect(calculateDeliveryFee(3, 'medium', rules)).toBe(3.33);
+  });
+});
+
+describe('parseDeliveryPricingCurrency', () => {
+  it('accepts USD and defaults everything else to CDF', () => {
+    expect(parseDeliveryPricingCurrency('USD')).toBe('USD');
+    expect(parseDeliveryPricingCurrency('CDF')).toBe('CDF');
+    expect(parseDeliveryPricingCurrency('EUR')).toBe('CDF');
+    expect(parseDeliveryPricingCurrency(null)).toBe('CDF');
   });
 });
 

@@ -21,6 +21,7 @@ export function AdminParcelFilters({
 }: AdminParcelFiltersProps) {
   return (
     <FilterToolbar
+      embedded
       onClearAll={() => {
         onAttentionChange('all');
         onPickupTypeChange('all');

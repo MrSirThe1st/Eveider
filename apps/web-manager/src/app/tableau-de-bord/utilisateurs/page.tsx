@@ -1,9 +1,10 @@
 'use client';
 
-import { colors, webInputStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
-import { ConfirmDialog, EmptyState, IconSearch, IconUser, LoadingSpinner, PageFrame, TableSkeleton, useToast } from '@eveider/ui';
-import { useEffect, useState } from 'react';
+import { webSecondaryButtonStyle } from '@eveider/config-ui';
+import { ConfirmDialog, DataTable, DEFAULT_TABLE_PAGE_SIZE, IconSearch, IconUser, PageFrame, StatusBadge, TableCellStack, type DataTableColumn, useToast } from '@eveider/ui';
+import { useEffect, useMemo, useState } from 'react';
 import { FlashBanner } from '@/components/flash-banner';
+import { ListSearchField } from '@/components/list-search-field';
 import { type UserListItem, useUsersQuery } from '@/hooks/queries/use-users-query';
 
 function formatDate(iso: string) {
@@ -31,7 +32,7 @@ export default function UsersPage() {
     return () => clearTimeout(delayDebounce);
   }, [search]);
 
-  const { data: users = [], setUsers, isLoading, isFetching, isError, error, refetch } =
+  const { data: users = [], setUsers, isLoading, isError, error, refetch } =
     useUsersQuery({
       search: debouncedSearch,
     });
@@ -40,6 +41,50 @@ export default function UsersPage() {
   const showRefreshError = isError && users.length > 0;
   const errorMessage =
     error instanceof Error ? error.message : 'Impossible de charger les utilisateurs.';
+
+  const columns = useMemo<DataTableColumn<UserListItem>[]>(
+    () => [
+      {
+        id: 'name',
+        header: 'Nom',
+        sortable: true,
+        sortValue: (row) => row.fullName ?? '',
+        cell: (row) => (
+          <TableCellStack primary={row.fullName ?? '—'} secondary={row.email ?? undefined} />
+        ),
+      },
+      {
+        id: 'phone',
+        header: 'Téléphone',
+        hideOnMobile: true,
+        cell: (row) => row.phone ?? '—',
+      },
+      {
+        id: 'createdAt',
+        header: 'Inscrit le',
+        sortable: true,
+        sortValue: (row) => new Date(row.createdAt).getTime(),
+        numeric: true,
+        cell: (row) => (
+          <span style={{ color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>
+            {formatDate(row.createdAt)}
+          </span>
+        ),
+      },
+      {
+        id: 'status',
+        header: 'Statut',
+        sortable: true,
+        sortValue: (row) => (row.isBlocked ? 'blocked' : 'active'),
+        cell: (row) => (
+          <StatusBadge tone={row.isBlocked ? 'danger' : 'success'}>
+            {row.isBlocked ? 'Bloqué' : 'Actif'}
+          </StatusBadge>
+        ),
+      },
+    ],
+    [],
+  );
 
   async function handleToggleStatus(user: UserListItem) {
     setActingId(user.id);
@@ -96,136 +141,47 @@ export default function UsersPage() {
         />
       ) : null}
 
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          alignItems: 'center',
-          gap: '1rem',
-          flexWrap: 'wrap',
-          marginBottom: '1.5rem',
-        }}
-      >
-        <input
-          type="text"
-          placeholder="RECHERCHER PAR NOM, EMAIL OR NUMÉRO..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{
-            ...webInputStyle,
-            flex: '0 1 320px',
-            height: 44,
-            fontSize: '0.875rem',
-          }}
-        />
-      </div>
-
-      <div className="nb-data-table">
-        {isFetching && users.length > 0 ? (
-          <div style={{ padding: '1rem 2rem 0' }}>
-            <LoadingSpinner compact size="sm" label="Mise à jour…" />
-          </div>
-        ) : null}
-
-        {showInitialLoader ? (
-          <div style={{ padding: '1rem' }}>
-            <TableSkeleton />
-          </div>
-        ) : isError && users.length === 0 ? (
-          <div style={{ padding: '2rem', textAlign: 'center' }}>
-            <p style={{ fontWeight: 500, marginBottom: '1rem' }}>{errorMessage}</p>
-            <button
-              type="button"
-              onClick={() => void refetch()}
-              style={{ ...webSecondaryButtonStyle, padding: '0.5rem 1rem' }}
-            >
-              Réessayer
-            </button>
-          </div>
-        ) : users.length === 0 ? (
-          <EmptyState
-            compact
-            title="Aucun client trouvé"
-            description="Essayez une autre recherche."
-            icon={debouncedSearch.trim() ? <IconSearch /> : <IconUser />}
+      <DataTable
+        columns={columns}
+        rows={users}
+        getRowId={(row) => row.id}
+        search={
+          <ListSearchField
+            value={search}
+            onChange={setSearch}
+            placeholder="Rechercher par nom, email ou numéro…"
+            ariaLabel="Rechercher par nom, email ou numéro"
           />
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Nom</th>
-                <th>Email</th>
-                <th>Téléphone</th>
-                <th>Inscrit le</th>
-                <th>Statut</th>
-                <th className="nb-data-table__actions">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr
-                  key={user.id}
-                  className="nb-data-table__row"
-                  style={{
-                    backgroundColor: user.isBlocked ? 'rgba(229, 57, 53, 0.02)' : undefined,
-                  }}
-                >
-                  <td>{user.fullName?.toUpperCase() ?? '—'}</td>
-                  <td style={{ color: 'var(--color-text-muted)' }}>
-                    {user.email ?? '—'}
-                  </td>
-                  <td style={{ color: 'var(--color-text-muted)' }}>
-                    {user.phone ?? '—'}
-                  </td>
-                  <td style={{ color: 'var(--color-text-muted)' }}>
-                    {formatDate(user.createdAt)}
-                  </td>
-                  <td>
-                    <span
-                      style={{
-                        display: 'inline-block',
-                        fontSize: '0.6875rem',
-                        fontWeight: 700,
-                        letterSpacing: '0.05em',
-                        padding: '3px 8px',
-                        borderRadius: '4px',
-                        backgroundColor: user.isBlocked
-                          ? colors.dangerMuted
-                          : colors.successMuted,
-                        color: user.isBlocked ? colors.danger : colors.success,
-                      }}
-                    >
-                      {user.isBlocked ? 'BLOQUÉ' : 'ACTIF'}
-                    </span>
-                  </td>
-                  <td className="nb-data-table__actions">
-                    <button
-                      type="button"
-                      disabled={actingId === user.id}
-                      onClick={() => setPendingUser(user)}
-                      style={{
-                        height: '28px',
-                        padding: '0 10px',
-                        border: 'none',
-                        borderRadius: '4px',
-                        fontWeight: 700,
-                        fontSize: '0.6875rem',
-                        letterSpacing: '0.04em',
-                        cursor: actingId === user.id ? 'wait' : 'pointer',
-                        backgroundColor: user.isBlocked ? colors.primary : colors.danger,
-                        color: user.isBlocked ? colors.onPrimary : '#FFFFFF',
-                        opacity: actingId === user.id ? 0.6 : 1,
-                      }}
-                    >
-                      {user.isBlocked ? 'ACTIVER' : 'BLOQUER'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+        }
+        loading={showInitialLoader}
+        error={
+          isError && users.length === 0
+            ? {
+                title: 'Impossible de charger les utilisateurs',
+                message: errorMessage,
+                action: (
+                  <button type="button" onClick={() => void refetch()} style={webSecondaryButtonStyle}>
+                    Réessayer
+                  </button>
+                ),
+              }
+            : null
+        }
+        emptyTitle="Aucun résultat"
+        emptyDescription="Aucun client ne correspond à la recherche actuelle."
+        emptyIcon={debouncedSearch.trim() ? <IconSearch /> : <IconUser />}
+        sortBy="createdAt"
+        pageSize={DEFAULT_TABLE_PAGE_SIZE}
+        rowActions={(user) => [
+          {
+            id: 'toggle',
+            label: user.isBlocked ? 'Activer' : 'Bloquer',
+            tone: user.isBlocked ? 'default' : 'danger',
+            disabled: actingId === user.id,
+            onClick: () => setPendingUser(user),
+          },
+        ]}
+      />
 
       <ConfirmDialog
         open={pendingUser != null}

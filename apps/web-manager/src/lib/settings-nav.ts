@@ -152,7 +152,7 @@ const ORGANIZATION_SETTINGS_NAV_ALL: SettingsNavGroup[] = [
         id: 'excel',
         label: 'Excel',
         href: ORG_SETTINGS_ROUTES.integrations,
-        description: 'Import et export de fichiers',
+        description: 'Import de fichiers Excel',
         permission: 'settings',
       },
     ],
@@ -201,7 +201,7 @@ const ADMIN_SETTINGS_NAV_ALL: SettingsNavGroup[] = [
         id: 'plateforme',
         label: 'Règles générales',
         href: ADMIN_SETTINGS_ROUTES.platform,
-        description: 'Frais au casier et défauts pour les nouvelles entreprises',
+        description: 'Devise et défauts pour les nouvelles entreprises',
       },
       {
         id: 'facturation',
@@ -224,9 +224,9 @@ const ADMIN_SETTINGS_NAV_ALL: SettingsNavGroup[] = [
     items: [
       {
         id: 'administrateurs',
-        label: 'Administrateurs',
+        label: 'Équipe',
         href: ADMIN_SETTINGS_ROUTES.admins,
-        description: 'Qui gère la plateforme Eveider',
+        description: 'Accès à l’administration Eveider',
       },
       {
         id: 'roles',
@@ -259,6 +259,7 @@ const ADMIN_SETTINGS_NAV_ALL: SettingsNavGroup[] = [
         label: 'Exports Excel',
         href: ADMIN_SETTINGS_ROUTES.integrations,
         description: 'Télécharger colis et livraisons',
+        comingSoon: true,
       },
     ],
   },

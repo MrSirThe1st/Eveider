@@ -11,7 +11,8 @@ export const WEB_ROUTES = {
   register: '/inscription',
   adminDashboard: '/tableau-de-bord',
   adminDrivers: '/tableau-de-bord/flotte',
-  adminNewDriver: '/tableau-de-bord/flotte/nouveau',
+  adminNewDriver: '/tableau-de-bord/flotte?ajouter=1',
+  driverHome: '/chauffeur',
   businessDashboard: '/organisation/tableau-de-bord',
   businessParcels: '/organisation/tableau-de-bord/colis',
   businessNewParcel: '/organisation/tableau-de-bord/colis/nouveau',
@@ -103,6 +104,8 @@ export function getPostLoginPath(role: UserRole | string, redirectParam?: string
 }
 
 export function getAuthenticatedLandingPath(role: UserRole | string): string | null {
+  const normalized = normalizeUserRole(role);
+  if (normalized === 'driver') return WEB_ROUTES.driverHome;
   if (isMobileRole(role)) {
     return null;
   }
@@ -110,7 +113,7 @@ export function getAuthenticatedLandingPath(role: UserRole | string): string | n
 }
 
 export function getWebPersona(current: CurrentUser): UserRole | null {
-  return deriveUserRole({
+  const webPersona = deriveUserRole({
     isCustomer: current.profile.isCustomer,
     platformRole: current.profile.platformRole,
     memberships: current.memberships.map((membership) => ({
@@ -120,6 +123,11 @@ export function getWebPersona(current: CurrentUser): UserRole | null {
     })),
     surface: 'web',
   });
+  if (webPersona) return webPersona;
+  if (current.memberships.some((membership) => membership.role === 'driver')) {
+    return 'driver';
+  }
+  return null;
 }
 
 export function getLandingPathForUser(current: CurrentUser): string | null {

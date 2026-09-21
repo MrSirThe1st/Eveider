@@ -1,6 +1,6 @@
 # Supabase Setup
 
-Eveider uses Supabase for auth, PostgreSQL, and realtime.
+Eveider uses Supabase for auth, PostgreSQL, realtime, and private file storage (identity documents).
 
 ## Project
 

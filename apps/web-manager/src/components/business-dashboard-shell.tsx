@@ -7,7 +7,7 @@ import { OrganizationSettingsChrome } from '@/components/settings-chrome';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { WEB_ROUTES } from '@/lib/auth-routing';
 import { BUSINESS_PRIMARY_NAV } from '@/lib/business-nav';
-import { createClient } from '@/lib/supabase/client';
+import { signOutClient } from '@/lib/supabase/client';
 
 type BusinessDashboardShellProps = {
   children: React.ReactNode;
@@ -56,8 +56,7 @@ export function BusinessDashboardShell({
   }));
 
   async function handleSignOut() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    await signOutClient();
     router.replace(WEB_ROUTES.landing);
   }
 

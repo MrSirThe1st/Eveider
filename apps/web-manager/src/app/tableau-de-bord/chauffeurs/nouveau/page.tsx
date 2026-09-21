@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
+import { WEB_ROUTES } from '@/lib/auth-routing';
 
 export default function AdminNewDriverLegacyRedirectPage() {
-  redirect('/tableau-de-bord/flotte/nouveau');
+  redirect(WEB_ROUTES.adminNewDriver);
 }

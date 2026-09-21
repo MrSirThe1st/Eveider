@@ -1,0 +1,37 @@
+---
+description: Keep normal development fast — targeted typecheck/Vitest, no automatic E2E
+alwaysApply: true
+---
+
+# Test and verification scope
+
+Keep Playwright and existing tests available. Do not use them as a default after every change.
+
+This project rule overrides any general “always verify UI in the browser” habit.
+
+## Normal code changes
+
+- Run **one** targeted typecheck and only the **relevant** Vitest/package tests.
+- Do **not** run Playwright automatically.
+- Do **not** run the full E2E suite unless the task is major E2E verification or the user explicitly asks.
+- Do **not** browser-verify simple copy, styling tweaks, minor layout changes, or internal refactors.
+- Use Cursor Browser or Playwright only for **significant interactive** changes, **critical user flows**, or when the user **explicitly** asks for browser/E2E verification.
+- Skip Cursor Browser when automated tests already cover the change.
+- Never run the same typecheck or test twice.
+- Avoid root `pnpm test`, `pnpm typecheck`, `pnpm lint`, and Turbo verification for small scoped changes. Use the package that changed (`pnpm --filter @eveider/<pkg> exec tsc --noEmit`, `vitest run <file>`).
+- Never start another Next dev server if one is already running (reuse `pnpm --filter @eveider/web-manager dev` on port 3000).
+- Never seed or reset the database unless the task specifically requires it.
+
+## Playwright (only when genuinely necessary)
+
+Use it only when the change is a **significant interactive** change or a **critical user flow** (auth/session, protected routing, role-gated journeys) **and** E2E verification is needed — or the user asks.
+
+From `apps/web-manager` **only**:
+
+```
+pnpm test:e2e e2e/<file>.spec.ts
+```
+
+Never add an extra `--` (that can run the full suite). Never `pnpm --filter @eveider/web-manager test:e2e -- …`.
+
+Playwright failures must not block unrelated work.

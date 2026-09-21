@@ -1,9 +1,8 @@
 'use client';
 
-import { colors, typography } from '@eveider/config-ui';
-import { DataTable, IconUsers, type DataTableColumn } from '@eveider/ui';
-import { useMemo } from 'react';
 import { ORGANIZATION_ROLE_LABELS, type OrganizationRole } from '@eveider/domain';
+import { DataTable, IconUsers, TableCellStack, type DataTableColumn } from '@eveider/ui';
+import { useMemo } from 'react';
 import type { AdminOrganizationMember } from '@/server/organizations';
 
 type AdminOrganizationMembersProps = {
@@ -19,14 +18,7 @@ export function AdminOrganizationMembers({ members }: AdminOrganizationMembersPr
         sortable: true,
         sortValue: (row) => row.fullName ?? row.email ?? '',
         cell: (row) => (
-          <div>
-            <div style={{ fontWeight: typography.weights.semibold }}>
-              {row.fullName ?? '—'}
-            </div>
-            <div style={{ fontSize: typography.caption.fontSize, color: colors.textMuted }}>
-              {row.email ?? '—'}
-            </div>
-          </div>
+          <TableCellStack primary={row.fullName ?? '—'} secondary={row.email ?? '—'} />
         ),
       },
       {
@@ -51,6 +43,7 @@ export function AdminOrganizationMembers({ members }: AdminOrganizationMembersPr
       columns={columns}
       rows={members}
       getRowId={(row) => row.id}
+      sortBy="name"
       emptyTitle="Aucun membre"
       emptyDescription="Les membres de cette organisation apparaîtront ici."
       emptyIcon={<IconUsers />}

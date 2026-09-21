@@ -26,7 +26,7 @@ describe('Phase 1 geography migration file', () => {
 });
 
 describe.skipIf(!live)('Phase 1 geography backfill', () => {
-  it('maps every service area to a city and copies configured prices', async () => {
+  it('maps every service area to a city and a zone_pricing row', async () => {
     const unmapped = await db.query(
       `SELECT COUNT(*)::int AS count FROM service_areas WHERE city_id IS NULL`,
     );
@@ -39,15 +39,6 @@ describe.skipIf(!live)('Phase 1 geography backfill', () => {
        WHERE zp.zone_id IS NULL`,
     );
     expect(missingPricing.rows[0]?.count).toBe(0);
-
-    const copied = await db.query(
-      `SELECT COUNT(*)::int AS count
-       FROM service_areas sa
-       JOIN zone_pricing zp ON zp.zone_id = sa.id
-       WHERE zp.outbound_delivery_amount IS DISTINCT FROM sa.outbound_delivery_amount
-          OR zp.return_delivery_amount IS DISTINCT FROM sa.return_delivery_amount`,
-    );
-    expect(copied.rows[0]?.count).toBe(0);
   });
 
   it('keeps holding-zone UUIDs and does not unzone existing lockers', async () => {

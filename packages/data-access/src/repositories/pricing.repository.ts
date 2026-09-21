@@ -1,5 +1,6 @@
 import {
   calculateDeliveryFee,
+  parseDeliveryPricingCurrency,
   type DeliveryPricingCurrency,
   type DeliveryPricingRules,
   type PackageSize,
@@ -7,10 +8,7 @@ import {
 import { assertAdmin, type DataAccessContext } from '../context.js';
 import type { Queryable } from '../db/index.js';
 import type { DeliveryPricingRuleRow } from '../db/types.js';
-
-function parseCurrency(value: unknown): DeliveryPricingCurrency {
-  return value === 'USD' ? 'USD' : 'CDF';
-}
+import { readPlatformCurrency } from './platform-settings.repository.js';
 
 function mapPricingRow(row: Record<string, unknown>): DeliveryPricingRuleRow {
   return {
@@ -18,7 +16,7 @@ function mapPricingRow(row: Record<string, unknown>): DeliveryPricingRuleRow {
     distanceThresholdKm: Number(row.distance_threshold_km),
     belowThresholdAmount: Number(row.below_threshold_amount),
     aboveThresholdAmount: Number(row.above_threshold_amount),
-    currency: parseCurrency(row.currency),
+    currency: parseDeliveryPricingCurrency(row.currency),
     smallCoefficient: Number(row.small_coefficient),
     mediumCoefficient: Number(row.medium_coefficient),
     largeCoefficient: Number(row.large_coefficient),
@@ -53,7 +51,7 @@ export type UpdateDeliveryPricingInput = {
   distanceThresholdKm: number;
   belowThresholdAmount: number;
   aboveThresholdAmount: number;
-  currency: DeliveryPricingCurrency;
+  currency?: DeliveryPricingCurrency;
   smallCoefficient: number;
   mediumCoefficient: number;
   largeCoefficient: number;
@@ -74,7 +72,11 @@ export class PricingRepository {
     if (!row) {
       throw new Error('Règles tarifaires introuvables');
     }
-    return mapPricingRow(row);
+    const mapped = mapPricingRow(row);
+    return {
+      ...mapped,
+      currency: await readPlatformCurrency(this.db),
+    };
   }
 
   async updateDeliveryRules(
@@ -83,6 +85,7 @@ export class PricingRepository {
   ): Promise<DeliveryPricingRuleRow> {
     assertAdmin(ctx);
     const current = await this.getDeliveryRules();
+    const currency = current.currency;
     const result = await this.db.query(
       `UPDATE delivery_pricing_rules
        SET distance_threshold_km = $1,
@@ -104,7 +107,7 @@ export class PricingRepository {
         input.distanceThresholdKm,
         input.belowThresholdAmount,
         input.aboveThresholdAmount,
-        input.currency,
+        currency,
         input.smallCoefficient,
         input.mediumCoefficient,
         input.largeCoefficient,

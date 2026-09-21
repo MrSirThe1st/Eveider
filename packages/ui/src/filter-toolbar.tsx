@@ -26,6 +26,8 @@ export type FilterToolbarProps = {
   clearLabel?: string;
   className?: string;
   style?: CSSProperties;
+  /** Remove outer spacing when the toolbar sits inside a table chrome. */
+  embedded?: boolean;
 };
 
 function isActive(filter: FilterDimension): boolean {
@@ -46,6 +48,7 @@ export function FilterToolbar({
   clearLabel = 'Effacer les filtres',
   className,
   style,
+  embedded = false,
 }: FilterToolbarProps) {
   const anyActive = filters.some(isActive);
 
@@ -54,10 +57,10 @@ export function FilterToolbar({
       className={['nb-filter-toolbar', className].filter(Boolean).join(' ')}
       style={{
         display: 'flex',
-        flexWrap: 'wrap',
+        flexWrap: embedded ? 'nowrap' : 'wrap',
         alignItems: 'center',
         gap: spacing[2],
-        marginBottom: spacing[6],
+        marginBottom: embedded ? 0 : spacing[6],
         ...style,
       }}
     >

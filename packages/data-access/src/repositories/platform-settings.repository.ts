@@ -1,3 +1,4 @@
+import { parseDeliveryPricingCurrency, type DeliveryPricingCurrency } from '@eveider/domain';
 import { assertAdmin, type DataAccessContext } from '../context.js';
 import type { Queryable } from '../db/index.js';
 
@@ -13,7 +14,8 @@ export type PlatformDefaultFeature = (typeof PLATFORM_DEFAULT_FEATURES)[number];
 export type PlatformSettingsRow = {
   id: string;
   pickupFeeAmount: number;
-  pickupFeeCurrency: string;
+  pickupFeeCurrency: DeliveryPricingCurrency;
+  platformCurrency: DeliveryPricingCurrency;
   requireOrgApproval: boolean;
   defaultDailyShipments: number | null;
   defaultMonthlyShipments: number | null;
@@ -28,7 +30,8 @@ export type PlatformSettingsRow = {
 
 export type UpdatePlatformSettingsInput = {
   pickupFeeAmount: number;
-  pickupFeeCurrency: string;
+  pickupFeeCurrency?: DeliveryPricingCurrency;
+  platformCurrency: DeliveryPricingCurrency;
   requireOrgApproval: boolean;
   defaultDailyShipments: number | null;
   defaultMonthlyShipments: number | null;
@@ -55,11 +58,22 @@ function asNullableNumber(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+export async function readPlatformCurrency(db: Queryable): Promise<DeliveryPricingCurrency> {
+  const result = await db.query(
+    `SELECT platform_currency FROM platform_settings ORDER BY updated_at DESC LIMIT 1`,
+  );
+  return parseDeliveryPricingCurrency(result.rows[0]?.platform_currency);
+}
+
 function mapRow(row: Record<string, unknown>): PlatformSettingsRow {
+  const platformCurrency = parseDeliveryPricingCurrency(
+    row.platform_currency ?? row.pickup_fee_currency,
+  );
   return {
     id: String(row.id),
     pickupFeeAmount: Number(row.pickup_fee_amount),
-    pickupFeeCurrency: String(row.pickup_fee_currency),
+    pickupFeeCurrency: platformCurrency,
+    platformCurrency,
     requireOrgApproval: Boolean(row.require_org_approval),
     defaultDailyShipments: asNullableNumber(row.default_daily_shipments),
     defaultMonthlyShipments: asNullableNumber(row.default_monthly_shipments),
@@ -94,10 +108,14 @@ export class PlatformSettingsRepository {
   ): Promise<PlatformSettingsRow> {
     assertAdmin(ctx);
     const current = await this.getSettings();
+    const platformCurrency = parseDeliveryPricingCurrency(
+      input.platformCurrency ?? input.pickupFeeCurrency,
+    );
     const result = await this.db.query(
       `UPDATE platform_settings
        SET pickup_fee_amount = $1,
            pickup_fee_currency = $2,
+           platform_currency = $2,
            require_org_approval = $3,
            default_daily_shipments = $4,
            default_monthly_shipments = $5,
@@ -112,7 +130,7 @@ export class PlatformSettingsRepository {
        RETURNING *`,
       [
         input.pickupFeeAmount,
-        input.pickupFeeCurrency,
+        platformCurrency,
         input.requireOrgApproval,
         input.defaultDailyShipments,
         input.defaultMonthlyShipments,
@@ -124,6 +142,12 @@ export class PlatformSettingsRepository {
         ctx.userId ?? null,
         current.id,
       ],
+    );
+    await this.db.query(
+      `UPDATE delivery_pricing_rules
+       SET currency = $1,
+           updated_at = NOW()`,
+      [platformCurrency],
     );
     return mapRow(result.rows[0]!);
   }

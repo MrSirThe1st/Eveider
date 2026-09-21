@@ -1,7 +1,8 @@
 'use client';
 
 import { colors, radius, spacing, typography } from '@eveider/config-ui';
-import type { CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { IconX } from './icons.js';
 
 export type InlineAlertVariant = 'success' | 'error' | 'info';
 
@@ -9,6 +10,11 @@ export type InlineAlertProps = {
   message: string;
   variant?: InlineAlertVariant;
   onDismiss?: () => void;
+  /**
+   * Auto-hide delay in ms. Success/error default to a short delay.
+   * Pass `0` to keep the alert until it is closed (info notices default to this).
+   */
+  autoDismissMs?: number;
   className?: string;
   style?: CSSProperties;
 };
@@ -34,17 +40,53 @@ const VARIANT_STYLES: Record<
   },
 };
 
+const DEFAULT_AUTO_DISMISS_MS: Record<InlineAlertVariant, number> = {
+  success: 5000,
+  error: 7000,
+  info: 0,
+};
+
+export function inlineAlertAutoDismissMs(
+  variant: InlineAlertVariant,
+  override?: number,
+): number {
+  return override ?? DEFAULT_AUTO_DISMISS_MS[variant];
+}
+
 /**
- * Persistent in-page alert (forms, banners). Prefer Toast for transient feedback.
+ * In-page alert with a close control. Success and error banners hide on their own;
+ * info notices stay until dismissed.
  */
 export function InlineAlert({
   message,
   variant = 'success',
   onDismiss,
+  autoDismissMs,
   className,
   style,
 }: InlineAlertProps) {
+  const [hidden, setHidden] = useState(false);
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
+  const duration = inlineAlertAutoDismissMs(variant, autoDismissMs);
   const tone = VARIANT_STYLES[variant];
+
+  useEffect(() => {
+    setHidden(false);
+    if (duration <= 0) return;
+    const timer = window.setTimeout(() => {
+      setHidden(true);
+      onDismissRef.current?.();
+    }, duration);
+    return () => window.clearTimeout(timer);
+  }, [message, variant, duration]);
+
+  if (hidden) return null;
+
+  function dismiss() {
+    setHidden(true);
+    onDismissRef.current?.();
+  }
 
   return (
     <div
@@ -74,32 +116,27 @@ export function InlineAlert({
       >
         {message}
       </p>
-      {onDismiss ? (
-        <button
-          type="button"
-          onClick={onDismiss}
-          aria-label="Fermer"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            width: 28,
-            height: 28,
-            background: 'none',
-            border: 'none',
-            borderRadius: radius.sm,
-            fontSize: 18,
-            fontWeight: typography.weights.semibold,
-            cursor: 'pointer',
-            color: colors.textMuted,
-            padding: 0,
-            lineHeight: 1,
-          }}
-        >
-          ×
-        </button>
-      ) : null}
+      <button
+        type="button"
+        onClick={dismiss}
+        aria-label="Fermer"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          width: 28,
+          height: 28,
+          background: 'none',
+          border: 'none',
+          borderRadius: radius.sm,
+          cursor: 'pointer',
+          color: colors.textMuted,
+          padding: 0,
+        }}
+      >
+        <IconX width={16} height={16} />
+      </button>
     </div>
   );
 }

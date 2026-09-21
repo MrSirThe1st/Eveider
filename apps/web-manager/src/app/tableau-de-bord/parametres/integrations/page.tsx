@@ -1,14 +1,6 @@
-import { PageFrame } from '@eveider/ui';
-import { ExcelIntegrationsPanel } from '@/components/excel-integrations-panel';
+import { redirect } from 'next/navigation';
+import { ADMIN_SETTINGS_ROUTES } from '@/lib/settings-nav';
 
 export default function AdminIntegrationsSettingsPage() {
-  return (
-    <PageFrame
-      title="Exports Excel"
-      description="Télécharger les colis et livraisons de toute la plateforme en fichier Excel."
-      layout="standard"
-    >
-      <ExcelIntegrationsPanel variant="admin" />
-    </PageFrame>
-  );
+  redirect(ADMIN_SETTINGS_ROUTES.profile);
 }

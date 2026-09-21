@@ -30,10 +30,7 @@ test.describe('Admin drivers', () => {
 
     await expect(page.getByRole('heading', { name: 'Flotte', level: 1 })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: 'Entreprise' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Ajouter un chauffeur' })).toHaveAttribute(
-      'href',
-      '/tableau-de-bord/flotte/nouveau',
-    );
+    await expect(page.getByRole('button', { name: 'Ajouter un chauffeur' })).toBeVisible();
     await expect(page.getByRole('searchbox', { name: 'Rechercher un chauffeur' })).toBeVisible();
     await expect(page.getByRole('button', { name: '+ Entreprise' })).toBeVisible();
 
@@ -66,23 +63,60 @@ test.describe('Admin drivers', () => {
     await expect(page.getByRole('button', { name: 'Bloquer' })).toBeVisible();
   });
 
-  test('add driver is Eveider fleet only and not embedded in the list', async ({ page }) => {
+  test('add driver opens in a popup on the fleet list', async ({ page }) => {
     await signIn(page, 'admin@eveider.cd');
     await page.goto('/tableau-de-bord/flotte');
     await dismissCookieBanner(page);
 
     await expect(page.getByLabel('Nom complet')).toHaveCount(0);
 
-    await page.getByRole('link', { name: 'Ajouter un chauffeur' }).click();
-    await expect(page).toHaveURL(/\/tableau-de-bord\/flotte\/nouveau$/);
-    await expect(page.getByRole('heading', { name: 'Ajouter un chauffeur', level: 1 })).toBeVisible();
-    await expect(page.getByText('Flotte Eveider uniquement')).toBeVisible();
-    await expect(page.getByLabel('Nom complet')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Ajouter et inviter' })).toBeVisible();
-    const zoneSelect = page.getByLabel('Zone de service');
+    await page.getByRole('button', { name: 'Ajouter un chauffeur' }).click();
+    await expect(page).toHaveURL(/\/tableau-de-bord\/flotte$/);
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: 'Ajouter un chauffeur' })).toBeVisible();
+    await expect(dialog.getByText('Flotte Eveider uniquement')).toBeVisible();
+    await expect(dialog.getByLabel('Nom complet')).toBeVisible();
+    await expect(dialog.getByText('Pièce d’identité', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('Choisissez un fichier ou déposez-le ici')).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Parcourir' })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Ajouter et inviter' })).toBeVisible();
+    const zoneSelect = dialog.getByLabel('Zone de service');
     await expect(zoneSelect).toBeVisible();
     const labels = await zoneSelect.locator('option').allTextContents();
+    expect(labels.some((label) => /Non assignée/i.test(label))).toBe(true);
     expect(labels.some((label) => /Kolwezi/i.test(label))).toBe(true);
     expect(labels.some((label) => /Lubumbashi/i.test(label))).toBe(true);
+    await expect(zoneSelect).toHaveValue('');
+
+    const couriers = await page.request.get('/api/couriers');
+    const courierJson = await couriers.json();
+    expect(courierJson.success).toBe(true);
+    const names = (courierJson.data.couriers as Array<{ fullName: string | null }>).map(
+      (courier) => courier.fullName ?? '',
+    );
+    expect(names.length).toBeGreaterThan(0);
+    expect(names.some((name) => /Jean-Pierre Tshibanda/i.test(name))).toBe(true);
+
+    const board = await page.request.get('/api/deliveries/board?includeMeta=true');
+    const boardJson = await board.json();
+    expect(boardJson.success).toBe(true);
+    const boardCouriers = (boardJson.data.couriers as Array<{ fullName: string | null }>).map(
+      (courier) => courier.fullName ?? '',
+    );
+    expect(boardCouriers).toEqual(names);
+  });
+
+  test('legacy add-driver page opens the popup on Flotte', async ({ page }) => {
+    await signIn(page, 'admin@eveider.cd');
+    await page.goto('/tableau-de-bord/flotte/nouveau');
+    await dismissCookieBanner(page);
+
+    await expect(page).toHaveURL(/\/tableau-de-bord\/flotte\?ajouter=1$/);
+    await expect(page.getByRole('heading', { name: 'Flotte', level: 1 })).toBeVisible();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: 'Ajouter un chauffeur' })).toBeVisible();
+    await expect(dialog.getByLabel('Nom complet')).toBeVisible();
   });
 });

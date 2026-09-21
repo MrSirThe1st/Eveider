@@ -15,6 +15,15 @@ async function openBusinessParcel(page: import('@playwright/test').Page, referen
   await dismissCookieBanner(page);
 }
 
+async function selectDestinationLocker(page: import('@playwright/test').Page) {
+  const search = page.getByPlaceholder(/Rechercher un point/);
+  await expect(search).toBeVisible();
+  const katuba = page.getByRole('heading', { name: /Casier — EVEIDER KATUBA/i });
+  await expect(katuba).toBeVisible({ timeout: 20_000 });
+  await katuba.click();
+  await expect(page.getByText('Sélectionnez un casier Eveider.')).toHaveCount(0);
+}
+
 test.describe('Business portal IA', () => {
   test.describe.configure({ timeout: 90_000 });
 
@@ -99,7 +108,7 @@ test.describe('Business portal IA', () => {
     await page.getByRole('button', { name: 'Continuer' }).click();
     await page.getByRole('button', { name: 'Continuer' }).click();
 
-    await page.getByText(/KAMPEMBA/i).first().click();
+    await selectDestinationLocker(page);
     await page.getByRole('button', { name: 'Continuer' }).click();
 
     await expect(page.getByText('Payé par : Destinataire')).toBeVisible();
@@ -136,7 +145,7 @@ test.describe('Business portal IA', () => {
     await page.getByRole('button', { name: 'Continuer' }).click();
 
     await expect(page.getByText('Vous devrez déposer ce colis au casier sélectionné.')).toBeVisible();
-    await page.getByText(/KAMPEMBA/i).first().click();
+    await selectDestinationLocker(page);
     await page.getByRole('button', { name: 'Continuer' }).click();
 
     await expect(page.getByText('Frais de retrait')).toBeVisible();

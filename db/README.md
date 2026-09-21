@@ -32,6 +32,10 @@ pnpm db:migrate
 | `035_20260917220000_locker_action_sessions.sql` | Hardware locker action sessions (`authorize` / `confirm` / `cancel`) |
 | `036_20260919090000_locker_collection_credentials.sql` | Locker collection credential sync records (Stage IV offline collection) |
 | `037_20260920140000_cities_and_zone_pricing.sql` | City parent entity, `service_areas.city_id`, `zone_pricing` (nullable = unconfigured) |
+| `038_20260921100000_platform_currency.sql` | Singleton `platform_settings.platform_currency` (`USD` \| `CDF`) for new prices and charges |
+| `039_20260921140000_former_platform_staff.sql` | `users.former_platform_role` + `platform_access_revoked_at` for revoked platform staff |
+| `040_20260921150000_identity_documents_bucket.sql` | Private Supabase Storage bucket `identity-documents` for driver IDs and later KYC files |
+| `041_20260921170000_driver_vehicle_documents.sql` | Optional `driver_vehicle_documents` files on a chauffeur dossier |
 
 Hardware locker clients authenticate with `EVEIDER_LOCKER_API_TOKENS` (JSON map of locker UUID → secret) via `Authorization: Bearer <secret>`. The token identifies the locker; the client cannot claim another `locker_id`. Keep secrets out of git. Default authorization TTL is 180 seconds (`EVEIDER_LOCKER_ACTION_TTL_SECONDS`).
 
@@ -55,6 +59,14 @@ Seed demo lockers:
 ```bash
 pnpm db:seed
 ```
+
+Wipe operational data for a from-scratch Admin UI test (keeps schema, migrations, and existing Admin logins; does **not** re-seed demo data):
+
+```bash
+EVEIDER_ALLOW_CLEAN_RESET=1 pnpm db:reset:clean
+```
+
+Development only. Refuses to run when `NODE_ENV` or `VERCEL_ENV` is `production`, or when `EVEIDER_ALLOW_CLEAN_RESET` is unset.
 
 pnpm --filter @eveider/web-admin dev
 pnpm --filter @eveider/mobile dev

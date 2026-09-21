@@ -1,3 +1,4 @@
+import { MAX_DRIVER_VEHICLE_DOCUMENTS } from '@eveider/api-contracts';
 import {
   assertCourierDossierTransition,
   type CourierContractorKind,
@@ -12,8 +13,8 @@ import {
   type DataAccessContext,
 } from '../context.js';
 import type { Queryable } from '../db/index.js';
-import { mapCourierDossier } from '../db/mappers.js';
-import type { CourierDossier } from '../db/types.js';
+import { mapCourierDossier, mapDriverVehicleDocument } from '../db/mappers.js';
+import type { CourierDossier, DriverVehicleDocument } from '../db/types.js';
 
 export type CreateCourierDossierInput = {
   contractorType: CourierContractorKind;
@@ -288,8 +289,9 @@ export class CourierDossierRepository {
     }
 
     const serviceAreaId = await this.resolveServiceAreaId(input.serviceAreaId);
-    // Business drivers are operational without platform KYC; Eveider fleet still starts in review.
-    const initialStatus = input.contractorType === 'business' ? 'approved' : 'pending_review';
+    // Eveider-added chauffeurs skip document approval and can be invited immediately.
+    // Business-created chauffeurs wait for an Eveider admin before the invite.
+    const initialStatus = input.contractorType === 'business' ? 'pending_review' : 'approved';
 
     const result = await this.db.query(
       `INSERT INTO driver_dossiers (
@@ -402,22 +404,22 @@ export class CourierDossierRepository {
   }
 
   /**
-   * Links an Auth user after a mobile invite.
-   * Eveider fleet: KYC stays pending until approved; only `approved` promotes to `invited`.
-   * Business drivers: already operational — invite promotes approved (or legacy on-file review) to `invited`.
+   * Links an Auth user after an invite magic link is issued.
+   * Eveider fleet is already approved at create; business chauffeurs must be approved first.
+   * `approved` promotes to `invited`. Already invited / active keep their status (resend).
    */
   async attachInvite(current: CourierDossier, userId: string): Promise<CourierDossier> {
-    if (current.status === 'rejected' || current.status === 'deactivated') {
+    if (
+      current.status !== 'approved' &&
+      current.status !== 'invited' &&
+      current.status !== 'active'
+    ) {
       throw new Error('Ce chauffeur ne peut pas être invité');
     }
 
-    const isBusinessDriver = current.contractorType === 'business';
     let nextStatus = current.status;
     if (current.status === 'approved') {
       assertCourierDossierTransition(current.status, 'invited');
-      nextStatus = 'invited';
-    } else if (isBusinessDriver && current.status === 'pending_review') {
-      // Legacy business rows created before operational-without-KYC; skip review gate.
       nextStatus = 'invited';
     }
 
@@ -511,5 +513,62 @@ export class CourierDossierRepository {
       throw new Error('Cette ville n’est plus active');
     }
     return String(row.id);
+  }
+
+  async listVehicleDocuments(
+    ctx: DataAccessContext,
+    dossierId: string,
+  ): Promise<DriverVehicleDocument[]> {
+    await this.requireInScope(ctx, dossierId);
+    const result = await this.db.query(
+      `SELECT id, driver_dossier_id, stored_ref, file_name, uploaded_by_user_id, created_at
+       FROM driver_vehicle_documents
+       WHERE driver_dossier_id = $1
+       ORDER BY created_at ASC`,
+      [dossierId],
+    );
+    return result.rows.map(mapDriverVehicleDocument);
+  }
+
+  async addVehicleDocument(
+    ctx: DataAccessContext,
+    dossierId: string,
+    input: { storedRef: string; fileName: string },
+  ): Promise<DriverVehicleDocument> {
+    await this.requireInScope(ctx, dossierId);
+    const countResult = await this.db.query(
+      `SELECT COUNT(*)::int AS n FROM driver_vehicle_documents WHERE driver_dossier_id = $1`,
+      [dossierId],
+    );
+    const count = Number(countResult.rows[0]?.n ?? 0);
+    if (count >= MAX_DRIVER_VEHICLE_DOCUMENTS) {
+      throw new Error(`Au plus ${MAX_DRIVER_VEHICLE_DOCUMENTS} documents véhicule`);
+    }
+
+    const result = await this.db.query(
+      `INSERT INTO driver_vehicle_documents (
+         driver_dossier_id, stored_ref, file_name, uploaded_by_user_id
+       ) VALUES ($1, $2, $3, $4)
+       RETURNING id, driver_dossier_id, stored_ref, file_name, uploaded_by_user_id, created_at`,
+      [dossierId, input.storedRef.trim(), input.fileName.trim(), ctx.userId ?? null],
+    );
+    return mapDriverVehicleDocument(result.rows[0]!);
+  }
+
+  async deleteVehicleDocument(
+    ctx: DataAccessContext,
+    dossierId: string,
+    documentId: string,
+  ): Promise<DriverVehicleDocument> {
+    await this.requireInScope(ctx, dossierId);
+    const result = await this.db.query(
+      `DELETE FROM driver_vehicle_documents
+       WHERE id = $1 AND driver_dossier_id = $2
+       RETURNING id, driver_dossier_id, stored_ref, file_name, uploaded_by_user_id, created_at`,
+      [documentId, dossierId],
+    );
+    const row = result.rows[0];
+    if (!row) throw new Error('Document véhicule introuvable');
+    return mapDriverVehicleDocument(row);
   }
 }

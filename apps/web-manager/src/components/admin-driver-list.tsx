@@ -1,22 +1,23 @@
 'use client';
 
-import { colors, spacing, typography } from '@eveider/config-ui';
+import { colors } from '@eveider/config-ui';
 import {
   DRIVER_OPERATIONAL_STATUS_LABELS,
   DRIVER_OPERATIONAL_STATUSES,
   type DriverOperationalStatus,
 } from '@eveider/domain';
-import { DataTable, FilterToolbar, IconSearch, IconTruck, type DataTableColumn } from '@eveider/ui';
+import { DataTable, DEFAULT_TABLE_PAGE_SIZE, FilterToolbar, IconSearch, IconTruck, TableCellStack, type DataTableColumn } from '@eveider/ui';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { DriverStatusBadge } from '@/components/driver-status-badge';
 import { ListSearchField } from '@/components/list-search-field';
-import { WEB_ROUTES, adminDriverPath } from '@/lib/auth-routing';
+import { adminDriverPath } from '@/lib/auth-routing';
 import { matchesListSearch } from '@/lib/list-search';
 import type { DriverListItem } from '@/server/drivers';
 
 type AdminDriverListProps = {
   drivers: DriverListItem[];
+  onAddDriver?: () => void;
 };
 
 type StatusFilter = 'all' | DriverOperationalStatus;
@@ -33,7 +34,7 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   })),
 ];
 
-export function AdminDriverList({ drivers }: AdminDriverListProps) {
+export function AdminDriverList({ drivers, onAddDriver }: AdminDriverListProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [orgFilter, setOrgFilter] = useState('all');
   const [cityFilter, setCityFilter] = useState('all');
@@ -116,6 +117,33 @@ export function AdminDriverList({ drivers }: AdminDriverListProps) {
     });
   }, [drivers, searchQuery, statusFilter, orgFilter, cityFilter, zoneFilter]);
 
+  const hasActiveFilters =
+    Boolean(searchQuery.trim()) ||
+    statusFilter !== 'all' ||
+    orgFilter !== 'all' ||
+    cityFilter !== 'all' ||
+    zoneFilter !== 'all';
+
+  const emptyAction = hasActiveFilters ? (
+    <button
+      type="button"
+      className="nb-btn nb-btn-secondary nb-btn--sm"
+      onClick={() => {
+        setSearchQuery('');
+        setStatusFilter('all');
+        setOrgFilter('all');
+        setCityFilter('all');
+        setZoneFilter('all');
+      }}
+    >
+      Réinitialiser les filtres
+    </button>
+  ) : onAddDriver ? (
+    <button type="button" className="nb-btn nb-btn-primary nb-btn--sm" onClick={onAddDriver}>
+      Ajouter un chauffeur
+    </button>
+  ) : undefined;
+
   const columns = useMemo<DataTableColumn<DriverListItem>[]>(
     () => [
       {
@@ -124,20 +152,14 @@ export function AdminDriverList({ drivers }: AdminDriverListProps) {
         sortable: true,
         sortValue: (row) => row.fullName,
         cell: (row) => (
-          <div>
-            <Link href={adminDriverPath(row.id)} className="nb-data-table__link">
-              {row.fullName}
-            </Link>
-            <p
-              style={{
-                margin: `${spacing[1]}px 0 0`,
-                fontSize: typography.caption.fontSize,
-                color: colors.textMuted,
-              }}
-            >
-              {row.email}
-            </p>
-          </div>
+          <TableCellStack
+            primary={
+              <Link href={adminDriverPath(row.id)} className="nb-data-table__link">
+                {row.fullName}
+              </Link>
+            }
+            secondary={row.email}
+          />
         ),
       },
       {
@@ -183,7 +205,7 @@ export function AdminDriverList({ drivers }: AdminDriverListProps) {
         header: 'Aujourd’hui',
         sortable: true,
         sortValue: (row) => row.deliveriesToday,
-        align: 'right',
+        numeric: true,
         cell: (row) => (
           <span style={{ color: colors.textMuted, whiteSpace: 'nowrap' }}>
             {todayLabel(row.deliveriesToday)}
@@ -196,87 +218,80 @@ export function AdminDriverList({ drivers }: AdminDriverListProps) {
 
   return (
     <section>
-      <FilterToolbar
-        onClearAll={() => {
-          setStatusFilter('all');
-          setOrgFilter('all');
-          setCityFilter('all');
-          setZoneFilter('all');
-        }}
-        filters={[
-          {
-            id: 'driver-status',
-            label: 'Statut',
-            value: statusFilter,
-            emptyValue: 'all',
-            options: STATUS_OPTIONS,
-            onChange: (next) => setStatusFilter(next as StatusFilter),
-          },
-          {
-            id: 'driver-org',
-            label: 'Entreprise',
-            value: orgFilter,
-            emptyValue: 'all',
-            options: orgOptions,
-            onChange: setOrgFilter,
-          },
-          {
-            id: 'driver-city',
-            label: 'Ville',
-            value: cityFilter,
-            emptyValue: 'all',
-            options: cityOptions,
-            onChange: (next) => {
-              setCityFilter(next);
-              setZoneFilter('all');
-            },
-          },
-          {
-            id: 'driver-zone',
-            label: 'Zone',
-            value: zoneFilter,
-            emptyValue: 'all',
-            options: zoneOptions,
-            onChange: setZoneFilter,
-          },
-        ]}
-      />
-
-      <div style={{ marginBottom: spacing[4] }}>
-        <ListSearchField
-          value={searchQuery}
-          onChange={setSearchQuery}
-          placeholder="Rechercher un chauffeur…"
-          ariaLabel="Rechercher un chauffeur"
-        />
-      </div>
-
       <DataTable
         columns={columns}
         rows={filtered}
         getRowId={(row) => row.id}
-        caption={filtered.length > 0 ? `${filtered.length} chauffeurs` : undefined}
-        emptyTitle={
-          searchQuery.trim()
-            ? 'Aucun chauffeur pour cette recherche'
-            : 'Aucun chauffeur Eveider disponible.'
+        search={
+          <ListSearchField
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Rechercher un chauffeur par nom, email ou zone…"
+            ariaLabel="Rechercher un chauffeur"
+          />
         }
-        emptyDescription="Ajoutez un chauffeur Eveider."
+        filters={
+          <FilterToolbar
+            embedded
+            onClearAll={() => {
+              setStatusFilter('all');
+              setOrgFilter('all');
+              setCityFilter('all');
+              setZoneFilter('all');
+            }}
+            filters={[
+              {
+                id: 'driver-status',
+                label: 'Statut',
+                value: statusFilter,
+                emptyValue: 'all',
+                options: STATUS_OPTIONS,
+                onChange: (next) => setStatusFilter(next as StatusFilter),
+              },
+              {
+                id: 'driver-org',
+                label: 'Entreprise',
+                value: orgFilter,
+                emptyValue: 'all',
+                options: orgOptions,
+                onChange: setOrgFilter,
+              },
+              {
+                id: 'driver-city',
+                label: 'Ville',
+                value: cityFilter,
+                emptyValue: 'all',
+                options: cityOptions,
+                onChange: (next) => {
+                  setCityFilter(next);
+                  setZoneFilter('all');
+                },
+              },
+              {
+                id: 'driver-zone',
+                label: 'Zone',
+                value: zoneFilter,
+                emptyValue: 'all',
+                options: zoneOptions,
+                onChange: setZoneFilter,
+              },
+            ]}
+          />
+        }
+        emptyTitle={hasActiveFilters ? 'Aucun résultat' : 'Aucun chauffeur Eveider disponible.'}
+        emptyDescription={
+          hasActiveFilters
+            ? 'Aucun chauffeur ne correspond aux filtres actuels.'
+            : 'Ajoutez un chauffeur Eveider.'
+        }
         emptyIcon={searchQuery.trim() ? <IconSearch /> : <IconTruck />}
-        emptyAction={
-          <Link href={WEB_ROUTES.adminNewDriver} className="nb-btn nb-btn-primary nb-btn--sm">
-            Ajouter un chauffeur
-          </Link>
-        }
-        initialSortId="driver"
-        initialSortDirection="asc"
-        rowActions={(row) => [
-          {
-            id: 'view',
-            label: 'Voir le profil',
-            href: adminDriverPath(row.id),
-          },
-        ]}
+        emptyAction={emptyAction}
+        sortBy="driver"
+        pageSize={DEFAULT_TABLE_PAGE_SIZE}
+        rowPrimaryAction={(row) => ({
+          label: 'Détails',
+          href: adminDriverPath(row.id),
+        })}
       />
     </section>
   );

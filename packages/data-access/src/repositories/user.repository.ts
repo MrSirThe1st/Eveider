@@ -222,7 +222,13 @@ export class UserRepository {
     if (data.phone !== undefined) push('phone', data.phone);
     if (data.fullName !== undefined) push('full_name', data.fullName);
     if (data.isCustomer !== undefined) push('is_customer', data.isCustomer);
-    if (data.platformRole !== undefined) push('platform_role', data.platformRole);
+    if (data.platformRole !== undefined) {
+      push('platform_role', data.platformRole);
+      if (data.platformRole) {
+        push('former_platform_role', null);
+        push('platform_access_revoked_at', null);
+      }
+    }
     if (data.isBlocked !== undefined) push('is_blocked', data.isBlocked);
     if (data.deactivatedAt !== undefined) push('deactivated_at', data.deactivatedAt);
     if (data.deletedAt !== undefined) push('deleted_at', data.deletedAt);

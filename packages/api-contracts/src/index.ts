@@ -29,5 +29,6 @@ export * from './schemas/platform.js';
 export * from './schemas/platform-staff.js';
 export * from './schemas/track.js';
 export * from './schemas/courier.js';
+export * from './schemas/documents.js';
 export * from './schemas/organization-api.js';
 export * from './zod-enum.js';

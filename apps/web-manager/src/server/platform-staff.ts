@@ -1,7 +1,6 @@
 import {
   createDataAccessContext,
   createRepositories,
-  buildPlatformAdminInviteLink,
   type DataAccessContext,
 } from '@eveider/data-access';
 import { isSuperAdmin, ORGANIZATION_ROLE_LABELS, PLATFORM_ROLE_LABELS, type PlatformRole } from '@eveider/domain';
@@ -23,15 +22,25 @@ export type PlatformStaffInviteView = {
   email: string;
   invitedRole: PlatformRole;
   invitedRoleLabel: string;
+  createdAt: string;
   expiresAt: string;
-  inviteUrl: string;
+};
+
+export type PlatformStaffFormerMemberView = {
+  id: string;
+  fullName: string | null;
+  email: string | null;
+  formerRole: PlatformRole;
+  formerRoleLabel: string;
+  revokedAt: string | null;
 };
 
 export async function loadPlatformStaffPage(ctx: DataAccessContext, currentUserId: string) {
   const { platformStaff } = createRepositories();
-  const [members, invites] = await Promise.all([
+  const [members, invites, formerMembers] = await Promise.all([
     platformStaff.listStaff(),
     platformStaff.listPendingInvites(ctx),
+    platformStaff.listFormerStaff(ctx),
   ]);
 
   return {
@@ -57,10 +66,26 @@ export async function loadPlatformStaffPage(ctx: DataAccessContext, currentUserI
         email: invite.email,
         invitedRole: invite.invitedRole,
         invitedRoleLabel: PLATFORM_ROLE_LABELS[invite.invitedRole],
+        createdAt: invite.createdAt.toISOString(),
         expiresAt: invite.expiresAt.toISOString(),
-        inviteUrl: buildPlatformAdminInviteLink(invite.token),
       }),
     ),
+    formerMembers: formerMembers.map((member): PlatformStaffFormerMemberView => {
+      const revokedAt =
+        member.revokedAt instanceof Date
+          ? member.revokedAt.toISOString()
+          : member.revokedAt
+            ? new Date(member.revokedAt).toISOString()
+            : null;
+      return {
+        id: member.id,
+        fullName: member.fullName,
+        email: member.email,
+        formerRole: member.formerRole,
+        formerRoleLabel: PLATFORM_ROLE_LABELS[member.formerRole] ?? member.formerRole,
+        revokedAt,
+      };
+    }),
   };
 }
 

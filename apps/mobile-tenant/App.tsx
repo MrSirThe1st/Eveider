@@ -9,7 +9,7 @@ import './src/i18n';
 import { SettingsProvider, useSettings } from './src/context/settings-context';
 import { ThemeProvider, useAppTheme } from './src/theme';
 import { apiFetch } from './src/lib/api-fetch';
-import { isPasswordResetUrl, parseAuthCallbackUrl } from './src/lib/auth-links';
+import { isDriverMagicLinkUrl, isPasswordResetUrl, parseAuthCallbackUrl } from './src/lib/auth-links';
 import { acceptInvite, fetchInvitePreview, parseInviteToken, type InvitePreview } from './src/lib/invite';
 import { getAuthApiUrl, supabase } from './src/lib/supabase';
 import { MobileTabs } from './src/navigation/MobileTabs';
@@ -47,6 +47,13 @@ function isMissingProfile(message: string) {
 function isInvalidSession(message: string) {
   const lower = message.toLowerCase();
   return lower.includes('non authentifié') || lower.includes('invalid jwt') || lower.includes('jwt expired');
+}
+
+async function completeDriverInvite(accessToken: string) {
+  await apiFetch('/api/driver-invite/complete', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
 }
 
 function AppContent() {
@@ -142,30 +149,56 @@ function AppContent() {
       }
     }
 
-    async function consumeAuthUrl(url: string | null): Promise<boolean> {
-      if (!url || !isPasswordResetUrl(url)) return false;
+    async function consumeAuthUrl(url: string | null): Promise<'reset' | 'magic' | null> {
+      if (!url) return null;
       const params = parseAuthCallbackUrl(url);
+      const isMagic =
+        Boolean(params.tokenHash) &&
+        (params.type === 'magiclink' || (!params.type && isDriverMagicLinkUrl(url)));
+
+      if (isMagic && params.tokenHash) {
+        const { error } = await supabase.auth.verifyOtp({
+          token_hash: params.tokenHash,
+          type: 'magiclink',
+        });
+        return error ? null : 'magic';
+      }
+
+      if (!isPasswordResetUrl(url)) return null;
       if (params.code) {
         const { error } = await supabase.auth.exchangeCodeForSession(params.code);
-        return !error;
+        return error ? null : 'reset';
       }
       if (params.accessToken && params.refreshToken) {
         const { error } = await supabase.auth.setSession({
           access_token: params.accessToken,
           refresh_token: params.refreshToken,
         });
-        return !error;
+        return error ? null : 'reset';
       }
-      return false;
+      return null;
+    }
+
+    async function finishMagicLink() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) return;
+      await completeDriverInvite(session.access_token);
+      await restoreSession(session.access_token);
     }
 
     async function bootstrap() {
       try {
         const initialUrl = await Linking.getInitialURL();
         const recovered = await consumeAuthUrl(initialUrl);
-        if (recovered) {
+        if (recovered === 'reset') {
           resetPasswordRef.current = true;
           if (mounted) setState({ kind: 'auth', resetPassword: true });
+          return;
+        }
+        if (recovered === 'magic') {
+          await finishMagicLink();
           return;
         }
 
@@ -226,12 +259,14 @@ function AppContent() {
 
     const urlSubscription = Linking.addEventListener('url', (event: { url: string }) => {
       void (async () => {
-        if (isPasswordResetUrl(event.url)) {
-          const recovered = await consumeAuthUrl(event.url);
-          if (recovered && mounted) {
-            resetPasswordRef.current = true;
-            setState({ kind: 'auth', resetPassword: true });
-          }
+        const recovered = await consumeAuthUrl(event.url);
+        if (recovered === 'reset') {
+          resetPasswordRef.current = true;
+          if (mounted) setState({ kind: 'auth', resetPassword: true });
+          return;
+        }
+        if (recovered === 'magic') {
+          await finishMagicLink();
           return;
         }
 

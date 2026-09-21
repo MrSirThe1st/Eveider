@@ -2,6 +2,7 @@
 
 import { borderSubtle, colors, webInputStyle } from '@eveider/config-ui';
 import { Button, CardListSkeleton, PageFrame, useToast } from '@eveider/ui';
+import Link from 'next/link';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { fetchJson } from '@/lib/api/fetch-json';
 import {
@@ -12,6 +13,7 @@ import {
   zoneNeedsPricing,
 } from '@/lib/geography-presentation';
 import type { ServiceAreaDto } from '@/lib/service-area-presenter';
+import { ADMIN_SETTINGS_ROUTES } from '@/lib/settings-nav';
 
 type PricingRules = {
   distanceThresholdKm: number;
@@ -74,7 +76,6 @@ export default function AdminBillingSettingsPage() {
           distanceThresholdKm: rules.distanceThresholdKm,
           belowThresholdAmount: rules.belowThresholdAmount,
           aboveThresholdAmount: rules.aboveThresholdAmount,
-          currency: rules.currency,
           smallCoefficient: rules.sizeCoefficients.small,
           mediumCoefficient: rules.sizeCoefficients.medium,
           largeCoefficient: rules.sizeCoefficients.large,
@@ -132,17 +133,14 @@ export default function AdminBillingSettingsPage() {
           width: '100%',
         }}
       >
-        <label>
-          Devise
-          <select
-            value={rules.currency}
-            onChange={(e) => setRules({ ...rules, currency: e.target.value as 'USD' | 'CDF' })}
-            style={inputStyle}
-          >
-            <option value="CDF">CDF (franc congolais)</option>
-            <option value="USD">USD (dollar)</option>
-          </select>
-        </label>
+        <p style={{ margin: 0, fontSize: '0.875rem', color: colors.textMuted }}>
+          Devise plateforme : <strong>{currencyLabel}</strong>
+          {' · '}
+          <Link href={ADMIN_SETTINGS_ROUTES.platform} style={{ color: colors.primary, fontWeight: 600 }}>
+            Modifier dans Règles générales
+          </Link>
+          . Les montants déjà facturés ne changent pas.
+        </p>
 
         <fieldset style={{ border: borderSubtle(), borderRadius: 8, padding: '1rem' }}>
           <legend style={{ fontWeight: 700 }}>Livraison Eveider par zone</legend>

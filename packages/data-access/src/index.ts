@@ -1,10 +1,18 @@
-export type { User, CourierDossier, DriverDossier, OrganizationMembership, ParcelCharge } from './db/types.js';
+export type { User, CourierDossier, DriverDossier, DriverVehicleDocument, OrganizationMembership, ParcelCharge } from './db/types.js';
 export type { DriverRosterRecord } from './repositories/courier-dossier.repository.js';
 export * from './context.js';
 export * from './env.js';
 export * from './db/index.js';
 export * from './repositories/index.js';
 export { createSupabaseAdminClient } from './supabase/server.js';
+export {
+  ALLOWED_IDENTITY_DOCUMENT_MIME_TYPES,
+  MAX_IDENTITY_DOCUMENT_BYTES,
+  downloadIdentityDocument,
+  removeStoredDocument,
+  uploadIdentityDocument,
+  validateIdentityDocumentFile,
+} from './storage/identity-documents.js';
 export * from './auth/index.js';
 
 export { BusinessRepository } from './repositories/business.repository.js';
@@ -45,10 +53,12 @@ export {
   PLATFORM_DEFAULT_FEATURES,
   type PlatformDefaultFeature,
   type PlatformSettingsRow,
+  readPlatformCurrency,
 } from './repositories/platform-settings.repository.js';
 export {
   PlatformStaffRepository,
   type PlatformStaffMember,
+  type FormerPlatformStaffMember,
   type PlatformAdminInviteDelivery,
   type PlatformAdminInvitePreview,
 } from './repositories/platform-staff.repository.js';
@@ -180,6 +190,6 @@ export function createRepositories() {
     commercial,
     stats: new StatsRepository(db),
     onboarding: new OnboardingService(users, businesses, memberships, db),
-    accounts: new AccountService(users, courierDossiers, deliveries, notifications, memberships),
+    accounts: new AccountService(users, courierDossiers, deliveries, notifications, memberships, businesses),
   };
 }

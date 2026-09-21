@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
-import Script from 'next/script';
 import type { ReactNode } from 'react';
 import { AppProviders } from '@/components/app-providers';
+import { TawkToWidget } from '@/components/tawk-to-widget';
+import { TAWK_INIT_SCRIPT } from '@/lib/tawk';
 import { THEME_INIT_SCRIPT } from '@/lib/theme';
 import './globals.css';
 
@@ -42,22 +43,11 @@ export default function RootLayout({
     <html lang="fr" translate="no" className="notranslate" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: TAWK_INIT_SCRIPT }} />
       </head>
       <body className={inter.className} suppressHydrationWarning>
         <AppProviders>{children}</AppProviders>
-        <Script id="tawk-to" strategy="afterInteractive">
-          {`
-            var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
-            (function(){
-            var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
-            s1.async=true;
-            s1.src='https://embed.tawk.to/6a8af5a0c19bf93443db9e3a/1k0ncuuvc';
-            s1.charset='UTF-8';
-            s1.setAttribute('crossorigin','*');
-            s0.parentNode.insertBefore(s1,s0);
-            })();
-          `}
-        </Script>
+        <TawkToWidget />
       </body>
     </html>
   );

@@ -48,6 +48,18 @@ export function buildPlatformAdminInviteLink(token: string): string {
   return `${webBaseUrl}/invite/admin/${token}`;
 }
 
+/** Web landing that consumes a Supabase magic-link token hash (no password). */
+export function buildDriverInviteLink(tokenHash: string): string {
+  const { webBaseUrl } = getInviteConfig();
+  return `${webBaseUrl}/invite/chauffeur/${encodeURIComponent(tokenHash)}`;
+}
+
+/** App deep link for the same magic-link token hash. */
+export function buildDriverAppInviteLink(tokenHash: string): string {
+  const { deepLinkScheme } = getInviteConfig();
+  return `${deepLinkScheme}://auth?token_hash=${encodeURIComponent(tokenHash)}&type=magiclink`;
+}
+
 /** Public guest tracking page — no account required. */
 export function buildParcelTrackLink(input: {
   trackingNumber?: string;

@@ -2,6 +2,7 @@
 
 import { colors, radius, webCardStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
 import { useState } from 'react';
+import { inviteCooldownButtonLabel, useInviteCooldowns } from '@/lib/invite-cooldown';
 import type { ParcelInviteView } from '@/server/parcels';
 
 type ParcelInvitePanelProps = {
@@ -31,8 +32,12 @@ export function ParcelInvitePanel({ parcelId, initialInvite }: ParcelInvitePanel
   const [resending, setResending] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const inviteCooldown = useInviteCooldowns('parcel');
+  const remaining = invite ? inviteCooldown.remainingMs(parcelId) : 0;
+  const cooling = remaining > 0;
 
   async function handleResend() {
+    if (!inviteCooldown.guard(parcelId)) return;
     setResending(true);
     setError(null);
 
@@ -47,6 +52,7 @@ export function ParcelInvitePanel({ parcelId, initialInvite }: ParcelInvitePanel
         return;
       }
 
+      inviteCooldown.start(parcelId);
       setInvite(result.data.invite);
     } catch {
       setError('Erreur réseau');
@@ -150,7 +156,11 @@ export function ParcelInvitePanel({ parcelId, initialInvite }: ParcelInvitePanel
         </div>
       </div>
 
-      {error ? (
+      {inviteCooldown.waitMessage ? (
+        <p style={{ margin: '1rem 0 0', color: colors.textMuted, fontWeight: 500, fontSize: '0.8125rem' }}>
+          {inviteCooldown.waitMessage}
+        </p>
+      ) : error ? (
         <p style={{ margin: '1rem 0 0', color: colors.danger, fontWeight: 500, fontSize: '0.8125rem' }}>
           {error}
         </p>
@@ -159,7 +169,7 @@ export function ParcelInvitePanel({ parcelId, initialInvite }: ParcelInvitePanel
       {invite.status === 'pending' || invite.status === 'expired' ? (
         <button
           type="button"
-          disabled={resending}
+          disabled={resending || cooling}
           onClick={() => void handleResend()}
           style={{
             ...webSecondaryButtonStyle,
@@ -167,11 +177,11 @@ export function ParcelInvitePanel({ parcelId, initialInvite }: ParcelInvitePanel
             height: 40,
             padding: '0 1.25rem',
             fontSize: '0.8125rem',
-            cursor: resending ? 'wait' : 'pointer',
-            opacity: resending ? 0.7 : 1,
+            cursor: resending || cooling ? 'not-allowed' : 'pointer',
+            opacity: resending || cooling ? 0.7 : 1,
           }}
         >
-          {resending ? 'Envoi…' : 'Renvoyer l\'invitation'}
+          {resending ? 'Envoi…' : inviteCooldownButtonLabel('Renvoyer l\'invitation', remaining)}
         </button>
       ) : null}
     </section>

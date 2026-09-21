@@ -7,6 +7,7 @@ import { CommercialRepository } from '../repositories/commercial.repository.js';
 import { CollectionCredentialRepository } from '../repositories/collection-credential.repository.js';
 import {
   PARCEL_CHARGE_KIND_LABELS,
+  parseDeliveryPricingCurrency,
   type ParcelChargeKind,
 } from '@eveider/domain';
 import {
@@ -54,7 +55,7 @@ export class PaymentRepository {
   private async resolvePawaPayConfig(fee?: { amount: string; currency: string }) {
     if (fee) return buildPawaPayConfig(fee);
     const settingsResult = await this.db.query(
-      `SELECT pickup_fee_amount, pickup_fee_currency
+      `SELECT pickup_fee_amount, pickup_fee_currency, platform_currency
        FROM platform_settings
        ORDER BY updated_at DESC
        LIMIT 1`,
@@ -63,7 +64,9 @@ export class PaymentRepository {
     if (!row) return getPawaPayConfig();
     return buildPawaPayConfig({
       amount: String(row.pickup_fee_amount),
-      currency: String(row.pickup_fee_currency),
+      currency: parseDeliveryPricingCurrency(
+        row.platform_currency ?? row.pickup_fee_currency,
+      ),
     });
   }
 

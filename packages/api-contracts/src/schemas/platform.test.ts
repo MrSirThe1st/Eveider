@@ -5,7 +5,7 @@ import { updateDeliveryPricingSchema } from './pricing.js';
 describe('updatePlatformSettingsSchema', () => {
   const base = {
     pickupFeeAmount: 5,
-    pickupFeeCurrency: 'USD',
+    platformCurrency: 'USD' as const,
     requireOrgApproval: false,
     defaultEnabledFeatures: ['CREATE_SHIPMENT'] as const,
   };
@@ -33,6 +33,39 @@ describe('updatePlatformSettingsSchema', () => {
       }).success,
     ).toBe(true);
   });
+
+  it('normalizes pickupFeeCurrency onto platformCurrency', () => {
+    const parsed = updatePlatformSettingsSchema.safeParse({
+      pickupFeeAmount: 5,
+      pickupFeeCurrency: 'USD',
+      requireOrgApproval: false,
+      defaultDailyShipments: 50,
+      defaultMonthlyShipments: 1000,
+      defaultMaxPackageValueUsd: 500,
+      defaultCodDailyLimitUsd: 200,
+      defaultEnabledFeatures: ['CREATE_SHIPMENT'],
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.platformCurrency).toBe('USD');
+      expect(parsed.data.pickupFeeCurrency).toBe('USD');
+    }
+  });
+
+  it('rejects currencies other than USD and CDF', () => {
+    expect(
+      updatePlatformSettingsSchema.safeParse({
+        pickupFeeAmount: 5,
+        platformCurrency: 'EUR',
+        requireOrgApproval: false,
+        defaultDailyShipments: 50,
+        defaultMonthlyShipments: 1000,
+        defaultMaxPackageValueUsd: 500,
+        defaultCodDailyLimitUsd: 200,
+        defaultEnabledFeatures: ['CREATE_SHIPMENT'],
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe('updateDeliveryPricingSchema', () => {
@@ -51,6 +84,7 @@ describe('updateDeliveryPricingSchema', () => {
     };
     expect(updateDeliveryPricingSchema.safeParse({ ...base, currency: 'USD' }).success).toBe(true);
     expect(updateDeliveryPricingSchema.safeParse({ ...base, currency: 'CDF' }).success).toBe(true);
+    expect(updateDeliveryPricingSchema.safeParse({ ...base }).success).toBe(true);
     expect(updateDeliveryPricingSchema.safeParse({ ...base, currency: 'EUR' }).success).toBe(false);
   });
 });

@@ -7,8 +7,14 @@ import {
   webInputStyle,
   webSecondaryButtonStyle,
 } from '@eveider/config-ui';
-import { EmptyState, IconMapPin } from '@eveider/ui';
-import Link from 'next/link';
+import {
+  DataTable,
+  EmptyState,
+  IconMapPin,
+  StatusBadge,
+  TableCellStack,
+  type DataTableColumn,
+} from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { FlashBanner } from '@/components/flash-banner';
@@ -251,6 +257,54 @@ export function AdminServiceAreasPanel({
     await patchCity(city.id, { status: 'archived' }, 'Ville archivée.');
   }
 
+  const zoneColumns = useMemo<DataTableColumn<ServiceAreaDto>[]>(
+    () => [
+      {
+        id: 'name',
+        header: 'Zone',
+        sortable: true,
+        sortValue: (row) => formatZoneDisplayName(row),
+        cell: (row) => {
+          const holding = isHoldingZoneCode(row.code);
+          const zoneLockers = lockersByZone.get(row.id) ?? [];
+          return (
+            <TableCellStack
+              primary={formatZoneDisplayName(row)}
+              secondary={
+                holding && zoneLockers.length > 0
+                  ? `${row.code} · ${zoneLockers.map((locker) => locker.name).join(', ')}`
+                  : row.code
+              }
+            />
+          );
+        },
+      },
+      {
+        id: 'lockers',
+        header: 'Casiers',
+        sortable: true,
+        sortValue: (row) => row.lockerCount,
+        numeric: true,
+        cell: (row) =>
+          `${row.lockerCount} casier${row.lockerCount > 1 ? 's' : ''}${
+            isHoldingZoneCode(row.code) ? ' à répartir' : ''
+          }`,
+      },
+      {
+        id: 'status',
+        header: 'Statut',
+        sortable: true,
+        sortValue: (row) => row.status,
+        cell: (row) => (
+          <StatusBadge tone={row.status === 'active' ? 'success' : 'neutral'}>
+            {row.status === 'active' ? 'Actif' : 'Archivé'}
+          </StatusBadge>
+        ),
+      },
+    ],
+    [lockersByZone],
+  );
+
   return (
     <div style={{ display: 'grid', gap: '1.25rem' }}>
       {success ? <FlashBanner message={success} /> : null}
@@ -421,125 +475,58 @@ export function AdminServiceAreasPanel({
                   <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>
                     Aucune zone dans cette ville.
                   </p>
-                ) : (
-                  <div style={{ display: 'grid', gap: 0 }}>
-                    {group.zones.map((area) => {
-                      const displayName = formatZoneDisplayName(area);
-                      const holding = isHoldingZoneCode(area.code);
-                      const zoneLockers = lockersByZone.get(area.id) ?? [];
-                      const archived = area.status === 'archived';
-                      return (
-                        <article
-                          key={area.id}
-                          style={{
-                            padding: '0.7rem 0',
-                            borderBottom: `1px solid ${colors.borderSubtle}`,
-                            opacity: archived ? 0.65 : 1,
-                          }}
-                        >
-                          {editingZoneId === area.id ? (
-                            <ZoneEditRow
-                              area={area}
-                              onCancel={() => setEditingZoneId(null)}
-                              onSave={(name, notes) => {
-                                setEditingZoneId(null);
-                                void patchZone(
-                                  area.id,
-                                  { name, notes: notes.trim() || null },
-                                  'Zone mise à jour.',
-                                );
-                              }}
-                            />
-                          ) : (
-                            <>
-                              <div
-                                style={{
-                                  display: 'flex',
-                                  justifyContent: 'space-between',
-                                  gap: '0.75rem',
-                                  flexWrap: 'wrap',
-                                  alignItems: 'center',
-                                }}
-                              >
-                                <div>
-                                  <p style={{ margin: 0, fontWeight: 650 }}>
-                                    {displayName}{' '}
-                                    <span style={{ fontWeight: 600, color: colors.textMuted, fontSize: '0.8125rem' }}>
-                                      {area.code}
-                                    </span>
-                                    {archived ? (
-                                      <span style={{ marginLeft: 8, fontSize: '0.75rem', color: colors.textMuted }}>
-                                        Archivée
-                                      </span>
-                                    ) : null}
-                                  </p>
-                                  <p style={{ margin: '0.2rem 0 0', fontSize: '0.8125rem', color: colors.textMuted }}>
-                                    {area.lockerCount} casier{area.lockerCount > 1 ? 's' : ''}
-                                    {holding ? ' à répartir' : ''}
-                                  </p>
-                                </div>
-                                <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                                  <Link
-                                    href={`/tableau-de-bord/casiers?zoneId=${encodeURIComponent(area.id)}`}
-                                    className="nb-btn nb-btn-secondary nb-btn--sm"
-                                    style={{ height: 32, fontSize: '0.75rem' }}
-                                  >
-                                    Casiers
-                                  </Link>
-                                  <Link
-                                    href={`/tableau-de-bord/parametres/facturation#zone-${area.id}`}
-                                    className="nb-btn nb-btn-secondary nb-btn--sm"
-                                    style={{ height: 32, fontSize: '0.75rem' }}
-                                  >
-                                    Tarifs
-                                  </Link>
-                                  <button type="button" onClick={() => setEditingZoneId(area.id)} style={compactButtonStyle}>
-                                    Modifier
-                                  </button>
-                                  {area.status === 'active' ? (
-                                    <button type="button" onClick={() => void archiveZone(area)} style={compactButtonStyle}>
-                                      Archiver
-                                    </button>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        void patchZone(area.id, { status: 'active' }, 'Zone réactivée.')
-                                      }
-                                      style={compactButtonStyle}
-                                    >
-                                      Réactiver
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                              {holding && zoneLockers.length > 0 ? (
-                                <ul
-                                  style={{
-                                    margin: '0.55rem 0 0',
-                                    padding: 0,
-                                    listStyle: 'none',
-                                    display: 'grid',
-                                    gap: '0.25rem',
-                                  }}
-                                >
-                                  {zoneLockers.map((locker) => (
-                                    <li key={locker.id} style={{ fontSize: '0.8125rem' }}>
-                                      <Link href={`/tableau-de-bord/casiers/${locker.id}`} className="nb-data-table__link">
-                                        {locker.name}
-                                      </Link>
-                                      <span style={{ color: colors.textMuted }}> — le nom est un indice seulement</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : null}
-                            </>
-                          )}
-                        </article>
-                      );
+                ) : group.zones.length > 0 ? (
+                  <DataTable
+                    columns={zoneColumns}
+                    rows={group.zones}
+                    getRowId={(row) => row.id}
+                    sortBy="name"
+                    expandedRowId={editingZoneId}
+                    renderExpanded={(area) => (
+                      <ZoneEditRow
+                        area={area}
+                        onCancel={() => setEditingZoneId(null)}
+                        onSave={(name, notes) => {
+                          setEditingZoneId(null);
+                          void patchZone(
+                            area.id,
+                            { name, notes: notes.trim() || null },
+                            'Zone mise à jour.',
+                          );
+                        }}
+                      />
+                    )}
+                    rowPrimaryAction={(area) => ({
+                      label: 'Casiers',
+                      href: `/tableau-de-bord/casiers?zoneId=${encodeURIComponent(area.id)}`,
                     })}
-                  </div>
-                )}
+                    rowActions={(area) => [
+                      {
+                        id: 'pricing',
+                        label: 'Tarifs',
+                        href: `/tableau-de-bord/parametres/facturation#zone-${area.id}`,
+                      },
+                      {
+                        id: 'edit',
+                        label: 'Modifier',
+                        onClick: () => setEditingZoneId(area.id),
+                      },
+                      area.status === 'active'
+                        ? {
+                            id: 'archive',
+                            label: 'Archiver',
+                            tone: 'danger' as const,
+                            onClick: () => void archiveZone(area),
+                          }
+                        : {
+                            id: 'reactivate',
+                            label: 'Réactiver',
+                            onClick: () =>
+                              void patchZone(area.id, { status: 'active' }, 'Zone réactivée.'),
+                          },
+                    ]}
+                  />
+                ) : null}
 
                 {city && zoneFormCityId === city.id ? (
                   <div style={{ ...webCardStyle, marginTop: '0.85rem', padding: '1rem 1.15rem' }}>

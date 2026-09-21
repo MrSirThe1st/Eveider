@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import type { TeamInviteView, TeamMemberView } from '@/server/team';
 import { SettingsFormSection } from '@/components/ops-ui';
+import { inviteCooldownButtonLabel, useInviteCooldowns } from '@/lib/invite-cooldown';
 
 type BusinessTeamPanelProps = {
   members: TeamMemberView[];
@@ -38,6 +39,7 @@ export function BusinessTeamPanel({ members, invites }: BusinessTeamPanelProps) 
   );
   const [removeId, setRemoveId] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
+  const inviteCooldown = useInviteCooldowns('org-team');
 
   useEffect(() => {
     setInviteRows(invites);
@@ -55,6 +57,7 @@ export function BusinessTeamPanel({ members, invites }: BusinessTeamPanelProps) 
 
   async function handleInvite(event: FormEvent) {
     event.preventDefault();
+    if (!inviteCooldown.guard(email)) return;
     setError(null);
     setSuccess(null);
     setSaving(true);
@@ -69,8 +72,8 @@ export function BusinessTeamPanel({ members, invites }: BusinessTeamPanelProps) 
         setError(result.error ?? 'Impossible d’envoyer l’invitation');
         return;
       }
+      inviteCooldown.start(email, result.data?.invite?.id ?? '');
       setEmail('');
-      setSuccess('Invitation envoyée par email.');
       await refresh();
     } catch {
       setError('Erreur réseau. Veuillez réessayer.');
@@ -95,7 +98,8 @@ export function BusinessTeamPanel({ members, invites }: BusinessTeamPanelProps) 
     await refresh();
   }
 
-  async function handleResend(inviteId: string) {
+  async function handleResend(inviteId: string, inviteEmail?: string) {
+    if (!inviteCooldown.guard(inviteId)) return;
     setError(null);
     setSuccess(null);
     setBusyInvite({ id: inviteId, action: 'resend' });
@@ -106,7 +110,7 @@ export function BusinessTeamPanel({ members, invites }: BusinessTeamPanelProps) 
         setError(result.error ?? 'Impossible de renvoyer l’invitation');
         return;
       }
-      setSuccess('Invitation renvoyée par email.');
+      inviteCooldown.start(inviteId, inviteEmail ?? '');
       await refresh();
     } catch {
       setError('Erreur réseau. Veuillez réessayer.');
@@ -234,16 +238,20 @@ export function BusinessTeamPanel({ members, invites }: BusinessTeamPanelProps) 
       align: 'right',
       cell: (row) => {
         const busy = busyInvite?.id === row.id;
+        const remaining = inviteCooldown.remainingMs(row.id);
+        const cooling = remaining > 0;
         return (
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <Button
               variant="secondary"
               size="sm"
               loading={busy && busyInvite?.action === 'resend'}
-              disabled={busyInvite !== null}
-              onClick={() => void handleResend(row.id)}
+              disabled={busyInvite !== null || cooling}
+              onClick={() => void handleResend(row.id, row.email)}
             >
-              Renvoyer
+              {busy && busyInvite?.action === 'resend'
+                ? 'Envoi…'
+                : inviteCooldownButtonLabel('Renvoyer', remaining)}
             </Button>
             <Button
               variant="ghost"
@@ -262,7 +270,9 @@ export function BusinessTeamPanel({ members, invites }: BusinessTeamPanelProps) 
 
   return (
     <div className="ops-form">
-      {error ? (
+      {inviteCooldown.waitMessage ? (
+        <InlineAlert message={inviteCooldown.waitMessage} variant="info" autoDismissMs={0} />
+      ) : error ? (
         <InlineAlert message={error} variant="error" onDismiss={() => setError(null)} />
       ) : null}
       {success ? (
@@ -299,8 +309,14 @@ export function BusinessTeamPanel({ members, invites }: BusinessTeamPanelProps) 
             </select>
           </label>
           <div style={{ display: 'flex', alignItems: 'end' }}>
-            <Button type="submit" disabled={saving} loading={saving}>
-              {saving ? 'Envoi…' : 'Inviter'}
+            <Button
+              type="submit"
+              disabled={saving || inviteCooldown.isCooling(email)}
+              loading={saving}
+            >
+              {saving
+                ? 'Envoi…'
+                : inviteCooldown.buttonLabel(email, 'Inviter')}
             </Button>
           </div>
         </form>

@@ -175,11 +175,12 @@ Live / heavy client filters (exceptions only)
 
 ### `docs/blueprint/ai/ui-verification.md`
 
-- Prefer Cursor Browser / browser MCP when available (click, type, navigate — screenshots alone insufficient)
-- Fallback: Playwright against local web app
-- Commands table using `{{PACKAGE_MANAGER}}` and `{{WEB_APP_PATH}}` filter
+- Default: one targeted typecheck + relevant Vitest; do not browser-verify copy, styling tweaks, minor layout, or refactors
+- Cursor Browser / Playwright only for significant interactive changes, critical flows, or explicit request
+- Targeted spec from the web app: `pnpm test:e2e e2e/<file>.spec.ts` (no extra `--`)
+- Commands table using `{{PACKAGE_MANAGER}}` and `{{WEB_APP_PATH}}` for **optional** full-suite / UI mode
 - Seed accounts section as placeholders (no real passwords from other projects)
-- When to add e2e vs unit tests
+- When to add e2e vs unit tests (writing a spec ≠ running the full suite)
 - Optional: settings IA / skeleton notes as TODOs for this product’s chrome
 
 ### `docs/blueprint/templates/project-updates.md`

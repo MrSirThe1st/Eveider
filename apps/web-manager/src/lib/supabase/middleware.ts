@@ -1,6 +1,11 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { type NextRequest, NextResponse } from 'next/server';
 import { getSupabaseEnv } from './env';
+import {
+  AUTH_PERSIST_COOKIE,
+  cookieOptionsForPersistence,
+  isPersistentAuthSession,
+} from './session-persistence';
 
 function hasSupabaseSessionCookie(request: NextRequest) {
   return request.cookies.getAll().some((cookie) => cookie.name.includes('-auth-token'));
@@ -14,6 +19,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   const { url, key } = getSupabaseEnv();
+  const persist = isPersistentAuthSession(request.cookies.get(AUTH_PERSIST_COOKIE)?.value);
 
   const supabase = createServerClient(url, key, {
     cookies: {
@@ -26,7 +32,11 @@ export async function updateSession(request: NextRequest) {
         });
         supabaseResponse = NextResponse.next({ request });
         cookiesToSet.forEach(({ name, value, options }) => {
-          supabaseResponse.cookies.set(name, value, options);
+          supabaseResponse.cookies.set(
+            name,
+            value,
+            cookieOptionsForPersistence(options, persist),
+          );
         });
       },
     },

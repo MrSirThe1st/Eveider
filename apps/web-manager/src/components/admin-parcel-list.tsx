@@ -4,13 +4,12 @@ import { colors, spacing, typography, borderSubtle } from '@eveider/config-ui';
 import {
   Button,
   DataTable,
+  DEFAULT_TABLE_PAGE_SIZE,
+  TableCellStack,
   type DataTableColumn,
   Drawer,
-  ErrorState,
   IconPackage,
   IconSearch,
-  LoadingSpinner,
-  TableSkeleton,
   useToast,
 } from '@eveider/ui';
 import Link from 'next/link';
@@ -175,26 +174,18 @@ export function AdminParcelList(_props: AdminParcelListProps = {}) {
         sortable: true,
         sortValue: (row) => row.trackingNumber,
         cell: (row) => (
-          <div>
-            <button
-              type="button"
-              className="nb-data-table__link"
-              onClick={() => setPreviewParcel(row)}
-            >
-              {row.trackingNumber}
-            </button>
-            {row.reference ? (
-              <p
-                style={{
-                  margin: `${spacing[1]}px 0 0`,
-                  fontSize: typography.caption.fontSize,
-                  color: colors.textMuted,
-                }}
+          <TableCellStack
+            primary={
+              <button
+                type="button"
+                className="nb-data-table__link"
+                onClick={() => setPreviewParcel(row)}
               >
-                Réf. {row.reference}
-              </p>
-            ) : null}
-          </div>
+                {row.trackingNumber}
+              </button>
+            }
+            secondary={row.reference ? `Réf. ${row.reference}` : undefined}
+          />
         ),
       },
       {
@@ -211,12 +202,10 @@ export function AdminParcelList(_props: AdminParcelListProps = {}) {
         sortValue: (row) => row.recipientName ?? row.recipientPhone,
         hideOnMobile: true,
         cell: (row) => (
-          <div>
-            <div>{row.recipientName ?? 'Destinataire'}</div>
-            <div style={{ color: colors.textMuted, fontSize: typography.caption.fontSize }}>
-              {row.recipientPhone}
-            </div>
-          </div>
+          <TableCellStack
+            primary={row.recipientName ?? 'Destinataire'}
+            secondary={row.recipientPhone}
+          />
         ),
       },
       {
@@ -277,7 +266,7 @@ export function AdminParcelList(_props: AdminParcelListProps = {}) {
         header: 'Créé',
         sortable: true,
         sortValue: (row) => new Date(row.createdAt).getTime(),
-        align: 'right',
+        numeric: true,
         cell: (row) => (
           <span style={{ color: colors.textMuted, whiteSpace: 'nowrap' }}>
             {formatDate(row.createdAt)}
@@ -314,102 +303,88 @@ export function AdminParcelList(_props: AdminParcelListProps = {}) {
 
   return (
     <section>
-      <AdminParcelFilters
-        attention={attention}
-        pickupType={pickupType}
-        onAttentionChange={(value) => updateQuery({ attention: value })}
-        onPickupTypeChange={(value) => updateQuery({ pickupType: value })}
-      />
-
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: spacing[3],
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: spacing[4],
-        }}
-      >
-        <div style={{ flex: '1 1 240px', minWidth: 200 }}>
+      <DataTable
+        columns={columns}
+        rows={filteredParcels}
+        getRowId={(row) => row.id}
+        search={
           <ListSearchField
             value={searchQuery}
             onChange={setSearchQuery}
             placeholder="Rechercher par suivi, référence ou destinataire…"
             ariaLabel="Rechercher un colis par numéro de suivi, référence ou destinataire"
           />
-        </div>
-        <ParcelExportMenu
-          compact
-          exportPath="/api/parcels/export"
-          filters={{
-            attention: attention === 'all' ? undefined : attention,
-            pickupType: pickupType === 'all' ? undefined : pickupType,
-            search: searchQuery.trim() || undefined,
-          }}
-        />
-      </div>
-
-      {showFilterLoader ? (
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: `${spacing[10]}px 0`,
-          }}
-        >
-          <LoadingSpinner compact size="md" label="Chargement des colis…" />
-        </div>
-      ) : null}
-
-      {showInitialLoader ? <TableSkeleton /> : null}
-
-      {showFatalError ? (
-        <ErrorState
-          title="Impossible de charger les colis"
-          message={errorMessage}
-          action={
-            <Button variant="secondary" onClick={() => void refetch()}>
-              Réessayer
+        }
+        filters={
+          <AdminParcelFilters
+            attention={attention}
+            pickupType={pickupType}
+            onAttentionChange={(value) => updateQuery({ attention: value })}
+            onPickupTypeChange={(value) => updateQuery({ pickupType: value })}
+          />
+        }
+        trailing={
+          <ParcelExportMenu
+            iconOnly
+            exportPath="/api/parcels/export"
+            filters={{
+              attention: attention === 'all' ? undefined : attention,
+              pickupType: pickupType === 'all' ? undefined : pickupType,
+              search: searchQuery.trim() || undefined,
+            }}
+          />
+        }
+        loading={showInitialLoader || (showFilterLoader && parcels.length === 0)}
+        error={
+          showFatalError
+            ? {
+                title: 'Impossible de charger les colis',
+                message: errorMessage,
+                action: (
+                  <Button variant="secondary" onClick={() => void refetch()}>
+                    Réessayer
+                  </Button>
+                ),
+              }
+            : null
+        }
+        emptyTitle={empty.title}
+        emptyDescription={empty.description}
+        emptyIcon={
+          searchQuery.trim() || attention !== 'all' || pickupType !== 'all' ? (
+            <IconSearch />
+          ) : (
+            <IconPackage />
+          )
+        }
+        emptyAction={
+          searchQuery.trim() || attention !== 'all' || pickupType !== 'all' ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setSearchQuery('');
+                updateQuery({ attention: 'all', pickupType: 'all' });
+              }}
+            >
+              Réinitialiser les filtres
             </Button>
-          }
-        />
-      ) : null}
-
-      {!showInitialLoader && !showFatalError && !showFilterLoader ? (
-        <DataTable
-          columns={columns}
-          rows={filteredParcels}
-          getRowId={(row) => row.id}
-          caption={
-            filteredParcels.length > 0
-              ? searchQuery.trim()
-                ? `${filteredParcels.length} colis sur ${parcels.length}`
-                : `${filteredParcels.length} colis`
-              : undefined
-          }
-          emptyTitle={empty.title}
-          emptyDescription={empty.description}
-          emptyIcon={
-            searchQuery.trim() || attention !== 'all' ? <IconSearch /> : <IconPackage />
-          }
-          initialSortId="createdAt"
-          initialSortDirection="desc"
-          rowActions={(row) => [
-            {
-              id: 'preview',
-              label: 'Aperçu',
-              onClick: () => setPreviewParcel(row),
-            },
-            {
-              id: 'view',
-              label: 'Voir le détail',
-              href: `/tableau-de-bord/colis/${row.id}`,
-            },
-          ]}
-        />
-      ) : null}
+          ) : undefined
+        }
+        sortBy="createdAt"
+        pageSize={DEFAULT_TABLE_PAGE_SIZE}
+        rowPrimaryAction={(row) => ({
+          label: 'Détails',
+          href: `/tableau-de-bord/colis/${row.id}`,
+        })}
+        rowActions={(row) => [
+          {
+            id: 'preview',
+            label: 'Aperçu',
+            onClick: () => setPreviewParcel(row),
+          },
+        ]}
+      />
 
       <Drawer
         open={previewParcel != null}

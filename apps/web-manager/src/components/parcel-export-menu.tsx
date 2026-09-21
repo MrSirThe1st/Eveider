@@ -1,7 +1,8 @@
 'use client';
 
 import { spacing } from '@eveider/config-ui';
-import { Button, useToast } from '@eveider/ui';
+import { Button, DropdownMenu, useToast } from '@eveider/ui';
+import { Download } from 'lucide-react';
 import { useState } from 'react';
 import { buildExportUrl, downloadExport } from '@/lib/export/download-export';
 
@@ -20,9 +21,16 @@ type ParcelExportMenuProps = {
     days?: string;
   };
   compact?: boolean;
+  /** Single download icon with a menu. Prefer for dense Admin toolbars. */
+  iconOnly?: boolean;
 };
 
-export function ParcelExportMenu({ exportPath, filters = {}, compact = false }: ParcelExportMenuProps) {
+export function ParcelExportMenu({
+  exportPath,
+  filters = {},
+  compact = false,
+  iconOnly = false,
+}: ParcelExportMenuProps) {
   const toast = useToast();
   const [loadingScope, setLoadingScope] = useState<'filtered' | 'all' | null>(null);
 
@@ -49,6 +57,30 @@ export function ParcelExportMenu({ exportPath, filters = {}, compact = false }: 
     } finally {
       setLoadingScope(null);
     }
+  }
+
+  if (iconOnly) {
+    return (
+      <DropdownMenu
+        label="Exporter"
+        align="end"
+        trigger={<Download width={16} height={16} aria-hidden />}
+        items={[
+          {
+            id: 'filtered',
+            label: loadingScope === 'filtered' ? 'Export…' : 'Exporter (filtres)',
+            disabled: loadingScope != null,
+            onClick: () => void handleExport('filtered'),
+          },
+          {
+            id: 'all',
+            label: loadingScope === 'all' ? 'Export…' : 'Exporter tout',
+            disabled: loadingScope != null,
+            onClick: () => void handleExport('all'),
+          },
+        ]}
+      />
+    );
   }
 
   return (

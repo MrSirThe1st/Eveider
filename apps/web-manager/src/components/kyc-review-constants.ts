@@ -57,6 +57,7 @@ export const DOC_CORRECTION_REASONS = [
 ] as const;
 
 export const DOCUMENT_TYPE_LABELS: Record<string, string> = {
+  driver_id: 'Pièce d’identité',
   rccm_certificate: 'Certificat RCCM',
   nif_certificate: 'Certificat NIF',
   legal_rep_id: "Pièce d'identité du représentant",

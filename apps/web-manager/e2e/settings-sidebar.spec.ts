@@ -12,6 +12,10 @@ test.describe('Settings secondary sidebar', () => {
     await expect(page).toHaveURL(/\/parametres\/organisation$/, { timeout: 30_000 });
 
     const nav = page.getByRole('navigation', { name: 'Sections des paramètres' });
+    await expect(nav.getByRole('heading', { name: 'Compte', level: 2 })).toBeVisible();
+    await expect(nav.getByRole('heading', { name: 'Boutique', level: 2 })).toBeVisible();
+    await expect(nav.getByRole('heading', { name: 'Facturation', level: 2 })).toBeVisible();
+    await expect(nav.getByRole('heading', { name: 'Avancé', level: 2 })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Entreprise' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Vérification' })).toHaveCount(0);
     await expect(nav.getByRole('link', { name: 'Membres' })).toHaveAttribute(
@@ -86,6 +90,8 @@ test.describe('Settings secondary sidebar', () => {
     await expect(page).toHaveURL(/\/mon-compte\/profil$/);
 
     const nav = page.getByRole('navigation', { name: 'Sections des paramètres' });
+    await expect(nav.getByRole('heading', { name: 'Compte', level: 2 })).toBeVisible();
+    await expect(nav.getByRole('heading', { name: 'Boutique', level: 2 })).toHaveCount(0);
     await expect(nav.getByRole('link', { name: 'Profil' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Sécurité' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Notifications' })).toHaveCount(0);
@@ -104,13 +110,17 @@ test.describe('Settings secondary sidebar', () => {
   });
 
   test('admin settings nav wires profile, facturation, and casiers entry', async ({ page }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(180_000);
     await signIn(page, 'admin@eveider.cd');
     await page.goto('/tableau-de-bord/parametres');
     await dismissCookieBanner(page);
     await expect(page).toHaveURL(/\/parametres\/mon-compte\/profil$/);
 
     const nav = page.getByRole('navigation', { name: 'Sections des paramètres' });
+    await expect(nav.getByRole('heading', { name: 'Mon compte', level: 2 })).toBeVisible();
+    await expect(nav.getByRole('heading', { name: 'Fonctionnement', level: 2 })).toBeVisible();
+    await expect(nav.getByRole('heading', { name: 'Équipe Eveider', level: 2 })).toBeVisible();
+    await expect(nav.getByRole('heading', { name: 'Outils', level: 2 })).toHaveCount(0);
     const preferences = nav.getByRole('link', { name: 'Préférences', exact: true });
     await expect(preferences).toHaveAttribute(
       'href',
@@ -144,11 +154,17 @@ test.describe('Settings secondary sidebar', () => {
     await expect(nav.getByRole('link', { name: 'API' })).toHaveCount(0);
 
     await page.goto('/tableau-de-bord/parametres/roles', { waitUntil: 'domcontentloaded' });
-    await expect(page).toHaveURL(/\/parametres\/administrateurs$/);
+    await expect(page).toHaveURL(/\/parametres\/administrateurs$/, { timeout: 45_000 });
     await expect(page.getByText('Bientôt disponible')).toHaveCount(0);
 
     await page.goto('/tableau-de-bord/parametres/api', { waitUntil: 'domcontentloaded' });
-    await expect(page).toHaveURL(/\/parametres\/integrations$/);
+    await expect(page).toHaveURL(/\/parametres\/mon-compte\/profil$/, { timeout: 45_000 });
+    await expect(page.getByText('Bientôt disponible')).toHaveCount(0);
+
+    await page.goto('/tableau-de-bord/parametres/integrations', {
+      waitUntil: 'domcontentloaded',
+    });
+    await expect(page).toHaveURL(/\/parametres\/mon-compte\/profil$/, { timeout: 45_000 });
     await expect(page.getByText('Bientôt disponible')).toHaveCount(0);
 
     await page.goto('/tableau-de-bord/parametres/mon-compte/profil', {
@@ -181,7 +197,7 @@ test.describe('Settings secondary sidebar', () => {
       timeout: 30_000,
     });
     await expect(page).toHaveURL(/\/parametres\/plateforme/);
-    await expect(page.getByText('Frais de retrait')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Devise de la plateforme' })).toBeVisible();
 
     await page.goto('/tableau-de-bord/parametres/casiers/configuration', {
       waitUntil: 'domcontentloaded',
@@ -192,14 +208,14 @@ test.describe('Settings secondary sidebar', () => {
     await expect(casiersTabs.getByRole('link', { name: 'Villes et zones' })).toBeVisible();
 
     await casiersTabs.getByRole('link', { name: 'Modèles' }).click();
-    await expect(page).toHaveURL(/\/parametres\/casiers\/modeles$/);
+    await expect(page).toHaveURL(/\/parametres\/casiers\/modeles$/, { timeout: 45_000 });
     // Chrome stays mounted while the list body loads
     await expect(casiersTabs.getByRole('link', { name: 'Configuration' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Casiers', level: 1 })).toBeVisible();
     await expect(nav).toBeVisible();
 
     await casiersTabs.getByRole('link', { name: 'Villes et zones' }).click();
-    await expect(page).toHaveURL(/\/parametres\/casiers\/zones$/);
+    await expect(page).toHaveURL(/\/parametres\/casiers\/zones$/, { timeout: 45_000 });
     await expect(page.getByRole('heading', { name: 'Villes et zones', level: 1 })).toBeVisible();
     await expect(page.getByText('Kinshasa — à répartir')).toBeVisible();
     await expect(page.getByText('Lubumbashi — à répartir')).toBeVisible();

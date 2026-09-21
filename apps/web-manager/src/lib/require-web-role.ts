@@ -12,6 +12,9 @@ export async function requireWebRole(allowedRoles: readonly UserRole[]) {
 
   const persona = getWebPersona(current);
   if (!persona || !allowedRoles.includes(persona)) {
+    if (persona === 'driver') {
+      redirect('/chauffeur');
+    }
     const fallback = persona ? getAuthenticatedLandingPath(persona) : null;
     if (fallback && fallback !== '/') {
       redirect(fallback);

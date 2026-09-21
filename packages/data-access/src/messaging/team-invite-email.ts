@@ -4,7 +4,8 @@ import {
   buildBrandedEmailText,
   escapeHtml,
   formatEmailDate,
-  getEveiderLogoAttachment,
+  getEveiderLogoCidSrc,
+  resolveEmailLogo,
 } from './email-brand.js';
 import { getResendConfig } from './resend-config.js';
 
@@ -69,16 +70,16 @@ export async function sendTeamInviteEmail(
     throw new Error('L’envoi d’email n’est pas configuré (RESEND_API_KEY)');
   }
 
-  const { subject, text, html } = buildTeamInviteEmail(input);
+  const { subject, text, html: brandedHtml } = buildTeamInviteEmail(input);
+  const logo = resolveEmailLogo();
   const resend = new Resend(config.apiKey);
-  const logo = getEveiderLogoAttachment();
   const { data, error } = await resend.emails.send({
     from: config.from,
     to: input.to,
     subject,
     text,
-    html,
-    attachments: [logo],
+    html: brandedHtml.replaceAll(getEveiderLogoCidSrc(), logo.src),
+    attachments: logo.attachments,
   });
 
   if (error) {

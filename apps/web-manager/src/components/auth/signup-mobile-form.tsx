@@ -78,7 +78,7 @@ export function SignupMobileForm({ role }: SignupMobileFormProps) {
   }
 
   return (
-    <form className={styles.form} onSubmit={handleSubmit}>
+    <form className={styles.form} method="dialog" onSubmit={handleSubmit}>
       <label className={styles.field}>
         <span>Nom complet (optionnel)</span>
         <input

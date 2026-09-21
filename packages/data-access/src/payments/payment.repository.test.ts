@@ -71,6 +71,35 @@ describe('PaymentRepository', () => {
     });
   });
 
+  it('uses platform currency for legacy pickup fees', async () => {
+    setup((sql) => {
+      if (sqlIncludes(sql, 'SELECT status, pickup_type, commercial_model')) {
+        return {
+          status: 'ready_for_pickup',
+          pickup_type: 'courier_pickup',
+          commercial_model: 'legacy',
+          payment_responsibility: 'receiver_pays',
+        };
+      }
+      if (sqlIncludes(sql, 'FROM parcel_charges')) {
+        return null;
+      }
+      if (sqlIncludes(sql, 'FROM platform_settings')) {
+        return { pickup_fee_amount: 5, pickup_fee_currency: 'USD', platform_currency: 'CDF' };
+      }
+      if (sqlIncludes(sql, 'SELECT payment_responsibility FROM parcels')) {
+        return { payment_responsibility: 'receiver_pays' };
+      }
+      if (sqlIncludes(sql, 'FROM parcel_payments')) {
+        return null;
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const summary = await repo.getPickupPaymentSummary('parcel-1');
+    expect(summary.currency).toBe('CDF');
+  });
+
   it('uses the canonical recipient charge instead of payment_responsibility', async () => {
     setup((sql) => {
       if (sqlIncludes(sql, 'SELECT status, pickup_type, commercial_model')) {

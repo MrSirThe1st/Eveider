@@ -58,7 +58,8 @@ Postgres is remote (Supabase pooler). Each round trip is expensive (~200–300ms
 | Organisation API settings | `loadOrganizationApiSettings` → keys + notification endpoint (`hasFeatureEnabled` API_ACCESS) | `getOnboardingSummary`, guest track loaders |
 | Account Préférences | Client `eveider_theme` cookie + French language (no DB) | `getOnboardingSummary` |
 | Admin Drivers list | `loadAdminDriverRoster` → `listRosterForAdmin` (same snapshot + organization / Eveider fleet) | `listForAdmin`, `getOnboardingSummary` |
-| Admin Driver detail (overview / documents) | `loadAdminDriverDetail` (`React.cache` on ctx + dossier id) | deliveries except the Livraisons tab |
+| Admin Driver detail (overview) | `loadAdminDriverDetail` (`React.cache` on ctx + dossier id) | deliveries, vehicle documents |
+| Admin Driver documents tab | `loadAdminDriverDetail` + `loadAdminDriverVehicleDocuments` | deliveries |
 | Admin Driver deliveries tab | `loadAdminDriverDeliveries` → `listForAdminDriver` | KYC actions (those stay on Documents) |
 
 `getOnboardingSummary` / `loadSummary` loads business + users + locations + documents + billing + settlement + permissions + limits + history + verification + checks + reviewer. That is correct for the KYC wizard and admin application review. It is **wrong** for dashboard home, Paramètres, Facturation, Colis, Incidents, or any new settings-like page.

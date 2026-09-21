@@ -21,6 +21,14 @@ export type PlatformStaffMember = User & {
   eveiderOrgRole: string | null;
 };
 
+export type FormerPlatformStaffMember = {
+  id: string;
+  fullName: string | null;
+  email: string | null;
+  formerRole: PlatformRole;
+  revokedAt: Date | null;
+};
+
 export type PlatformAdminInviteDelivery = {
   invite: PlatformAdminInvite;
   inviteUrl: string;
@@ -67,6 +75,32 @@ export class PlatformStaffRepository {
     return result.rows.map((row) => ({
       ...mapUser(row),
       eveiderOrgRole: row.eveider_org_role == null ? null : String(row.eveider_org_role),
+    }));
+  }
+
+  async listFormerStaff(ctx: DataAccessContext): Promise<FormerPlatformStaffMember[]> {
+    assertAdmin(ctx);
+    const result = await this.db.query(
+      `SELECT u.id, u.full_name, u.email, u.former_platform_role, u.platform_access_revoked_at
+       FROM users u
+       WHERE u.platform_role IS NULL
+         AND u.former_platform_role IS NOT NULL
+         AND (
+           u.email IS NULL
+           OR NOT EXISTS (
+             SELECT 1 FROM platform_admin_invites i
+             WHERE i.status = 'pending' AND lower(i.email) = lower(u.email)
+           )
+         )
+       ORDER BY u.platform_access_revoked_at DESC NULLS LAST,
+                u.full_name ASC NULLS LAST`,
+    );
+    return result.rows.map((row) => ({
+      id: String(row.id),
+      fullName: row.full_name == null ? null : String(row.full_name),
+      email: row.email == null ? null : String(row.email),
+      formerRole: row.former_platform_role as PlatformRole,
+      revokedAt: row.platform_access_revoked_at == null ? null : new Date(String(row.platform_access_revoked_at)),
     }));
   }
 
@@ -179,7 +213,17 @@ export class PlatformStaffRepository {
       await this.assertCanDemoteSuperAdmin(userId);
     }
 
-    return this.users.updateProfile(userId, { platformRole: null });
+    const result = await this.db.query(
+      `UPDATE users
+       SET platform_role = NULL,
+           former_platform_role = $2,
+           platform_access_revoked_at = NOW(),
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [userId, user.platformRole],
+    );
+    return mapUser(result.rows[0]!);
   }
 
   async resendInvite(ctx: DataAccessContext, inviteId: string): Promise<PlatformAdminInviteDelivery> {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  canInviteDriverDossier,
   deriveDriverOperationalStatus,
   isAssignableDriverDossier,
 } from './driver-dossier.js';
@@ -78,5 +79,24 @@ describe('assignable driver dossiers', () => {
     expect(isAssignableDriverDossier('active', 'business')).toBe(true);
     expect(isAssignableDriverDossier('rejected', 'business')).toBe(false);
     expect(isAssignableDriverDossier('deactivated', 'business')).toBe(false);
+  });
+});
+
+describe('driver invite gate', () => {
+  it('lets Eveider-added chauffeurs be invited without document approval', () => {
+    expect(canInviteDriverDossier('pending_review')).toBe(true);
+    expect(canInviteDriverDossier('approved')).toBe(true);
+    expect(canInviteDriverDossier('invited')).toBe(true);
+    expect(canInviteDriverDossier('active')).toBe(true);
+    expect(canInviteDriverDossier('needs_correction')).toBe(false);
+    expect(canInviteDriverDossier('rejected')).toBe(false);
+  });
+
+  it('sends a business chauffeur invite only after Eveider approval', () => {
+    expect(canInviteDriverDossier('pending_review', 'business')).toBe(false);
+    expect(canInviteDriverDossier('needs_correction', 'business')).toBe(false);
+    expect(canInviteDriverDossier('approved', 'business')).toBe(true);
+    expect(canInviteDriverDossier('invited', 'business')).toBe(true);
+    expect(canInviteDriverDossier('active', 'business')).toBe(true);
   });
 });

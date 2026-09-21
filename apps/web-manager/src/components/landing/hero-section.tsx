@@ -4,9 +4,6 @@ import styles from './home.module.css';
 export function HeroSection() {
   return (
     <section id="casiers" className={styles.hero}>
-      <div className={styles.heroTracks} aria-hidden="true">
-        <div className={styles.heroTracksBand} />
-      </div>
       <div className={styles.shell}>
         <div className={styles.heroGrid}>
           <div className={styles.heroCopy}>

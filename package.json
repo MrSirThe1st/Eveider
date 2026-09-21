@@ -15,6 +15,7 @@
     "db:deploy": "pnpm --filter @eveider/data-access db:deploy",
     "db:seed": "pnpm --filter @eveider/data-access db:seed",
     "db:seed:phase8": "pnpm --filter @eveider/data-access db:seed:phase8",
+    "db:reset:clean": "pnpm --filter @eveider/data-access db:reset:clean",
     "db:backfill-access-codes": "pnpm --filter @eveider/data-access db:backfill-access-codes"
   },
   "devDependencies": {

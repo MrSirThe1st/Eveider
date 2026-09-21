@@ -37,24 +37,30 @@ test.describe('Admin villes et zones', () => {
     await expect(page.getByText(`Zone Centre ${zoneCode} créée.`)).toBeVisible();
     await expect(page.getByText(`Centre ${zoneCode}`)).toBeVisible();
 
-    const holding = page.locator('article').filter({ hasText: 'Kolwezi — à répartir' }).first();
-    await holding.getByRole('button', { name: 'Archiver' }).click();
+    const holding = page.getByRole('row', { name: /Kolwezi — à répartir/ }).first();
+    await holding.getByRole('button', { name: 'Actions de la ligne' }).click();
+    await page.getByRole('menuitem', { name: 'Archiver' }).click();
     await expect(page.getByText(/réassignez d’abord/i)).toBeVisible();
 
-    const emptyZone = page.locator('article').filter({ hasText: zoneCode });
-    await emptyZone.getByRole('button', { name: 'Archiver' }).click();
+    const emptyZone = page.getByRole('row', { name: new RegExp(zoneCode) });
+    await emptyZone.getByRole('button', { name: 'Actions de la ligne' }).click();
+    await page.getByRole('menuitem', { name: 'Archiver' }).click();
     await expect(page.getByText('Zone archivée.')).toBeVisible();
 
-    await page.goto('/tableau-de-bord/casiers');
+    await page.getByLabel('Afficher les archives').check();
+    const archivedZone = citySection.getByRole('row', { name: new RegExp(zoneCode) });
+    await expect(archivedZone.getByText('Archivé')).toBeVisible();
+    await archivedZone.scrollIntoViewIfNeeded();
+    await archivedZone.getByRole('button', { name: 'Actions de la ligne' }).click();
+    await expect(page.getByRole('menuitem', { name: 'Réactiver' })).toBeVisible();
+    await page.getByRole('menuitem', { name: 'Réactiver' }).click();
+    await expect(page.getByText('Zone réactivée.')).toBeVisible();
+
+    await holding.getByRole('link', { name: 'Casiers' }).click();
     await dismissCookieBanner(page);
+    await expect(page).toHaveURL(/zoneId=/);
     await expect(page.getByRole('heading', { name: 'Casiers', level: 1 })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Nouveau casier' })).toBeVisible();
-
-    await page.getByRole('button', { name: '+ Ville' }).click();
-    await page.getByRole('option', { name: 'Kolwezi', exact: true }).click();
-    await page.getByRole('button', { name: '+ Zone' }).click();
-    await page.getByRole('option', { name: 'Kolwezi — à répartir' }).click();
-    await expect(page.getByText(/3 casiers sur \d+/)).toBeVisible();
     await expect(page.getByText(/EVEIDER DILALA/i)).toBeVisible();
     await expect(page.getByText(/EVEIDER KAMPEMBA/i)).toHaveCount(0);
   });

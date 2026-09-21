@@ -6,13 +6,12 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Spinner } from '@eveider/ui';
 import { getPostLoginPath, isMobileRole, WEB_ROUTES } from '@/lib/auth-routing';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, signOutClient } from '@/lib/supabase/client';
+import { setAuthPersistencePreference } from '@/lib/supabase/session-persistence';
 import { LOGIN_VISUAL } from './auth-copy';
 import { AuthPasswordField } from './auth-password-field';
 import styles from './auth-shell.module.css';
 import { AuthSplitShell } from './auth-split-shell';
-
-const REMEMBER_KEY = 'eveider.rememberEmail';
 
 export function LoginView() {
   const router = useRouter();
@@ -24,13 +23,10 @@ export function LoginView() {
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [formReady, setFormReady] = useState(false);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem(REMEMBER_KEY);
-    if (saved) {
-      setEmail(saved);
-      setRemember(true);
-    }
+    setFormReady(true);
   }, []);
 
   async function handleSubmit(event: React.FormEvent) {
@@ -38,6 +34,7 @@ export function LoginView() {
     setLoading(true);
     setError(null);
 
+    setAuthPersistencePreference(remember);
     const supabase = createClient();
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
       email,
@@ -56,7 +53,7 @@ export function LoginView() {
     if (!meResult.success) {
       setLoading(false);
       setError(meResult.error ?? 'Profil utilisateur introuvable');
-      await supabase.auth.signOut();
+      await signOutClient(supabase);
       return;
     }
 
@@ -64,7 +61,13 @@ export function LoginView() {
     if (!role) {
       setLoading(false);
       setError('Profil utilisateur introuvable');
-      await supabase.auth.signOut();
+      await signOutClient(supabase);
+      return;
+    }
+
+    if (role === 'driver') {
+      setLoading(false);
+      router.replace(WEB_ROUTES.driverHome);
       return;
     }
 
@@ -73,21 +76,15 @@ export function LoginView() {
       setError(
         'Ce compte utilise l’application mobile Eveider. Téléchargez l’app pour vous connecter.',
       );
-      await supabase.auth.signOut();
+      await signOutClient(supabase);
       return;
     }
 
     if (role === 'organization' && !meResult.data.profile.businessId) {
       setLoading(false);
       setError('Compte entreprise requis');
-      await supabase.auth.signOut();
+      await signOutClient(supabase);
       return;
-    }
-
-    if (remember) {
-      window.localStorage.setItem(REMEMBER_KEY, email);
-    } else {
-      window.localStorage.removeItem(REMEMBER_KEY);
     }
 
     if (adminInvite) {
@@ -100,7 +97,7 @@ export function LoginView() {
       if (!acceptResult.success) {
         setLoading(false);
         setError(acceptResult.error ?? 'Impossible d’accepter l’invitation');
-        await supabase.auth.signOut();
+        await signOutClient(supabase);
         return;
       }
       setLoading(false);
@@ -123,7 +120,12 @@ export function LoginView() {
         </div>
       </div>
       <div className={styles.formCardBody}>
-        <form className={styles.form} onSubmit={handleSubmit}>
+        <form
+          className={styles.form}
+          method="dialog"
+          onSubmit={handleSubmit}
+          data-ready={formReady ? 'true' : 'false'}
+        >
           <label className={styles.field}>
             <span>Email</span>
             <input
@@ -152,7 +154,7 @@ export function LoginView() {
             Se souvenir de moi
           </label>
           {error ? <p className={styles.error}>{error}</p> : null}
-          <button type="submit" className={styles.submit} disabled={loading}>
+          <button type="submit" className={styles.submit} disabled={loading || !formReady}>
             {loading ? <Spinner size="sm" color="currentColor" /> : null}
             {loading ? 'Connexion…' : 'Se connecter'}
           </button>

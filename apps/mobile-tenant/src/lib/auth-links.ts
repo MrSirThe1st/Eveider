@@ -2,10 +2,12 @@ export type AuthCallbackParams = {
   code?: string;
   accessToken?: string;
   refreshToken?: string;
+  tokenHash?: string;
   type?: string;
 };
 
 const RESET_HOSTS = new Set(['reset-password']);
+const AUTH_HOSTS = new Set(['auth']);
 
 export function isPasswordResetUrl(url: string | null | undefined): boolean {
   if (!url) return false;
@@ -17,11 +19,26 @@ export function isPasswordResetUrl(url: string | null | undefined): boolean {
       if (RESET_HOSTS.has(host) || parsed.pathname.includes('reset-password')) return true;
     }
   } catch {
-    if (/eveider:\/\/reset-password/i.test(url) || /eveider:\/\/reset-password/i.test(url)) {
+    if (/eveider:\/\/reset-password/i.test(url)) {
       return true;
     }
   }
-  return /eveider:\/\/reset-password/i.test(url) || /eveider:\/\/reset-password/i.test(url);
+  return /eveider:\/\/reset-password/i.test(url);
+}
+
+export function isDriverMagicLinkUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  if (/(?:[?&#]type=)magiclink/i.test(url)) return true;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === 'eveider:') {
+      const host = parsed.hostname || parsed.host || parsed.pathname.replace(/^\//, '');
+      if (AUTH_HOSTS.has(host) || parsed.pathname.includes('auth')) return true;
+    }
+  } catch {
+    if (/eveider:\/\/auth/i.test(url)) return true;
+  }
+  return /eveider:\/\/auth/i.test(url);
 }
 
 function readParams(raw: string): URLSearchParams {
@@ -53,9 +70,10 @@ export function parseAuthCallbackUrl(url: string): AuthCallbackParams {
   const code = merged.get('code')?.trim() || undefined;
   const accessToken = merged.get('access_token')?.trim() || undefined;
   const refreshToken = merged.get('refresh_token')?.trim() || undefined;
+  const tokenHash = merged.get('token_hash')?.trim() || undefined;
   const type = merged.get('type')?.trim() || undefined;
 
-  return { code, accessToken, refreshToken, type };
+  return { code, accessToken, refreshToken, tokenHash, type };
 }
 
 export function isPasswordSetCallback(params: AuthCallbackParams): boolean {

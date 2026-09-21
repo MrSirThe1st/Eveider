@@ -97,7 +97,7 @@ export function SignupPlatformAdminForm({ adminInviteToken }: SignupPlatformAdmi
   }
 
   return (
-    <form className={styles.form} onSubmit={handleRegister}>
+    <form className={styles.form} method="dialog" onSubmit={handleRegister}>
       {inviteHint ? <p className={styles.panelSub}>{inviteHint}</p> : null}
       {invitedRole ? (
         <p className={styles.panelSub}>Rôle : {PLATFORM_ROLE_LABELS[invitedRole]}</p>

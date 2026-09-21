@@ -1,7 +1,7 @@
 'use client';
 
 import { colors } from '@eveider/config-ui';
-import { CardListSkeleton } from '@eveider/ui';
+import { CardListSkeleton, Disclosure } from '@eveider/ui';
 import { useEffect, useState, type ReactNode } from 'react';
 import { AdminAnalyticsPanel } from '@/components/admin-analytics-panel';
 import { AdminKpiRow } from '@/components/admin-kpi-row';
@@ -49,17 +49,7 @@ export function AdminDashboardView({ stats, children }: AdminDashboardViewProps)
     <>
       <AdminKpiRow stats={stats} />
 
-      <details style={{ marginTop: '0.5rem' }}>
-        <summary
-          style={{
-            cursor: 'pointer',
-            fontSize: '0.8125rem',
-            fontWeight: 600,
-            color: colors.textMuted,
-          }}
-        >
-          Activité récente
-        </summary>
+      <Disclosure summary="Activité récente">
         <div
           style={{
             display: 'flex',
@@ -109,7 +99,7 @@ export function AdminDashboardView({ stats, children }: AdminDashboardViewProps)
         ) : (
           children
         )}
-      </details>
+      </Disclosure>
     </>
   );
 }

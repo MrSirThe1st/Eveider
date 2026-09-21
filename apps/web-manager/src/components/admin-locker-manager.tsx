@@ -1,8 +1,8 @@
 'use client';
 
-import { colors, spacing, typography } from '@eveider/config-ui';
+import { colors, typography } from '@eveider/config-ui';
 import { usesCompartmentGrid } from '@eveider/domain';
-import { DataTable, FilterToolbar, IconMapPin, IconSearch, type DataTableColumn } from '@eveider/ui';
+import { DataTable, DEFAULT_TABLE_PAGE_SIZE, FilterToolbar, IconMapPin, IconSearch, TableCellStack, TruncatedText, type DataTableColumn } from '@eveider/ui';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { ListSearchField } from '@/components/list-search-field';
@@ -149,24 +149,18 @@ export function AdminLockerManager({
         sortable: true,
         sortValue: (row) => row.name,
         cell: (row) => (
-          <div>
-            <Link
-              href={`/tableau-de-bord/casiers/${row.id}`}
-              className="nb-data-table__link"
-              onClick={(event) => event.stopPropagation()}
-            >
-              {row.name}
-            </Link>
-            <p
-              style={{
-                margin: `${spacing[1]}px 0 0`,
-                fontSize: typography.caption.fontSize,
-                color: colors.textMuted,
-              }}
-            >
-              {row.code}
-            </p>
-          </div>
+          <TableCellStack
+            primary={
+              <Link
+                href={`/tableau-de-bord/casiers/${row.id}`}
+                className="nb-data-table__link"
+                onClick={(event) => event.stopPropagation()}
+              >
+                {row.name}
+              </Link>
+            }
+            secondary={row.code}
+          />
         ),
       },
       {
@@ -175,7 +169,7 @@ export function AdminLockerManager({
         sortable: true,
         sortValue: (row) => row.address,
         hideOnMobile: true,
-        cell: (row) => row.address,
+        cell: (row) => <TruncatedText maxWidth={260}>{row.address}</TruncatedText>,
       },
       {
         id: 'zone',
@@ -197,6 +191,7 @@ export function AdminLockerManager({
         id: 'occupancy',
         header: 'Compartiments',
         hideOnMobile: true,
+        numeric: true,
         cell: (row) =>
           usesCompartmentGrid(row.type) ? (
             <span style={{ whiteSpace: 'nowrap', fontSize: typography.caption.fontSize }}>
@@ -226,46 +221,6 @@ export function AdminLockerManager({
       </div>
 
       <div className="locker-network-split__list">
-        <FilterToolbar
-        onClearAll={() => {
-          setCityFilter('all');
-          setZoneFilter('all');
-          setStatusFilter('all');
-        }}
-        filters={[
-          {
-            id: 'locker-city',
-            label: 'Ville',
-            value: cityFilter || 'all',
-            emptyValue: 'all',
-            options: cityOptions,
-            onChange: (next) => {
-              setCityFilter(next);
-              if (next !== 'all' && zoneFilter !== 'all') {
-                const stillValid = zonesForCity(serviceAreas, next).some((area) => area.id === zoneFilter);
-                if (!stillValid) setZoneFilter('all');
-              }
-            },
-          },
-          {
-            id: 'locker-zone',
-            label: 'Zone',
-            value: zoneFilter || 'all',
-            emptyValue: 'all',
-            options: zoneOptions,
-            onChange: setZoneFilter,
-          },
-          {
-            id: 'locker-status',
-            label: 'Statut',
-            value: statusFilter,
-            emptyValue: 'all',
-            options: STATUS_OPTIONS,
-            onChange: (next) => setStatusFilter(next as StatusFilter),
-          },
-        ]}
-      />
-
       <DataTable
         columns={columns}
         rows={visibleLockers}
@@ -274,37 +229,97 @@ export function AdminLockerManager({
         hoveredRowId={hoveredLockerId}
         onRowSelect={selectLocker}
         onRowHover={setHoveredLockerId}
-        caption={
-          visibleLockers.length > 0
-            ? zoneFilter && zoneFilter !== 'all'
-              ? `${visibleLockers.length} casier${visibleLockers.length > 1 ? 's' : ''} sur ${networkLockers.length}`
-              : `${visibleLockers.length} casier${visibleLockers.length > 1 ? 's' : ''}`
-            : undefined
-        }
-        toolbar={
+        search={
           <ListSearchField
             value={searchQuery}
             onChange={setSearchQuery}
-            placeholder="Rechercher un casier…"
-            ariaLabel="Rechercher un casier"
+            placeholder="Rechercher un casier par nom, code ou adresse…"
+            ariaLabel="Rechercher un casier par nom, code ou adresse"
           />
+        }
+        filters={
+          <FilterToolbar
+            embedded
+            onClearAll={() => {
+              setCityFilter('all');
+              setZoneFilter('all');
+              setStatusFilter('all');
+            }}
+            filters={[
+              {
+                id: 'locker-city',
+                label: 'Ville',
+                value: cityFilter || 'all',
+                emptyValue: 'all',
+                options: cityOptions,
+                onChange: (next) => {
+                  setCityFilter(next);
+                  if (next !== 'all' && zoneFilter !== 'all') {
+                    const stillValid = zonesForCity(serviceAreas, next).some((area) => area.id === zoneFilter);
+                    if (!stillValid) setZoneFilter('all');
+                  }
+                },
+              },
+              {
+                id: 'locker-zone',
+                label: 'Zone',
+                value: zoneFilter || 'all',
+                emptyValue: 'all',
+                options: zoneOptions,
+                onChange: setZoneFilter,
+              },
+              {
+                id: 'locker-status',
+                label: 'Statut',
+                value: statusFilter,
+                emptyValue: 'all',
+                options: STATUS_OPTIONS,
+                onChange: (next) => setStatusFilter(next as StatusFilter),
+              },
+            ]}
+          />
+        }
+        caption={
+          visibleLockers.length > 0 &&
+          (zoneFilter !== 'all' || cityFilter !== 'all' || statusFilter !== 'all' || searchQuery.trim())
+            ? `${visibleLockers.length} casier${visibleLockers.length > 1 ? 's' : ''} sur ${networkLockers.length}`
+            : undefined
         }
         emptyTitle={
           searchQuery.trim() || cityFilter !== 'all' || zoneFilter !== 'all' || statusFilter !== 'all'
-            ? 'Aucun casier pour ces filtres'
-            : 'Aucun casier intelligent'
+            ? 'Aucun résultat'
+            : 'Aucun casier'
         }
-        emptyDescription="Le réseau Eveider se construit casier par casier, avec une ville et une zone explicites."
+        emptyDescription={
+          searchQuery.trim() || cityFilter !== 'all' || zoneFilter !== 'all' || statusFilter !== 'all'
+            ? 'Aucun casier ne correspond aux filtres actuels.'
+            : 'Les casiers Eveider apparaîtront ici.'
+        }
         emptyIcon={searchQuery.trim() ? <IconSearch /> : <IconMapPin />}
         emptyAction={
-          <Link href="/tableau-de-bord/casiers/nouveau" className="nb-btn nb-btn-primary nb-btn--sm">
-            Nouveau casier
-          </Link>
+          searchQuery.trim() || cityFilter !== 'all' || zoneFilter !== 'all' || statusFilter !== 'all' ? (
+            <button
+              type="button"
+              className="nb-btn nb-btn-secondary nb-btn--sm"
+              onClick={() => {
+                setSearchQuery('');
+                setCityFilter('all');
+                setZoneFilter('all');
+                setStatusFilter('all');
+              }}
+            >
+              Réinitialiser les filtres
+            </button>
+          ) : (
+            <Link href="/tableau-de-bord/casiers/nouveau" className="nb-btn nb-btn-primary nb-btn--sm">
+              Nouveau casier
+            </Link>
+          )
         }
-        initialSortId="name"
-        initialSortDirection="asc"
+        sortBy="name"
+        pageSize={DEFAULT_TABLE_PAGE_SIZE}
         rowPrimaryAction={(row) => ({
-          label: 'Détail',
+          label: 'Détails',
           href: `/tableau-de-bord/casiers/${row.id}`,
         })}
       />

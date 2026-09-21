@@ -63,6 +63,15 @@ describe('unpublished settings stay hidden', () => {
     expect(adminIds).not.toContain('roles');
     expect(adminIds).not.toContain('notifications');
     expect(adminIds).not.toContain('api');
+    expect(adminIds).not.toContain('integrations');
+  });
+
+  it('labels the platform staff page as Équipe', () => {
+    const equipe = ADMIN_SETTINGS_NAV.flatMap((group) => group.items).find(
+      (item) => item.id === 'administrateurs',
+    );
+    expect(equipe?.label).toBe('Équipe');
+    expect(equipe?.href).toBe('/tableau-de-bord/parametres/administrateurs');
   });
 });
 

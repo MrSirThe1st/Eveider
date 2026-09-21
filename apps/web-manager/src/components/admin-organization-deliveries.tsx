@@ -1,7 +1,7 @@
 'use client';
 
-import { colors, typography } from '@eveider/config-ui';
-import { DataTable, IconTruck, type DataTableColumn } from '@eveider/ui';
+import { colors } from '@eveider/config-ui';
+import { DataTable, IconTruck, TableCellStack, type DataTableColumn } from '@eveider/ui';
 import { useMemo } from 'react';
 import type { AdminOrganizationDeliveryItem } from '@/server/organizations';
 
@@ -27,19 +27,14 @@ export function AdminOrganizationDeliveries({ deliveries }: AdminOrganizationDel
         sortable: true,
         sortValue: (row) => row.trackingNumber,
         cell: (row) => (
-          <div>
-            <div style={{ fontWeight: typography.weights.semibold }}>{row.trackingNumber}</div>
-            {row.reference ? (
-              <div style={{ fontSize: typography.caption.fontSize, color: colors.textMuted }}>
-                {row.reference}
-              </div>
-            ) : null}
-          </div>
+          <TableCellStack primary={row.trackingNumber} secondary={row.reference ?? undefined} />
         ),
       },
       {
         id: 'status',
         header: 'Statut',
+        sortable: true,
+        sortValue: (row) => row.statusLabel,
         cell: (row) => row.statusLabel,
       },
       {
@@ -51,7 +46,7 @@ export function AdminOrganizationDeliveries({ deliveries }: AdminOrganizationDel
       {
         id: 'createdAt',
         header: 'Créée le',
-        align: 'right',
+        numeric: true,
         sortable: true,
         sortValue: (row) => new Date(row.createdAt).getTime(),
         cell: (row) => (
@@ -67,6 +62,7 @@ export function AdminOrganizationDeliveries({ deliveries }: AdminOrganizationDel
       columns={columns}
       rows={deliveries}
       getRowId={(row) => row.id}
+      sortBy="createdAt"
       emptyTitle="Aucune livraison pour cette organisation"
       emptyDescription="Les livraisons de cette organisation apparaîtront ici."
       emptyIcon={<IconTruck />}

@@ -10,9 +10,25 @@ test.describe('Driver service areas', () => {
     await expect(page.getByRole('heading', { name: 'Flotte', level: 1 })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: 'Zone' })).toBeVisible();
     await expect(page.getByText(/Lubumbashi/).first()).toBeVisible();
+    await expect(page.getByText(/\([^)]+\)|— à répartir/).first()).toBeVisible();
     await expect(page.getByRole('button', { name: '+ Ville' })).toBeVisible();
 
-    await page.getByRole('button', { name: '+ Zone' }).click();
+    await expect(page.getByText(/Dilala \(Kolwezi\)|Lubumbashi — à répartir|Kolwezi — à répartir/).first()).toBeVisible();
+
+    await page.getByRole('button', { name: /^\+ Ville/ }).click();
+    const cityOption = page.getByRole('option', { name: 'Lubumbashi', exact: true });
+    if ((await cityOption.count()) > 0) {
+      await cityOption.click();
+      await page.getByRole('button', { name: /^\+ Zone/ }).click();
+      const zoneTexts = await page.getByRole('option').allTextContents();
+      expect(zoneTexts.some((label) => /Kolwezi/i.test(label))).toBe(false);
+      await page.keyboard.press('Escape');
+      await page.getByRole('button', { name: 'Effacer les filtres' }).click();
+    }
+
+    await expect(page.getByRole('link', { name: 'Jean-Pierre Tshibanda' })).toBeVisible();
+
+    await page.getByRole('button', { name: /^\+ Zone/ }).click();
     const kolwezi = page.getByRole('option', { name: /Kolwezi/ });
     if ((await kolwezi.count()) > 0) {
       await kolwezi.click();

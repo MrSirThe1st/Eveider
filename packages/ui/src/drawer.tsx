@@ -1,6 +1,6 @@
 'use client';
 
-import { colors, radius, spacing, typography, shadows, borderSubtle } from '@eveider/config-ui';
+import { colors, spacing, typography, shadows, borderSubtle } from '@eveider/config-ui';
 import {
   useEffect,
   useId,
@@ -176,7 +176,7 @@ export function Drawer({
               padding: spacing[4],
               borderTop: borderSubtle(),
               flexShrink: 0,
-              borderRadius: `0 0 ${radius.card}px 0`,
+              borderRadius: '0 0 var(--radius-card) 0',
             }}
           >
             {footer}

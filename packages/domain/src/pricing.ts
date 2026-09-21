@@ -2,6 +2,12 @@ import type { PackageSize } from './shipment.js';
 
 export type DeliveryPricingCurrency = 'USD' | 'CDF';
 
+export const DELIVERY_PRICING_CURRENCIES = ['USD', 'CDF'] as const;
+
+export function parseDeliveryPricingCurrency(value: unknown): DeliveryPricingCurrency {
+  return value === 'USD' ? 'USD' : 'CDF';
+}
+
 export type DeliveryPricingRules = {
   distanceThresholdKm: number;
   belowThresholdAmount: number;

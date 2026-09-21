@@ -2,6 +2,7 @@ import {
   calculateDeliveryFee,
   calculateLockerRentalAmount,
   calculateLockerRentalPeriods,
+  parseDeliveryPricingCurrency,
   payerForChargeKind,
   type ChargePayer,
   type DeliveryPricingCurrency,
@@ -16,10 +17,6 @@ import type { Queryable } from '../db/index.js';
 import type { DeliveryPricingRuleRow, ParcelCharge } from '../db/types.js';
 import { toDeliveryPricingRules } from './pricing.repository.js';
 
-function parseCurrency(value: unknown): DeliveryPricingCurrency {
-  return value === 'USD' ? 'USD' : 'CDF';
-}
-
 export function mapParcelCharge(row: Record<string, unknown>): ParcelCharge {
   return {
     id: String(row.id),
@@ -30,7 +27,7 @@ export function mapParcelCharge(row: Record<string, unknown>): ParcelCharge {
     payer: (row.payer as ChargePayer) ?? payerForChargeKind(row.kind as ParcelChargeKind),
     pricingZoneId: row.pricing_zone_id == null ? null : String(row.pricing_zone_id),
     amount: Number(row.amount),
-    currency: parseCurrency(row.currency),
+    currency: parseDeliveryPricingCurrency(row.currency),
     unitRate: row.unit_rate == null ? null : Number(row.unit_rate),
     quantity: row.quantity == null ? null : Number(row.quantity),
     periodStartedAt: row.period_started_at == null ? null : new Date(String(row.period_started_at)),

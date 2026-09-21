@@ -1,5 +1,7 @@
 import { ok } from '@eveider/api-contracts';
 import {
+  buildPawaPayConfig,
+  createRepositories,
   DRC_DEPOSIT_PROVIDERS,
   getPawaPayConfig,
   listPawaPayDepositProviders,
@@ -8,7 +10,14 @@ import { NextResponse } from 'next/server';
 
 /** Public — guest track page needs fee + operators without login. */
 export async function GET() {
-  const config = getPawaPayConfig();
+  const { platformSettings } = createRepositories();
+  const settings = await platformSettings.getSettings().catch(() => null);
+  const config = settings
+    ? buildPawaPayConfig({
+        amount: String(settings.pickupFeeAmount),
+        currency: settings.platformCurrency,
+      })
+    : getPawaPayConfig();
   if (!config) {
     return NextResponse.json(
       ok({

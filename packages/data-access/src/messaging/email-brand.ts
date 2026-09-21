@@ -1,10 +1,12 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getInviteConfig } from '../invitations/invite-links.js';
 
 const BRAND_GREEN = '#09D40B';
 const LOGO_CONTENT_ID = 'eveider-logo';
-const LOGO_PUBLIC_PATH = '/email/eveider_logo.png';
+const LOGO_FILENAME = 'eveider_logo.png';
+const LOGO_PUBLIC_PATH = `/email/${LOGO_FILENAME}`;
 
 export function escapeHtml(value: string): string {
   return value
@@ -42,15 +44,65 @@ export type EveiderLogoAttachment = {
   contentType: string;
 };
 
+/** Convert via `.href` — Next.js URL objects fail Node's `fileURLToPath` instanceof check. */
+function toFilePath(fileUrl: string | URL): string {
+  return fileURLToPath(typeof fileUrl === 'string' ? fileUrl : fileUrl.href);
+}
+
+function emailLogoCandidates(): string[] {
+  const candidates: string[] = [];
+
+  try {
+    const resolved = new URL(`../../assets/${LOGO_FILENAME}`, import.meta.url);
+    const href = typeof resolved === 'string' ? resolved : resolved.href;
+    if (href.startsWith('file:')) {
+      candidates.push(toFilePath(href));
+    } else if (path.isAbsolute(href)) {
+      candidates.push(href);
+    }
+  } catch {
+    // Bundlers may rewrite this to a non-file URL; fall through to cwd paths.
+  }
+
+  candidates.push(
+    path.join(process.cwd(), 'public/email', LOGO_FILENAME),
+    path.join(process.cwd(), 'assets', LOGO_FILENAME),
+    path.join(process.cwd(), 'packages/data-access/assets', LOGO_FILENAME),
+  );
+
+  return candidates;
+}
+
 /** Inline logo for Resend (`img src="cid:eveider-logo"`). */
 export function getEveiderLogoAttachment(): EveiderLogoAttachment {
-  const path = fileURLToPath(new URL('../../assets/eveider_logo.png', import.meta.url));
-  return {
-    filename: 'eveider_logo.png',
-    content: readFileSync(path),
-    contentId: LOGO_CONTENT_ID,
-    contentType: 'image/png',
-  };
+  for (const logoPath of emailLogoCandidates()) {
+    try {
+      if (!existsSync(logoPath)) continue;
+      return {
+        filename: LOGO_FILENAME,
+        content: readFileSync(logoPath),
+        contentId: LOGO_CONTENT_ID,
+        contentType: 'image/png',
+      };
+    } catch {
+      continue;
+    }
+  }
+
+  throw new Error('Impossible de charger le logo Eveider pour l’email');
+}
+
+/** CID attachment when the file is readable; otherwise the hosted image URL. */
+export function resolveEmailLogo(): {
+  src: string;
+  attachments?: EveiderLogoAttachment[];
+} {
+  try {
+    const attachment = getEveiderLogoAttachment();
+    return { src: getEveiderLogoCidSrc(), attachments: [attachment] };
+  } catch {
+    return { src: getEveiderLogoUrl() };
+  }
 }
 
 export type BrandedEmailContent = {

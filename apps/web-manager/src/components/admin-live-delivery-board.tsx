@@ -1,7 +1,7 @@
 'use client';
 
-import { colors, radius, webSecondaryButtonStyle } from '@eveider/config-ui';
-import { EmptyState, FilterToolbar, IconTruck, LoadingSpinner, TableSkeleton } from '@eveider/ui';
+import { colors, radius } from '@eveider/config-ui';
+import { Button, DataTable, DEFAULT_TABLE_PAGE_SIZE, FilterToolbar, IconTruck, TableCellStack, type DataTableColumn } from '@eveider/ui';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Fragment, useEffect, useMemo, useState } from 'react';
@@ -13,6 +13,7 @@ import {
   getAdminDeliveryStatusLabel,
 } from '@/lib/admin-presentation';
 import {
+  type DeliveryBoardItem,
   type DeliveryBoardView,
   type DeliveryFilters,
   type DeliveryStatusFilter,
@@ -43,27 +44,6 @@ function formatDateTime(iso: string) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(iso));
-}
-
-function lockerCell(
-  locker: { id: string; name: string; code: string; address: string } | null,
-  compartment: { label: string; size: string } | null,
-) {
-  if (!locker) return '—';
-  return (
-    <div>
-      <Link
-        href={`/tableau-de-bord/casiers/${locker.id}`}
-        style={{ color: colors.secondary, textDecoration: 'none', fontWeight: 600 }}
-      >
-        {locker.name}
-      </Link>
-      <div style={{ fontSize: '0.8125rem', opacity: 0.75 }}>
-        {locker.code}
-        {compartment ? ` · ${compartment.label} (${compartment.size})` : ''}
-      </div>
-    </div>
-  );
 }
 
 export function AdminLiveDeliveryBoard() {
@@ -190,6 +170,108 @@ export function AdminLiveDeliveryBoard() {
     writeUrlParams({ status: 'all' });
   }
 
+  const columns = useMemo<DataTableColumn<DeliveryBoardItem>[]>(
+    () => [
+      {
+        id: 'tracking',
+        header: 'Suivi',
+        sortable: true,
+        sortValue: (row) => row.parcel.trackingNumber,
+        cell: (row) => (
+          <Link href={`/tableau-de-bord/colis/${row.parcel.id}`} className="nb-data-table__link">
+            {row.parcel.trackingNumber}
+          </Link>
+        ),
+      },
+      {
+        id: 'kind',
+        header: 'Type',
+        sortable: true,
+        sortValue: (row) => row.deliveryKindLabel ?? 'Aller',
+        hideOnMobile: true,
+        cell: (row) => row.deliveryKindLabel ?? 'Aller',
+      },
+      {
+        id: 'status',
+        header: 'État',
+        sortable: true,
+        sortValue: (row) => row.statusLabel,
+        cell: (row) => (
+          <DeliveryStatusBadge status={row.status as never} label={row.statusLabel} />
+        ),
+      },
+      {
+        id: 'courier',
+        header: 'Chauffeur',
+        sortable: true,
+        sortValue: (row) => row.courier?.fullName ?? row.courier?.email ?? '',
+        cell: (row) =>
+          row.courier ? (
+            <Link href={`/tableau-de-bord/flotte/${row.courier.id}`} className="nb-data-table__link">
+              {row.courier.fullName ?? row.courier.email ?? 'Chauffeur Eveider'}
+            </Link>
+          ) : (
+            '—'
+          ),
+      },
+      {
+        id: 'business',
+        header: 'Entreprise',
+        sortable: true,
+        sortValue: (row) => row.parcel.business.name,
+        hideOnMobile: true,
+        cell: (row) => row.parcel.business.name,
+      },
+      {
+        id: 'locker',
+        header: 'Casier',
+        sortable: true,
+        sortValue: (row) => row.parcel.locker?.name ?? '',
+        hideOnMobile: true,
+        cell: (row) =>
+          row.parcel.locker ? (
+            <TableCellStack
+              primary={
+                <Link
+                  href={`/tableau-de-bord/casiers/${row.parcel.locker.id}`}
+                  className="nb-data-table__link"
+                >
+                  {row.parcel.locker.name}
+                </Link>
+              }
+              secondary={`${row.parcel.locker.code}${
+                row.parcel.compartment
+                  ? ` · ${row.parcel.compartment.label} (${row.parcel.compartment.size})`
+                  : ''
+              }`}
+            />
+          ) : (
+            '—'
+          ),
+      },
+      {
+        id: 'updatedAt',
+        header: 'Maj',
+        sortable: true,
+        sortValue: (row) => new Date(row.updatedAt).getTime(),
+        numeric: true,
+        cell: (row) => (
+          <span style={{ whiteSpace: 'nowrap', color: 'var(--color-text-muted)' }}>
+            {formatDateTime(row.updatedAt)}
+          </span>
+        ),
+      },
+    ],
+    [],
+  );
+
+  const hasActiveFilters =
+    Boolean(debouncedSearch.trim()) ||
+    filters.status !== 'all' ||
+    Boolean(filters.courierId) ||
+    Boolean(filters.lockerId) ||
+    Boolean(filters.businessId);
+
   return (
     <div>
       {filters.view === 'active' ? (
@@ -265,178 +347,125 @@ export function AdminLiveDeliveryBoard() {
         </div>
       ) : null}
 
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '0.75rem',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '1rem',
-        }}
-      >
-        <div style={{ flex: '1 1 240px', minWidth: 200 }}>
+      {showRefreshError ? (
+        <FlashBanner message={`${errorMessage} Les données affichées peuvent être obsolètes.`} variant="error" />
+      ) : null}
+
+      <DataTable
+        columns={columns}
+        rows={items}
+        getRowId={(row) => `${row.kind}-${row.id}`}
+        search={
           <ListSearchField
             value={debouncedSearch}
             onChange={setDebouncedSearch}
             placeholder="Rechercher par numéro de suivi…"
             ariaLabel="Rechercher une activité par numéro de suivi"
           />
-        </div>
-        <ParcelExportMenu
-          compact
-          exportPath="/api/deliveries/board/export"
-          filters={{
-            view: filters.view,
-            status: filters.status === 'all' ? undefined : filters.status,
-            courierId: filters.courierId || undefined,
-            lockerId: filters.lockerId || undefined,
-            businessId: filters.businessId || undefined,
-            search: debouncedSearch.trim() || undefined,
-          }}
-        />
-      </div>
-
-      <FilterToolbar
-        onClearAll={clearAllFilters}
-        filters={[
-          ...(filters.view === 'active'
-            ? [
-                {
-                  id: 'status',
-                  label: 'Statut',
-                  value: filters.status,
-                  emptyValue: 'all',
-                  options: STATUS_OPTIONS,
-                  onChange: (value: string) =>
-                    updateFilter('status', value as DeliveryStatusFilter),
-                },
-              ]
-            : []),
-          {
-            id: 'courier',
-            label: 'Chauffeur',
-            value: filters.courierId,
-            emptyValue: '',
-            options: [
-              { value: '', label: 'Tous les chauffeurs Eveider' },
-              ...couriers.map((c) => ({ value: c.id, label: c.label })),
-            ],
-            onChange: (value) => updateFilter('courierId', value),
-          },
-          {
-            id: 'locker',
-            label: 'Casier',
-            value: filters.lockerId,
-            emptyValue: '',
-            options: [
-              { value: '', label: 'Tous les casiers' },
-              ...lockers.map((l) => ({ value: l.id, label: l.label })),
-            ],
-            onChange: (value) => updateFilter('lockerId', value),
-          },
-          {
-            id: 'business',
-            label: 'Entreprise',
-            value: filters.businessId,
-            emptyValue: '',
-            options: [
-              { value: '', label: 'Toutes les entreprises' },
-              ...businesses.map((b) => ({ value: b.id, label: b.label })),
-            ],
-            onChange: (value) => updateFilter('businessId', value),
-          },
-        ]}
+        }
+        filters={
+          <FilterToolbar
+            embedded
+            onClearAll={clearAllFilters}
+            filters={[
+              ...(filters.view === 'active'
+                ? [
+                    {
+                      id: 'status',
+                      label: 'Statut',
+                      value: filters.status,
+                      emptyValue: 'all',
+                      options: STATUS_OPTIONS,
+                      onChange: (value: string) =>
+                        updateFilter('status', value as DeliveryStatusFilter),
+                    },
+                  ]
+                : []),
+              {
+                id: 'courier',
+                label: 'Chauffeur',
+                value: filters.courierId,
+                emptyValue: '',
+                options: [
+                  { value: '', label: 'Tous les chauffeurs Eveider' },
+                  ...couriers.map((c) => ({ value: c.id, label: c.label })),
+                ],
+                onChange: (value) => updateFilter('courierId', value),
+              },
+              {
+                id: 'locker',
+                label: 'Casier',
+                value: filters.lockerId,
+                emptyValue: '',
+                options: [
+                  { value: '', label: 'Tous les casiers' },
+                  ...lockers.map((l) => ({ value: l.id, label: l.label })),
+                ],
+                onChange: (value) => updateFilter('lockerId', value),
+              },
+              {
+                id: 'business',
+                label: 'Entreprise',
+                value: filters.businessId,
+                emptyValue: '',
+                options: [
+                  { value: '', label: 'Toutes les entreprises' },
+                  ...businesses.map((b) => ({ value: b.id, label: b.label })),
+                ],
+                onChange: (value) => updateFilter('businessId', value),
+              },
+            ]}
+          />
+        }
+        trailing={
+          <ParcelExportMenu
+            iconOnly
+            exportPath="/api/deliveries/board/export"
+            filters={{
+              view: filters.view,
+              status: filters.status === 'all' ? undefined : filters.status,
+              courierId: filters.courierId || undefined,
+              lockerId: filters.lockerId || undefined,
+              businessId: filters.businessId || undefined,
+              search: debouncedSearch.trim() || undefined,
+            }}
+          />
+        }
+        loading={showInitialLoader}
+        error={
+          showFatalError
+            ? {
+                title: 'Impossible de charger les livraisons',
+                message: errorMessage,
+                action: (
+                  <Button variant="secondary" onClick={() => void boardQuery.refetch()}>
+                    Réessayer
+                  </Button>
+                ),
+              }
+            : null
+        }
+        emptyTitle={hasActiveFilters ? 'Aucun résultat' : 'Aucune livraison Eveider'}
+        emptyDescription={
+          hasActiveFilters
+            ? 'Aucune livraison ne correspond aux filtres actuels.'
+            : 'Les transports aller et retours client apparaissent ici.'
+        }
+        emptyIcon={<IconTruck />}
+        emptyAction={
+          hasActiveFilters ? (
+            <Button variant="secondary" size="sm" onClick={clearAllFilters}>
+              Réinitialiser les filtres
+            </Button>
+          ) : undefined
+        }
+        sortBy="updatedAt"
+        pageSize={DEFAULT_TABLE_PAGE_SIZE}
+        rowPrimaryAction={(row) => ({
+          label: 'Détails',
+          href: `/tableau-de-bord/colis/${row.parcel.id}`,
+        })}
       />
-
-      {boardQuery.isFetching && items.length > 0 ? (
-        <div style={{ marginBottom: '1.5rem' }}>
-          <LoadingSpinner compact size="sm" label="Mise à jour…" />
-        </div>
-      ) : null}
-
-      {showInitialLoader ? <TableSkeleton rows={8} /> : null}
-      {showFatalError ? (
-        <div>
-          <FlashBanner message={errorMessage} variant="error" />
-          <button type="button" onClick={() => void boardQuery.refetch()} style={webSecondaryButtonStyle}>
-            Réessayer
-          </button>
-        </div>
-      ) : null}
-      {showRefreshError ? (
-        <FlashBanner message={`${errorMessage} Les données affichées peuvent être obsolètes.`} variant="error" />
-      ) : null}
-
-      {!showInitialLoader && !showFatalError && items.length === 0 ? (
-        <EmptyState
-          compact
-          title="Aucune livraison Eveider"
-          description="Les transports aller et retours client apparaissent ici."
-          icon={<IconTruck />}
-        />
-      ) : null}
-
-      {!showInitialLoader && !showFatalError && items.length > 0 ? (
-        <div className="nb-data-table">
-        <div className="nb-data-table__scroll">
-          <table>
-            <thead>
-              <tr>
-                {['Suivi', 'Type', 'État', 'Chauffeur', 'Entreprise', 'Casier', 'Maj', ''].map(
-                  (heading) => (
-                    <th key={heading || 'actions'}>{heading}</th>
-                  ),
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={`${item.kind}-${item.id}`} className="nb-data-table__row">
-                  <td>
-                    <Link
-                      href={`/tableau-de-bord/colis/${item.parcel.id}`}
-                      className="nb-data-table__link"
-                    >
-                      {item.parcel.trackingNumber}
-                    </Link>
-                  </td>
-                  <td>{item.deliveryKindLabel ?? 'Aller'}</td>
-                  <td>
-                    <DeliveryStatusBadge
-                      status={item.status as never}
-                      label={item.statusLabel}
-                    />
-                  </td>
-                  <td>
-                    {item.courier ? (
-                      <Link
-                        href={`/tableau-de-bord/flotte/${item.courier.id}`}
-                        className="nb-data-table__link"
-                      >
-                        {item.courier.fullName ?? item.courier.email ?? 'Chauffeur Eveider'}
-                      </Link>
-                    ) : (
-                      '—'
-                    )}
-                  </td>
-                  <td>{item.parcel.business.name}</td>
-                  <td>{lockerCell(item.parcel.locker, item.parcel.compartment)}</td>
-                  <td style={{ whiteSpace: 'nowrap', color: 'var(--color-text-muted)' }}>
-                    {formatDateTime(item.updatedAt)}
-                  </td>
-                  <td className="nb-data-table__actions">
-                    <Link href={`/tableau-de-bord/colis/${item.parcel.id}`} className="nb-data-table__link">
-                      Détail
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        </div>
-      ) : null}
     </div>
   );
 }

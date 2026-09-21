@@ -2,6 +2,7 @@
 
 import { colors, spacing, typography } from '@eveider/config-ui';
 import { Button, Modal } from '@eveider/ui';
+import { isImageDocumentPath } from '@eveider/api-contracts';
 import { Minus, Plus, RotateCcw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { DOCUMENT_TYPE_LABELS } from './kyc-review-constants';
@@ -19,11 +20,6 @@ type KycDocumentPreviewProps = {
   onClose: () => void;
 };
 
-function isImageDocument(fileUrl: string, fileName: string | null): boolean {
-  const target = `${fileName ?? ''} ${fileUrl}`.toLowerCase();
-  return /\.(jpe?g|png|gif|webp|bmp)(\?|$)/i.test(target);
-}
-
 export function KycDocumentPreview({ document, open, onClose }: KycDocumentPreviewProps) {
   const [zoom, setZoom] = useState(1);
 
@@ -34,7 +30,7 @@ export function KycDocumentPreview({ document, open, onClose }: KycDocumentPrevi
   if (!document) return null;
 
   const title = DOCUMENT_TYPE_LABELS[document.type] ?? document.type.toUpperCase();
-  const isImage = isImageDocument(document.fileUrl, document.fileName);
+  const isImage = isImageDocumentPath(document.fileUrl, document.fileName);
 
   return (
     <Modal

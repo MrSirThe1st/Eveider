@@ -1,7 +1,6 @@
 'use client';
 
-import { colors, typography } from '@eveider/config-ui';
-import { DataTable, IconBuilding, IconSearch, type DataTableColumn } from '@eveider/ui';
+import { DataTable, DEFAULT_TABLE_PAGE_SIZE, FilterToolbar, IconBuilding, IconSearch, type DataTableColumn } from '@eveider/ui';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { AdminAccountStatusBadge } from '@/components/admin-account-status-badge';
@@ -30,12 +29,7 @@ export function AdminOrganizationList({ organizations }: AdminOrganizationListPr
     () =>
       organizations.filter((org) => {
         if (accountFilter !== 'all' && org.accountStatus !== accountFilter) return false;
-        return matchesListSearch(
-          searchQuery,
-          org.name,
-          org.ownerName,
-          org.ownerEmail,
-        );
+        return matchesListSearch(searchQuery, org.name, org.ownerName, org.ownerEmail);
       }),
     [organizations, searchQuery, accountFilter],
   );
@@ -48,10 +42,7 @@ export function AdminOrganizationList({ organizations }: AdminOrganizationListPr
         sortable: true,
         sortValue: (row) => row.name,
         cell: (row) => (
-          <Link
-            href={`/tableau-de-bord/organisations/${row.id}`}
-            className="nb-data-table__link"
-          >
+          <Link href={`/tableau-de-bord/organisations/${row.id}`} className="nb-data-table__link">
             {row.name}
           </Link>
         ),
@@ -76,10 +67,10 @@ export function AdminOrganizationList({ organizations }: AdminOrganizationListPr
         header: 'Mis à jour',
         sortable: true,
         sortValue: (row) => new Date(row.updatedAt).getTime(),
-        align: 'right',
+        numeric: true,
         hideOnMobile: true,
         cell: (row) => (
-          <span style={{ color: colors.textMuted, whiteSpace: 'nowrap' }}>
+          <span style={{ color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>
             {formatDate(row.updatedAt)}
           </span>
         ),
@@ -88,66 +79,68 @@ export function AdminOrganizationList({ organizations }: AdminOrganizationListPr
     [],
   );
 
-  const selectStyle = {
-    height: 40,
-    padding: '0 0.75rem',
-    borderRadius: 8,
-    border: `1px solid ${colors.border}`,
-    fontSize: typography.caption.fontSize,
-    background: colors.surface,
-  };
-
-  const hasFilters = searchQuery.trim() || accountFilter !== 'all';
+  const hasFilters = Boolean(searchQuery.trim()) || accountFilter !== 'all';
 
   return (
-    <div style={{ display: 'grid', gap: '1rem' }}>
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '0.75rem',
-          alignItems: 'center',
-        }}
-      >
-        <div style={{ flex: '1 1 220px', maxWidth: 420 }}>
-          <ListSearchField
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Rechercher une organisation…"
-            ariaLabel="Rechercher une organisation"
-          />
-        </div>
-        <select
-          value={accountFilter}
-          onChange={(e) => setAccountFilter(e.target.value as AdminAccountStatus | 'all')}
-          style={selectStyle}
-          aria-label="Filtrer par statut de compte"
-        >
-          <option value="all">Compte : tous</option>
-          <option value="active">Actif</option>
-          <option value="suspended">Suspendu</option>
-        </select>
-      </div>
-
-      <DataTable
-        columns={columns}
-        rows={filtered}
-        getRowId={(row) => row.id}
-        emptyTitle={hasFilters ? 'Aucune organisation pour ces filtres' : 'Aucune organisation'}
-        emptyDescription={
-          hasFilters
-            ? 'Modifiez les filtres pour élargir la recherche.'
-            : 'Les organisations Eveider apparaîtront ici.'
-        }
-        emptyIcon={hasFilters ? <IconSearch /> : <IconBuilding />}
-        rowActions={(row) => [
-          {
-            id: 'view',
-            label: 'Voir',
-            href: `/tableau-de-bord/organisations/${row.id}`,
-          },
-        ]}
-      />
-    </div>
+    <DataTable
+      columns={columns}
+      rows={filtered}
+      getRowId={(row) => row.id}
+      search={
+        <ListSearchField
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Rechercher une organisation par nom ou propriétaire…"
+          ariaLabel="Rechercher une organisation"
+        />
+      }
+      filters={
+        <FilterToolbar
+          embedded
+          onClearAll={() => setAccountFilter('all')}
+          filters={[
+            {
+              id: 'account',
+              label: 'Compte',
+              value: accountFilter,
+              emptyValue: 'all',
+              options: [
+                { value: 'all', label: 'Tous' },
+                { value: 'active', label: 'Actif' },
+                { value: 'suspended', label: 'Suspendu' },
+              ],
+              onChange: (next) => setAccountFilter(next as AdminAccountStatus | 'all'),
+            },
+          ]}
+        />
+      }
+      emptyTitle={hasFilters ? 'Aucun résultat' : 'Aucune organisation'}
+      emptyDescription={
+        hasFilters
+          ? 'Aucune organisation ne correspond aux filtres actuels.'
+          : 'Les organisations Eveider apparaîtront ici.'
+      }
+      emptyIcon={hasFilters ? <IconSearch /> : <IconBuilding />}
+      emptyAction={
+        hasFilters ? (
+          <button
+            type="button"
+            className="nb-btn nb-btn-secondary nb-btn--sm"
+            onClick={() => {
+              setSearchQuery('');
+              setAccountFilter('all');
+            }}
+          >
+            Réinitialiser les filtres
+          </button>
+        ) : undefined
+      }
+      pageSize={DEFAULT_TABLE_PAGE_SIZE}
+      sortBy="name"
+      rowPrimaryAction={(row) => ({
+        label: 'Détails',
+        href: `/tableau-de-bord/organisations/${row.id}`,
+      })}
+    />
   );
 }

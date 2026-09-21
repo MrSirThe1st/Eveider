@@ -1,10 +1,12 @@
 import { createRepositories } from '@eveider/data-access';
 import type { PlatformDefaultFeature } from '@eveider/data-access';
+import type { DeliveryPricingCurrency } from '@eveider/domain';
 
 export type PlatformSettingsDto = {
   id: string;
   pickupFeeAmount: number;
-  pickupFeeCurrency: string;
+  pickupFeeCurrency: DeliveryPricingCurrency;
+  platformCurrency: DeliveryPricingCurrency;
   requireOrgApproval: boolean;
   defaultDailyShipments: number | null;
   defaultMonthlyShipments: number | null;
@@ -23,7 +25,8 @@ export async function getPlatformSettings(): Promise<PlatformSettingsDto> {
   return {
     id: row.id,
     pickupFeeAmount: row.pickupFeeAmount,
-    pickupFeeCurrency: row.pickupFeeCurrency,
+    pickupFeeCurrency: row.platformCurrency,
+    platformCurrency: row.platformCurrency,
     requireOrgApproval: row.requireOrgApproval,
     defaultDailyShipments: row.defaultDailyShipments,
     defaultMonthlyShipments: row.defaultMonthlyShipments,

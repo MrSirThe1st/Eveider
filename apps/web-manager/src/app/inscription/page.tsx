@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { SignupView } from '@/components/auth/signup-view';
+import { redirectIfAuthenticated } from '@/lib/auth-redirect';
 
 export const metadata: Metadata = {
   title: 'Créer un compte',
@@ -12,5 +13,8 @@ type PageProps = {
 
 export default async function InscriptionPage({ searchParams }: PageProps) {
   const { invite, adminInvite } = await searchParams;
+  if (!invite && !adminInvite) {
+    await redirectIfAuthenticated();
+  }
   return <SignupView inviteToken={invite} adminInviteToken={adminInvite} />;
 }

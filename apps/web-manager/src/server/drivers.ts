@@ -67,6 +67,12 @@ export type DriverDetail = {
   isBlocked: boolean;
 };
 
+export type DriverVehicleDocumentView = {
+  id: string;
+  storedRef: string;
+  fileName: string;
+};
+
 /** @deprecated Use DriverDetail */
 export type BusinessDriverDetail = DriverDetail;
 
@@ -222,6 +228,19 @@ export const loadAdminDriverDetail = cache(
     return row ? toDetail(row) : null;
   },
 );
+
+export async function loadAdminDriverVehicleDocuments(
+  ctx: DataAccessContext,
+  driverId: string,
+): Promise<DriverVehicleDocumentView[]> {
+  const { courierDossiers } = createRepositories();
+  const rows = await courierDossiers.listVehicleDocuments(ctx, driverId);
+  return rows.map((row) => ({
+    id: row.id,
+    storedRef: row.storedRef,
+    fileName: row.fileName,
+  }));
+}
 
 export async function loadBusinessDriverDeliveries(
   ctx: DataAccessContext,
