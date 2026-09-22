@@ -2,15 +2,11 @@ import type { DataAccessContext } from '@eveider/data-access';
 import { createRepositories, toLockerNetworkSettings } from '@eveider/data-access';
 import {
   NETWORK_SIZE_DEFINITIONS,
-  type AssignmentStrategy,
   type CompartmentCell,
-  type SizeMatchingMode,
 } from '@eveider/domain';
 
 export type LockerNetworkSettingsDto = {
   id: string;
-  sizeMatchingMode: SizeMatchingMode;
-  assignmentStrategy: AssignmentStrategy;
   pickupHoldHours: number;
   pickupReminderHours: number;
   updatedAt: string;

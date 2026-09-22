@@ -13,6 +13,7 @@ function serviceAreaRow(overrides: Partial<Record<string, unknown>> = {}) {
     city_name: 'Lubumbashi',
     status: 'active',
     notes: null,
+    is_holding: true,
     outbound_delivery_amount: 1500,
     return_delivery_amount: 1500,
     created_at: new Date('2026-09-02T12:00:00.000Z'),
@@ -83,7 +84,7 @@ describe('ServiceAreaRepository', () => {
 
   it('creates a zone without configuring prices', async () => {
     setup((sql) => {
-      if (sqlIncludes(sql, 'FROM cities') && sqlIncludes(sql, 'lower(name)')) {
+      if (sqlIncludes(sql, 'FROM cities c')) {
         return cityRow();
       }
       if (sqlIncludes(sql, 'INSERT INTO service_areas')) {
@@ -109,7 +110,6 @@ describe('ServiceAreaRepository', () => {
     });
 
     const area = await repo.create(adminCtx, {
-      code: 'kin-gombe',
       name: 'Gombe',
       city: 'Kinshasa',
     });
@@ -118,14 +118,14 @@ describe('ServiceAreaRepository', () => {
     expect(area.outboundDeliveryAmount).toBeNull();
     expect(area.returnDeliveryAmount).toBeNull();
     expect(db.query).toHaveBeenCalledWith(
-      expect.stringContaining('INSERT INTO zone_pricing'),
-      ['area-kin', null, null],
+      expect.stringContaining('INSERT INTO service_areas'),
+      expect.arrayContaining([expect.stringMatching(/^EVZ[0-9A-HJKMNP-TV-Z]{6}$/), 'Gombe']),
     );
   });
 
   it('allows the same zone name in two cities', async () => {
     setup((sql) => {
-      if (sqlIncludes(sql, 'FROM cities') && sqlIncludes(sql, 'lower(name)')) {
+      if (sqlIncludes(sql, 'FROM cities c')) {
         return cityRow({ id: 'city-kwz', name: 'Kolwezi', code: 'KWZ' });
       }
       if (sqlIncludes(sql, 'INSERT INTO service_areas')) {
@@ -151,7 +151,6 @@ describe('ServiceAreaRepository', () => {
     });
 
     const area = await repo.create(adminCtx, {
-      code: 'kwz-golf',
       name: 'Golf',
       city: 'Kolwezi',
     });
@@ -188,17 +187,67 @@ describe('ServiceAreaRepository', () => {
 
   it('rejects a duplicate zone name in the same city', async () => {
     setup((sql) => {
-      if (sqlIncludes(sql, 'FROM cities') && sqlIncludes(sql, 'lower(name)')) {
+      if (sqlIncludes(sql, 'FROM cities c')) {
         return cityRow();
       }
       if (sqlIncludes(sql, 'INSERT INTO service_areas')) {
-        throw Object.assign(new Error('duplicate key'), { code: '23505' });
+        throw Object.assign(new Error('duplicate key'), {
+          code: '23505',
+          constraint: 'service_areas_city_id_name_key',
+        });
       }
       throw new Error(`Unexpected SQL: ${sql}`);
     });
 
     await expect(
-      repo.create(adminCtx, { code: 'KIN-GOMBE', name: 'Gombe', city: 'Kinshasa' }),
+      repo.create(adminCtx, { name: 'Gombe', city: 'Kinshasa' }),
     ).rejects.toThrow('Ce nom de zone existe déjà dans cette ville');
+  });
+
+  it('deletes an empty neighborhood zone', async () => {
+    setup((sql) => {
+      if (sqlIncludes(sql, 'FROM service_areas sa') && sqlIncludes(sql, 'sa.id = $1')) {
+        return serviceAreaRow({
+          id: 'area-golf',
+          code: 'EVZABC123',
+          name: 'Golf',
+          is_holding: false,
+          locker_count: 0,
+        });
+      }
+      if (sqlIncludes(sql, 'DELETE FROM service_areas')) {
+        return { id: 'area-golf' };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    await expect(repo.delete(adminCtx, 'area-golf')).resolves.toBeUndefined();
+    expect(db.query).toHaveBeenCalledWith(expect.stringContaining('DELETE FROM service_areas'), [
+      'area-golf',
+    ]);
+  });
+
+  it('refuses to delete a holding zone or a zone with lockers', async () => {
+    setup((sql) => {
+      if (sqlIncludes(sql, 'FROM service_areas sa') && sqlIncludes(sql, 'sa.id = $1')) {
+        return serviceAreaRow({ is_holding: true, locker_count: 0 });
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    await expect(repo.delete(adminCtx, 'area-1')).rejects.toThrow(
+      'Cette zone ne peut pas être supprimée',
+    );
+
+    setup((sql) => {
+      if (sqlIncludes(sql, 'FROM service_areas sa') && sqlIncludes(sql, 'sa.id = $1')) {
+        return serviceAreaRow({
+          is_holding: false,
+          name: 'Dilala',
+          locker_count: 2,
+        });
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    await expect(repo.delete(adminCtx, 'area-1')).rejects.toThrow(/réassignez d’abord/);
   });
 });

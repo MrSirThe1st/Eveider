@@ -48,6 +48,8 @@ See [`docs/setup/supabase.md`](docs/setup/supabase.md) for full details.
 ```bash
 pnpm dev          # web-manager (:3000)
 pnpm dev:mobile   # mobile-tenant (Expo)
+# Tester APK/IPA: pnpm --filter @eveider/mobile-tenant eas:preview:android
+# See docs/setup/auth.md — Tester builds (EAS preview)
 pnpm build        # Build all packages and apps
 pnpm lint         # ESLint across workspace
 pnpm typecheck    # TypeScript check

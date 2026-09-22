@@ -36,6 +36,8 @@ pnpm db:migrate
 | `039_20260921140000_former_platform_staff.sql` | `users.former_platform_role` + `platform_access_revoked_at` for revoked platform staff |
 | `040_20260921150000_identity_documents_bucket.sql` | Private Supabase Storage bucket `identity-documents` for driver IDs and later KYC files |
 | `041_20260921170000_driver_vehicle_documents.sql` | Optional `driver_vehicle_documents` files on a chauffeur dossier |
+| `042_20260921180000_drop_locker_assignment_settings.sql` | Drop unused locker assignment settings; size matching is a platform rule |
+| `043_20260921190000_drc_geography_catalog.sql` | DRC province/city catalog vs Eveider operating `cities`; holding-zone flag |
 
 Hardware locker clients authenticate with `EVEIDER_LOCKER_API_TOKENS` (JSON map of locker UUID → secret) via `Authorization: Bearer <secret>`. The token identifies the locker; the client cannot claim another `locker_id`. Keep secrets out of git. Default authorization TTL is 180 seconds (`EVEIDER_LOCKER_ACTION_TTL_SECONDS`).
 
@@ -69,5 +71,5 @@ EVEIDER_ALLOW_CLEAN_RESET=1 pnpm db:reset:clean
 Development only. Refuses to run when `NODE_ENV` or `VERCEL_ENV` is `production`, or when `EVEIDER_ALLOW_CLEAN_RESET` is unset.
 
 pnpm --filter @eveider/web-admin dev
-pnpm --filter @eveider/mobile dev
+pnpm dev:mobile
 pnpm --filter @eveider/web-manager dev

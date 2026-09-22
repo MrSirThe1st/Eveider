@@ -110,6 +110,25 @@ export function generatePointCode(): string {
   return `${payload}${crockfordCheckSymbol(payload)}`;
 }
 
+/** Internal operating-city slug. Not a geographic or IATA code. Example: EVC7K3M2P */
+export const OPERATING_CITY_CODE_PREFIX = 'EVC';
+
+export function generateOperatingCityCode(): string {
+  return `${OPERATING_CITY_CODE_PREFIX}${randomCrockford(6)}`;
+}
+
+/** Internal zone slug for every service area (holding and neighborhood). Example: EVZ7K3M2P */
+export const ZONE_CODE_PREFIX = 'EVZ';
+export const HOLDING_ZONE_CODE_PREFIX = ZONE_CODE_PREFIX;
+
+export function generateZoneCode(): string {
+  return `${ZONE_CODE_PREFIX}${randomCrockford(6)}`;
+}
+
+export function generateHoldingZoneCode(): string {
+  return generateZoneCode();
+}
+
 export function normalizePointCode(value: string): string {
   return normalizeCrockford(value);
 }

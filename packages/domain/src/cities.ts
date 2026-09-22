@@ -1,54 +1,42 @@
-export const DRC_CITIES = [
-  'Boma',
-  'Bukavu',
-  'Bunia',
-  'Butembo',
-  'Gemena',
-  'Goma',
-  'Isiro',
-  'Kalemie',
-  'Kananga',
-  'Kikwit',
-  'Kindu',
-  'Kinshasa',
-  'Kisangani',
-  'Kolwezi',
-  'Likasi',
-  'Lubumbashi',
-  'Matadi',
-  'Mbandaka',
-  'Mbuji-Mayi',
-  'Mwene-Ditu',
-  'Tshikapa',
-  'Uvira',
+export const DRC_GEOGRAPHY = [
+  { province: 'Kinshasa', cities: ['Kinshasa'] },
+  { province: 'Kongo Central', cities: ['Matadi', 'Boma', 'Muanda'] },
+  { province: 'Kwango', cities: ['Kenge', 'Popokabaka'] },
+  { province: 'Kwilu', cities: ['Bandundu', 'Kikwit', 'Idiofa'] },
+  { province: 'Mai-Ndombe', cities: ['Inongo', 'Nioki'] },
+  { province: 'Kasaï', cities: ['Tshikapa', 'Luebo'] },
+  { province: 'Kasaï-Central', cities: ['Kananga'] },
+  { province: 'Kasaï-Oriental', cities: ['Mbuji-Mayi'] },
+  { province: 'Lomami', cities: ['Kabinda', 'Mwene-Ditu'] },
+  { province: 'Sankuru', cities: ['Lusambo'] },
+  { province: 'Équateur', cities: ['Mbandaka'] },
+  { province: 'Mongala', cities: ['Lisala', 'Bumba'] },
+  { province: 'Nord-Ubangi', cities: ['Gbadolite'] },
+  { province: 'Sud-Ubangi', cities: ['Gemena', 'Zongo'] },
+  { province: 'Tshuapa', cities: ['Boende'] },
+  { province: 'Tshopo', cities: ['Kisangani'] },
+  { province: 'Bas-Uélé', cities: ['Buta', 'Bondo'] },
+  { province: 'Haut-Uélé', cities: ['Isiro', 'Watsa'] },
+  { province: 'Ituri', cities: ['Bunia'] },
+  { province: 'Nord-Kivu', cities: ['Goma', 'Beni', 'Butembo'] },
+  { province: 'Sud-Kivu', cities: ['Bukavu', 'Uvira'] },
+  { province: 'Maniema', cities: ['Kindu'] },
+  { province: 'Haut-Katanga', cities: ['Lubumbashi', 'Likasi', 'Kasumbalesa'] },
+  { province: 'Haut-Lomami', cities: ['Kamina'] },
+  { province: 'Lualaba', cities: ['Kolwezi'] },
+  { province: 'Tanganyika', cities: ['Kalemie'] },
 ] as const;
 
-export type DrcCity = (typeof DRC_CITIES)[number];
+type GeographyGroup = (typeof DRC_GEOGRAPHY)[number];
 
-export const DRC_CITY_SEEDS: readonly { code: string; name: DrcCity }[] = [
-  { code: 'BOM', name: 'Boma' },
-  { code: 'BKV', name: 'Bukavu' },
-  { code: 'BUN', name: 'Bunia' },
-  { code: 'BTB', name: 'Butembo' },
-  { code: 'GEM', name: 'Gemena' },
-  { code: 'GOM', name: 'Goma' },
-  { code: 'ISI', name: 'Isiro' },
-  { code: 'KAL', name: 'Kalemie' },
-  { code: 'KNG', name: 'Kananga' },
-  { code: 'KKW', name: 'Kikwit' },
-  { code: 'KND', name: 'Kindu' },
-  { code: 'KIN', name: 'Kinshasa' },
-  { code: 'KIS', name: 'Kisangani' },
-  { code: 'KWZ', name: 'Kolwezi' },
-  { code: 'LKS', name: 'Likasi' },
-  { code: 'LSH', name: 'Lubumbashi' },
-  { code: 'MAT', name: 'Matadi' },
-  { code: 'MBA', name: 'Mbandaka' },
-  { code: 'MBM', name: 'Mbuji-Mayi' },
-  { code: 'MWD', name: 'Mwene-Ditu' },
-  { code: 'TSH', name: 'Tshikapa' },
-  { code: 'UVI', name: 'Uvira' },
-];
+export type DrcProvinceName = GeographyGroup['province'];
+export type DrcCity = GeographyGroup['cities'][number];
+
+export const DRC_CITIES: readonly DrcCity[] = DRC_GEOGRAPHY.flatMap((group) => [...group.cities]);
+
+const PROVINCE_BY_CITY = new Map<string, DrcProvinceName>(
+  DRC_GEOGRAPHY.flatMap((group) => group.cities.map((city) => [city, group.province] as const)),
+);
 
 export type CityStatus = 'active' | 'archived';
 
@@ -59,7 +47,12 @@ export function isCityStatus(value: unknown): value is CityStatus {
 }
 
 export function isDrcCity(value: unknown): value is DrcCity {
-  return typeof value === 'string' && (DRC_CITIES as readonly string[]).includes(value);
+  return typeof value === 'string' && PROVINCE_BY_CITY.has(value);
+}
+
+/** Province for a catalog city. Custom / unknown names have none. */
+export function drcCityProvince(name: string): string | null {
+  return PROVINCE_BY_CITY.get(name) ?? null;
 }
 
 export function matchDrcCity(text: string): DrcCity | null {

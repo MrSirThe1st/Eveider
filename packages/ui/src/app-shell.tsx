@@ -3,8 +3,7 @@
 import { colors, radius, spacing, typography, borderSubtle } from '@eveider/config-ui';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useId, useState, useEffect, useRef, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
+import { useId, useState, useEffect, type ReactNode } from 'react';
 import { IconChevronLeft, IconChevronRight, IconLogOut, IconMenu, IconSettings, IconX } from './icons.js';
 import { accountDisplayName, groupNavModules, initialsFromName } from './app-shell-nav.js';
 
@@ -42,50 +41,6 @@ export type AppShellProps = {
 
 const SIDEBAR_COLLAPSED_KEY = 'eveider.shell.sidebarCollapsed';
 const CHROME_HEIGHT = 56;
-const NAV_TOOLTIP_DELAY_MS = 120;
-const DESKTOP_NAV_MQ = '(min-width: 720px)';
-
-type NavTooltipState = {
-  label: string;
-  top: number;
-  left: number;
-};
-
-function isDesktopNav() {
-  return typeof window !== 'undefined' && window.matchMedia(DESKTOP_NAV_MQ).matches;
-}
-
-function SidebarNavTooltip({ tooltip }: { tooltip: NavTooltipState | null }) {
-  if (!tooltip || typeof document === 'undefined') return null;
-
-  return createPortal(
-    <div
-      role="tooltip"
-      className="nb-side-nav__tooltip"
-      style={{
-        position: 'fixed',
-        top: tooltip.top,
-        left: tooltip.left,
-        transform: 'translateY(-50%)',
-        zIndex: 80,
-        pointerEvents: 'none',
-        padding: '6px 10px',
-        background: colors.secondary,
-        color: colors.surface,
-        fontFamily: typography.fontFamily,
-        fontSize: typography.caption.fontSize,
-        fontWeight: typography.weights.semibold,
-        lineHeight: 1.2,
-        borderRadius: radius.sm,
-        boxShadow: '0 4px 12px rgba(16, 24, 40, 0.16)',
-        whiteSpace: 'nowrap',
-      }}
-    >
-      {tooltip.label}
-    </div>,
-    document.body,
-  );
-}
 
 /**
  * Portal chrome: full-height module sidebar + sticky top bar (account actions).
@@ -107,36 +62,10 @@ export function AppShell({
   const activeModule = modules.find((mod) => mod.match(pathname)) ?? null;
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [navTooltip, setNavTooltip] = useState<NavTooltipState | null>(null);
-  const navTooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sidebarId = useId();
   const sections = groupNavModules(modules);
   const displayName = accountDisplayName(userName, userEmail, profileLabel ?? 'Mon compte');
   const profileActive = Boolean(profileHref && pathname.startsWith(profileHref));
-
-  function clearNavTooltipTimer() {
-    if (navTooltipTimer.current != null) {
-      clearTimeout(navTooltipTimer.current);
-      navTooltipTimer.current = null;
-    }
-  }
-
-  function hideNavTooltip() {
-    clearNavTooltipTimer();
-    setNavTooltip(null);
-  }
-
-  function scheduleNavTooltip(target: HTMLElement, label: string) {
-    if (!collapsed || !isDesktopNav()) return;
-    const rect = target.getBoundingClientRect();
-    const next: NavTooltipState = {
-      label,
-      top: rect.top + rect.height / 2,
-      left: rect.right + 10,
-    };
-    clearNavTooltipTimer();
-    navTooltipTimer.current = setTimeout(() => setNavTooltip(next), NAV_TOOLTIP_DELAY_MS);
-  }
 
   useEffect(() => {
     try {
@@ -151,16 +80,7 @@ export function AppShell({
 
   useEffect(() => {
     setMobileOpen(false);
-    hideNavTooltip();
   }, [pathname]);
-
-  useEffect(() => {
-    hideNavTooltip();
-  }, [collapsed]);
-
-  useEffect(() => {
-    return () => clearNavTooltipTimer();
-  }, []);
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -295,7 +215,6 @@ export function AppShell({
             onClick={toggleCollapsed}
             aria-pressed={collapsed}
             aria-label={collapsed ? 'Déplier le menu' : 'Replier le menu'}
-            title={collapsed ? 'Déplier le menu' : 'Replier le menu'}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -347,12 +266,7 @@ export function AppShell({
                       aria-label={collapsed ? mod.label : undefined}
                       onClick={() => {
                         setMobileOpen(false);
-                        hideNavTooltip();
                       }}
-                      onMouseEnter={(event) => scheduleNavTooltip(event.currentTarget, mod.label)}
-                      onMouseLeave={hideNavTooltip}
-                      onFocus={(event) => scheduleNavTooltip(event.currentTarget, mod.label)}
-                      onBlur={hideNavTooltip}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -396,15 +310,9 @@ export function AppShell({
               className="nb-sidebar-profile"
               aria-current={profileActive ? 'page' : undefined}
               aria-label={collapsed ? displayName : undefined}
-              title={displayName}
               onClick={() => {
                 setMobileOpen(false);
-                hideNavTooltip();
               }}
-              onMouseEnter={(event) => scheduleNavTooltip(event.currentTarget, displayName)}
-              onMouseLeave={hideNavTooltip}
-              onFocus={(event) => scheduleNavTooltip(event.currentTarget, displayName)}
-              onBlur={hideNavTooltip}
             >
               <span className="nb-sidebar-profile__avatar" aria-hidden>
                 {initialsFromName(displayName)}
@@ -478,7 +386,6 @@ export function AppShell({
                 href={profileHref}
                 className="nb-top-bar__icon"
                 aria-label={profileLabel ?? 'Paramètres'}
-                title={profileLabel ?? 'Paramètres'}
               >
                 <IconSettings width={18} height={18} />
               </Link>
@@ -487,7 +394,6 @@ export function AppShell({
               type="button"
               className="nb-top-bar__icon"
               aria-label={signOutLabel}
-              title={signOutLabel}
               onClick={() => void onSignOut()}
             >
               <IconLogOut width={18} height={18} />
@@ -512,7 +418,6 @@ export function AppShell({
           {children}
         </main>
       </div>
-      <SidebarNavTooltip tooltip={navTooltip} />
     </div>
   );
 }

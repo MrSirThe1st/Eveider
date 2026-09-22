@@ -2,8 +2,10 @@
   "expo": {
     "name": "Eveider",
     "slug": "eveider",
+    "owner": "marcim",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "scheme": "eveider",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -11,7 +13,8 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Eveider utilise la caméra pour scanner les colis et photographier le dépôt au casier."
+          "cameraPermission": "Eveider utilise la caméra pour scanner les colis et photographier le dépôt au casier.",
+          "recordAudioAndroid": false
         }
       ],
       [
@@ -37,15 +40,21 @@
       "backgroundColor": "#FFFFFF"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.eveider.app",
-      "associatedDomains": []
+      "buildNumber": "1",
+      "associatedDomains": [],
+      "infoPlist": {
+        "NSCameraUsageDescription": "Eveider utilise la caméra pour scanner les colis et photographier le dépôt au casier."
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#F5F6F7"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1C1A17"
       },
       "package": "com.eveider.app",
+      "versionCode": 1,
       "intentFilters": [
         {
           "action": "VIEW",
@@ -65,12 +74,20 @@
               "host": "auth"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
     "web": {
       "bundler": "metro"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "012d7761-6d77-47e2-ab1d-d1da2bfe3a2e"
+      }
     }
   }
 }

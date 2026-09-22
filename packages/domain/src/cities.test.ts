@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { DRC_CITIES, DRC_CITY_SEEDS, isDrcCity, matchDrcCity } from './cities.js';
+import {
+  DRC_CITIES,
+  DRC_GEOGRAPHY,
+  drcCityProvince,
+  isDrcCity,
+  matchDrcCity,
+} from './cities.js';
 
 describe('matchDrcCity', () => {
   it('finds a city in an address', () => {
@@ -16,8 +22,9 @@ describe('matchDrcCity', () => {
 });
 
 describe('isDrcCity', () => {
-  it('accepts known cities', () => {
+  it('accepts catalog cities', () => {
     expect(isDrcCity('Goma')).toBe(true);
+    expect(isDrcCity('Beni')).toBe(true);
   });
 
   it('rejects unknown values', () => {
@@ -25,14 +32,26 @@ describe('isDrcCity', () => {
   });
 });
 
-describe('DRC_CITY_SEEDS', () => {
-  it('covers every DRC city name exactly once', () => {
-    expect(DRC_CITY_SEEDS.map((row) => row.name)).toEqual([...DRC_CITIES]);
+describe('drcCityProvince', () => {
+  it('attaches the catalog province to operating cities', () => {
+    expect(drcCityProvince('Kolwezi')).toBe('Lualaba');
+    expect(drcCityProvince('Lubumbashi')).toBe('Haut-Katanga');
+    expect(drcCityProvince('Goma')).toBe('Nord-Kivu');
+    expect(drcCityProvince('Kinshasa')).toBe('Kinshasa');
+    expect(drcCityProvince('Likasi')).toBe('Haut-Katanga');
   });
 
-  it('assigns KIN / LSH / KWZ to the operating cities', () => {
-    expect(DRC_CITY_SEEDS.find((row) => row.name === 'Kinshasa')?.code).toBe('KIN');
-    expect(DRC_CITY_SEEDS.find((row) => row.name === 'Lubumbashi')?.code).toBe('LSH');
-    expect(DRC_CITY_SEEDS.find((row) => row.name === 'Kolwezi')?.code).toBe('KWZ');
+  it('returns null for a name that is not in the catalog', () => {
+    expect(drcCityProvince('Goma KWZ1')).toBeNull();
+  });
+});
+
+describe('DRC_GEOGRAPHY', () => {
+  it('lists unique city names', () => {
+    expect(new Set(DRC_CITIES).size).toBe(DRC_CITIES.length);
+  });
+
+  it('covers every catalog city exactly once', () => {
+    expect(DRC_CITIES).toEqual(DRC_GEOGRAPHY.flatMap((group) => [...group.cities]));
   });
 });

@@ -1,17 +1,8 @@
 import { z } from 'zod';
 import { compartmentLayoutCellSchema, compartmentSizeSchema } from './locker.js';
 
-export const sizeMatchingModeSchema = z.enum(['exact', 'exact_or_larger']);
-export const assignmentStrategySchema = z.enum([
-  'smallest_fit',
-  'first_available',
-  'preferred_size',
-]);
-
 export const updateLockerNetworkSettingsSchema = z
   .object({
-    sizeMatchingMode: sizeMatchingModeSchema,
-    assignmentStrategy: assignmentStrategySchema,
     pickupHoldHours: z.number().int().min(1, 'Délai invalide').max(720),
     pickupReminderHours: z.number().int().min(0, 'Rappel invalide').max(720),
   })

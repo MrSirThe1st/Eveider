@@ -46,10 +46,6 @@ export function AdminFleetView({
       title="Flotte"
       description="Chauffeurs Eveider assignables aux Collectes et retours transportés."
       layout="wide"
-      breadcrumbs={[
-        { label: 'Tableau de bord', href: WEB_ROUTES.adminDashboard },
-        { label: 'Flotte' },
-      ]}
       action={
         <Button type="button" size="sm" onClick={openAdd}>
           Ajouter un chauffeur

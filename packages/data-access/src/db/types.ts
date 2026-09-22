@@ -180,8 +180,16 @@ export type City = {
   name: string;
   status: CityStatus;
   notes: string | null;
+  drcCityId: string | null;
+  province: string | null;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type DrcCatalogCity = {
+  id: string;
+  name: string;
+  province: string;
 };
 
 export type ServiceArea = {
@@ -192,6 +200,7 @@ export type ServiceArea = {
   cityId: string;
   status: ServiceAreaStatus;
   notes: string | null;
+  isHolding: boolean;
   outboundDeliveryAmount: ZonePricingAmount;
   returnDeliveryAmount: ZonePricingAmount;
   createdAt: Date;
@@ -290,8 +299,6 @@ export type ParcelCharge = {
 
 export type LockerNetworkSettingsRow = {
   id: string;
-  sizeMatchingMode: 'exact' | 'exact_or_larger';
-  assignmentStrategy: 'smallest_fit' | 'first_available' | 'preferred_size';
   pickupHoldHours: number;
   pickupReminderHours: number;
   updatedAt: Date;

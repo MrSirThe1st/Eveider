@@ -20,6 +20,8 @@ const PRESERVE_PUBLIC_TABLES = new Set([
   '_prisma_migrations',
   'users',
   'businesses',
+  'drc_provinces',
+  'drc_cities',
 ]);
 
 const STARTER_TEMPLATES = [
@@ -193,8 +195,8 @@ async function ensureBootConfig(db: pg.Client): Promise<string[]> {
   if (!lockerSettings.rows[0]) {
     await db.query(
       `INSERT INTO locker_network_settings (
-         size_matching_mode, assignment_strategy, pickup_hold_hours, pickup_reminder_hours
-       ) VALUES ('exact_or_larger', 'smallest_fit', 72, 24)`,
+         pickup_hold_hours, pickup_reminder_hours
+       ) VALUES (72, 24)`,
     );
     restored.push('locker_network_settings (defaults)');
   }

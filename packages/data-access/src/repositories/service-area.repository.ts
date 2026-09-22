@@ -1,4 +1,4 @@
-import { isDrcCity, type ServiceAreaStatus, type ZonePricingAmount } from '@eveider/domain';
+import { generateZoneCode, isDrcCity, type ServiceAreaStatus, type ZonePricingAmount } from '@eveider/domain';
 import { assertAdmin, assertBusinessRole, type DataAccessContext } from '../context.js';
 import type { Queryable } from '../db/index.js';
 import { mapServiceArea } from '../db/mappers.js';
@@ -10,7 +10,6 @@ export type ServiceAreaSummary = ServiceArea & {
 };
 
 export type CreateServiceAreaInput = {
-  code: string;
   name: string;
   city?: string;
   cityId?: string;
@@ -21,7 +20,6 @@ export type CreateServiceAreaInput = {
 };
 
 export type UpdateServiceAreaInput = {
-  code?: string;
   name?: string;
   city?: string;
   cityId?: string;
@@ -32,7 +30,7 @@ export type UpdateServiceAreaInput = {
 };
 
 const ZONE_SELECT = `SELECT sa.id, sa.code, sa.name, sa.city, sa.city_id, sa.status, sa.notes,
-              sa.created_at, sa.updated_at,
+              sa.is_holding, sa.created_at, sa.updated_at,
               c.name AS city_name,
               zp.outbound_delivery_amount,
               zp.return_delivery_amount,
@@ -47,8 +45,15 @@ const ZONE_SELECT = `SELECT sa.id, sa.code, sa.name, sa.city, sa.city_id, sa.sta
          GROUP BY service_area_id
        ) l ON l.service_area_id = sa.id`;
 
-function normalizeCode(code: string): string {
-  return code.trim().toUpperCase();
+function isForeignKeyViolation(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && String(error.code) === '23503';
+}
+
+function uniqueConstraint(error: unknown): string | null {
+  if (typeof error === 'object' && error !== null && 'constraint' in error) {
+    return String((error as { constraint: string }).constraint);
+  }
+  return null;
 }
 
 function isUniqueViolation(error: unknown): boolean {
@@ -106,12 +111,12 @@ export class ServiceAreaRepository {
 
   async listActiveOptions(
     ctx: DataAccessContext,
-  ): Promise<Array<Pick<ServiceArea, 'id' | 'code' | 'name' | 'city' | 'cityId'>>> {
+  ): Promise<Array<Pick<ServiceArea, 'id' | 'code' | 'name' | 'city' | 'cityId' | 'isHolding'>>> {
     if (ctx.role !== 'admin') {
       assertBusinessRole(ctx);
     }
     const result = await this.db.query(
-      `SELECT sa.id, sa.code, sa.name, c.name AS city, sa.city_id
+      `SELECT sa.id, sa.code, sa.name, c.name AS city, sa.city_id, sa.is_holding
        FROM service_areas sa
        JOIN cities c ON c.id = sa.city_id
        WHERE sa.status = 'active' AND c.status = 'active'
@@ -123,6 +128,7 @@ export class ServiceAreaRepository {
       name: String(row.name),
       city: String(row.city),
       cityId: String(row.city_id),
+      isHolding: row.is_holding === true,
     }));
   }
 
@@ -136,7 +142,7 @@ export class ServiceAreaRepository {
   async assertActive(id: string): Promise<ServiceArea> {
     const result = await this.db.query(
       `SELECT sa.id, sa.code, sa.name, sa.city, sa.city_id, sa.status, sa.notes,
-              sa.created_at, sa.updated_at,
+              sa.is_holding, sa.created_at, sa.updated_at,
               c.name AS city_name,
               c.status AS city_status,
               zp.outbound_delivery_amount,
@@ -163,40 +169,15 @@ export class ServiceAreaRepository {
   async create(ctx: DataAccessContext, input: CreateServiceAreaInput): Promise<ServiceAreaSummary> {
     assertAdmin(ctx);
     const city = await this.resolveCity(input.cityId, input.city);
-    const code = normalizeCode(input.code);
-    try {
-      const created = await this.db.query(
-        `INSERT INTO service_areas (code, name, city, city_id, status, notes)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING id`,
-        [
-          code,
-          input.name.trim(),
-          city.name,
-          city.id,
-          input.status ?? 'active',
-          input.notes?.trim() || null,
-        ],
-      );
-      const id = String(created.rows[0]!.id);
-      await this.db.query(
-        `INSERT INTO zone_pricing (zone_id, outbound_delivery_amount, return_delivery_amount)
-         VALUES ($1, $2, $3)`,
-        [
-          id,
-          input.outboundDeliveryAmount ?? null,
-          input.returnDeliveryAmount ?? null,
-        ],
-      );
-      const loaded = await this.findById(ctx, id);
-      if (!loaded) throw new Error('Zone de service introuvable');
-      return loaded;
-    } catch (error) {
-      if (isUniqueViolation(error)) {
-        throw new Error('Ce nom de zone existe déjà dans cette ville');
-      }
-      throw error;
-    }
+    const id = await this.insertNeighborhood(city, input);
+    await this.db.query(
+      `INSERT INTO zone_pricing (zone_id, outbound_delivery_amount, return_delivery_amount)
+       VALUES ($1, $2, $3)`,
+      [id, input.outboundDeliveryAmount ?? null, input.returnDeliveryAmount ?? null],
+    );
+    const loaded = await this.findById(ctx, id);
+    if (!loaded) throw new Error('Zone de service introuvable');
+    return loaded;
   }
 
   async update(
@@ -213,7 +194,7 @@ export class ServiceAreaRepository {
         ? await this.resolveCity(input.cityId, input.city)
         : { id: existing.cityId, name: existing.city };
 
-    const nextCode = input.code != null ? normalizeCode(input.code) : existing.code;
+    const nextCode = existing.code;
     const nextName = input.name?.trim() ?? existing.name;
     const nextStatus = input.status ?? existing.status;
     const nextNotes =
@@ -267,6 +248,68 @@ export class ServiceAreaRepository {
     const loaded = await this.findById(ctx, id);
     if (!loaded) throw new Error('Zone de service introuvable');
     return loaded;
+  }
+
+  async delete(ctx: DataAccessContext, id: string): Promise<void> {
+    assertAdmin(ctx);
+    const existing = await this.findById(ctx, id);
+    if (!existing) throw new Error('Zone de service introuvable');
+    if (existing.isHolding) {
+      throw new Error('Cette zone ne peut pas être supprimée');
+    }
+    if (existing.lockerCount > 0) {
+      throw new Error(
+        `Impossible de supprimer « ${existing.name} » : réassignez d’abord ses casiers actifs`,
+      );
+    }
+
+    try {
+      await this.db.query(`DELETE FROM service_areas WHERE id = $1`, [id]);
+    } catch (error) {
+      if (isForeignKeyViolation(error)) {
+        throw new Error(
+          `Impossible de supprimer « ${existing.name} » : réassignez d’abord ses casiers actifs`,
+        );
+      }
+      throw error;
+    }
+  }
+
+  private async insertNeighborhood(
+    city: { id: string; name: string },
+    input: CreateServiceAreaInput,
+  ): Promise<string> {
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const code = generateZoneCode();
+      try {
+        const created = await this.db.query(
+          `INSERT INTO service_areas (code, name, city, city_id, status, notes)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           RETURNING id`,
+          [
+            code,
+            input.name.trim(),
+            city.name,
+            city.id,
+            input.status ?? 'active',
+            input.notes?.trim() || null,
+          ],
+        );
+        return String(created.rows[0]!.id);
+      } catch (error) {
+        const constraint = uniqueConstraint(error);
+        if (constraint === 'service_areas_code_key' && attempt < 7) continue;
+        if (constraint === 'service_areas_city_id_name_key') {
+          throw new Error('Ce nom de zone existe déjà dans cette ville');
+        }
+        if (isUniqueViolation(error) && attempt < 7) continue;
+        if (isUniqueViolation(error)) {
+          throw new Error('Ce nom de zone existe déjà dans cette ville');
+        }
+        throw error;
+      }
+    }
+    throw new Error('Impossible de créer la zone');
   }
 
   private async resolveCity(

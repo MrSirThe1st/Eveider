@@ -18,6 +18,7 @@ import { AppearanceSettingsScreen } from '../screens/settings/AppearanceSettings
 import { CountrySettingsScreen } from '../screens/settings/CountrySettingsScreen';
 import { LanguageSettingsScreen } from '../screens/settings/LanguageSettingsScreen';
 import { NotificationPreferencesScreen } from '../screens/settings/NotificationPreferencesScreen';
+import { AboutSettingsScreen } from '../screens/settings/AboutSettingsScreen';
 import { PlaceholderSettingsScreen } from '../screens/settings/PlaceholderSettingsScreen';
 import { useColors } from '../theme';
 import {
@@ -222,13 +223,14 @@ function PrivacyRoute() {
 }
 
 function AboutRoute() {
-  return <PlaceholderRoute screen="About" />;
+  const navigation = useNavigation<NativeStackNavigationProp<CourierStackParamList>>();
+  return <AboutSettingsScreen onBack={() => navigation.goBack()} />;
 }
 
 function PlaceholderRoute({
   screen,
 }: {
-  screen: 'PersonalInfo' | 'Help' | 'Terms' | 'Privacy' | 'About';
+  screen: 'PersonalInfo' | 'Help' | 'Terms' | 'Privacy';
 }) {
   const navigation = useNavigation<NativeStackNavigationProp<CourierStackParamList>>();
   const { t } = useTranslation();
@@ -252,11 +254,6 @@ function PlaceholderRoute({
       title: t('profile.privacy'),
       intro: t('placeholders.privacyIntro'),
       bullets: [t('placeholders.privacyData'), t('placeholders.privacyRetention'), t('placeholders.privacyRights')],
-    },
-    About: {
-      title: t('profile.about'),
-      intro: t('placeholders.aboutIntro'),
-      bullets: [t('placeholders.aboutVersion'), t('placeholders.aboutCity'), t('placeholders.aboutCopyright')],
     },
   }[screen];
 

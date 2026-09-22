@@ -55,7 +55,12 @@ export async function POST(request: Request) {
     return NextResponse.json(ok({ city: toCityDto(city) }), { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur serveur';
-    const status = message.includes('existe déjà') ? 409 : 500;
+    const status =
+      message.includes('existe déjà') || message.includes('déjà dans le réseau')
+        ? 409
+        : message.includes('référentiel')
+          ? 400
+          : 500;
     return NextResponse.json(fail(message), { status });
   }
 }

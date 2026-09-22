@@ -79,22 +79,21 @@ test.describe('Admin casiers network', () => {
     const historicalJson = await historical.json();
     const beforeCharges = JSON.stringify(historicalJson);
 
-    await page.goto('/tableau-de-bord/parametres/casiers/zones');
+    await page.goto('/tableau-de-bord/parametres/reseau');
     await dismissCookieBanner(page);
 
     const suffix = Date.now().toString(36).slice(-4).toUpperCase();
     const zoneCode = `N${suffix}`.slice(0, 6);
     const zoneName = `Manika ${zoneCode}`;
-    const kolweziSection = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Kolwezi', exact: true }) });
-    await kolweziSection.getByRole('button', { name: 'Nouvelle zone' }).click();
+    const kolweziSection = page.locator('section').filter({
+      has: page.getByRole('heading', { name: 'Kolwezi', exact: true }),
+    });
+    await kolweziSection.getByRole('button', { name: 'Actions de la ville' }).click();
+    await page.getByRole('menuitem', { name: 'Nouvelle zone' }).click();
     await kolweziSection.getByLabel('Nom', { exact: true }).fill(zoneName);
-    await kolweziSection.getByLabel('Code', { exact: true }).fill(zoneCode);
+    await expect(kolweziSection.getByLabel('Code', { exact: true })).toHaveCount(0);
     await kolweziSection.getByRole('button', { name: 'Créer la zone' }).click();
     await expect(page.getByText(new RegExp(`Zone ${zoneName} créée`))).toBeVisible({ timeout: 30_000 });
-
-    const holdingRow = page.getByRole('row', { name: /Kolwezi — à répartir/ }).first();
-    const holdingCountText = await holdingRow.locator('td').nth(1).innerText();
-    const holdingCount = Number.parseInt(holdingCountText, 10);
 
     await page.goto('/tableau-de-bord/casiers/nouveau', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('button', { name: 'Créer le casier' })).toBeDisabled();
@@ -109,7 +108,7 @@ test.describe('Admin casiers network', () => {
     await expect(codeField).toHaveValue(/^EVP[0-9A-HJKMNP-TV-Z]{6}/, { timeout: 20_000 });
     await page.getByLabel(/^nom$/i).fill(`EVEIDER MANIKA ${zoneCode}`);
     await page.getByLabel('Ville').selectOption({ label: 'Kolwezi' });
-    await page.getByLabel('Zone').selectOption({ label: 'Kolwezi — à répartir' });
+    await page.getByLabel('Zone').selectOption({ label: `${zoneName} (Kolwezi)` });
     await expect(page.getByRole('button', { name: 'Créer le casier' })).toBeEnabled();
     await page.getByRole('button', { name: 'Créer le casier' }).click();
     await expect(page).toHaveURL(/\/tableau-de-bord\/casiers\/[0-9a-f-]+$/, { timeout: 45_000 });
@@ -132,12 +131,6 @@ test.describe('Admin casiers network', () => {
 
     await page.goto('/tableau-de-bord/casiers');
     await expect(page.getByRole('link', { name: `EVEIDER MANIKA ${zoneCode}` })).toBeVisible();
-
-    await page.goto('/tableau-de-bord/parametres/casiers/zones');
-    const holdingAfter = page.getByRole('row', { name: /Kolwezi — à répartir/ }).first();
-    const holdingAfterText = await holdingAfter.locator('td').nth(1).innerText();
-    const holdingAfterCount = Number.parseInt(holdingAfterText, 10);
-    expect(holdingAfterCount).toBe(holdingCount);
 
     const afterHistorical = await page.request.get('/api/parcels?search=F8-FLOW1-TRANSIT');
     expect(JSON.stringify(await afterHistorical.json())).toBe(beforeCharges);

@@ -13,8 +13,6 @@ const cells3x3 = Array.from({ length: 9 }, (_, index) => {
 describe('updateLockerNetworkSettingsSchema', () => {
   it('accepts valid settings', () => {
     const result = updateLockerNetworkSettingsSchema.safeParse({
-      sizeMatchingMode: 'exact_or_larger',
-      assignmentStrategy: 'smallest_fit',
       pickupHoldHours: 48,
       pickupReminderHours: 24,
     });
@@ -23,8 +21,6 @@ describe('updateLockerNetworkSettingsSchema', () => {
 
   it('rejects reminder after hold', () => {
     const result = updateLockerNetworkSettingsSchema.safeParse({
-      sizeMatchingMode: 'exact',
-      assignmentStrategy: 'first_available',
       pickupHoldHours: 24,
       pickupReminderHours: 48,
     });

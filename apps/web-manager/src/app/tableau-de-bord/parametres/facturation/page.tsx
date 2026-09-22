@@ -1,15 +1,14 @@
 'use client';
 
-import { borderSubtle, colors, webInputStyle } from '@eveider/config-ui';
-import { Button, CardListSkeleton, PageFrame, useToast } from '@eveider/ui';
+import { colors, typography, webCardStyle } from '@eveider/config-ui';
+import { Button, CardListSkeleton, Disclosure, PageFrame, useToast } from '@eveider/ui';
 import Link from 'next/link';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { TariffPriceStepper } from '@/components/tariff-price-stepper';
 import { fetchJson } from '@/lib/api/fetch-json';
 import {
-  formatZoneDisplayName,
-  formatZonePriceAmount,
+  cityTariffStatusLabel,
   groupZonesByCity,
-  parsePriceInput,
   zoneNeedsPricing,
 } from '@/lib/geography-presentation';
 import type { ServiceAreaDto } from '@/lib/service-area-presenter';
@@ -27,8 +26,11 @@ type PricingRules = {
   returnLockerAmount: number;
 };
 
-function priceFieldValue(amount: number | null): string {
-  return amount == null ? '' : String(amount);
+/** A zone named like its city needs a prefix so the heading is not repeated. */
+function zoneSectionTitle(zoneName: string, cityName: string): string {
+  const sameName =
+    zoneName.localeCompare(cityName, 'fr', { sensitivity: 'accent' }) === 0;
+  return sameName ? `Zone ${zoneName}` : zoneName;
 }
 
 export default function AdminBillingSettingsPage() {
@@ -109,202 +111,189 @@ export default function AdminBillingSettingsPage() {
 
   if (loading || !rules) {
     return (
-      <PageFrame title="Tarifs de livraison" layout="standard">
+      <PageFrame title="Tarifs" layout="standard">
         <CardListSkeleton cards={2} />
       </PageFrame>
     );
   }
 
-  const inputStyle = { ...webInputStyle, width: '100%', height: 44, padding: '0 0.75rem' };
   const currencyLabel = rules.currency === 'USD' ? 'USD' : 'CDF';
-  const step = rules.currency === 'USD' ? '0.01' : '1';
+
+  function updateZonePrice(
+    zoneId: string,
+    field: 'outboundDeliveryAmount' | 'returnDeliveryAmount',
+    amount: number | null,
+  ) {
+    setZones((current) =>
+      current.map((item) => (item.id === zoneId ? { ...item, [field]: amount } : item)),
+    );
+  }
 
   return (
     <PageFrame
-      title="Tarifs de livraison"
-      description={`Livraison Eveider par zone, frais fixes de casier, stockage après ${pickupHoldHours} h. Champ vide = non configuré. 0 = gratuit.`}
+      title="Tarifs"
+      description="Configurez les tarifs appliqués aux services Eveider."
       layout="standard"
     >
       <form
         onSubmit={(event) => void handleSave(event)}
-        style={{
-          display: 'grid',
-          gap: '1.25rem',
-          width: '100%',
-        }}
+        style={{ display: 'grid', gap: '1.5rem', width: '100%' }}
       >
-        <p style={{ margin: 0, fontSize: '0.875rem', color: colors.textMuted }}>
-          Devise plateforme : <strong>{currencyLabel}</strong>
-          {' · '}
-          <Link href={ADMIN_SETTINGS_ROUTES.platform} style={{ color: colors.primary, fontWeight: 600 }}>
-            Modifier dans Règles générales
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'baseline',
+            justifyContent: 'space-between',
+            gap: '1rem',
+          }}
+        >
+          <p style={{ margin: 0, fontSize: typography.bodySm.fontSize, color: colors.secondary }}>
+            Devise : <strong>{currencyLabel}</strong>
+          </p>
+          <Link
+            href={ADMIN_SETTINGS_ROUTES.platform}
+            style={{ color: colors.primary, fontWeight: 600, fontSize: typography.bodySm.fontSize }}
+          >
+            Modifier
           </Link>
-          . Les montants déjà facturés ne changent pas.
-        </p>
+        </div>
 
-        <fieldset style={{ border: borderSubtle(), borderRadius: 8, padding: '1rem' }}>
-          <legend style={{ fontWeight: 700 }}>Livraison Eveider par zone</legend>
-          <p style={{ margin: '0 0 1rem', fontSize: '0.8125rem', color: colors.textMuted }}>
-            Livraison destinataire — payée par le destinataire. Retour Eveider — payé par
-            l’entreprise. Laissez vide pour « Non configuré ». Saisissez 0 pour rendre le transport
-            gratuit.
+        <section style={{ ...webCardStyle, padding: '1.25rem 1.5rem' }} aria-labelledby="tarifs-transport">
+          <h2 id="tarifs-transport" style={sectionOverlineStyle}>
+            Transport Eveider
+          </h2>
+          <p style={sectionHintStyle}>
+            Saisissez le montant, ou utilisez + et −. 0 rend le transport gratuit. Laissez vide pour
+            un tarif non configuré.
           </p>
           {unconfiguredCount > 0 ? (
-            <p style={{ margin: '0 0 1rem', fontSize: '0.8125rem', fontWeight: 600, color: colors.warningFg }}>
+            <p style={{ margin: '0.75rem 0 0', fontSize: '0.8125rem', fontWeight: 600, color: colors.warningFg }}>
               {unconfiguredCount} zone{unconfiguredCount > 1 ? 's' : ''} à configurer
             </p>
           ) : null}
+
           {activeZones.length === 0 ? (
-            <p style={{ margin: 0, color: colors.textMuted }}>Aucune zone active.</p>
+            <p style={{ margin: '1.25rem 0 0', color: colors.textMuted }}>Aucune zone active.</p>
           ) : (
-            <div style={{ display: 'grid', gap: '1.25rem' }}>
-              {cityGroups.map((group) => (
-                <section key={group.cityId ?? group.city}>
-                  <h3 style={{ margin: '0 0 0.65rem', fontSize: '0.9375rem', fontWeight: 700 }}>
-                    {group.city}
-                  </h3>
-                  <div style={{ display: 'grid', gap: '0.85rem' }}>
-                    {group.zones.map((zone) => {
-                      const needsConfig = zoneNeedsPricing(
-                        zone.outboundDeliveryAmount,
-                        zone.returnDeliveryAmount,
-                      );
-                      return (
-                        <div
-                          key={zone.id}
-                          id={`zone-${zone.id}`}
-                          style={{
-                            display: 'grid',
-                            gap: '0.75rem',
-                            gridTemplateColumns: 'minmax(160px, 1.2fr) 1fr 1fr',
-                            alignItems: 'end',
-                          }}
-                        >
-                          <div>
-                            <strong>{formatZoneDisplayName(zone)}</strong>
-                            <div style={{ fontSize: 12, color: colors.textMuted }}>
-                              {zone.code}
-                              {needsConfig ? ' · Non configuré' : ''}
-                            </div>
-                          </div>
-                          <label>
-                            Livraison destinataire ({currencyLabel})
-                            <input
-                              type="number"
-                              min={0}
-                              step={step}
-                              inputMode="decimal"
-                              placeholder="Non configuré"
-                              value={priceFieldValue(zone.outboundDeliveryAmount)}
-                              aria-label={`Livraison destinataire ${formatZoneDisplayName(zone)}`}
-                              onChange={(e) =>
-                                setZones((current) =>
-                                  current.map((item) =>
-                                    item.id === zone.id
-                                      ? { ...item, outboundDeliveryAmount: parsePriceInput(e.target.value) }
-                                      : item,
-                                  ),
-                                )
-                              }
-                              style={inputStyle}
-                            />
-                            <span style={{ display: 'block', marginTop: 4, fontSize: 12, color: colors.textMuted }}>
-                              {formatZonePriceAmount(zone.outboundDeliveryAmount, currencyLabel).label}
-                            </span>
-                          </label>
-                          <label>
-                            Retour Eveider ({currencyLabel})
-                            <input
-                              type="number"
-                              min={0}
-                              step={step}
-                              inputMode="decimal"
-                              placeholder="Non configuré"
-                              value={priceFieldValue(zone.returnDeliveryAmount)}
-                              aria-label={`Retour Eveider ${formatZoneDisplayName(zone)}`}
-                              onChange={(e) =>
-                                setZones((current) =>
-                                  current.map((item) =>
-                                    item.id === zone.id
-                                      ? { ...item, returnDeliveryAmount: parsePriceInput(e.target.value) }
-                                      : item,
-                                  ),
-                                )
-                              }
-                              style={inputStyle}
-                            />
-                            <span style={{ display: 'block', marginTop: 4, fontSize: 12, color: colors.textMuted }}>
-                              {formatZonePriceAmount(zone.returnDeliveryAmount, currencyLabel).label}
-                            </span>
-                          </label>
-                        </div>
-                      );
-                    })}
+            <div style={{ marginTop: '0.75rem', borderBottom: `1px solid ${colors.borderSubtle}` }}>
+              {cityGroups.map((group) => {
+                const status = cityTariffStatusLabel(group.zones, rules.currency);
+                return (
+                <Disclosure
+                  key={group.cityId ?? group.city}
+                  style={{
+                    marginTop: 0,
+                    borderTop: `1px solid ${colors.borderSubtle}`,
+                    padding: '0.65rem 0',
+                  }}
+                  summary={
+                    <span
+                      style={{
+                        display: 'flex',
+                        alignItems: 'baseline',
+                        justifyContent: 'space-between',
+                        gap: '1rem',
+                        width: '100%',
+                      }}
+                    >
+                      <span style={{ color: colors.secondary, fontSize: '1rem', fontWeight: 700 }}>
+                        {group.city}
+                      </span>
+                      <span
+                        style={{
+                          color: status === 'Non configuré' ? colors.textMuted : colors.primary,
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {status}
+                      </span>
+                    </span>
+                  }
+                >
+                  <div style={{ display: 'grid', gap: '1.25rem', marginTop: '0.85rem' }}>
+                    {group.zones.map((zone) => (
+                      <div
+                        key={zone.id}
+                        id={`zone-${zone.id}`}
+                        style={{
+                          display: 'grid',
+                          gap: '0.85rem',
+                          marginLeft: '0.25rem',
+                          paddingLeft: '1rem',
+                          borderLeft: `2px solid ${colors.borderSubtle}`,
+                        }}
+                      >
+                        <h4 style={zoneHeadingStyle}>{zoneSectionTitle(zone.name, group.city)}</h4>
+                        <TariffPriceStepper
+                          id={`livraison-${zone.id}`}
+                          label="Livraison"
+                          hint="Ces frais s’appliquent quand Eveider livre le colis au destinataire."
+                          ariaLabel={`Livraison ${zone.name}`}
+                          amount={zone.outboundDeliveryAmount}
+                          currency={rules.currency}
+                          nullable
+                          onChange={(amount) => updateZonePrice(zone.id, 'outboundDeliveryAmount', amount)}
+                        />
+                        <TariffPriceStepper
+                          id={`retour-${zone.id}`}
+                          label="Retour vers l’entreprise"
+                          hint="Ces frais s’appliquent quand Eveider ramène un retour à l’entreprise."
+                          ariaLabel={`Retour vers l’entreprise ${zone.name}`}
+                          amount={zone.returnDeliveryAmount}
+                          currency={rules.currency}
+                          nullable
+                          onChange={(amount) => updateZonePrice(zone.id, 'returnDeliveryAmount', amount)}
+                        />
+                      </div>
+                    ))}
                   </div>
-                </section>
-              ))}
+                </Disclosure>
+                );
+              })}
             </div>
           )}
-        </fieldset>
+        </section>
 
-        <fieldset style={{ border: borderSubtle(), borderRadius: 8, padding: '1rem' }}>
-          <legend style={{ fontWeight: 700 }}>Frais fixes</legend>
-          <div
-            style={{
-              display: 'grid',
-              gap: '1rem',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            }}
-          >
-            <label>
-              Flow 2 / retrait destinataire ({currencyLabel})
-              <input
-                type="number"
-                min={0}
-                step={step}
-                value={rules.lockerCollectionAmount}
-                aria-label="Flow 2 / retrait destinataire"
-                onChange={(e) =>
-                  setRules({ ...rules, lockerCollectionAmount: Number(e.target.value) })
-                }
-                style={inputStyle}
-              />
-            </label>
-            <label>
-              Flow 3B / retrait retour par entreprise ({currencyLabel})
-              <input
-                type="number"
-                min={0}
-                step={step}
-                value={rules.returnLockerAmount}
-                aria-label="Flow 3B / retrait retour par entreprise"
-                onChange={(e) =>
-                  setRules({ ...rules, returnLockerAmount: Number(e.target.value) })
-                }
-                style={inputStyle}
-              />
-            </label>
-            <label>
-              Stockage / 24 h après {pickupHoldHours} h gratuites ({currencyLabel})
-              <input
-                type="number"
-                min={0}
-                step={step}
-                value={rules.lockerRentalRateAmount}
-                aria-label={`Stockage / 24h after ${pickupHoldHours} h`}
-                onChange={(e) =>
-                  setRules({ ...rules, lockerRentalRateAmount: Number(e.target.value) })
-                }
-                style={inputStyle}
-              />
-            </label>
+        <section style={{ ...webCardStyle, padding: '1.25rem 1.5rem' }} aria-labelledby="tarifs-casier">
+          <h2 id="tarifs-casier" style={sectionOverlineStyle}>
+            Frais de casier
+          </h2>
+          <div style={{ display: 'grid', gap: '1.25rem', marginTop: '1.25rem' }}>
+            <TariffPriceStepper
+              id="retrait-casier"
+              label="Retrait au casier"
+              hint="Ces frais s’appliquent quand l’entreprise dépose le colis au casier et que le destinataire vient le chercher."
+              ariaLabel="Retrait au casier"
+              amount={rules.lockerCollectionAmount}
+              currency={rules.currency}
+              onChange={(amount) =>
+                setRules({ ...rules, lockerCollectionAmount: amount ?? 0 })
+              }
+            />
+            <TariffPriceStepper
+              id="retrait-retour"
+              label="Retrait d’un retour par l’entreprise"
+              hint="Ces frais s’appliquent quand le destinataire dépose un retour au casier et que l’entreprise vient le récupérer."
+              ariaLabel="Retrait d’un retour par l’entreprise"
+              amount={rules.returnLockerAmount}
+              currency={rules.currency}
+              onChange={(amount) => setRules({ ...rules, returnLockerAmount: amount ?? 0 })}
+            />
+            <TariffPriceStepper
+              id="stockage-supplementaire"
+              label="Stockage supplémentaire"
+              hint={`Ces frais s’appliquent pour chaque tranche de 24 h après les ${pickupHoldHours} h gratuites au casier.`}
+              ariaLabel="Stockage supplémentaire"
+              amount={rules.lockerRentalRateAmount}
+              currency={rules.currency}
+              onChange={(amount) =>
+                setRules({ ...rules, lockerRentalRateAmount: amount ?? 0 })
+              }
+            />
           </div>
-          <p style={{ margin: '0.75rem 0 0', fontSize: '0.8125rem', color: colors.textMuted }}>
-            Flow 2 / retrait destinataire : payé par le destinataire. Flow 3B / retrait retour par
-            l’entreprise : payé par l’entreprise. Stockage après période gratuite : payé par
-            l’entreprise. La rétention gratuite ({pickupHoldHours} h) se règle dans Paramètres → Casiers.
-          </p>
-        </fieldset>
+        </section>
 
         <div>
           <Button type="submit" loading={saving}>
@@ -315,3 +304,28 @@ export default function AdminBillingSettingsPage() {
     </PageFrame>
   );
 }
+
+const sectionOverlineStyle = {
+  margin: 0,
+  color: colors.textMuted,
+  fontSize: typography.overline.fontSize,
+  lineHeight: typography.overline.lineHeight,
+  fontWeight: typography.overline.fontWeight,
+  letterSpacing: typography.overline.letterSpacing,
+  textTransform: typography.overline.textTransform,
+} as const;
+
+const sectionHintStyle = {
+  margin: '0.5rem 0 0',
+  maxWidth: '40rem',
+  fontSize: typography.bodySm.fontSize,
+  lineHeight: typography.bodySm.lineHeight,
+  color: colors.textMuted,
+} as const;
+
+const zoneHeadingStyle = {
+  margin: 0,
+  fontSize: typography.label.fontSize,
+  lineHeight: typography.label.lineHeight,
+  fontWeight: typography.label.fontWeight,
+} as const;

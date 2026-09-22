@@ -138,12 +138,14 @@ test.describe('Admin operations IA', () => {
     await page.goto('/tableau-de-bord/parametres/facturation', { waitUntil: 'domcontentloaded' });
     await dismissCookieBanner(page);
 
-    await expect(page.getByRole('heading', { name: 'Tarifs de livraison', level: 1 })).toBeVisible();
-    await expect(page.getByText(/payée par le destinataire/i)).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText(/payé par l.entreprise/i).first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Tarifs', level: 1 })).toBeVisible();
+    await page.locator('summary').first().click({ timeout: 30_000 });
+    await expect(page.getByText(/Ces frais s’appliquent quand Eveider livre/)).toBeVisible();
+    await expect(page.getByText(/payée par le destinataire|payé par l.entreprise/i)).toHaveCount(0);
     await expect(page.getByText('distance et taille')).toHaveCount(0);
     await expect(page.getByText('distance × taille')).toHaveCount(0);
-    await expect(page.getByLabel(/Flow 2 \/ retrait destinataire/)).toBeVisible();
+    await expect(page.getByText(/Flow 2|Flow 3/)).toHaveCount(0);
+    await expect(page.getByLabel('Retrait au casier')).toBeVisible();
   });
 
   test('Colis filters cover assignment, locker, and returns', async ({ page }) => {

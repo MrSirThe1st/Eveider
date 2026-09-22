@@ -10,6 +10,7 @@ export type ServiceAreaDto = {
   status: ServiceAreaStatus;
   statusLabel: string;
   notes: string | null;
+  isHolding: boolean;
   lockerCount: number;
   outboundDeliveryAmount: number | null;
   returnDeliveryAmount: number | null;
@@ -35,6 +36,7 @@ export function toServiceAreaDto(area: {
   status: ServiceAreaStatus;
   notes: string | null;
   lockerCount: number;
+  isHolding?: boolean;
   createdAt: Date;
   updatedAt: Date;
   outboundDeliveryAmount?: number | null;
@@ -49,6 +51,7 @@ export function toServiceAreaDto(area: {
     status: area.status,
     statusLabel: SERVICE_AREA_STATUS_LABELS[area.status],
     notes: area.notes,
+    isHolding: area.isHolding === true,
     lockerCount: area.lockerCount,
     outboundDeliveryAmount: area.outboundDeliveryAmount ?? null,
     returnDeliveryAmount: area.returnDeliveryAmount ?? null,
@@ -63,6 +66,7 @@ export function toServiceAreaOptionDto(area: {
   name: string;
   city: string;
   cityId: string;
+  isHolding?: boolean;
 }): ServiceAreaOptionDto {
   return {
     id: area.id,

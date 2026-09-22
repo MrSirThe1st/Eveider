@@ -200,8 +200,8 @@ export function AdminOrganizationOperatingAccess({
           </Button>
         </div>
         <p style={{ margin: 0, fontSize: typography.caption.fontSize, color: colors.textMuted }}>
-          Les défauts viennent de Paramètres → Règles générales. Ils ne s’appliquent pas automatiquement
-          aux organisations existantes.
+          Les défauts plateforme s’appliquent aux nouvelles entreprises. Ils ne s’appliquent pas
+          automatiquement aux organisations existantes.
         </p>
       </form>
     </Card>

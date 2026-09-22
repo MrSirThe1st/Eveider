@@ -1,21 +1,13 @@
 'use client';
 
-import { colors, webInputStyle } from '@eveider/config-ui';
-import {
-  ASSIGNMENT_STRATEGIES,
-  ASSIGNMENT_STRATEGY_LABELS,
-  SIZE_MATCHING_MODES,
-  SIZE_MATCHING_MODE_LABELS,
-  type AssignmentStrategy,
-  type SizeMatchingMode,
-} from '@eveider/domain';
+import { colors } from '@eveider/config-ui';
+import { NETWORK_SIZE_DEFINITIONS } from '@eveider/domain';
 import { Button, useToast } from '@eveider/ui';
 import { useState, type FormEvent } from 'react';
+import { DurationHoursPicker } from '@/components/duration-hours-picker';
 import { fetchJson } from '@/lib/api/fetch-json';
+import { MAX_DURATION_HOURS } from '@/lib/duration-hours';
 import type { LockerNetworkSettingsDto } from '@/server/locker-settings';
-
-const inputStyle = { ...webInputStyle, width: '100%', height: 44, padding: '0 0.75rem' };
-const selectStyle = { ...inputStyle, appearance: 'auto' as const };
 
 type LockerNetworkSettingsFormProps = {
   initialSettings: LockerNetworkSettingsDto;
@@ -34,8 +26,6 @@ export function LockerNetworkSettingsForm({ initialSettings }: LockerNetworkSett
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sizeMatchingMode: settings.sizeMatchingMode,
-          assignmentStrategy: settings.assignmentStrategy,
           pickupHoldHours: settings.pickupHoldHours,
           pickupReminderHours: settings.pickupReminderHours,
         }),
@@ -50,20 +40,17 @@ export function LockerNetworkSettingsForm({ initialSettings }: LockerNetworkSett
   }
 
   return (
-    <form
-      onSubmit={(event) => void handleSave(event)}
-      style={{ display: 'grid', gap: '1.5rem', maxWidth: 720 }}
-    >
+    <div style={{ display: 'grid', gap: '1.5rem', maxWidth: 720 }}>
       <section style={{ display: 'grid', gap: '0.85rem' }}>
         <p style={{ margin: 0, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>
           TAILLES S / M / L
         </p>
         <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.secondary, opacity: 0.8 }}>
-          Définition réseau globale. Dimensions et poids pourront être ajoutés plus tard ; pour
-          l’instant seules les tailles nominales sont utilisées.
+          Définitions système. Un colis peut aller dans un compartiment de même taille ou plus
+          grand ; Eveider propose le plus petit compartiment adapté.
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {settings.sizeDefinitions.map((definition) => (
+          {NETWORK_SIZE_DEFINITIONS.map((definition) => (
             <span
               key={definition.size}
               style={{
@@ -81,100 +68,51 @@ export function LockerNetworkSettingsForm({ initialSettings }: LockerNetworkSett
         </div>
       </section>
 
-      <section style={{ display: 'grid', gap: '0.85rem' }}>
-        <p style={{ margin: 0, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>
-          CORRESPONDANCE COLIS → COMPARTIMENT
-        </p>
-        <label>
-          Correspondance de taille (suggestion)
-          <select
-            value={settings.sizeMatchingMode}
-            onChange={(e) =>
-              setSettings({
-                ...settings,
-                sizeMatchingMode: e.target.value as SizeMatchingMode,
-              })
-            }
-            style={selectStyle}
+      <form onSubmit={(event) => void handleSave(event)} style={{ display: 'grid', gap: '1.5rem' }}>
+        <section style={{ display: 'grid', gap: '0.85rem' }}>
+          <p style={{ margin: 0, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>
+            RÉTENTION / RETRAIT
+          </p>
+          <div
+            style={{
+              display: 'grid',
+              gap: '1rem',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            }}
           >
-            {SIZE_MATCHING_MODES.map((mode) => (
-              <option key={mode} value={mode}>
-                {SIZE_MATCHING_MODE_LABELS[mode]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Stratégie d’affectation (suggestion)
-          <select
-            value={settings.assignmentStrategy}
-            onChange={(e) =>
-              setSettings({
-                ...settings,
-                assignmentStrategy: e.target.value as AssignmentStrategy,
-              })
-            }
-            style={selectStyle}
-          >
-            {ASSIGNMENT_STRATEGIES.map((strategy) => (
-              <option key={strategy} value={strategy}>
-                {ASSIGNMENT_STRATEGY_LABELS[strategy]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <p style={{ margin: 0, fontSize: '0.75rem', color: colors.secondary, opacity: 0.75 }}>
-          Ces règles suggèrent un compartiment ; le chauffeur Eveider ou l’opérateur garde le dernier mot.
-        </p>
-      </section>
-
-      <section style={{ display: 'grid', gap: '0.85rem' }}>
-        <p style={{ margin: 0, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>
-          RÉTENTION / RETRAIT
-        </p>
-        <div
-          style={{
-            display: 'grid',
-            gap: '1rem',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          }}
-        >
-          <label>
-            Délai de rétention gratuit (heures)
-            <input
-              type="number"
-              min={1}
-              max={720}
+            <DurationHoursPicker
+              id="pickup-hold"
+              label="Délai de rétention gratuit"
+              minHours={1}
+              maxHours={MAX_DURATION_HOURS}
               value={settings.pickupHoldHours}
-              onChange={(e) =>
-                setSettings({ ...settings, pickupHoldHours: Number(e.target.value) })
+              onChange={(pickupHoldHours) =>
+                setSettings({
+                  ...settings,
+                  pickupHoldHours,
+                  pickupReminderHours: Math.min(settings.pickupReminderHours, pickupHoldHours),
+                })
               }
-              style={inputStyle}
             />
-          </label>
-          <label>
-            Rappel avant échéance (heures)
-            <input
-              type="number"
-              min={0}
-              max={720}
+            <DurationHoursPicker
+              id="pickup-reminder"
+              label="Rappel avant échéance"
+              minHours={0}
+              maxHours={Math.min(MAX_DURATION_HOURS, settings.pickupHoldHours)}
               value={settings.pickupReminderHours}
-              onChange={(e) =>
-                setSettings({ ...settings, pickupReminderHours: Number(e.target.value) })
-              }
-              style={inputStyle}
+              onChange={(pickupReminderHours) => setSettings({ ...settings, pickupReminderHours })}
             />
-          </label>
-        </div>
-        <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>
-          Après ce délai gratuit à partir de « prêt au retrait », le stockage (tarif
-          Facturation) s’applique par période de 24 h pour les casiers à compartiments.
-        </p>
-      </section>
+          </div>
+          <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>
+            Après ce délai gratuit à partir de « prêt au retrait », le stockage (tarif
+            Facturation) s’applique par période de 24 h pour les casiers à compartiments.
+          </p>
+        </section>
 
-      <Button type="submit" loading={saving} style={{ width: 'fit-content', fontWeight: 700 }}>
-        Enregistrer
-      </Button>
-    </form>
+        <Button type="submit" loading={saving} style={{ width: 'fit-content', fontWeight: 700 }}>
+          Enregistrer
+        </Button>
+      </form>
+    </div>
   );
 }

@@ -3,7 +3,6 @@ import {
   canAcceptDropOff,
   canCancelLockerActionSession,
   DEFAULT_LOCKER_ACTION_TTL_SECONDS,
-  DEFAULT_LOCKER_NETWORK_SETTINGS,
   depositRequiresReservation,
   driverReturnPickupEligible,
   flow1DepositEligible,
@@ -33,7 +32,6 @@ import type { Compartment, LockerActionSession } from '../db/types.js';
 import { phonesMatch } from '../tracking/guest-track.js';
 import { CommercialRepository } from './commercial.repository.js';
 import { DeliveryRepository } from './delivery.repository.js';
-import { LockerSettingsRepository, toLockerNetworkSettings } from './locker-settings.repository.js';
 import { appendParcelEvent, resolveEventActor } from './parcel-event.repository.js';
 import { ParcelRepository } from './parcel.repository.js';
 import { ParcelReturnRepository } from './parcel-return.repository.js';
@@ -131,7 +129,6 @@ export class LockerActionRepository {
   private readonly deliveries: DeliveryRepository;
   private readonly parcelReturns: ParcelReturnRepository;
   private readonly commercial: CommercialRepository;
-  private readonly lockerSettings: LockerSettingsRepository;
 
   constructor(private readonly db: Queryable) {
     const notifications = new NotificationRepository(db);
@@ -139,7 +136,6 @@ export class LockerActionRepository {
     this.deliveries = new DeliveryRepository(db, notifications);
     this.parcelReturns = new ParcelReturnRepository(db);
     this.commercial = new CommercialRepository(db);
-    this.lockerSettings = new LockerSettingsRepository(db);
   }
 
   async authorize(
@@ -834,14 +830,6 @@ export class LockerActionRepository {
     lockerId: string,
     parcelSize: CompartmentSize,
   ): Promise<Compartment> {
-    let settings = DEFAULT_LOCKER_NETWORK_SETTINGS;
-    try {
-      const row = await this.lockerSettings.getNetworkSettings();
-      settings = toLockerNetworkSettings(row);
-    } catch {
-      settings = DEFAULT_LOCKER_NETWORK_SETTINGS;
-    }
-
     const available = await this.db.query(
       `SELECT * FROM compartments WHERE locker_id = $1 AND status = 'available'`,
       [lockerId],
@@ -854,7 +842,6 @@ export class LockerActionRepository {
         size: compartment.size,
       })),
       parcelSize,
-      settings,
     );
     if (!picked) deny('NO_COMPARTMENT_AVAILABLE');
 

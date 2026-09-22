@@ -100,6 +100,20 @@ describe('isSettingsNavItemActive', () => {
     ).toBe(true);
   });
 
+  it('does not treat réseau as a casiers settings page', () => {
+    expect(
+      isSettingsNavItemActive(
+        {
+          id: 'casiers',
+          label: 'Casiers',
+          href: '/tableau-de-bord/parametres/casiers/configuration',
+          matchPrefix: true,
+        },
+        '/tableau-de-bord/parametres/reseau',
+      ),
+    ).toBe(false);
+  });
+
   it('requires exact match without matchPrefix', () => {
     expect(
       isSettingsNavItemActive(
@@ -107,5 +121,20 @@ describe('isSettingsNavItemActive', () => {
         `${ORG_SETTINGS_ROUTES.profile}/extra`,
       ),
     ).toBe(false);
+  });
+});
+
+describe('admin fonctionnement nav', () => {
+  it('orders Règles générales, Tarifs, Réseau, then Casiers', () => {
+    const fonctionnement = ADMIN_SETTINGS_NAV.find((group) => group.id === 'fonctionnement');
+    expect(fonctionnement?.items.map((item) => item.label)).toEqual([
+      'Règles générales',
+      'Tarifs',
+      'Réseau',
+      'Casiers',
+    ]);
+    expect(fonctionnement?.items.find((item) => item.id === 'reseau')?.href).toBe(
+      '/tableau-de-bord/parametres/reseau',
+    );
   });
 });

@@ -124,6 +124,27 @@ pnpm --filter @eveider/mobile-tenant dev:web
 
 `app.config.js` and `metro.config.js` load `EXPO_PUBLIC_*` from the repo root `.env` automatically (no `dotenv-cli` needed).
 
+## Tester builds (EAS preview)
+
+Preview builds install from an Expo link (Android APK, iOS ad-hoc / TestFlight later). They talk to production: `https://www.eveider.com`.
+
+From `apps/mobile-tenant`:
+
+```bash
+# One-time: put secrets on the Expo project (preview + production)
+eas env:create preview --name EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY --value '<publishable key>' --visibility sensitive --non-interactive
+eas env:create preview --name EXPO_PUBLIC_GOOGLE_MAPS_API_KEY --value '<maps key>' --visibility sensitive --non-interactive
+eas env:create production --name EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY --value '<publishable key>' --visibility sensitive --non-interactive
+eas env:create production --name EXPO_PUBLIC_GOOGLE_MAPS_API_KEY --value '<maps key>' --visibility sensitive --non-interactive
+
+eas build --profile preview --platform android
+eas build --profile preview --platform ios
+```
+
+Or `pnpm --filter @eveider/mobile-tenant eas:preview:android`. After the build, send testers the Expo page / QR. Android testers enable « installer des apps inconnues » once.
+
+Do not put a laptop `localhost` API URL in EAS env — `eas.json` already sets `EXPO_PUBLIC_AUTH_API_URL=https://www.eveider.com`.
+
 ### Web browser testing (Expo web)
 
 When testing in the browser instead of Expo Go on a phone:

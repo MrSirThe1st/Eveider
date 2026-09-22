@@ -132,6 +132,8 @@ export function mapCity(row: Record<string, unknown>): City {
     name: String(row.name),
     status: row.status as City['status'],
     notes: row.notes == null ? null : String(row.notes),
+    drcCityId: row.drc_city_id == null ? null : String(row.drc_city_id),
+    province: row.province == null ? null : String(row.province),
     createdAt: asDate(row.created_at),
     updatedAt: asDate(row.updated_at),
   };
@@ -146,6 +148,7 @@ export function mapServiceArea(row: Record<string, unknown>): ServiceArea {
     cityId: String(row.city_id),
     status: row.status as ServiceArea['status'],
     notes: row.notes == null ? null : String(row.notes),
+    isHolding: row.is_holding === true,
     outboundDeliveryAmount:
       row.outbound_delivery_amount == null ? null : Number(row.outbound_delivery_amount),
     returnDeliveryAmount:

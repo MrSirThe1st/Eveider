@@ -245,7 +245,6 @@ export function IdentityDocumentPanel({
             <div className="driver-docs-tile__menu">
               <DropdownMenu
                 label={`Actions — ${item.label}`}
-                tooltip={false}
                 items={[
                   { id: 'open', label: 'Ouvrir', onClick: () => setPreviewItem(item) },
                   {
@@ -474,10 +473,6 @@ export function IdentityDocumentPanel({
           position: absolute;
           top: ${spacing[2]}px;
           right: ${spacing[2]}px;
-        }
-        .driver-docs-tile__menu .nb-dropdown__trigger[data-tooltip]::after {
-          content: none !important;
-          display: none !important;
         }
         .driver-docs-tile__input {
           position: absolute;

@@ -15,6 +15,7 @@ import { AppearanceSettingsScreen } from '../screens/settings/AppearanceSettings
 import { CountrySettingsScreen } from '../screens/settings/CountrySettingsScreen';
 import { LanguageSettingsScreen } from '../screens/settings/LanguageSettingsScreen';
 import { NotificationPreferencesScreen } from '../screens/settings/NotificationPreferencesScreen';
+import { AboutSettingsScreen } from '../screens/settings/AboutSettingsScreen';
 import { PlaceholderSettingsScreen } from '../screens/settings/PlaceholderSettingsScreen';
 import {
   CustomerShellProvider,
@@ -214,13 +215,14 @@ function PrivacyRoute() {
 }
 
 function AboutRoute() {
-  return <PlaceholderRoute screen="About" />;
+  const navigation = useNavigation<NativeStackNavigationProp<CustomerStackParamList>>();
+  return <AboutSettingsScreen onBack={() => navigation.goBack()} />;
 }
 
 function PlaceholderRoute({
   screen,
 }: {
-  screen: 'PersonalInfo' | 'Help' | 'HowItWorks' | 'Terms' | 'Privacy' | 'About';
+  screen: 'PersonalInfo' | 'Help' | 'HowItWorks' | 'Terms' | 'Privacy';
 }) {
   const navigation = useNavigation<NativeStackNavigationProp<CustomerStackParamList>>();
   return <SettingsPlaceholder screen={screen} onBack={() => navigation.goBack()} />;
@@ -230,7 +232,7 @@ function SettingsPlaceholder({
   screen,
   onBack,
 }: {
-  screen: 'PersonalInfo' | 'Help' | 'HowItWorks' | 'Terms' | 'Privacy' | 'About';
+  screen: 'PersonalInfo' | 'Help' | 'HowItWorks' | 'Terms' | 'Privacy';
   onBack: () => void;
 }) {
   const { t } = useTranslation();
@@ -268,12 +270,6 @@ function SettingsPlaceholder({
       title: t('profile.privacy'),
       intro: t('placeholders.privacyIntro'),
       bullets: [t('placeholders.privacyData'), t('placeholders.privacyRetention'), t('placeholders.privacyRights')],
-      hideFooter: false,
-    },
-    About: {
-      title: t('profile.about'),
-      intro: t('placeholders.aboutIntro'),
-      bullets: [t('placeholders.aboutVersion'), t('placeholders.aboutCity'), t('placeholders.aboutCopyright')],
       hideFooter: false,
     },
   }[screen];

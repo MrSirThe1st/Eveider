@@ -1,4 +1,4 @@
-import { matchDrcCity, type DeliveryKind, type DeliveryStatus, type IssueStatus, type IssueType, type ParcelReturnMethod, type ParcelReturnStatus, type ParcelStatus, type ShipmentPickupType, type UserRole } from '@eveider/domain';
+import { type DeliveryKind, type DeliveryStatus, type IssueStatus, type IssueType, type ParcelReturnMethod, type ParcelReturnStatus, type ParcelStatus, type ShipmentPickupType, type UserRole } from '@eveider/domain';
 import { apiFetch } from './api-fetch';
 import { supabase } from './supabase';
 
@@ -187,31 +187,24 @@ function mapPublicLocker(raw: CustomerLocker): CustomerLocker {
   };
 }
 
-const DRC_MAP_CENTER = { latitude: -4.3276, longitude: 15.3136 };
+export type ActiveCity = {
+  id: string;
+  name: string;
+};
+
+export async function fetchActiveCities() {
+  return apiFetch<{ cities: ActiveCity[] }>('/api/cities/active');
+}
 
 export async function fetchLockersByCity(city: string) {
   const result = await apiFetch<{ lockers: CustomerLocker[] }>(
     `/api/lockers/by-city?city=${encodeURIComponent(city)}`,
   );
-  if (result.success) {
-    return {
-      success: true as const,
-      data: { lockers: result.data.lockers.map(mapPublicLocker) },
-    };
-  }
-
-  const fallback = await apiFetch<{ lockers: CustomerLocker[] }>(
-    `/api/lockers/nearest?latitude=${DRC_MAP_CENTER.latitude}&longitude=${DRC_MAP_CENTER.longitude}&limit=50`,
-  );
-  if (!fallback.success) return result;
+  if (!result.success) return result;
 
   return {
     success: true as const,
-    data: {
-      lockers: fallback.data.lockers
-        .map(mapPublicLocker)
-        .filter((locker) => matchDrcCity(`${locker.name} ${locker.address}`) === city),
-    },
+    data: { lockers: result.data.lockers.map(mapPublicLocker) },
   };
 }
 

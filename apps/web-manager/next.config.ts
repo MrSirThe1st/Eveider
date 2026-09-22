@@ -36,6 +36,11 @@ const nextConfig: NextConfig = {
       { source: '/tableau-de-bord/points', destination: '/tableau-de-bord/casiers', permanent: true },
       { source: '/tableau-de-bord/points/:path*', destination: '/tableau-de-bord/casiers/:path*', permanent: true },
       {
+        source: '/tableau-de-bord/parametres/casiers/zones',
+        destination: '/tableau-de-bord/parametres/reseau',
+        permanent: true,
+      },
+      {
         source: '/organisation/tableau-de-bord/facturation',
         destination: '/organisation/tableau-de-bord/parametres/facturation',
         permanent: true,

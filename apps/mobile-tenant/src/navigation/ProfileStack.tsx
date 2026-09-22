@@ -5,6 +5,7 @@ import { AppearanceSettingsScreen } from '../screens/settings/AppearanceSettings
 import { CountrySettingsScreen } from '../screens/settings/CountrySettingsScreen';
 import { LanguageSettingsScreen } from '../screens/settings/LanguageSettingsScreen';
 import { NotificationPreferencesScreen } from '../screens/settings/NotificationPreferencesScreen';
+import { AboutSettingsScreen } from '../screens/settings/AboutSettingsScreen';
 import { PlaceholderSettingsScreen } from '../screens/settings/PlaceholderSettingsScreen';
 import { openDispatcherWhatsApp } from '../lib/support';
 
@@ -157,15 +158,7 @@ export function ProfileStack({ mode, isGuest = false, onRequestAuth, onOpenParce
       </Stack.Screen>
 
       <Stack.Screen name="About">
-        {({ navigation }) => (
-          <PlaceholderSettingsScreen
-            mode={mode}
-            title="À PROPOS"
-            onBack={() => navigation.goBack()}
-            intro="Eveider — plateforme de casiers connectés en RDC."
-            bullets={['Version MVP mobile', 'Kinshasa & environs', '© Eveider Technologies']}
-          />
-        )}
+        {({ navigation }) => <AboutSettingsScreen onBack={() => navigation.goBack()} />}
       </Stack.Screen>
     </Stack.Navigator>
   );

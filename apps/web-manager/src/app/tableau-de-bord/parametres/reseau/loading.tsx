@@ -1,5 +1,5 @@
 import { SettingsBodySkeleton } from '@/components/settings-body-skeleton';
 
-export default function AdminServiceAreasLoading() {
+export default function AdminNetworkSettingsLoading() {
   return <SettingsBodySkeleton cards={3} />;
 }

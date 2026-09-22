@@ -1,9 +1,16 @@
 import type { DataAccessContext } from '@eveider/data-access';
 import { createRepositories } from '@eveider/data-access';
 import type { CityStatus } from '@eveider/domain';
-import { toCityDto, toCityOptionDto, type CityDto, type CityOptionDto } from '@/lib/city-presenter';
+import {
+  toCityDto,
+  toCityOptionDto,
+  toDrcCatalogCityDto,
+  type CityDto,
+  type CityOptionDto,
+  type DrcCatalogCityDto,
+} from '@/lib/city-presenter';
 
-export type { CityDto, CityOptionDto };
+export type { CityDto, CityOptionDto, DrcCatalogCityDto };
 
 export async function listCities(
   ctx: DataAccessContext,
@@ -18,4 +25,10 @@ export async function listCityOptions(): Promise<CityOptionDto[]> {
   const { cities } = createRepositories();
   const items = await cities.listActiveOptions();
   return items.map(toCityOptionDto);
+}
+
+export async function listDrcCatalog(): Promise<DrcCatalogCityDto[]> {
+  const { cities } = createRepositories();
+  const items = await cities.listCatalog();
+  return items.map(toDrcCatalogCityDto);
 }

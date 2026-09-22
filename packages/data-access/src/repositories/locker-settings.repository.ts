@@ -1,16 +1,9 @@
-import {
-  type AssignmentStrategy,
-  type CompartmentSize,
-  type LockerNetworkSettings,
-  type SizeMatchingMode,
-} from '@eveider/domain';
+import { type CompartmentSize, type LockerNetworkSettings } from '@eveider/domain';
 import { assertAdmin, type DataAccessContext } from '../context.js';
 import type { Queryable } from '../db/index.js';
 import type { LockerLayoutTemplateRow, LockerNetworkSettingsRow } from '../db/types.js';
 
 export type UpdateLockerNetworkSettingsInput = {
-  sizeMatchingMode: SizeMatchingMode;
-  assignmentStrategy: AssignmentStrategy;
   pickupHoldHours: number;
   pickupReminderHours: number;
 };
@@ -34,8 +27,6 @@ export type UpdateLockerLayoutTemplateInput = {
 function mapSettingsRow(row: Record<string, unknown>): LockerNetworkSettingsRow {
   return {
     id: String(row.id),
-    sizeMatchingMode: String(row.size_matching_mode) as SizeMatchingMode,
-    assignmentStrategy: String(row.assignment_strategy) as AssignmentStrategy,
     pickupHoldHours: Number(row.pickup_hold_hours),
     pickupReminderHours: Number(row.pickup_reminder_hours),
     updatedAt: new Date(String(row.updated_at)),
@@ -73,8 +64,6 @@ function mapTemplateRow(row: Record<string, unknown>): LockerLayoutTemplateRow {
 
 export function toLockerNetworkSettings(row: LockerNetworkSettingsRow): LockerNetworkSettings {
   return {
-    sizeMatchingMode: row.sizeMatchingMode,
-    assignmentStrategy: row.assignmentStrategy,
     pickupHoldHours: row.pickupHoldHours,
     pickupReminderHours: row.pickupReminderHours,
   };
@@ -102,17 +91,13 @@ export class LockerSettingsRepository {
     const current = await this.getNetworkSettings();
     const result = await this.db.query(
       `UPDATE locker_network_settings
-       SET size_matching_mode = $1,
-           assignment_strategy = $2,
-           pickup_hold_hours = $3,
-           pickup_reminder_hours = $4,
+       SET pickup_hold_hours = $1,
+           pickup_reminder_hours = $2,
            updated_at = NOW(),
-           updated_by = $5
-       WHERE id = $6
+           updated_by = $3
+       WHERE id = $4
        RETURNING *`,
       [
-        input.sizeMatchingMode,
-        input.assignmentStrategy,
         input.pickupHoldHours,
         input.pickupReminderHours,
         ctx.userId ?? null,

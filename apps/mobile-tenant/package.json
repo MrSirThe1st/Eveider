@@ -15,7 +15,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "android": "expo run:android",
-    "ios": "expo run:ios"
+    "ios": "expo run:ios",
+    "eas:preview": "eas build --profile preview --platform all",
+    "eas:preview:android": "eas build --profile preview --platform android",
+    "eas:preview:ios": "eas build --profile preview --platform ios"
   },
   "dependencies": {
     "@eveider/config-ui": "workspace:*",

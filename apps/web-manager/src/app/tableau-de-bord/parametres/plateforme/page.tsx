@@ -10,7 +10,7 @@ export default async function AdminPlatformSettingsPage() {
   return (
     <PageFrame
       title="Règles générales"
-      description="Pour toute la plateforme Eveider : devise et réglages de départ des nouvelles entreprises."
+      description="Pour toute la plateforme Eveider : devise et contacts."
       layout="standard"
     >
       <PlatformSettingsForm initialSettings={settings} />

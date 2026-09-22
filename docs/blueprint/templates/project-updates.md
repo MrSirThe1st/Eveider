@@ -21,6 +21,12 @@ Use this file as the first project memory source before searching the codebase.
 ## Entries
 
 ## 2026-09-21
+- Change type: Mobile | Infra
+- Description: EAS preview pipeline for tester installs — linked Expo project `@marcim/eveider`, opaque launcher icons, internal Android APK / iOS preview profiles pointing at production `www.eveider.com`.
+- Impact: `apps/mobile-tenant/eas.json`, `app.json` (`icon`, adaptive icon, `supportsTablet: false`, `extra.eas.projectId`), `app.config.js` fails EAS builds if public env is missing; scripts `eas:preview*`; `docs/setup/auth.md` tester-build steps.
+- Tests: `expo config` sanity check. First `eas build` left to run after EAS env secrets are set.
+
+## 2026-09-21
 - Change type: Frontend
 - Description: Tawk chat stays on the landing page, public routes, and organisation portal. It is not loaded or shown on the Eveider admin portal (`/tableau-de-bord`), and the reserved bubble inset is removed there.
 - Impact: `TawkToWidget`; `shouldLoadTawk`; `data-support-widget=off` on admin; `--support-widget-clearance` is 0 in admin.

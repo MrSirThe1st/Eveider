@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCompartmentQrPayload,
   crockfordCheckSymbol,
+  generateOperatingCityCode,
+  generateHoldingZoneCode,
+  generateZoneCode,
   generatePickupPinCode,
   generatePointCode,
   generateTrackingNumber,
@@ -31,6 +34,13 @@ describe('identifiers', () => {
     const code = generatePointCode();
     expect(code).toMatch(/^EVP[0-9A-HJKMNP-TV-Z]{6}[0-9A-HJKMNP-TV-Z*~$=U]$/);
     expect(isValidPointCode(code)).toBe(true);
+  });
+
+  it('generates internal city and holding-zone slugs that are not geographic codes', () => {
+    expect(generateOperatingCityCode()).toMatch(/^EVC[0-9A-HJKMNP-TV-Z]{6}$/);
+    expect(generateZoneCode()).toMatch(/^EVZ[0-9A-HJKMNP-TV-Z]{6}$/);
+    expect(generateHoldingZoneCode()).toMatch(/^EVZ[0-9A-HJKMNP-TV-Z]{6}$/);
+    expect(generateOperatingCityCode()).not.toBe(generateOperatingCityCode());
   });
 
   it('generates 6-digit pickup pins', () => {

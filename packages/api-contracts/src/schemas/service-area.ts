@@ -4,16 +4,7 @@ import { zodEnum } from '../zod-enum.js';
 
 export const serviceAreaStatusSchema = z.enum(['active', 'archived']);
 
-const serviceAreaCodeSchema = z
-  .string()
-  .trim()
-  .toUpperCase()
-  .min(2, 'Code trop court')
-  .max(12, 'Code trop long')
-  .regex(/^[A-Z0-9_-]+$/, 'Code invalide (lettres, chiffres, - ou _)');
-
 export const createServiceAreaSchema = z.object({
-  code: serviceAreaCodeSchema,
   name: z.string().trim().min(2, 'Nom requis').max(120),
   city: zodEnum(DRC_CITIES).optional(),
   cityId: z.string().uuid('Ville invalide').optional(),
@@ -32,7 +23,6 @@ export const createServiceAreaSchema = z.object({
 });
 
 export const updateServiceAreaSchema = z.object({
-  code: serviceAreaCodeSchema.optional(),
   name: z.string().trim().min(2).max(120).optional(),
   city: zodEnum(DRC_CITIES).optional(),
   cityId: z.string().uuid('Ville invalide').optional(),

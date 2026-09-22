@@ -230,7 +230,8 @@ export const en: TranslationSchema = {
     privacyRights: 'Your rights',
     aboutIntro: 'Eveider — Eveider lockers in the DRC.',
     aboutVersion: 'Mobile MVP version',
-    aboutCity: 'Kinshasa and surroundings',
+    aboutCitiesHeading: 'Open cities',
+    aboutCitiesEmpty: 'No city is open yet.',
     aboutCopyright: '© Eveider Technologies',
   },
   auth: {

@@ -10,10 +10,7 @@ test.describe('Driver service areas', () => {
     await expect(page.getByRole('heading', { name: 'Flotte', level: 1 })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: 'Zone' })).toBeVisible();
     await expect(page.getByText(/Lubumbashi/).first()).toBeVisible();
-    await expect(page.getByText(/\([^)]+\)|— à répartir/).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: '+ Ville' })).toBeVisible();
-
-    await expect(page.getByText(/Dilala \(Kolwezi\)|Lubumbashi — à répartir|Kolwezi — à répartir/).first()).toBeVisible();
+    await expect(page.getByText(/Dilala \(Kolwezi\)/).first()).toBeVisible();
 
     await page.getByRole('button', { name: /^\+ Ville/ }).click();
     const cityOption = page.getByRole('option', { name: 'Lubumbashi', exact: true });

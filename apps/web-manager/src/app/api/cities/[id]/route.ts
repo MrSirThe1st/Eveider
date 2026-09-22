@@ -54,3 +54,26 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     return NextResponse.json(fail(message), { status });
   }
 }
+
+export async function DELETE(_request: Request, { params }: RouteParams) {
+  const auth = await requireAdminSession();
+  if ('error' in auth) {
+    return NextResponse.json(fail(auth.error), { status: auth.status });
+  }
+
+  const { id } = await params;
+
+  try {
+    const { cities } = createRepositories();
+    await cities.delete(auth.session.ctx, id);
+    return NextResponse.json(ok({ id }));
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Erreur serveur';
+    const status = message.includes('introuvable')
+      ? 404
+      : message.includes('Impossible de supprimer')
+        ? 409
+        : 500;
+    return NextResponse.json(fail(message), { status });
+  }
+}

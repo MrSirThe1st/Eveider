@@ -31,15 +31,9 @@ function resolveChrome(pathname: string): { title: string; description: string }
       description: 'Modèles de grille réutilisables pour créer des casiers standardisés.',
     };
   }
-  if (pathname.startsWith(`${CASIERS_ROOT}/zones`)) {
-    return {
-      title: 'Villes et zones',
-      description: 'Géographie d’exploitation : villes, zones de quartier, casiers à répartir.',
-    };
-  }
   return {
     title: 'Casiers',
-    description: 'Règles réseau pour tailles, suggestions d’affectation et rétention.',
+    description: 'Rétention au casier et définitions système des tailles S/M/L.',
   };
 }
 

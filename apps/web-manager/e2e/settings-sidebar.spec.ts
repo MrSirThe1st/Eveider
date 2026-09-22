@@ -172,14 +172,19 @@ test.describe('Settings secondary sidebar', () => {
     });
     await expect(page.getByRole('heading', { name: 'Profil', level: 1 })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Casiers' })).toBeVisible();
-    await expect(nav.getByRole('link', { name: 'Tarifs de livraison' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Tarifs', exact: true })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Réseau', exact: true })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Casiers' })).toHaveAttribute(
       'href',
       '/tableau-de-bord/parametres/casiers/configuration',
     );
-    await expect(nav.getByRole('link', { name: 'Tarifs de livraison' })).toHaveAttribute(
+    await expect(nav.getByRole('link', { name: 'Tarifs', exact: true })).toHaveAttribute(
       'href',
       '/tableau-de-bord/parametres/facturation',
+    );
+    await expect(nav.getByRole('link', { name: 'Réseau', exact: true })).toHaveAttribute(
+      'href',
+      '/tableau-de-bord/parametres/reseau',
     );
     await expect(nav.getByRole('link', { name: 'Règles générales', exact: true })).toHaveAttribute(
       'href',
@@ -187,7 +192,7 @@ test.describe('Settings secondary sidebar', () => {
     );
 
     await page.goto('/tableau-de-bord/parametres/facturation', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Tarifs de livraison' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Tarifs', exact: true })).toBeVisible();
 
     await page.goto('/tableau-de-bord/parametres/tarifs', { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(/\/parametres\/facturation$/);
@@ -198,6 +203,7 @@ test.describe('Settings secondary sidebar', () => {
     });
     await expect(page).toHaveURL(/\/parametres\/plateforme/);
     await expect(page.getByRole('heading', { name: 'Devise de la plateforme' })).toBeVisible();
+    await expect(page.getByText('Valeurs par défaut — nouvelles entreprises')).toHaveCount(0);
 
     await page.goto('/tableau-de-bord/parametres/casiers/configuration', {
       waitUntil: 'domcontentloaded',
@@ -205,21 +211,18 @@ test.describe('Settings secondary sidebar', () => {
     const casiersTabs = page.getByRole('navigation', { name: 'Paramètres casiers' });
     await expect(casiersTabs.getByRole('link', { name: 'Configuration' })).toBeVisible();
     await expect(casiersTabs.getByRole('link', { name: 'Modèles' })).toBeVisible();
-    await expect(casiersTabs.getByRole('link', { name: 'Villes et zones' })).toBeVisible();
+    await expect(casiersTabs.getByRole('link', { name: 'Villes et zones' })).toHaveCount(0);
 
     await casiersTabs.getByRole('link', { name: 'Modèles' }).click();
     await expect(page).toHaveURL(/\/parametres\/casiers\/modeles$/, { timeout: 45_000 });
-    // Chrome stays mounted while the list body loads
     await expect(casiersTabs.getByRole('link', { name: 'Configuration' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Casiers', level: 1 })).toBeVisible();
     await expect(nav).toBeVisible();
 
-    await casiersTabs.getByRole('link', { name: 'Villes et zones' }).click();
-    await expect(page).toHaveURL(/\/parametres\/casiers\/zones$/, { timeout: 45_000 });
+    await nav.getByRole('link', { name: 'Réseau', exact: true }).click();
+    await expect(page).toHaveURL(/\/parametres\/reseau$/, { timeout: 45_000 });
     await expect(page.getByRole('heading', { name: 'Villes et zones', level: 1 })).toBeVisible();
-    await expect(page.getByText('Kinshasa — à répartir')).toBeVisible();
-    await expect(page.getByText('Lubumbashi — à répartir')).toBeVisible();
-    await expect(page.getByText('Kolwezi — à répartir')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Nouvelle ville' })).toBeVisible();
   });
 });
 

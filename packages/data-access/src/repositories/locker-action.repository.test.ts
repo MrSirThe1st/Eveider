@@ -113,17 +113,6 @@ describe('LockerActionRepository', () => {
         if (sqlIncludes(sql, 'FROM locker_action_sessions') && sqlIncludes(sql, 'status = \'authorized\'')) {
           return null;
         }
-        if (sqlIncludes(sql, 'FROM locker_network_settings')) {
-          return {
-            id: 'settings-1',
-            size_matching_mode: 'exact_or_larger',
-            assignment_strategy: 'smallest_fit',
-            pickup_hold_hours: 72,
-            pickup_reminder_hours: 24,
-            updated_at: new Date('2026-01-15T12:00:00.000Z'),
-            updated_by: null,
-          };
-        }
         if (sqlIncludes(sql, 'FROM compartments WHERE locker_id') && sqlIncludes(sql, 'available')) {
           return [
             compartmentRow({ id: 'comp-small', label: 'A1', size: 'small', status: 'available' }),
@@ -224,7 +213,6 @@ describe('LockerActionRepository', () => {
         if (sqlIncludes(sql, 'FROM locker_action_sessions') && sqlIncludes(sql, 'authorized')) {
           return null;
         }
-        if (sqlIncludes(sql, 'FROM locker_network_settings')) return null;
         if (sqlIncludes(sql, 'FROM compartments WHERE locker_id')) {
           return [compartmentRow({ id: 'comp-small', size: 'small', status: 'available' })];
         }
@@ -244,7 +232,6 @@ describe('LockerActionRepository', () => {
         if (sqlIncludes(sql, 'FROM deliveries')) {
           return deliveryRow({ driver_id: 'courier-1' });
         }
-        if (sqlIncludes(sql, 'FROM locker_network_settings')) return null;
         if (sqlIncludes(sql, 'FROM compartments WHERE locker_id')) {
           return [compartmentRow({ status: 'available', size: 'medium' })];
         }
@@ -286,7 +273,6 @@ describe('LockerActionRepository', () => {
         if (sqlIncludes(sql, 'FROM locker_action_sessions') && sqlIncludes(sql, 'authorized')) {
           return null;
         }
-        if (sqlIncludes(sql, 'FROM locker_network_settings')) return null;
         if (sqlIncludes(sql, 'FROM compartments WHERE locker_id')) {
           return [compartmentRow({ status: 'available', size: 'medium' })];
         }
@@ -355,7 +341,6 @@ describe('LockerActionRepository', () => {
         if (sqlIncludes(sql, 'FROM locker_action_sessions') && sqlIncludes(sql, 'authorized')) {
           return null;
         }
-        if (sqlIncludes(sql, 'FROM locker_network_settings')) return null;
         if (sqlIncludes(sql, 'FROM compartments WHERE locker_id')) {
           return [compartmentRow({ status: 'available', size: 'medium' })];
         }

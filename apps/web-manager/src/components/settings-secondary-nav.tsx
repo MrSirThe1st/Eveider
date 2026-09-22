@@ -38,7 +38,6 @@ export function SettingsSecondaryNav({ groups }: SettingsSecondaryNavProps) {
                     <li key={item.id}>
                       <Link
                         href={item.href}
-                        title={item.description}
                         className={['settings-secondary-nav__link', active ? 'is-active' : null]
                           .filter(Boolean)
                           .join(' ')}
