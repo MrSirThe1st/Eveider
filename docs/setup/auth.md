@@ -131,11 +131,14 @@ Preview builds install from an Expo link (Android APK, iOS ad-hoc / TestFlight l
 From `apps/mobile-tenant`:
 
 ```bash
-# One-time: put secrets on the Expo project (preview + production)
-eas env:create preview --name EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY --value '<publishable key>' --visibility sensitive --non-interactive
-eas env:create preview --name EXPO_PUBLIC_GOOGLE_MAPS_API_KEY --value '<maps key>' --visibility sensitive --non-interactive
-eas env:create production --name EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY --value '<publishable key>' --visibility sensitive --non-interactive
-eas env:create production --name EXPO_PUBLIC_GOOGLE_MAPS_API_KEY --value '<maps key>' --visibility sensitive --non-interactive
+# One-time: put all EXPO_PUBLIC_* on Expo (preview + production).
+# With "environment" in eas.json, app.config.js reads EAS env — not only eas.json env.
+for env in preview production; do
+  eas env:create --environment "$env" --name EXPO_PUBLIC_SUPABASE_URL --value 'https://clgcdbgnqqiosnijdbns.supabase.co' --visibility plaintext --non-interactive
+  eas env:create --environment "$env" --name EXPO_PUBLIC_AUTH_API_URL --value 'https://www.eveider.com' --visibility plaintext --non-interactive
+  eas env:create --environment "$env" --name EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY --value '<publishable key>' --visibility sensitive --non-interactive
+  eas env:create --environment "$env" --name EXPO_PUBLIC_GOOGLE_MAPS_API_KEY --value '<maps key>' --visibility sensitive --non-interactive
+done
 
 eas build --profile preview --platform android
 eas build --profile preview --platform ios
@@ -143,7 +146,7 @@ eas build --profile preview --platform ios
 
 Or `pnpm --filter @eveider/mobile-tenant eas:preview:android`. After the build, send testers the Expo page / QR. Android testers enable « installer des apps inconnues » once.
 
-Do not put a laptop `localhost` API URL in EAS env — `eas.json` already sets `EXPO_PUBLIC_AUTH_API_URL=https://www.eveider.com`.
+Do not put a laptop `localhost` API URL in EAS env — use `https://www.eveider.com` for preview/production.
 
 ### Web browser testing (Expo web)
 
