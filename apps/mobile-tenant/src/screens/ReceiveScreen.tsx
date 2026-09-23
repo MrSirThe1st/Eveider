@@ -326,7 +326,7 @@ export function ReceiveScreen({
               />
               <AuthRequired
                 title={t('authGate.receiveTitle')}
-                message="Connectez-vous pour voir vos colis, payer et retirer au casier."
+                message={t('authGate.receiveMessage')}
                 onSignIn={() => onRequestAuth?.()}
                 onSignUp={() => onRequestAuth?.()}
               />

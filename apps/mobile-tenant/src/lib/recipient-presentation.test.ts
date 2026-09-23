@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { CustomerParcel } from './api';
-import { RECIPIENT_PRIMARY_TAB, RECIPIENT_REMOVED_PRIMARY_TABS } from './recipient-nav';
+import { RECIPIENT_PRIMARY_TABS, RECIPIENT_REMOVED_PRIMARY_TABS } from './recipient-nav';
 import {
   applyRecipientMutationResult,
   canShowCollectionCode,
@@ -300,11 +300,14 @@ describe('customer return', () => {
 });
 
 describe('recipient navigation and hardware boundary', () => {
-  it('exposes Mes colis as the only primary destination', () => {
-    expect(RECIPIENT_PRIMARY_TAB.label).toBe('Mes colis');
-    expect(RECIPIENT_REMOVED_PRIMARY_TABS).toEqual(
-      expect.arrayContaining(['Accueil', 'Recevoir', 'Points', 'Envoyer']),
-    );
+  it('exposes Accueil, Envoyer, Recevoir and Points', () => {
+    expect(RECIPIENT_PRIMARY_TABS.map((tab) => tab.label)).toEqual([
+      'Accueil',
+      'Envoyer',
+      'Recevoir',
+      'Points',
+    ]);
+    expect(RECIPIENT_REMOVED_PRIMARY_TABS).toEqual(['Casiers']);
   });
 
   it('does not expose locker control or credential internals in Recipient UI source', () => {
@@ -319,16 +322,13 @@ describe('recipient navigation and hardware boundary', () => {
     const source = files.join('\n');
     const navigator = readFileSync(join(root, 'navigation/CustomerNavigator.tsx'), 'utf8');
 
-    expect(navigator).toContain('RECIPIENT_PRIMARY_TAB');
-    expect(navigator).not.toContain('name="Points"');
-    expect(navigator).not.toContain('name="Send"');
-    expect(navigator).not.toContain('name="Receive"');
-    expect(navigator).not.toContain('PointsScreen');
-    expect(navigator).not.toContain('SendScreen');
-    expect(navigator).not.toContain('CustomerHome');
-    expect(existsSync(join(root, 'screens/CustomerHome.tsx'))).toBe(false);
-    expect(existsSync(join(root, 'screens/PointsScreen.tsx'))).toBe(false);
-    expect(existsSync(join(root, 'screens/SendScreen.tsx'))).toBe(false);
+    expect(navigator).toContain('CustomerHome');
+    expect(navigator).toContain('name="Points"');
+    expect(navigator).toContain('name="Send"');
+    expect(navigator).toContain('name="Receive"');
+    expect(existsSync(join(root, 'screens/CustomerHome.tsx'))).toBe(true);
+    expect(existsSync(join(root, 'screens/PointsScreen.tsx'))).toBe(true);
+    expect(existsSync(join(root, 'screens/SendScreen.tsx'))).toBe(true);
 
     for (const forbidden of RECIPIENT_FORBIDDEN_UI_COPY) {
       expect(source).not.toContain(forbidden);

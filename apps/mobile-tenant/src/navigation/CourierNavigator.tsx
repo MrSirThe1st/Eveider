@@ -71,6 +71,12 @@ export function CourierNavigator({ onRequestAuth }: CourierNavigatorProps) {
         setDrawerOpenRef.current(false);
         stackNavRef.current?.navigate('Tabs', { screen: 'Home' });
       },
+      goToSend: () => {
+        setDrawerOpenRef.current(false);
+      },
+      goToPoints: () => {
+        setDrawerOpenRef.current(false);
+      },
       goToHome: () => {
         setDrawerOpenRef.current(false);
         stackNavRef.current?.navigate('Tabs', { screen: 'Home' });
