@@ -18,7 +18,8 @@
     "ios": "expo run:ios",
     "eas:preview": "eas build --profile preview --platform all",
     "eas:preview:android": "eas build --profile preview --platform android",
-    "eas:preview:ios": "eas build --profile preview --platform ios"
+    "eas:preview:ios": "eas build --profile preview --platform ios",
+    "eas-build-post-install": "cd ../.. && pnpm --filter @eveider/config-ui --filter @eveider/domain run build && test -f packages/config-ui/dist/index.js && test -f packages/domain/dist/index.js"
   },
   "dependencies": {
     "@eveider/config-ui": "workspace:*",

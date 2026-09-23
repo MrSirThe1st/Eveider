@@ -1,9 +1,11 @@
 const path = require('path');
 const { load } = require('@expo/env');
 
-// Load EXPO_PUBLIC_* from monorepo root .env (same file as Next.js apps).
-// EAS builders do not have that file — set the same keys as EAS env vars.
-load(path.resolve(__dirname, '../..'));
+// Local: load EXPO_PUBLIC_* from monorepo root .env (same file as Next.js apps).
+// EAS: skip — use Environment variables / eas.json env (no root .env on the builder).
+if (!process.env.EAS_BUILD) {
+  load(path.resolve(__dirname, '../..'));
+}
 
 const REQUIRED_EAS_PUBLIC_ENV = [
   'EXPO_PUBLIC_SUPABASE_URL',

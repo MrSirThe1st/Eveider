@@ -146,6 +146,8 @@ eas build --profile preview --platform ios
 
 Or `pnpm --filter @eveider/mobile-tenant eas:preview:android`. After the build, send testers the Expo page / QR. Android testers enable « installer des apps inconnues » once.
 
+`eas-build-post-install` builds `@eveider/config-ui` and `@eveider/domain` into `dist/` (gitignored) so Metro can resolve them on EAS.
+
 Do not put a laptop `localhost` API URL in EAS env — use `https://www.eveider.com` for preview/production.
 
 ### Web browser testing (Expo web)
