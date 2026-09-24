@@ -9,18 +9,28 @@
     "scheme": "eveider",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/012d7761-6d77-47e2-ab1d-d1da2bfe3a2e"
+    },
     "plugins": [
       [
         "expo-camera",
         {
           "cameraPermission": "Eveider utilise la caméra pour scanner les colis et photographier le dépôt au casier.",
+          "microphonePermission": false,
           "recordAudioAndroid": false
         }
       ],
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Eveider utilise votre position pour afficher les points de retrait proches."
+          "locationWhenInUsePermission": "Eveider utilise votre position pour afficher les points de retrait proches.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false,
+          "isIosBackgroundLocationEnabled": false
         }
       ],
       [
@@ -43,9 +53,10 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.eveider.app",
       "buildNumber": "1",
-      "associatedDomains": [],
       "infoPlist": {
-        "NSCameraUsageDescription": "Eveider utilise la caméra pour scanner les colis et photographier le dépôt au casier."
+        "NSCameraUsageDescription": "Eveider utilise la caméra pour scanner les colis et photographier le dépôt au casier.",
+        "NSLocationWhenInUseUsageDescription": "Eveider utilise votre position pour afficher les points de retrait proches.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

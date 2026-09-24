@@ -150,6 +150,8 @@ Or `pnpm --filter @eveider/mobile-tenant eas:preview:android`. After the build, 
 
 Do not put a laptop `localhost` API URL in EAS env — use `https://www.eveider.com` for preview/production.
 
+iOS store / Expo Launch: do **not** set `ios.associatedDomains: []`. Deep links use `eveider://` only. Builds set `EXPO_NO_CAPABILITY_SYNC=1`. Before Launch can pass **Configure iOS credentials** and **Submit**, run `eas credentials -p ios` once (Apple login + App Store Connect API key).
+
 ### Web browser testing (Expo web)
 
 When testing in the browser instead of Expo Go on a phone:

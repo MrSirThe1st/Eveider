@@ -1,7 +1,7 @@
 {
   "cli": {
     "version": ">= 18.0.0",
-    "appVersionSource": "local",
+    "appVersionSource": "remote",
     "promptToConfigurePushNotifications": false
   },
   "build": {
@@ -9,9 +9,11 @@
       "developmentClient": true,
       "distribution": "internal",
       "environment": "development",
+      "channel": "development",
       "node": "20.18.0",
       "env": {
         "NODE_ENV": "production",
+        "EXPO_NO_CAPABILITY_SYNC": "1",
         "EXPO_PUBLIC_AUTH_API_URL": "https://www.eveider.com",
         "EXPO_PUBLIC_SUPABASE_URL": "https://clgcdbgnqqiosnijdbns.supabase.co"
       }
@@ -19,6 +21,7 @@
     "preview": {
       "distribution": "internal",
       "environment": "preview",
+      "channel": "preview",
       "autoIncrement": true,
       "node": "20.18.0",
       "android": {
@@ -26,22 +29,32 @@
       },
       "env": {
         "NODE_ENV": "production",
+        "EXPO_NO_CAPABILITY_SYNC": "1",
         "EXPO_PUBLIC_AUTH_API_URL": "https://www.eveider.com",
         "EXPO_PUBLIC_SUPABASE_URL": "https://clgcdbgnqqiosnijdbns.supabase.co"
       }
     },
     "production": {
       "environment": "production",
+      "channel": "production",
       "autoIncrement": true,
       "node": "20.18.0",
+      "ios": {
+        "credentialsSource": "remote"
+      },
       "env": {
         "NODE_ENV": "production",
+        "EXPO_NO_CAPABILITY_SYNC": "1",
         "EXPO_PUBLIC_AUTH_API_URL": "https://www.eveider.com",
         "EXPO_PUBLIC_SUPABASE_URL": "https://clgcdbgnqqiosnijdbns.supabase.co"
       }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleId": "marcilungambuyu@icloud.com"
+      }
+    }
   }
 }
