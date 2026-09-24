@@ -52,7 +52,6 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.eveider.app",
-      "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "Eveider utilise la caméra pour scanner les colis et photographier le dépôt au casier.",
         "NSLocationWhenInUseUsageDescription": "Eveider utilise votre position pour afficher les points de retrait proches.",
