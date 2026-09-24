@@ -1,9 +1,9 @@
 const path = require('path');
-const { load } = require('@expo/env');
 
-// Local: load EXPO_PUBLIC_* from monorepo root .env (same file as Next.js apps).
-// EAS: skip — use Environment variables / eas.json env (no root .env on the builder).
+// Local only: load EXPO_PUBLIC_* from monorepo root .env.
+// Do not require @expo/env on EAS — NODE_ENV=production omits it (devDependency).
 if (!process.env.EAS_BUILD) {
+  const { load } = require('@expo/env');
   load(path.resolve(__dirname, '../..'));
 }
 
