@@ -45,9 +45,7 @@ export function ProfileStack({ mode, isGuest = false, onRequestAuth, onOpenParce
             onRequestAuth={onRequestAuth}
             onOpenNotifications={() => navigation.navigate('Notifications')}
             onOpenPersonalInfo={() => navigation.navigate('PersonalInfo')}
-            onOpenNotificationPreferences={() => navigation.navigate('NotificationPreferences')}
             onOpenLanguage={() => navigation.navigate('Language')}
-            onOpenCountry={() => navigation.navigate('Country')}
             onOpenAppearance={() => navigation.navigate('Appearance')}
             onOpenHelp={() => navigation.navigate('Help')}
             onOpenTerms={() => navigation.navigate('Terms')}
@@ -62,6 +60,7 @@ export function ProfileStack({ mode, isGuest = false, onRequestAuth, onOpenParce
           <NotificationsScreen
             mode={mode}
             onBack={() => navigation.goBack()}
+            onOpenPreferences={() => navigation.navigate('NotificationPreferences')}
             onOpenParcel={(parcelId) => {
               onOpenParcel?.(parcelId);
             }}

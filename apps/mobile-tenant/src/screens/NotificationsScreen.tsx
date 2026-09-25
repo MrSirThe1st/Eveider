@@ -1,5 +1,7 @@
 import { radius, borders, type ColorTokens } from '@eveider/config-ui';
+import { Feather } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Pressable,
   RefreshControl,
@@ -24,6 +26,7 @@ type NotificationsScreenProps = {
   mode: 'CLIENT' | 'DRIVER';
   onBack: () => void;
   onOpenParcel?: (parcelId: string) => void;
+  onOpenPreferences?: () => void;
 };
 
 function formatDate(iso: string) {
@@ -35,7 +38,13 @@ function formatDate(iso: string) {
   }).format(new Date(iso));
 }
 
-export function NotificationsScreen({ mode, onBack, onOpenParcel }: NotificationsScreenProps) {
+export function NotificationsScreen({
+  mode,
+  onBack,
+  onOpenParcel,
+  onOpenPreferences,
+}: NotificationsScreenProps) {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const isCourier = mode === 'DRIVER';
@@ -86,8 +95,22 @@ export function NotificationsScreen({ mode, onBack, onOpenParcel }: Notification
   }
 
   return (
-    <ScreenScaffold title="NOTIFICATIONS" onBack={onBack}>
+    <ScreenScaffold title={t('profile.notifications')} onBack={onBack}>
     <View style={styles.container}>
+
+      {onOpenPreferences ? (
+        <Pressable
+          onPress={onOpenPreferences}
+          style={styles.prefsRow}
+          accessibilityRole="button"
+        >
+          <View style={styles.prefsText}>
+            <Text style={styles.prefsLabel}>{t('profile.notificationPrefs')}</Text>
+            <Text style={styles.prefsHint}>{t('profile.notificationPrefsSubtitle')}</Text>
+          </View>
+          <Feather name="chevron-right" size={18} color={colors.primary} />
+        </Pressable>
+      ) : null}
 
       {loading && !refreshing ? (
         <AppSpinner />
@@ -97,7 +120,7 @@ export function NotificationsScreen({ mode, onBack, onOpenParcel }: Notification
         <View style={styles.feedback}>
           <Text style={styles.error}>{error}</Text>
           <Pressable onPress={() => void load()} style={styles.retry}>
-            <Text style={styles.retryText}>RÉESSAYER</Text>
+            <Text style={styles.retryText}>{t('common.retry')}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -118,11 +141,11 @@ export function NotificationsScreen({ mode, onBack, onOpenParcel }: Notification
         >
           {notifications.length === 0 ? (
             <EmptyState
-              title="AUCUNE NOTIFICATION"
+              title={t('notifications.emptyTitle')}
               message={
                 isCourier
-                  ? 'Les nouvelles assignations et alertes casiers apparaîtront ici.'
-                  : 'Les mises à jour de vos colis apparaîtront ici.'
+                  ? t('notifications.emptyCourier')
+                  : t('notifications.emptyCustomer')
               }
             />
           ) : (
@@ -153,8 +176,29 @@ function createStyles(colors: ColorTokens) {
     paddingTop: 0,
     backgroundColor: colors.background,
   },
-  loader: {
-    marginTop: 24,
+  prefsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: borders.width,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  prefsText: {
+    flex: 1,
+  },
+  prefsLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.secondary,
+  },
+  prefsHint: {
+    marginTop: 2,
+    fontSize: 12,
+    color: colors.textMuted,
   },
   list: {
     gap: 8,

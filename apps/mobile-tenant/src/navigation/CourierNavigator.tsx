@@ -64,7 +64,13 @@ export function CourierNavigator({ onRequestAuth }: CourierNavigatorProps) {
       requestAuth: (mode?: 'login' | 'register') => onRequestAuth?.(mode),
       openSettings: (screen: CustomerSettingsScreen) => {
         setDrawerOpenRef.current(false);
-        if (screen === 'HowItWorks') return;
+        if (
+          screen === 'HowItWorks' ||
+          screen === 'EditPersonalInfo' ||
+          screen === 'ChangePassword'
+        ) {
+          return;
+        }
         stackNavRef.current?.navigate(screen);
       },
       goToReceive: () => {
@@ -187,6 +193,7 @@ function NotificationsRoute() {
     <NotificationsScreen
       mode="DRIVER"
       onBack={() => navigation.goBack()}
+      onOpenPreferences={() => navigation.navigate('NotificationPreferences')}
       onOpenParcel={() => navigation.navigate('Tabs', { screen: 'Home' })}
     />
   );

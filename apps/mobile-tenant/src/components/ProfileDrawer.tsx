@@ -150,8 +150,6 @@ const DrawerBody = memo(function DrawerBody({
   const {
     requestAuth,
     openSettings,
-    goToReceive,
-    goToHome,
   } = useCustomerShell();
 
   return (
@@ -161,11 +159,8 @@ const DrawerBody = memo(function DrawerBody({
       hideHeader
       onRequestAuth={() => requestAuth('login')}
       onOpenNotifications={() => openSettings('Notifications')}
-      onOpenMyParcels={mode === 'CLIENT' ? () => goToReceive() : () => goToHome()}
       onOpenPersonalInfo={() => openSettings('PersonalInfo')}
-      onOpenNotificationPreferences={() => openSettings('NotificationPreferences')}
       onOpenLanguage={() => openSettings('Language')}
-      onOpenCountry={() => openSettings('Country')}
       onOpenAppearance={() => openSettings('Appearance')}
       onOpenHelp={() => openSettings('Help')}
       onOpenHowItWorks={mode === 'CLIENT' ? () => openSettings('HowItWorks') : undefined}

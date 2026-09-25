@@ -16,12 +16,12 @@ type ProfileMenuItemProps = {
   last?: boolean;
 };
 
-export function ProfileSection({ title, children }: { title: string; children: React.ReactNode }) {
+export function ProfileSection({ title, children }: { title?: string; children: React.ReactNode }) {
   const colors = useColors();
   const styles = useMemo(() => createSectionStyles(colors), [colors]);
   return (
     <View style={styles.wrap}>
-      <Text style={styles.title}>{title}</Text>
+      {title ? <Text style={styles.title}>{title}</Text> : null}
       <View>{children}</View>
     </View>
   );

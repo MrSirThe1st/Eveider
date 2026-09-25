@@ -6,6 +6,8 @@ export type CustomerSettingsScreen =
   | 'Notifications'
   | 'NotificationPreferences'
   | 'PersonalInfo'
+  | 'EditPersonalInfo'
+  | 'ChangePassword'
   | 'Language'
   | 'Country'
   | 'Appearance'

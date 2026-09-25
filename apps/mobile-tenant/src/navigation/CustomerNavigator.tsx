@@ -15,14 +15,17 @@ import { CustomerHome } from '../screens/CustomerHome';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { PointsScreen } from '../screens/PointsScreen';
 import { ReceiveScreen } from '../screens/ReceiveScreen';
-import { SendScreen } from '../screens/SendScreen';
 import { TrackResultScreen } from '../screens/TrackResultScreen';
 import { AppearanceSettingsScreen } from '../screens/settings/AppearanceSettingsScreen';
+import { ChangePasswordScreen } from '../screens/settings/ChangePasswordScreen';
 import { CountrySettingsScreen } from '../screens/settings/CountrySettingsScreen';
+import { EditPersonalInfoScreen } from '../screens/settings/EditPersonalInfoScreen';
 import { LanguageSettingsScreen } from '../screens/settings/LanguageSettingsScreen';
 import { NotificationPreferencesScreen } from '../screens/settings/NotificationPreferencesScreen';
 import { AboutSettingsScreen } from '../screens/settings/AboutSettingsScreen';
+import { PersonalInfoHubScreen } from '../screens/settings/PersonalInfoHubScreen';
 import { PlaceholderSettingsScreen } from '../screens/settings/PlaceholderSettingsScreen';
+import { callEveiderSupport } from '../lib/support';
 import { useColors } from '../theme';
 import {
   CustomerShellProvider,
@@ -34,7 +37,6 @@ import { getTabBarStyle } from './useHideTabBar';
 
 export type CustomerTabParamList = {
   Home: undefined;
-  Send: undefined;
   Receive: { parcelId?: string; focusNonce?: number } | undefined;
   Points: undefined;
 };
@@ -45,6 +47,8 @@ export type CustomerStackParamList = {
   Notifications: undefined;
   NotificationPreferences: undefined;
   PersonalInfo: undefined;
+  EditPersonalInfo: undefined;
+  ChangePassword: undefined;
   Language: undefined;
   Country: undefined;
   Appearance: undefined;
@@ -118,8 +122,9 @@ export function CustomerNavigator({
         });
       },
       goToSend: () => {
+        // Customer send is hidden until the recipient send flow is defined.
         setDrawerOpenRef.current(false);
-        stackNavRef.current?.navigate('Tabs', { screen: 'Send' });
+        stackNavRef.current?.navigate('Tabs', { screen: 'Home' });
       },
       goToPoints: () => {
         setDrawerOpenRef.current(false);
@@ -161,6 +166,8 @@ const CustomerStack = memo(function CustomerStack() {
       <Stack.Screen name="Notifications" component={NotificationsRoute} />
       <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesRoute} />
       <Stack.Screen name="PersonalInfo" component={PersonalInfoRoute} />
+      <Stack.Screen name="EditPersonalInfo" component={EditPersonalInfoRoute} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordRoute} />
       <Stack.Screen name="Language" component={LanguageRoute} />
       <Stack.Screen name="Country" component={CountryRoute} />
       <Stack.Screen name="Appearance" component={AppearanceRoute} />
@@ -225,11 +232,6 @@ const CustomerTabBar = memo(function CustomerTabBar() {
           options={{ tabBarLabel: t('tabs.home'), tabBarIcon: tabIcon('home') }}
         />
         <Tab.Screen
-          name="Send"
-          component={SendScreen}
-          options={{ tabBarLabel: t('tabs.send'), tabBarIcon: tabIcon('send') }}
-        />
-        <Tab.Screen
           name="Receive"
           component={ReceiveTab}
           options={{ tabBarLabel: t('tabs.receive'), tabBarIcon: tabIcon('package') }}
@@ -282,6 +284,7 @@ function NotificationsRoute() {
     <NotificationsScreen
       mode="CLIENT"
       onBack={() => navigation.goBack()}
+      onOpenPreferences={() => navigation.navigate('NotificationPreferences')}
       onOpenParcel={(parcelId) => {
         focusParcelRef.current(parcelId);
         navigation.navigate('Tabs', {
@@ -314,11 +317,40 @@ function AppearanceRoute() {
 }
 
 function PersonalInfoRoute() {
-  return <PlaceholderRoute screen="PersonalInfo" />;
+  const navigation = useNavigation<NativeStackNavigationProp<CustomerStackParamList>>();
+  return (
+    <PersonalInfoHubScreen
+      mode="CLIENT"
+      onBack={() => navigation.goBack()}
+      onOpenEditProfile={() => navigation.navigate('EditPersonalInfo')}
+      onOpenChangePassword={() => navigation.navigate('ChangePassword')}
+    />
+  );
+}
+
+function EditPersonalInfoRoute() {
+  const navigation = useNavigation<NativeStackNavigationProp<CustomerStackParamList>>();
+  return <EditPersonalInfoScreen mode="CLIENT" onBack={() => navigation.goBack()} />;
+}
+
+function ChangePasswordRoute() {
+  const navigation = useNavigation<NativeStackNavigationProp<CustomerStackParamList>>();
+  return <ChangePasswordScreen mode="CLIENT" onBack={() => navigation.goBack()} />;
 }
 
 function HelpRoute() {
-  return <PlaceholderRoute screen="Help" />;
+  const { t } = useTranslation();
+  const navigation = useNavigation<NativeStackNavigationProp<CustomerStackParamList>>();
+  return (
+    <PlaceholderSettingsScreen
+      mode="CLIENT"
+      title={t('profile.help')}
+      onBack={() => navigation.goBack()}
+      intro={t('placeholders.helpIntro')}
+      bullets={[t('placeholders.helpPickup'), t('placeholders.helpContact'), t('placeholders.helpReport')]}
+      action={{ label: t('home.callEveider'), onPress: callEveiderSupport }}
+    />
+  );
 }
 
 function HowItWorksRoute() {
@@ -341,7 +373,7 @@ function AboutRoute() {
 function PlaceholderRoute({
   screen,
 }: {
-  screen: 'PersonalInfo' | 'Help' | 'HowItWorks' | 'Terms' | 'Privacy';
+  screen: 'HowItWorks' | 'Terms' | 'Privacy';
 }) {
   const navigation = useNavigation<NativeStackNavigationProp<CustomerStackParamList>>();
   return <SettingsPlaceholder screen={screen} onBack={() => navigation.goBack()} />;
@@ -357,23 +389,11 @@ function SettingsPlaceholder({
   screen,
   onBack,
 }: {
-  screen: 'PersonalInfo' | 'Help' | 'HowItWorks' | 'Terms' | 'Privacy';
+  screen: 'HowItWorks' | 'Terms' | 'Privacy';
   onBack: () => void;
 }) {
   const { t } = useTranslation();
   const copy = {
-    PersonalInfo: {
-      title: t('profile.personalInfo'),
-      intro: t('placeholders.personalInfoIntro'),
-      bullets: [t('placeholders.fullName'), t('placeholders.phone'), t('placeholders.email')],
-      hideFooter: false,
-    },
-    Help: {
-      title: t('profile.help'),
-      intro: t('placeholders.helpIntro'),
-      bullets: [t('placeholders.helpPickup'), t('placeholders.helpContact'), t('placeholders.helpReport')],
-      hideFooter: false,
-    },
     HowItWorks: {
       title: t('howItWorks.title'),
       intro: t('howItWorks.intro'),

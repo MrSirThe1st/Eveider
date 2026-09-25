@@ -14,7 +14,14 @@ import { AppSpinner } from '../components/AppSpinner';
 import { ProfileMenuItem, ProfileSection } from '../components/ProfileMenuItem';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { LANGUAGE_LABELS, useSettings } from '../context/settings-context';
-import { deleteCustomerAccount, deactivateCourierAccount, fetchCustomerNotifications, fetchCourierNotifications, fetchProfile, type UserProfile } from '../lib/api';
+import {
+  deleteCustomerAccount,
+  deactivateCourierAccount,
+  fetchCustomerNotifications,
+  fetchCourierNotifications,
+  fetchProfile,
+  type UserProfile,
+} from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { useColors } from '../theme';
 
@@ -24,13 +31,10 @@ type ProfileScreenProps = {
   onRequestAuth?: () => void;
   onOpenNotifications?: () => void;
   onOpenPersonalInfo: () => void;
-  onOpenNotificationPreferences: () => void;
   onOpenLanguage: () => void;
-  onOpenCountry: () => void;
   onOpenAppearance: () => void;
   onOpenHelp: () => void;
   onOpenHowItWorks?: () => void;
-  onOpenMyParcels?: () => void;
   onOpenTerms: () => void;
   onOpenPrivacy: () => void;
   onOpenAbout: () => void;
@@ -43,13 +47,10 @@ export function ProfileScreen({
   onRequestAuth,
   onOpenNotifications,
   onOpenPersonalInfo,
-  onOpenNotificationPreferences,
   onOpenLanguage,
-  onOpenCountry,
   onOpenAppearance,
   onOpenHelp,
   onOpenHowItWorks,
-  onOpenMyParcels,
   onOpenTerms,
   onOpenPrivacy,
   onOpenAbout,
@@ -58,7 +59,7 @@ export function ProfileScreen({
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
-  const { language, country, theme } = useSettings();
+  const { language, theme } = useSettings();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -134,14 +135,10 @@ export function ProfileScreen({
 
   const displayName = isGuest
     ? t('profile.guestName')
-    : (profile?.profile.fullName ?? profile?.email ?? t('profile.guestName'));
-  const roleLabel = isGuest
-    ? t('profile.guestRole')
-    : profile
-      ? t(`roles.${profile.profile.role}`)
-      : mode === 'DRIVER'
-        ? t('roles.courier')
-        : t('roles.customer');
+    : (profile?.profile.fullName ?? t('profile.guestName'));
+  const contactLine = isGuest
+    ? null
+    : (profile?.phone ?? profile?.email ?? profile?.profile.email ?? null);
 
   if (loading && !profile && !isGuest) {
     return (
@@ -180,8 +177,14 @@ export function ProfileScreen({
           <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
         </View>
         <View style={styles.identityText}>
-          <Text style={styles.name}>{displayName}</Text>
-          {roleLabel ? <Text style={styles.roleLabel}>{roleLabel}</Text> : null}
+          <Text style={styles.name} numberOfLines={2}>
+            {displayName}
+          </Text>
+          {contactLine ? (
+            <Text style={styles.contact} numberOfLines={1}>
+              {contactLine}
+            </Text>
+          ) : null}
         </View>
       </Pressable>
 
@@ -197,35 +200,17 @@ export function ProfileScreen({
               icon="user"
               label={t('profile.personalInfo')}
               onPress={onOpenPersonalInfo}
+              last={!onOpenNotifications}
             />
-            {isCustomer ? (
-              <ProfileMenuItem
-                icon="package"
-                label={t('profile.myParcels')}
-                onPress={onOpenMyParcels}
-              />
-            ) : null}
-            {isCustomer ? (
+            {onOpenNotifications ? (
               <ProfileMenuItem
                 icon="bell"
                 label={t('profile.notifications')}
                 value={unreadCount > 0 ? String(unreadCount) : undefined}
                 onPress={onOpenNotifications}
-              />
-            ) : onOpenNotifications ? (
-              <ProfileMenuItem
-                icon="bell"
-                label={t('profile.notifications')}
-                value={unreadCount > 0 ? String(unreadCount) : undefined}
-                onPress={onOpenNotifications}
+                last
               />
             ) : null}
-            <ProfileMenuItem
-              icon="sliders"
-              label={t('profile.notificationPrefs')}
-              onPress={onOpenNotificationPreferences}
-              last
-            />
           </>
         )}
       </ProfileSection>
@@ -236,12 +221,6 @@ export function ProfileScreen({
           label={t('profile.language')}
           value={LANGUAGE_LABELS[language]}
           onPress={onOpenLanguage}
-        />
-        <ProfileMenuItem
-          icon="map-pin"
-          label={t('profile.country')}
-          value={t(`countries.${country}`)}
-          onPress={onOpenCountry}
         />
         <ProfileMenuItem
           icon="moon"
@@ -263,7 +242,7 @@ export function ProfileScreen({
       </ProfileSection>
 
       {!isGuest ? (
-        <ProfileSection title={t('profile.session')}>
+        <ProfileSection>
           <ProfileMenuItem
             icon="log-out"
             label={t('profile.signOut')}
@@ -290,80 +269,68 @@ export function ProfileScreen({
 
 function createStyles(colors: ColorTokens) {
   return StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
-  pageContent: {
-    paddingTop: 8,
-  },
-  drawerContent: {
-    paddingTop: 0,
-  },
-  closeRow: {
-    alignSelf: 'flex-start',
-    marginBottom: 12,
-    paddingVertical: 8,
-  },
-  close: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.secondary,
-  },
-  loader: {
-    marginTop: 32,
-  },
-  error: {
-    color: colors.danger,
-    fontWeight: '500',
-    marginBottom: 12,
-  },
-  identity: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 8,
-    paddingVertical: 4,
-  },
-  identityText: {
-    flex: 1,
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      paddingHorizontal: 20,
+      paddingBottom: 40,
+    },
+    pageContent: {
+      paddingTop: 8,
+    },
+    drawerContent: {
+      paddingTop: 0,
+    },
+    error: {
+      color: colors.danger,
+      fontWeight: '500',
+      marginBottom: 12,
+    },
+    identity: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 8,
+      paddingVertical: 4,
+    },
+    identityText: {
+      flex: 1,
+      minWidth: 0,
+    },
+    avatar: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     avatarText: {
       fontSize: 18,
       fontWeight: '700',
       color: colors.onPrimary,
     },
-  name: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.secondary,
-  },
-  roleLabel: {
-    marginTop: 2,
-    fontSize: 13,
-    fontWeight: '400',
-    color: colors.textMuted,
-  },
-  version: {
-    marginTop: 24,
-    textAlign: 'center',
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-    color: colors.secondary,
-    opacity: 0.4,
-  },
+    name: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: colors.secondary,
+    },
+    contact: {
+      marginTop: 2,
+      fontSize: 13,
+      fontWeight: '400',
+      color: colors.textMuted,
+    },
+    version: {
+      marginTop: 24,
+      textAlign: 'center',
+      fontSize: 10,
+      fontWeight: '600',
+      letterSpacing: 0.5,
+      color: colors.secondary,
+      opacity: 0.4,
+    },
   });
 }

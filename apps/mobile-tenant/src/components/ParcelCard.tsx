@@ -1,6 +1,7 @@
 import { borders, type ColorTokens } from '@eveider/config-ui';
 import { Feather } from '@expo/vector-icons';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 import type { CustomerParcel } from '../lib/api';
 import {
@@ -13,14 +14,8 @@ type ParcelCardProps = {
   parcel: CustomerParcel;
 };
 
-function formatDate(iso: string) {
-  return new Intl.DateTimeFormat('fr-CD', {
-    day: '2-digit',
-    month: 'short',
-  }).format(new Date(iso));
-}
-
 export function ParcelCard({ parcel }: ParcelCardProps) {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const status = getRecipientParcelStatus(parcel);
@@ -34,11 +29,10 @@ export function ParcelCard({ parcel }: ParcelCardProps) {
           <Text style={styles.reference}>{parcel.trackingNumber ?? parcel.reference}</Text>
           <Text style={styles.status}>{status}</Text>
         </View>
-        <Text style={styles.meta}>
-          {parcel.businessName} · {formatDate(parcel.updatedAt)}
-        </Text>
-        {lockerName ? <Text style={styles.locker}>Casier Eveider {lockerName}</Text> : null}
+        <Text style={styles.meta}>{parcel.businessName}</Text>
+        {lockerName ? <Text style={styles.locker}>{lockerName}</Text> : null}
         {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+        <Text style={styles.viewCta}>{t('home.viewParcel')}</Text>
       </View>
       <Feather name="chevron-right" size={18} color={colors.primary} />
     </View>
@@ -97,6 +91,13 @@ function createStyles(colors: ColorTokens) {
       fontSize: 12,
       fontWeight: '500',
       color: colors.primary,
+    },
+    viewCta: {
+      marginTop: 10,
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
+      textAlign: 'right',
     },
   });
 }

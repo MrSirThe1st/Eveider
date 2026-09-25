@@ -50,6 +50,7 @@ export function AuthScreen({
   );
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState(invitePreview?.recipientPhone ?? '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,6 +86,7 @@ export function AuthScreen({
         role: 'customer',
         email: email.trim() || undefined,
         phone: phone.trim() || undefined,
+        fullName: fullName.trim() || undefined,
         inviteToken,
       }),
     });
@@ -118,6 +120,13 @@ export function AuthScreen({
       setBusy(false);
       setMode('complete');
       setError('Indiquez le téléphone destinataire, puis validez.');
+      return;
+    }
+
+    if (fullName.trim().length < 2) {
+      setBusy(false);
+      setMode('complete');
+      setError('Indiquez votre nom complet, puis validez.');
       return;
     }
 
@@ -158,6 +167,11 @@ export function AuthScreen({
   }
 
   async function handleRegister() {
+    if (fullName.trim().length < 2) {
+      setError('Nom complet requis');
+      return;
+    }
+
     if (!phone.trim()) {
       setError('Téléphone requis pour les comptes client');
       return;
@@ -208,6 +222,11 @@ export function AuthScreen({
   }
 
   async function handleCompleteProfile() {
+    if (fullName.trim().length < 2) {
+      setError('Nom complet requis');
+      return;
+    }
+
     if (!phone.trim()) {
       setError('Téléphone requis pour les comptes client');
       return;
@@ -366,6 +385,18 @@ export function AuthScreen({
         ) : null}
 
         {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+
+        {mode === 'register' || mode === 'complete' ? (
+          <TextField
+            label={t('auth.fullName')}
+            placeholder={t('auth.fullNamePlaceholder')}
+            value={fullName}
+            onChangeText={setFullName}
+            autoCapitalize="words"
+            autoComplete="name"
+            textContentType="name"
+          />
+        ) : null}
 
         {mode !== 'reset' ? (
           <TextField

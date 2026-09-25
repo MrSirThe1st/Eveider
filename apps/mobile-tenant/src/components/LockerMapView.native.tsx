@@ -1,7 +1,9 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Pressable } from 'react-native';
 import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE } from 'react-native-maps';
 import { KINSHASA_CENTER } from '@eveider/domain';
-import { useMemo } from 'react';
+import { Feather } from '@expo/vector-icons';
+import { useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useColors } from '../theme';
 import {
   getCurrentCoordinates,
@@ -20,10 +22,15 @@ export function LockerMapView({
   onSelectLocker,
   highlightLockerId,
   height = 280,
+  onRequestRecenter,
+  recenterToken = 0,
 }: LockerMapViewProps) {
+  const { t } = useTranslation();
   const colors = useColors();
   const styles = useLockerMapStyles();
-  const center = useMemo(() => {
+  const mapRef = useRef<MapView>(null);
+
+  const selectedRegion = useMemo(() => {
     if (lockers.length > 0) {
       const target = lockers.find((locker) => locker.id === selectedLockerId) ?? lockers[0]!;
       return {
@@ -42,12 +49,33 @@ export function LockerMapView({
     };
   }, [lockers, selectedLockerId]);
 
+  useEffect(() => {
+    mapRef.current?.animateToRegion(selectedRegion, 280);
+  }, [selectedRegion]);
+
+  useEffect(() => {
+    if (recenterToken === 0) return;
+    void (async () => {
+      const coords = await getCurrentCoordinates();
+      mapRef.current?.animateToRegion(
+        {
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          latitudeDelta: 0.08,
+          longitudeDelta: 0.08,
+        },
+        320,
+      );
+    })();
+  }, [recenterToken]);
+
   return (
     <View style={[styles.container, { height }]}>
       <MapView
+        ref={mapRef}
         style={StyleSheet.absoluteFill}
         provider={GOOGLE_MAPS_KEY ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
-        initialRegion={center}
+        initialRegion={selectedRegion}
         mapType="standard"
       >
         {lockers.map((locker) => {
@@ -62,6 +90,16 @@ export function LockerMapView({
           );
         })}
       </MapView>
+      {onRequestRecenter ? (
+        <Pressable
+          onPress={onRequestRecenter}
+          style={styles.recenterButton}
+          accessibilityRole="button"
+          accessibilityLabel={t('points.recenter')}
+        >
+          <Feather name="crosshair" size={18} color={colors.secondary} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }

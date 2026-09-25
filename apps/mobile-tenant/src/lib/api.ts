@@ -324,6 +324,66 @@ export async function fetchProfile() {
   return customerFetch<UserProfile>('/api/auth/me');
 }
 
+export async function updateAccountProfile(input: { fullName: string; phone?: string }) {
+  return customerFetch<{ fullName: string | null; phone: string | null }>('/api/account/profile', {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+}
+
+function mapPasswordError(message: string): string {
+  const lower = message.toLowerCase();
+  if (lower.includes('invalid login') || lower.includes('invalid credentials')) {
+    return 'Mot de passe actuel incorrect';
+  }
+  if (lower.includes('same password') || lower.includes('different from the old')) {
+    return 'Le nouveau mot de passe doit être différent de l’actuel';
+  }
+  if (lower.includes('weak') || lower.includes('least')) {
+    return 'Le mot de passe doit contenir au moins 8 caractères';
+  }
+  return message || 'Impossible de modifier le mot de passe';
+}
+
+export async function changeAccountPassword(input: {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}): Promise<ApiResult<{ updated: true }>> {
+  if (input.newPassword !== input.confirmPassword) {
+    return { success: false, error: 'Les mots de passe ne correspondent pas' };
+  }
+  if (input.newPassword.length < 8) {
+    return { success: false, error: 'Le mot de passe doit contenir au moins 8 caractères' };
+  }
+  if (input.newPassword === input.currentPassword) {
+    return { success: false, error: 'Le nouveau mot de passe doit être différent de l’actuel' };
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const email = user?.email?.trim();
+  if (!email) {
+    return { success: false, error: 'Aucun e-mail de connexion associé à ce compte' };
+  }
+
+  const { error: reauthError } = await supabase.auth.signInWithPassword({
+    email,
+    password: input.currentPassword,
+  });
+  if (reauthError) {
+    return { success: false, error: mapPasswordError(reauthError.message) };
+  }
+
+  const { error: updateError } = await supabase.auth.updateUser({ password: input.newPassword });
+  if (updateError) {
+    return { success: false, error: mapPasswordError(updateError.message) };
+  }
+
+  return { success: true, data: { updated: true } };
+}
+
 export type CourierHistorySummary = {
   days: number;
   completed: number;

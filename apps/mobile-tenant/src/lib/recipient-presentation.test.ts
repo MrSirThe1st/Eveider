@@ -3,7 +3,11 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { CustomerParcel } from './api';
-import { RECIPIENT_PRIMARY_TABS, RECIPIENT_REMOVED_PRIMARY_TABS } from './recipient-nav';
+import {
+  RECIPIENT_HIDDEN_PRIMARY_TABS,
+  RECIPIENT_PRIMARY_TABS,
+  RECIPIENT_REMOVED_PRIMARY_TABS,
+} from './recipient-nav';
 import {
   applyRecipientMutationResult,
   canShowCollectionCode,
@@ -300,13 +304,13 @@ describe('customer return', () => {
 });
 
 describe('recipient navigation and hardware boundary', () => {
-  it('exposes Accueil, Envoyer, Recevoir and Points', () => {
+  it('exposes Accueil, Recevoir and Points (Envoyer hidden for now)', () => {
     expect(RECIPIENT_PRIMARY_TABS.map((tab) => tab.label)).toEqual([
       'Accueil',
-      'Envoyer',
       'Recevoir',
       'Points',
     ]);
+    expect(RECIPIENT_HIDDEN_PRIMARY_TABS).toEqual(['Envoyer']);
     expect(RECIPIENT_REMOVED_PRIMARY_TABS).toEqual(['Casiers']);
   });
 
@@ -324,7 +328,7 @@ describe('recipient navigation and hardware boundary', () => {
 
     expect(navigator).toContain('CustomerHome');
     expect(navigator).toContain('name="Points"');
-    expect(navigator).toContain('name="Send"');
+    expect(navigator).not.toContain('name="Send"');
     expect(navigator).toContain('name="Receive"');
     expect(existsSync(join(root, 'screens/CustomerHome.tsx'))).toBe(true);
     expect(existsSync(join(root, 'screens/PointsScreen.tsx'))).toBe(true);

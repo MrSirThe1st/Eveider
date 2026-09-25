@@ -1,7 +1,9 @@
 import { radius, borders, type ColorTokens } from '@eveider/config-ui';
 import { formatDistanceKm, KINSHASA_CENTER } from '@eveider/domain';
+import { Feather } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { CustomerLocker } from '../lib/api';
 import { AppSpinner } from './AppSpinner';
@@ -13,6 +15,8 @@ export type LockerMapViewProps = {
   onSelectLocker?: (lockerId: string) => void;
   highlightLockerId?: string;
   height?: number;
+  onRequestRecenter?: () => void;
+  recenterToken?: number;
 };
 
 type LockerSelectPanelProps = {
@@ -28,6 +32,7 @@ export function LockerSelectPanel({
   onSelectLocker,
   loading,
 }: LockerSelectPanelProps) {
+  const { t } = useTranslation();
   const colors = useColors();
   const lockerMapStyles = useMemo(() => createLockerMapStyles(colors), [colors]);
   if (loading) {
@@ -38,6 +43,9 @@ export function LockerSelectPanel({
     <View style={lockerMapStyles.list}>
       {lockers.map((locker) => {
         const selected = locker.id === selectedLockerId;
+        const available = locker.availableSlots ?? locker.availableCompartments;
+        const hours =
+          locker.type === 'SMART_LOCKER' ? t('points.hoursSmart') : t('points.hoursPartner');
         return (
           <Pressable
             key={locker.id}
@@ -46,13 +54,22 @@ export function LockerSelectPanel({
           >
             <Text style={lockerMapStyles.cardTitle}>{locker.name}</Text>
             <Text style={lockerMapStyles.cardAddress}>{locker.address}</Text>
+            <View style={lockerMapStyles.hoursRow}>
+              <View style={lockerMapStyles.hoursDot} />
+              <Text style={lockerMapStyles.hoursText}>{hours}</Text>
+            </View>
             <Text style={lockerMapStyles.cardMeta}>
-              {locker.typeLabel ? `${locker.typeLabel} · ` : ''}
-              {locker.availableSlots ?? locker.availableCompartments} place
-              {(locker.availableSlots ?? locker.availableCompartments) > 1 ? 's' : ''} libre
-              {(locker.availableSlots ?? locker.availableCompartments) > 1 ? 's' : ''}
+              {t('points.compartmentsAvailable', { count: available })}
               {locker.distanceKm != null ? ` · ${formatDistanceKm(locker.distanceKm)}` : ''}
             </Text>
+            <Pressable
+              onPress={() => openDirections(locker.latitude, locker.longitude, locker.name)}
+              style={lockerMapStyles.directionsRow}
+              hitSlop={8}
+            >
+              <Text style={lockerMapStyles.directionsText}>{t('points.directions')}</Text>
+              <Feather name="chevron-right" size={16} color={colors.primary} />
+            </Pressable>
           </Pressable>
         );
       })}
@@ -138,56 +155,100 @@ export function useLockerMapStyles() {
 
 export function createLockerMapStyles(colors: ColorTokens) {
   return StyleSheet.create({
-  container: {
-    borderRadius: 0,
-    overflow: 'hidden',
-    borderWidth: borders.width,
-    borderColor: colors.border,
-  },
-  list: {
-    gap: 10,
-    marginTop: 12,
-  },
-  card: {
-    borderWidth: borders.width,
-    borderColor: colors.border,
-    borderRadius: 0,
-    padding: 14,
-    backgroundColor: colors.surface,
-  },
-  cardSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.successMuted,
-  },
-  cardTitle: {
-    fontWeight: '700',
-    color: colors.secondary,
-  },
-  cardAddress: {
-    marginTop: 4,
-    color: colors.secondary,
-    opacity: 0.8,
-  },
-  cardMeta: {
-    marginTop: 6,
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  webPlaceholder: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    backgroundColor: colors.background,
-  },
-  webPlaceholderText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.secondary,
-    opacity: 0.65,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
+    container: {
+      borderRadius: 0,
+      overflow: 'hidden',
+      borderWidth: borders.width,
+      borderColor: colors.border,
+    },
+    list: {
+      gap: 10,
+      marginTop: 4,
+    },
+    card: {
+      borderWidth: borders.width,
+      borderColor: colors.border,
+      borderRadius: 0,
+      padding: 14,
+      backgroundColor: colors.surface,
+    },
+    cardSelected: {
+      borderColor: colors.primary,
+      backgroundColor: colors.successMuted,
+    },
+    cardTitle: {
+      fontWeight: '700',
+      fontSize: 15,
+      color: colors.secondary,
+    },
+    cardAddress: {
+      marginTop: 4,
+      fontSize: 13,
+      color: colors.secondary,
+      opacity: 0.8,
+    },
+    hoursRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 8,
+    },
+    hoursDot: {
+      width: 7,
+      height: 7,
+      borderRadius: 4,
+      backgroundColor: colors.success,
+    },
+    hoursText: {
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.secondary,
+    },
+    cardMeta: {
+      marginTop: 6,
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.textMuted,
+    },
+    directionsRow: {
+      marginTop: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      gap: 2,
+    },
+    directionsText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    recenterButton: {
+      position: 'absolute',
+      right: 12,
+      bottom: 12,
+      width: 40,
+      height: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.surface,
+      borderWidth: borders.width,
+      borderColor: colors.border,
+      borderRadius: radius.button,
+    },
+    webPlaceholder: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 16,
+      backgroundColor: colors.background,
+    },
+    webPlaceholderText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.secondary,
+      opacity: 0.65,
+      textAlign: 'center',
+      lineHeight: 18,
+    },
   });
 }

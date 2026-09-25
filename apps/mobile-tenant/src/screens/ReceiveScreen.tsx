@@ -323,6 +323,7 @@ export function ReceiveScreen({
                 error={error}
                 onChange={setTrackingNumber}
                 onSubmit={() => void handleTrack()}
+                placeholder={t('receive.searchPlaceholder')}
               />
               <AuthRequired
                 title={t('authGate.receiveTitle')}
@@ -361,6 +362,7 @@ export function ReceiveScreen({
                 error={error}
                 onChange={setTrackingNumber}
                 onSubmit={() => void handleTrack()}
+                placeholder={t('receive.searchPlaceholder')}
               />
               {unreadCount > 0 ? (
                 <Pressable onPress={onOpenNotifications} style={styles.notificationPreview}>
@@ -369,36 +371,40 @@ export function ReceiveScreen({
                   </Text>
                 </Pressable>
               ) : null}
-              <ParcelSection
-                title="À faire"
-                items={grouped.action}
-                empty="Aucune action requise pour le moment."
-                styles={styles}
-                onOpen={(item) => {
-                  setError(null);
-                  setScreen({ name: 'detail', parcelId: item.id });
-                }}
-              />
-              <ParcelSection
-                title="En cours"
-                items={grouped.progress}
-                empty="Aucun colis en cours."
-                styles={styles}
-                onOpen={(item) => setScreen({ name: 'detail', parcelId: item.id })}
-              />
-              <ParcelSection
-                title="Récents"
-                items={grouped.recent}
-                empty="Aucun colis récent."
-                styles={styles}
-                onOpen={(item) => setScreen({ name: 'detail', parcelId: item.id })}
-              />
               {parcels.length === 0 ? (
                 <EmptyState
-                  title="Aucun colis"
-                  message="Les colis qui vous sont destinés apparaîtront ici."
+                  icon="package"
+                  title={t('receive.emptyTitle')}
+                  message={t('receive.emptyMessage')}
                 />
-              ) : null}
+              ) : (
+                <>
+                  <ParcelSection
+                    title={t('receive.actionTitle')}
+                    items={grouped.action}
+                    empty={t('receive.actionEmpty')}
+                    styles={styles}
+                    onOpen={(item) => {
+                      setError(null);
+                      setScreen({ name: 'detail', parcelId: item.id });
+                    }}
+                  />
+                  <ParcelSection
+                    title={t('receive.progressTitle')}
+                    items={grouped.progress}
+                    empty={t('receive.progressEmpty')}
+                    styles={styles}
+                    onOpen={(item) => setScreen({ name: 'detail', parcelId: item.id })}
+                  />
+                  <ParcelSection
+                    title={t('receive.recentTitle')}
+                    items={grouped.recent}
+                    empty={t('receive.recentEmpty')}
+                    styles={styles}
+                    onOpen={(item) => setScreen({ name: 'detail', parcelId: item.id })}
+                  />
+                </>
+              )}
             </ScrollView>
           )}
         </View>
@@ -665,6 +671,8 @@ function SearchBox({
   error,
   onChange,
   onSubmit,
+  label,
+  placeholder,
 }: {
   styles: ReturnType<typeof createStyles>;
   colors: ColorTokens;
@@ -673,15 +681,17 @@ function SearchBox({
   error: string | null;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  label?: string;
+  placeholder: string;
 }) {
   return (
     <View style={styles.search}>
-      <Text style={styles.sectionTitle}>Rechercher un colis</Text>
+      {label ? <Text style={styles.sectionTitle}>{label}</Text> : null}
       <View style={styles.trackRow}>
         <TextInput
           value={trackingNumber}
           onChangeText={onChange}
-          placeholder="Numéro de suivi"
+          placeholder={placeholder}
           placeholderTextColor={colors.textMuted}
           autoCapitalize="characters"
           autoCorrect={false}
