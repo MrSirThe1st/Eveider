@@ -41,6 +41,13 @@ export type LockerWithAvailability = Locker & {
   compartmentTotal: number;
 };
 
+/** Network directory row with zone + outbound tariff for the business Points map. */
+export type NetworkPointWithPricing = LockerWithAvailability & {
+  serviceAreaName: string | null;
+  serviceAreaCode: string | null;
+  outboundDeliveryAmount: number | null;
+};
+
 export type SelectableCompartment = Pick<Compartment, 'id' | 'label' | 'size' | 'status'>;
 
 export type LockerMapMarker = LockerWithAvailability & {
@@ -218,6 +225,15 @@ export class LockerRepository {
     );
   }
 
+  async listNetworkDirectoryWithPricing(): Promise<NetworkPointWithPricing[]> {
+    const rows = await this.listWithAvailability(
+      `l.status IN ('active', 'offline', 'full') AND l.type = '${NETWORK_LOCKER_TYPE}'`,
+      [],
+      { includeZonePricing: true },
+    );
+    return rows as NetworkPointWithPricing[];
+  }
+
   async listByCity(city: string): Promise<LockerWithAvailability[]> {
     return this.listWithAvailability(
       `l.archived_at IS NULL AND l.status IN ('active', 'offline', 'full') AND l.type = '${NETWORK_LOCKER_TYPE}' AND lower(l.city) = lower($1)`,
@@ -228,8 +244,10 @@ export class LockerRepository {
   private async listWithAvailability(
     where: string,
     params: unknown[] = [],
-  ): Promise<LockerWithAvailability[]> {
+    options?: { includeZonePricing?: boolean },
+  ): Promise<LockerWithAvailability[] | NetworkPointWithPricing[]> {
     const occupyingParamIndex = params.length + 1;
+    const withPricing = options?.includeZonePricing === true;
     const lockersResult = await this.db.query(
       `SELECT l.*,
               COALESCE(c.available, 0)::int AS available_count,
@@ -238,7 +256,20 @@ export class LockerRepository {
               COALESCE(c.available_large, 0)::int AS available_large,
               COALESCE(c.total, 0)::int AS compartment_total,
               COALESCE(o.occupying, 0)::int AS occupying_count
+              ${
+                withPricing
+                  ? `, sa.name AS service_area_name,
+              sa.code AS service_area_code,
+              zp.outbound_delivery_amount`
+                  : ''
+              }
        FROM lockers l
+       ${
+         withPricing
+           ? `LEFT JOIN service_areas sa ON sa.id = l.service_area_id
+       LEFT JOIN zone_pricing zp ON zp.zone_id = sa.id`
+           : ''
+       }
        LEFT JOIN (
          SELECT locker_id,
                 COUNT(*) FILTER (WHERE status = 'available')::int AS available,
@@ -276,7 +307,7 @@ export class LockerRepository {
       const compartmentTotal = usesCompartmentGrid(locker.type)
         ? Number(row.compartment_total ?? 0)
         : (locker.maxCapacity ?? 0);
-      return {
+      const base: LockerWithAvailability = {
         ...locker,
         availableCompartments,
         availableBySize,
@@ -289,6 +320,14 @@ export class LockerRepository {
           occupyingCount,
         }),
       };
+      if (!withPricing) return base;
+      return {
+        ...base,
+        serviceAreaName: row.service_area_name == null ? null : String(row.service_area_name),
+        serviceAreaCode: row.service_area_code == null ? null : String(row.service_area_code),
+        outboundDeliveryAmount:
+          row.outbound_delivery_amount == null ? null : Number(row.outbound_delivery_amount),
+      } satisfies NetworkPointWithPricing;
     });
   }
 
