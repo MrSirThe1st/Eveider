@@ -20,6 +20,12 @@ function delivery(kind: 'outbound' | 'return' | 'customer_return') {
       status: 'created',
       recipientName: 'Amina',
       senderAddress: '12 Avenue du Commerce',
+      senderName: 'Mulikap',
+      senderPhone: '+2430551609849',
+      senderLocationName: 'Entrepôt principal',
+      senderLat: -10.71,
+      senderLng: 25.47,
+      senderInstructions: 'Entrée arrière, portail bleu',
       packageSize: 'medium' as const,
       business: { name: 'Entreprise ABC' },
       locker: {
@@ -39,6 +45,12 @@ describe('toCourierDeliveryDto', () => {
   it('exposes sender address and package size for Driver origin display', () => {
     const dto = toCourierDeliveryDto(delivery('outbound'));
     expect(dto.parcel.senderAddress).toBe('12 Avenue du Commerce');
+    expect(dto.parcel.senderName).toBe('Mulikap');
+    expect(dto.parcel.senderPhone).toBe('+2430551609849');
+    expect(dto.parcel.senderLocationName).toBe('Entrepôt principal');
+    expect(dto.parcel.senderLat).toBe(-10.71);
+    expect(dto.parcel.senderLng).toBe(25.47);
+    expect(dto.parcel.senderInstructions).toBe('Entrée arrière, portail bleu');
     expect(dto.parcel.packageSize).toBe('medium');
     expect(dto.kindLabel).toBe('Aller');
   });

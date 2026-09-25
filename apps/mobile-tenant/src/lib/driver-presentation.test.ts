@@ -103,13 +103,47 @@ describe('Flow 1 Aller presentation', () => {
     const step = getDriverDeliveryStep(job);
 
     expect(origin.role).toBe('Entreprise');
+    expect(origin.action).toBe('Collecte');
     expect(origin.name).toBe('Entreprise ABC');
     expect(origin.address).toBe('12 Avenue du Commerce');
+    expect(origin.latitude).toBeNull();
+    expect(origin.longitude).toBeNull();
     expect(destination.role).toBe('Casier');
     expect(destination.name).toContain('Gombe');
     expect(step.label).toBe('À récupérer');
     expect(getDriverPrimaryAction(job).label).toBe('Scanner le colis');
     expect(getDriverPrimaryAction(job).label).not.toMatch(/transit|livré|statut/i);
+  });
+
+  it('uses snapshotted pickup location details for navigation and contact', () => {
+    const job = delivery({
+      status: 'assigned',
+      kind: 'outbound',
+      parcel: {
+        trackingNumber: 'EVD26TEST0001A',
+        businessName: 'Entreprise ABC',
+        senderName: 'Mulikap',
+        senderPhone: '+2430551609849',
+        senderAddress: '14 Avenue du Commerce',
+        senderLocationName: 'Entrepôt principal',
+        senderLat: -10.71,
+        senderLng: 25.47,
+        senderInstructions: 'Entrée arrière',
+        locker: {
+          name: 'Gombe',
+          address: 'Boulevard du 30 Juin',
+          latitude: -4.3,
+          longitude: 15.3,
+        },
+      },
+    });
+    const origin = getDriverOrigin(job);
+    expect(origin.name).toBe('Entrepôt principal');
+    expect(origin.latitude).toBe(-10.71);
+    expect(origin.longitude).toBe(25.47);
+    expect(origin.contactName).toBe('Mulikap');
+    expect(origin.contactPhone).toBe('+2430551609849');
+    expect(origin.instructions).toBe('Entrée arrière');
   });
 
   it('becomes En route vers le casier after scan', () => {

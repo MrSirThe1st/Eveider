@@ -32,7 +32,13 @@ export type CourierDeliveryDto = {
     status: string;
     recipientName: string | null;
     businessName: string;
+    senderName?: string | null;
+    senderPhone?: string | null;
     senderAddress: string | null;
+    senderLocationName?: string | null;
+    senderLat?: number | null;
+    senderLng?: number | null;
+    senderInstructions?: string | null;
     packageSize: PackageSize | null;
     locker: {
       id: string;
@@ -64,7 +70,13 @@ export function toCourierDeliveryDto(delivery: {
     reference: string | null;
     status: string;
     recipientName: string | null;
+    senderName?: string | null;
+    senderPhone?: string | null;
     senderAddress?: string | null;
+    senderLocationName?: string | null;
+    senderLat?: number | null;
+    senderLng?: number | null;
+    senderInstructions?: string | null;
     packageSize?: PackageSize | null;
     business: { name: string };
     locker: {
@@ -96,7 +108,13 @@ export function toCourierDeliveryDto(delivery: {
       status: delivery.parcel.status,
       recipientName: delivery.parcel.recipientName,
       businessName: delivery.parcel.business.name,
+      senderName: delivery.parcel.senderName ?? null,
+      senderPhone: delivery.parcel.senderPhone ?? null,
       senderAddress: delivery.parcel.senderAddress ?? null,
+      senderLocationName: delivery.parcel.senderLocationName ?? null,
+      senderLat: delivery.parcel.senderLat ?? null,
+      senderLng: delivery.parcel.senderLng ?? null,
+      senderInstructions: delivery.parcel.senderInstructions ?? null,
       packageSize: delivery.parcel.packageSize ?? null,
       locker: delivery.parcel.locker
         ? {

@@ -13,7 +13,7 @@ test.describe('Settings secondary sidebar', () => {
 
     const nav = page.getByRole('navigation', { name: 'Sections des paramètres' });
     await expect(nav.getByRole('heading', { name: 'Compte', level: 2 })).toBeVisible();
-    await expect(nav.getByRole('heading', { name: 'Boutique', level: 2 })).toBeVisible();
+    await expect(nav.getByRole('heading', { name: 'Entreprise', level: 2 })).toBeVisible();
     await expect(nav.getByRole('heading', { name: 'Facturation', level: 2 })).toBeVisible();
     await expect(nav.getByRole('heading', { name: 'Avancé', level: 2 })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Entreprise' })).toBeVisible();
@@ -91,7 +91,7 @@ test.describe('Settings secondary sidebar', () => {
 
     const nav = page.getByRole('navigation', { name: 'Sections des paramètres' });
     await expect(nav.getByRole('heading', { name: 'Compte', level: 2 })).toBeVisible();
-    await expect(nav.getByRole('heading', { name: 'Boutique', level: 2 })).toHaveCount(0);
+    await expect(nav.getByRole('heading', { name: 'Entreprise', level: 2 })).toHaveCount(0);
     await expect(nav.getByRole('link', { name: 'Profil' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Sécurité' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Notifications' })).toHaveCount(0);

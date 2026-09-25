@@ -5,7 +5,7 @@ export const BUSINESS_PRIMARY_NAV = [
     id: 'organisation',
     label: 'Organisation',
     href: '/organisation/tableau-de-bord/parametres',
-    section: 'Boutique',
+    section: 'Entreprise',
   },
 ] as const;
 

@@ -81,7 +81,13 @@ export type CourierDelivery = {
     status: string;
     recipientName: string | null;
     businessName: string;
+    senderName?: string | null;
+    senderPhone?: string | null;
     senderAddress?: string | null;
+    senderLocationName?: string | null;
+    senderLat?: number | null;
+    senderLng?: number | null;
+    senderInstructions?: string | null;
     packageSize?: string | null;
     locker: {
       id: string;

@@ -21,7 +21,13 @@ export type DriverDeliveryLike = {
     status?: string;
     recipientName?: string | null;
     businessName: string;
+    senderName?: string | null;
+    senderPhone?: string | null;
     senderAddress?: string | null;
+    senderLocationName?: string | null;
+    senderLat?: number | null;
+    senderLng?: number | null;
+    senderInstructions?: string | null;
     packageSize?: PackageSize | string | null;
     locker: {
       name: string;
@@ -40,6 +46,9 @@ export type DriverPlace = {
   address: string | null;
   latitude: number | null;
   longitude: number | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  instructions?: string | null;
 };
 
 export type DriverStepId =
@@ -216,11 +225,14 @@ export function getDriverOrigin(delivery: DriverDeliveryLike): DriverPlace {
   }
   return {
     role: 'Entreprise',
-    action: 'Récupérer',
-    name: delivery.parcel.businessName,
+    action: 'Collecte',
+    name: delivery.parcel.senderLocationName?.trim() || delivery.parcel.businessName,
     address: delivery.parcel.senderAddress ?? null,
-    latitude: null,
-    longitude: null,
+    latitude: delivery.parcel.senderLat ?? null,
+    longitude: delivery.parcel.senderLng ?? null,
+    contactName: delivery.parcel.senderName ?? null,
+    contactPhone: delivery.parcel.senderPhone ?? null,
+    instructions: delivery.parcel.senderInstructions ?? null,
   };
 }
 
@@ -230,10 +242,13 @@ export function getDriverDestination(delivery: DriverDeliveryLike): DriverPlace 
     return {
       role: 'Entreprise',
       action: 'Retourner à',
-      name: delivery.parcel.businessName,
+      name: delivery.parcel.senderLocationName?.trim() || delivery.parcel.businessName,
       address: delivery.parcel.senderAddress ?? null,
-      latitude: null,
-      longitude: null,
+      latitude: delivery.parcel.senderLat ?? null,
+      longitude: delivery.parcel.senderLng ?? null,
+      contactName: delivery.parcel.senderName ?? null,
+      contactPhone: delivery.parcel.senderPhone ?? null,
+      instructions: delivery.parcel.senderInstructions ?? null,
     };
   }
   return {

@@ -3,6 +3,7 @@ import { PageFrame } from '@eveider/ui';
 import { BusinessSettingsForm } from '@/components/business-settings-form';
 import { loadBusinessSettingsPageData, requireBusinessPermission } from '@/server/business';
 import { WEB_ROUTES } from '@/lib/auth-routing';
+import { toPickupLocationDto } from '@/lib/pickup-location-presenter';
 
 export default async function OrganizationDetailsSettingsPage() {
   const { profile } = await requireBusinessPermission('settings');
@@ -14,11 +15,14 @@ export default async function OrganizationDetailsSettingsPage() {
 
   const address = settings.locations.find((location) => location.type === 'business_address');
   const pickup = settings.locations.find((location) => location.type === 'pickup_point');
+  const pickupLocations = settings.locations
+    .filter((location) => location.type === 'pickup_point')
+    .map(toPickupLocationDto);
 
   return (
     <PageFrame
       title="Entreprise"
-      description="Identité, adresse et mode d’envoi habituels de votre boutique."
+      description="Informations et lieux de collecte de votre entreprise."
       layout="standard"
     >
       <BusinessSettingsForm
@@ -36,13 +40,11 @@ export default async function OrganizationDetailsSettingsPage() {
         nifNumber={settings.nifNumber ?? ''}
         legalRepName={settings.legalRepName ?? ''}
         pickupMethod={pickup?.pickupMethod === 'merchant_dropoff' ? 'merchant_dropoff' : 'courier_pickup'}
-        pickupAddress={pickup?.street ?? ''}
-        contactPerson={pickup?.contactPerson ?? ''}
-        pickupContactPhone={pickup?.contactPhone ?? ''}
         availableDays={pickup?.availableDays ?? ''}
         availableHours={pickup?.availableHours ?? ''}
         dropoffLockerId={pickup?.dropoffLockerId ?? ''}
         lockers={lockerList}
+        pickupLocations={pickupLocations}
       />
     </PageFrame>
   );

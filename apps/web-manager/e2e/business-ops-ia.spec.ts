@@ -47,7 +47,7 @@ test.describe('Business portal IA', () => {
     await expect(nav.filter({ hasText: 'Paramètres' })).toHaveCount(0);
     await expect(nav.filter({ hasText: 'Vérification' })).toHaveCount(0);
 
-    await expect(page.locator('.nb-side-nav__section', { hasText: 'Boutique' })).toBeVisible();
+    await expect(page.locator('.nb-side-nav__section', { hasText: 'Entreprise' })).toBeVisible();
 
     const profile = page.locator('.nb-sidebar-profile');
     await expect(profile).toContainText('Chantal Kasongo');

@@ -2,6 +2,7 @@ import { fail, ok } from '@eveider/api-contracts';
 import { createRepositories } from '@eveider/data-access';
 import { NextResponse } from 'next/server';
 import { requireBusinessSession } from '@/lib/session';
+import { toPickupLocationDto } from '@/lib/pickup-location-presenter';
 
 /** Prefill sender + default pickup type for Create Shipment. */
 export async function GET() {
@@ -12,32 +13,30 @@ export async function GET() {
 
   try {
     const businessId = auth.session.profile.businessId!;
-    const { businesses } = createRepositories();
+    const { businesses, businessOnboarding } = createRepositories();
     const business = await businesses.findById(auth.session.ctx, businessId);
     if (!business) {
       return NextResponse.json(fail('Entreprise introuvable'), { status: 404 });
     }
 
-    const { getPool } = await import('@eveider/data-access');
-    const pool = getPool();
-    const location = await pool.query(
-      `SELECT pickup_method, street, contact_person, contact_phone, dropoff_locker_id
-       FROM business_locations
-       WHERE business_id = $1
-       ORDER BY created_at ASC
-       LIMIT 1`,
-      [businessId],
-    );
-    const row = location.rows[0];
+    const locations = await businessOnboarding.listPickupLocations(businessId);
+    const defaultLocation = locations.find((location) => location.isDefault) ?? locations[0] ?? null;
+    const settings = await businessOnboarding.getSettingsSnapshot(businessId);
+    const anyLocation = settings?.locations[0] ?? null;
+    const pickupMethod =
+      defaultLocation?.pickupMethod ??
+      anyLocation?.pickupMethod ??
+      'courier_pickup';
 
     return NextResponse.json(
       ok({
-        senderName: business.name,
-        senderPhone: business.contactPhone ?? '',
-        senderAddress: row?.street ? String(row.street) : business.residentialAddress,
-        pickupType:
-          row?.pickup_method === 'merchant_dropoff' ? 'merchant_dropoff' : 'courier_pickup',
-        dropoffLockerId: row?.dropoff_locker_id ? String(row.dropoff_locker_id) : null,
+        senderName: defaultLocation?.contactPerson || business.name,
+        senderPhone: defaultLocation?.contactPhone || business.contactPhone || '',
+        senderAddress: defaultLocation?.street || business.residentialAddress,
+        pickupType: pickupMethod === 'merchant_dropoff' ? 'merchant_dropoff' : 'courier_pickup',
+        dropoffLockerId: defaultLocation?.dropoffLockerId ?? anyLocation?.dropoffLockerId ?? null,
+        pickupLocationId: defaultLocation?.id ?? null,
+        pickupLocations: locations.map(toPickupLocationDto),
       }),
     );
   } catch (err) {

@@ -99,20 +99,20 @@ const ORGANIZATION_SETTINGS_NAV_ALL: SettingsNavGroup[] = [
   },
   {
     id: 'organisation',
-    label: 'Boutique',
+    label: 'Entreprise',
     items: [
       {
         id: 'organisation-details',
         label: 'Entreprise',
         href: ORG_SETTINGS_ROUTES.organisation,
-        description: 'Infos de votre boutique',
+        description: 'Infos et lieux de collecte',
         permission: 'settings',
       },
       {
         id: 'equipe',
         label: 'Équipe',
         href: ORG_SETTINGS_ROUTES.team,
-        description: 'Personnes de votre boutique',
+        description: 'Personnes de votre entreprise',
         permission: 'manage_team',
       },
       {

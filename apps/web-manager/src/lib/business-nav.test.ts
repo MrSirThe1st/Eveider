@@ -11,7 +11,7 @@ describe('BUSINESS_PRIMARY_NAV', () => {
     expect(BUSINESS_PRIMARY_NAV.map((item) => ('section' in item ? item.section : undefined))).toEqual([
       undefined,
       undefined,
-      'Boutique',
+      'Entreprise',
     ]);
   });
 

@@ -56,6 +56,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   RefreshControl,
@@ -608,6 +609,16 @@ function DetailScreen({
         onPress={() => openStop(current)}
         variant="secondary"
       />
+      {current.contactPhone ? (
+        <>
+          <View style={styles.spacer} />
+          <PrimaryButton
+            label={t('common.call')}
+            onPress={() => openPhone(current.contactPhone!)}
+            variant="secondary"
+          />
+        </>
+      ) : null}
       <View style={styles.spacer} />
       <ActionRow icon="map" label={t('courier.viewRoute')} onPress={onOpenRoute} last />
 
@@ -683,6 +694,14 @@ function PlaceBlock({
       <Text style={styles.action}>{place.action}</Text>
       <Text style={styles.placeName}>{place.name}</Text>
       {place.address ? <Text style={styles.muted}>{place.address}</Text> : null}
+      {place.contactName || place.contactPhone ? (
+        <Text style={styles.muted}>
+          {[place.contactName, place.contactPhone].filter(Boolean).join(' · ')}
+        </Text>
+      ) : null}
+      {place.instructions ? (
+        <Text style={styles.muted}>Instructions · {place.instructions}</Text>
+      ) : null}
       <Text style={styles.role}>{place.role}</Text>
     </View>
   );
@@ -786,6 +805,12 @@ function openStop(place: ReturnType<typeof getDriverCurrentStop>) {
   }
   const query = [place.name, place.address].filter(Boolean).join(' ');
   if (query) openAddressSearch(query);
+}
+
+function openPhone(phone: string) {
+  const cleaned = phone.replace(/[^\d+]/g, '');
+  if (!cleaned) return;
+  void Linking.openURL(`tel:${cleaned}`);
 }
 
 function sortDeliveriesByRoute(items: CourierDelivery[]): CourierDelivery[] {

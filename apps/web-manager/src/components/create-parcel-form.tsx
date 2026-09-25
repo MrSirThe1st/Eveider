@@ -8,6 +8,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { LockerPicker } from '@/components/locker-picker';
 import type { LockerOption } from '@/components/locker-card';
 import { getFulfillmentMethodLabel } from '@/lib/business-presentation';
+import type { PickupLocationDto } from '@/lib/pickup-location-presenter';
+import { WEB_ROUTES } from '@/lib/auth-routing';
 
 const STEPS: WizardStep[] = [
   { id: 'method', title: 'Méthode', description: 'Comment le colis entre dans le réseau Eveider.' },
@@ -65,6 +67,12 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
   const [senderName, setSenderName] = useState('');
   const [senderPhone, setSenderPhone] = useState('');
   const [senderAddress, setSenderAddress] = useState('');
+  const [pickupLocationId, setPickupLocationId] = useState('');
+  const [pickupLocations, setPickupLocations] = useState<PickupLocationDto[]>([]);
+  const [senderLocationName, setSenderLocationName] = useState<string | null>(null);
+  const [senderLat, setSenderLat] = useState<number | null>(null);
+  const [senderLng, setSenderLng] = useState<number | null>(null);
+  const [senderInstructions, setSenderInstructions] = useState<string | null>(null);
 
   const [reference, setReference] = useState('');
   const [recipientName, setRecipientName] = useState('');
@@ -92,10 +100,24 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
           senderAddress?: string | null;
           pickupType?: ShipmentPickupType;
           dropoffLockerId?: string | null;
+          pickupLocationId?: string | null;
+          pickupLocations?: PickupLocationDto[];
         };
-        if (data.senderName) setSenderName(data.senderName);
-        if (data.senderPhone) setSenderPhone(data.senderPhone);
-        if (data.senderAddress) setSenderAddress(data.senderAddress);
+        const locations = data.pickupLocations ?? [];
+        setPickupLocations(locations);
+        const selected =
+          locations.find((location) => location.id === data.pickupLocationId) ??
+          locations.find((location) => location.isDefault) ??
+          locations[0] ??
+          null;
+        if (selected) {
+          applyPickupLocation(selected, { overrideContact: true });
+        } else {
+          if (data.senderName) setSenderName(data.senderName);
+          if (data.senderPhone) setSenderPhone(data.senderPhone);
+          if (data.senderAddress) setSenderAddress(data.senderAddress);
+        }
+        if (data.pickupType) setPickupType(data.pickupType);
         if (data.dropoffLockerId && UUID_RE.test(data.dropoffLockerId)) {
           setLockerId((current) => current || data.dropoffLockerId!);
         }
@@ -104,6 +126,27 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
         /* prefill optional */
       });
   }, []);
+
+  function applyPickupLocation(
+    location: PickupLocationDto,
+    options?: { overrideContact?: boolean },
+  ) {
+    setPickupLocationId(location.id);
+    setSenderAddress(location.street);
+    setSenderLocationName(location.name);
+    setSenderLat(location.lat);
+    setSenderLng(location.lng);
+    setSenderInstructions(location.instructions);
+    if (options?.overrideContact !== false) {
+      if (location.contactPerson) setSenderName(location.contactPerson);
+      if (location.contactPhone) setSenderPhone(location.contactPhone);
+    }
+  }
+
+  const selectedPickupLocation = useMemo(
+    () => pickupLocations.find((location) => location.id === pickupLocationId) ?? null,
+    [pickupLocations, pickupLocationId],
+  );
 
   useEffect(() => {
     void fetch('/api/organisation/lockers')
@@ -174,7 +217,15 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
       return false;
     }
     if (pickupType === 'courier_pickup' && senderAddress.trim().length < 5) {
-      setError('Adresse de collecte requise pour une Collecte Eveider.');
+      setError(
+        pickupLocations.length === 0
+          ? 'Ajoutez une adresse de collecte dans Paramètres → Entreprise.'
+          : 'Adresse de collecte requise pour une Collecte Eveider.',
+      );
+      return false;
+    }
+    if (pickupType === 'courier_pickup' && pickupLocations.length > 0 && !pickupLocationId) {
+      setError('Choisissez un lieu de collecte.');
       return false;
     }
     setError(null);
@@ -226,6 +277,14 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
           senderName: senderName.trim(),
           senderPhone: senderPhone.trim(),
           senderAddress: pickupType === 'courier_pickup' ? senderAddress.trim() : undefined,
+          pickupLocationId:
+            pickupType === 'courier_pickup' && pickupLocationId ? pickupLocationId : undefined,
+          senderLocationName:
+            pickupType === 'courier_pickup' ? senderLocationName ?? undefined : undefined,
+          senderLat: pickupType === 'courier_pickup' ? senderLat : undefined,
+          senderLng: pickupType === 'courier_pickup' ? senderLng : undefined,
+          senderInstructions:
+            pickupType === 'courier_pickup' ? senderInstructions ?? undefined : undefined,
           recipientName: recipientName.trim(),
           recipientPhone: recipientPhone.trim(),
           recipientEmail: recipientEmail.trim() || undefined,
@@ -337,31 +396,91 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
               <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>
                 Eveider organisera la prise en charge. Vous ne choisissez pas le chauffeur.
               </p>
-              <TextField
-                label="Contact collecte"
-                name="senderName"
-                value={senderName}
-                onChange={(e) => setSenderName(e.target.value)}
-                disabled={loading}
-                required
-              />
-              <TextField
-                label="Téléphone de collecte"
-                name="senderPhone"
-                value={senderPhone}
-                onChange={(e) => setSenderPhone(e.target.value)}
-                disabled={loading}
-                required
-              />
-              <TextField
-                label="Adresse de collecte"
-                name="senderAddress"
-                value={senderAddress}
-                onChange={(e) => setSenderAddress(e.target.value)}
-                disabled={loading}
-                required
-                placeholder="Rue, quartier, ville…"
-              />
+              {pickupLocations.length === 0 ? (
+                <div style={{ display: 'grid', gap: '0.75rem' }}>
+                  <InlineAlert
+                    message="Ajoutez une adresse de collecte pour que les chauffeurs puissent venir récupérer vos colis."
+                    variant="info"
+                  />
+                  <a
+                    href={WEB_ROUTES.businessSettingsOrganisation}
+                    style={{ fontSize: '0.875rem', fontWeight: 600, color: colors.primary }}
+                  >
+                    + Ajouter une adresse
+                  </a>
+                </div>
+              ) : (
+                <>
+                  <label className="ops-field">
+                    <span className="ops-field-label">Lieu de collecte</span>
+                    <select
+                      value={pickupLocationId}
+                      disabled={loading}
+                      onChange={(e) => {
+                        const next = pickupLocations.find((location) => location.id === e.target.value);
+                        if (next) applyPickupLocation(next, { overrideContact: true });
+                      }}
+                      style={{
+                        width: '100%',
+                        height: 44,
+                        borderRadius: 8,
+                        border: borderSubtle(),
+                        padding: '0 0.75rem',
+                        background: colors.surface,
+                        color: colors.secondary,
+                      }}
+                    >
+                      {pickupLocations.map((location) => (
+                        <option key={location.id} value={location.id}>
+                          {location.name}
+                          {location.isDefault ? ' (par défaut)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {selectedPickupLocation ? (
+                    <div
+                      style={{
+                        display: 'grid',
+                        gap: '0.35rem',
+                        padding: '0.85rem 1rem',
+                        borderRadius: 8,
+                        border: borderSubtle(),
+                        background: colors.surface,
+                        fontSize: '0.8125rem',
+                        color: colors.textMuted,
+                      }}
+                    >
+                      <span>{selectedPickupLocation.street}</span>
+                      {selectedPickupLocation.instructions ? (
+                        <span>Instructions · {selectedPickupLocation.instructions}</span>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  <a
+                    href="/organisation/tableau-de-bord/parametres/organisation"
+                    style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.primary }}
+                  >
+                    + Ajouter une adresse
+                  </a>
+                  <TextField
+                    label="Contact"
+                    name="senderName"
+                    value={senderName}
+                    onChange={(e) => setSenderName(e.target.value)}
+                    disabled={loading}
+                    required
+                  />
+                  <TextField
+                    label="Téléphone"
+                    name="senderPhone"
+                    value={senderPhone}
+                    onChange={(e) => setSenderPhone(e.target.value)}
+                    disabled={loading}
+                    required
+                  />
+                </>
+              )}
             </>
           ) : (
             <>
@@ -491,6 +610,19 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
             }}
           >
             <ReviewRow label="Entrée dans le réseau">{getFulfillmentMethodLabel(pickupType)}</ReviewRow>
+            {pickupType === 'courier_pickup' ? (
+              <ReviewRow label="Collecte">
+                <span style={{ display: 'block' }}>
+                  {senderLocationName || selectedPickupLocation?.name || 'Lieu de collecte'}
+                </span>
+                <span style={{ display: 'block', marginTop: 2, fontWeight: 500, color: colors.textMuted }}>
+                  {senderAddress.trim() || '—'}
+                </span>
+                <span style={{ display: 'block', marginTop: 2, fontWeight: 500, color: colors.textMuted }}>
+                  {senderName.trim()} · {senderPhone.trim()}
+                </span>
+              </ReviewRow>
+            ) : null}
 
             <ReviewRow label="Destinataire">
               <span style={{ display: 'block' }}>{recipientName.trim() || '—'}</span>
