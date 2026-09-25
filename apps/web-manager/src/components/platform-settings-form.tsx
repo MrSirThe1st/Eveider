@@ -1,7 +1,7 @@
 'use client';
 
 import { colors, webCardStyle, webInputStyle } from '@eveider/config-ui';
-import { Button, InlineAlert, useToast } from '@eveider/ui';
+import { Button, InlineAlert, PhoneField, useToast } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { ApiFetchError, fetchJson } from '@/lib/api/fetch-json';
@@ -118,26 +118,18 @@ export function PlatformSettingsForm({ initialSettings }: PlatformSettingsFormPr
             maxWidth: 560,
           }}
         >
-          <label>
-            Téléphone d’aide
-            <input
-              type="text"
-              value={settings.supportPhone ?? ''}
-              onChange={(e) => setSettings({ ...settings, supportPhone: e.target.value })}
-              style={inputStyle}
-              placeholder="+243…"
-            />
-          </label>
-          <label>
-            WhatsApp des tournées
-            <input
-              type="text"
-              value={settings.dispatcherWhatsapp ?? ''}
-              onChange={(e) => setSettings({ ...settings, dispatcherWhatsapp: e.target.value })}
-              style={inputStyle}
-              placeholder="+243…"
-            />
-          </label>
+          <PhoneField
+            label="Téléphone d’aide"
+            name="supportPhone"
+            value={settings.supportPhone ?? ''}
+            onChange={(supportPhone) => setSettings({ ...settings, supportPhone })}
+          />
+          <PhoneField
+            label="WhatsApp des tournées"
+            name="dispatcherWhatsapp"
+            value={settings.dispatcherWhatsapp ?? ''}
+            onChange={(dispatcherWhatsapp) => setSettings({ ...settings, dispatcherWhatsapp })}
+          />
         </div>
       </section>
 

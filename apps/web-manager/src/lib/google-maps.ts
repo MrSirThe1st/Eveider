@@ -58,6 +58,11 @@ export const LOCKER_PIN_COLORS = {
   destination: '#6E6A9A',
 } as const;
 
+/** Uniform Eveider network pin (Points page) — red for high visibility on the map. */
+export const NETWORK_LOCKER_PIN = '#C43C2C';
+/** Business saved address pin — dark, distinct from Eveider points. */
+export const BUSINESS_LOCATION_PIN = '#1C1917';
+
 export function lockerPinColor(availableCompartments: number, status: string): string {
   if (status !== 'active') return LOCKER_PIN_COLORS.offline;
   if (availableCompartments === 0) return LOCKER_PIN_COLORS.full;
@@ -150,6 +155,18 @@ export function zoomForPlaceType(placeType: string): number {
   }
 }
 
+/**
+ * Google formatted addresses sometimes include empty components
+ * (e.g. "No.1, Kamina,, Commune de Manika, …"). Collapse those gaps.
+ */
+export function normalizeFormattedAddress(value: string): string {
+  return value
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(', ');
+}
+
 function toMapPlace(
   placeId: string,
   label: string,
@@ -160,7 +177,7 @@ function toMapPlace(
   const placeType = getPrimaryPlaceType(types);
   return {
     id: placeId,
-    label,
+    label: normalizeFormattedAddress(label),
     latitude,
     longitude,
     placeType,
@@ -269,7 +286,8 @@ export async function reverseGeocodeGoogle(
   });
 
   const result = response.results[0];
-  return result?.formatted_address ?? null;
+  const formatted = result?.formatted_address;
+  return formatted ? normalizeFormattedAddress(formatted) : null;
 }
 
 export function parseCoordinateInput(value: string): number | null {

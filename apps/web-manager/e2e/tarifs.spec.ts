@@ -29,7 +29,7 @@ test.describe('Admin tarifs geography', () => {
     await expect(page.getByText(/^Devise :/)).toBeVisible();
     await expect(page.getByRole('link', { name: 'Modifier' })).toBeVisible();
     await expect(page.getByLabel('Retrait au casier')).toBeVisible();
-    await expect(page.getByLabel('Retrait d’un retour par l’entreprise')).toBeVisible();
+    await expect(page.getByLabel('Retrait d’un colis retourné par l’entreprise')).toBeVisible();
 
     const citySummary = page.locator('summary').filter({ hasText: cityName });
     const openCity = async () => {
@@ -41,7 +41,7 @@ test.describe('Admin tarifs geography', () => {
     await openCity();
 
     const outbound = page.getByLabel(`Livraison ${zoneName}`);
-    const ret = page.getByLabel(`Retour vers l’entreprise ${zoneName}`);
+    const ret = page.getByLabel(`Retour du colis à l’entreprise ${zoneName}`);
     await expect(outbound).toHaveValue('');
     await expect(ret).toHaveValue('');
     await expect(page.getByText(/tarif non configuré/i)).toBeVisible();
@@ -54,7 +54,7 @@ test.describe('Admin tarifs geography', () => {
     await page.reload();
     await openCity();
     await expect(page.getByLabel(`Livraison ${zoneName}`)).toHaveValue('2500');
-    await expect(page.getByLabel(`Retour vers l’entreprise ${zoneName}`)).toHaveValue('0');
+    await expect(page.getByLabel(`Retour du colis à l’entreprise ${zoneName}`)).toHaveValue('0');
 
     await page.getByLabel(`Livraison ${zoneName}`).fill('');
     await page.getByRole('button', { name: 'Enregistrer' }).click();
@@ -63,6 +63,6 @@ test.describe('Admin tarifs geography', () => {
     await page.reload();
     await openCity();
     await expect(page.getByLabel(`Livraison ${zoneName}`)).toHaveValue('');
-    await expect(page.getByLabel(`Retour vers l’entreprise ${zoneName}`)).toHaveValue('0');
+    await expect(page.getByLabel(`Retour du colis à l’entreprise ${zoneName}`)).toHaveValue('0');
   });
 });

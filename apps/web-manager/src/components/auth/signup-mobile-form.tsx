@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { isCompleteDrcPhone } from '@eveider/domain';
 import { Spinner } from '@eveider/ui';
 import { AuthPasswordField } from './auth-password-field';
 import { AuthPhoneField } from './auth-phone-field';
@@ -37,7 +38,7 @@ export function SignupMobileForm({ role }: SignupMobileFormProps) {
       return;
     }
 
-    const hasPhone = phone.replace(/\D/g, '').length >= 12;
+    const hasPhone = isCompleteDrcPhone(phone);
 
     setLoading(true);
     try {

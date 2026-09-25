@@ -76,8 +76,9 @@ export function toCustomerParcelDto(
     customerReturn?: ParcelReturnView | null;
   },
 ): CustomerParcelDto {
-  const pickupPayment =
-    parcel.status === 'ready_for_pickup' ? (options?.pickupPayment ?? null) : null;
+  // Fee preview is available before READY so recipients see delivery cost early.
+  // PIN remains gated until ready_for_pickup + payment authorization.
+  const pickupPayment = options?.pickupPayment ?? null;
   const showPin =
     parcel.status === 'ready_for_pickup' &&
     (options?.pickupPaid ??

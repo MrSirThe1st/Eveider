@@ -433,4 +433,13 @@ export const en: TranslationSchema = {
     hidePassword: 'Hide password',
     inviteMessage: '{{business}} sent you parcel {{tracking}}. Use the number {{phone}}.',
   },
+  maps: {
+    addressPlaceholder: 'Address or place…',
+    clearSearch: 'Clear search',
+    searching: 'Searching…',
+    noResults: 'No places found',
+    pinHint: 'Drag the pin to refine the position',
+    resolveTitle: 'Resolve address',
+    resolveHint: 'Pick an address to open directions.',
+  },
 };

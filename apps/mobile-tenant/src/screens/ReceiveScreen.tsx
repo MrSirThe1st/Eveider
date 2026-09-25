@@ -17,10 +17,12 @@ import {
 import { AppSpinner } from '../components/AppSpinner';
 import { AuthRequired } from '../components/AuthRequired';
 import { CommissioningCollectConfirm } from '../components/CommissioningCollectConfirm';
-import { openAddressSearch, openDirections } from '../components/LockerMapView';
+import { ResolveDestinationModal } from '../components/AddressPlacesField';
+import { openDirections, openStopDirections } from '../components/LockerMapView';
 import { ParcelCard } from '../components/ParcelCard';
 import { ParcelStatusBadge } from '../components/ParcelStatusBadge';
 import { ParcelTimeline } from '../components/ParcelTimeline';
+import { PhoneField } from '../components/PhoneField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ReportIssueForm } from '../components/ReportIssueForm';
 import { ScreenHeader, ScreenScaffold } from '../components/ScreenHeader';
@@ -45,9 +47,9 @@ import {
 import {
   applyRecipientMutationResult,
   canShowCollectionCode,
-  getRecipientParcelStatus,
+  getRecipientPaymentPreview,
   getRecipientPrimaryAction,
-  getRecipientStatusDetail,
+  getRecipientStatusExplanation,
   groupRecipientParcels,
   hasMissingCanonicalCharge,
   isPaymentProviderUnavailable,
@@ -111,6 +113,7 @@ export function ReceiveScreen({
   const [trackingNumber, setTrackingNumber] = useState('');
   const [tracking, setTracking] = useState(false);
   const [filter, setFilter] = useState<ParcelFilter>('all');
+  const [resolveQuery, setResolveQuery] = useState<string | null>(null);
 
   const loadList = useCallback(
     async (silent = false) => {
@@ -456,7 +459,6 @@ export function ReceiveScreen({
       <PaymentScreen
         parcel={parcel}
         styles={styles}
-        colors={colors}
         error={error}
         paymentMessage={paymentMessage}
         paymentProviders={paymentProviders}
@@ -621,12 +623,89 @@ export function ReceiveScreen({
   if (!parcel) return null;
 
   const action = getRecipientPrimaryAction(parcel);
-  const detail = getRecipientStatusDetail(parcel);
+  const explanation = getRecipientStatusExplanation(parcel);
+  const paymentPreview = getRecipientPaymentPreview(parcel);
   const locker = parcel.customerReturn?.returnLocker ?? parcel.locker;
+  const isReady = parcel.status === 'ready_for_pickup';
+  const showPin = canShowCollectionCode(parcel);
+  const showMaskedPin = isReady && needsRecipientPayment(parcel);
+
+  const destinationSection = locker ? (
+    <View style={styles.detailSection}>
+      <Text style={styles.sectionLabel}>Destination</Text>
+      <Text style={styles.detailText}>{locker.name}</Text>
+      <Text style={styles.detailSubtext}>{locker.address}</Text>
+      {showPin && parcel.compartmentLabel ? (
+        <Text style={styles.detailSubtext}>Compartiment {parcel.compartmentLabel}</Text>
+      ) : null}
+      <Pressable
+        onPress={() => openCasierDirections(parcel, setResolveQuery)}
+        style={styles.secondaryAction}
+      >
+        <Text style={styles.secondaryActionText}>{t('customer.directions')}</Text>
+      </Pressable>
+    </View>
+  ) : null;
+
+  const parcoursSection = (
+    <View style={styles.detailSection}>
+      <Text style={styles.sectionLabel}>Parcours</Text>
+      <ParcelTimeline parcel={parcel} />
+    </View>
+  );
+
+  const paymentSection = paymentPreview ? (
+    <View style={[styles.detailSection, isReady && styles.readyPaymentSection]}>
+      <Text style={styles.sectionLabel}>Paiement</Text>
+      <Text style={isReady ? styles.readyFee : styles.detailText}>{paymentPreview.feeLabel}</Text>
+      <Text style={styles.detailSubtext}>{paymentPreview.note}</Text>
+      {hasMissingCanonicalCharge(parcel.pickupPayment) ? (
+        <Text style={styles.error}>
+          Les frais de ce colis ne sont pas encore disponibles. Le code de retrait reste masqué.
+          Contactez le support Eveider.
+        </Text>
+      ) : null}
+      {isPaymentProviderUnavailable(parcel) ? (
+        <Text style={styles.error}>
+          Le paiement est requis, mais le prestataire est indisponible pour le moment. Réessayez.
+        </Text>
+      ) : null}
+      {action.id === 'pay' || action.id === 'retry_payment' ? (
+        <PrimaryButton
+          label={action.label}
+          variant="brand"
+          onPress={() => openPrimaryAction(parcel)}
+        />
+      ) : null}
+    </View>
+  ) : null;
+
+  const pinSection =
+    showPin || showMaskedPin ? (
+      <View style={[styles.detailSection, styles.readyPinSection]}>
+        <Text style={styles.sectionLabel}>Code de retrait</Text>
+        {showPin ? (
+          <>
+            <Text style={styles.inlinePin}>{parcel.pickupPin}</Text>
+            <PrimaryButton
+              label={t('customer.howToPickup')}
+              variant="brand"
+              onPress={() => openPrimaryAction(parcel)}
+            />
+          </>
+        ) : (
+          <>
+            <Text style={styles.maskedPin}>••••••</Text>
+            <Text style={styles.detailSubtext}>Disponible après paiement</Text>
+          </>
+        )}
+      </View>
+    ) : null;
 
   return (
+    <>
     <ScrollView style={styles.container} contentContainerStyle={styles.detailContent}>
-      <ScreenHeader mode="CLIENT" title={getRecipientParcelStatus(parcel)} onBack={goBack} />
+      <ScreenHeader mode="CLIENT" title={t('customer.parcelDetail')} onBack={goBack} />
       {issueSuccess ? (
         <SuccessBanner message={issueSuccess} onDismiss={() => setIssueSuccess(null)} />
       ) : null}
@@ -634,56 +713,47 @@ export function ReceiveScreen({
         <Text style={styles.detailReference}>{parcel.trackingNumber}</Text>
         <ParcelStatusBadge parcel={parcel} />
       </View>
-      <Text style={styles.detailMeta}>{parcel.businessName}</Text>
+      <Text style={styles.detailMeta}>Envoyé par {parcel.businessName}</Text>
       {parcel.reference ? <Text style={styles.detailSubtext}>Réf. {parcel.reference}</Text> : null}
-      <Text style={styles.stepTitle}>{getRecipientParcelStatus(parcel)}</Text>
-      {detail ? <Text style={styles.detailSubtext}>{detail}</Text> : null}
 
-      <View style={styles.detailSection}>
-        <Text style={styles.sectionLabel}>Parcours</Text>
-        <ParcelTimeline parcel={parcel} />
+      <View style={styles.explanationBlock}>
+        <Text style={styles.stepTitle}>{explanation.title}</Text>
+        {explanation.body ? <Text style={styles.explanationBody}>{explanation.body}</Text> : null}
       </View>
-
-      {locker ? (
-        <View style={styles.detailSection}>
-          <Text style={styles.sectionLabel}>Casier Eveider</Text>
-          <Text style={styles.detailText}>{locker.name}</Text>
-          <Text style={styles.detailSubtext}>{locker.address}</Text>
-          {parcel.status === 'ready_for_pickup' &&
-          canShowCollectionCode(parcel) &&
-          parcel.compartmentLabel ? (
-            <Text style={styles.detailSubtext}>Compartiment {parcel.compartmentLabel}</Text>
-          ) : null}
-          <Pressable
-            onPress={() => openCasierDirections(parcel)}
-            style={styles.secondaryAction}
-          >
-            <Text style={styles.secondaryActionText}>Itinéraire</Text>
-          </Pressable>
-        </View>
-      ) : null}
-
-      {hasMissingCanonicalCharge(parcel.pickupPayment) ? (
-        <Text style={styles.error}>
-          Les frais de ce colis ne sont pas encore disponibles. Le code de retrait reste masqué.
-          Contactez le support Eveider.
-        </Text>
-      ) : null}
-
-      {isPaymentProviderUnavailable(parcel) ? (
-        <Text style={styles.error}>
-          Le paiement est requis, mais le prestataire est indisponible pour le moment. Réessayez.
-        </Text>
-      ) : null}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      {action.id && action.id !== 'support_charge' ? (
+      {isReady ? (
+        <>
+          {paymentSection}
+          {pinSection}
+          {destinationSection}
+          {parcoursSection}
+        </>
+      ) : (
+        <>
+          {parcoursSection}
+          {destinationSection}
+          {paymentSection}
+        </>
+      )}
+
+      {!isReady &&
+      action.id &&
+      action.id !== 'support_charge' &&
+      action.id !== 'pay' &&
+      action.id !== 'retry_payment' ? (
         <PrimaryButton
           label={action.label}
           variant="brand"
           onPress={() => openPrimaryAction(parcel)}
         />
+      ) : null}
+
+      {action.id === 'support_charge' ? (
+        <Text style={styles.error}>
+          Les frais de ce colis ne sont pas encore disponibles. Contactez le support Eveider.
+        </Text>
       ) : null}
 
       {parcel.customerReturn?.status === 'requested' && parcel.customerReturn.canCancel ? (
@@ -699,6 +769,15 @@ export function ReceiveScreen({
         <Text style={styles.reportButtonText}>{t('customer.reportIssue')}</Text>
       </Pressable>
     </ScrollView>
+    <ResolveDestinationModal
+      open={resolveQuery != null}
+      initialQuery={resolveQuery ?? ''}
+      onClose={() => setResolveQuery(null)}
+      onResolved={(place) =>
+        openDirections(place.latitude, place.longitude, place.label)
+      }
+    />
+    </>
   );
 }
 
@@ -752,7 +831,6 @@ function SearchBox({
 function PaymentScreen({
   parcel,
   styles,
-  colors,
   error,
   paymentMessage,
   paymentProviders,
@@ -767,7 +845,6 @@ function PaymentScreen({
 }: {
   parcel: CustomerParcel;
   styles: ReturnType<typeof createStyles>;
-  colors: ColorTokens;
   error: string | null;
   paymentMessage: string | null;
   paymentProviders: PaymentProvider[];
@@ -813,13 +890,10 @@ function PaymentScreen({
           </Pressable>
         ))
       )}
-      <TextInput
+      <PhoneField
+        label="Numéro Mobile Money"
         value={paymentPhone}
         onChangeText={onPhone}
-        placeholder="+243800000000"
-        placeholderTextColor={colors.textMuted}
-        keyboardType="phone-pad"
-        style={styles.phoneInput}
       />
       <PrimaryButton
         label="Payer les frais"
@@ -897,15 +971,21 @@ function PickupScreen({
   );
 }
 
-function openCasierDirections(parcel: CustomerParcel) {
+function openCasierDirections(
+  parcel: CustomerParcel,
+  onNeedResolve: (query: string) => void,
+) {
   const locker = parcel.customerReturn?.returnLocker ?? parcel.locker;
   if (!locker) return;
   const full = parcel.locker;
-  if (full?.latitude != null && full.longitude != null && full.id === locker.id) {
-    openDirections(full.latitude, full.longitude, locker.name);
-    return;
-  }
-  openAddressSearch(`Casier Eveider ${locker.name} ${locker.address}`);
+  const sameLocker = full?.id === locker.id;
+  openStopDirections({
+    latitude: sameLocker ? full?.latitude : null,
+    longitude: sameLocker ? full?.longitude : null,
+    name: `Casier Eveider ${locker.name}`,
+    address: locker.address,
+    onNeedResolve,
+  });
 }
 
 function createStyles(colors: ColorTokens) {
@@ -1038,14 +1118,25 @@ function createStyles(colors: ColorTokens) {
     },
     detailMeta: {
       fontWeight: '500',
-      marginBottom: 8,
-      color: colors.secondary,
+      marginBottom: 4,
+      color: colors.textMuted,
+      fontSize: 14,
+    },
+    explanationBlock: {
+      marginTop: 16,
+      marginBottom: 4,
     },
     stepTitle: {
       fontSize: 22,
       fontWeight: '700',
       color: colors.secondary,
-      marginBottom: 8,
+      marginBottom: 6,
+    },
+    explanationBody: {
+      fontSize: 15,
+      lineHeight: 22,
+      fontWeight: '400',
+      color: colors.textMuted,
     },
     detailSection: {
       marginTop: 20,
@@ -1053,6 +1144,34 @@ function createStyles(colors: ColorTokens) {
       paddingBottom: 16,
       borderBottomWidth: borders.width,
       borderBottomColor: colors.border,
+    },
+    readyPaymentSection: {
+      marginTop: 20,
+      paddingTop: 4,
+    },
+    readyPinSection: {
+      marginTop: 8,
+    },
+    readyFee: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.secondary,
+    },
+    maskedPin: {
+      fontSize: 28,
+      fontWeight: '700',
+      letterSpacing: 6,
+      color: colors.textMuted,
+      marginTop: 4,
+    },
+    inlinePin: {
+      fontSize: 28,
+      fontWeight: '700',
+      letterSpacing: 6,
+      color: colors.secondary,
+      marginTop: 4,
+      marginBottom: 12,
+      fontVariant: ['tabular-nums'],
     },
     sectionLabel: {
       fontSize: 11,
@@ -1123,18 +1242,6 @@ function createStyles(colors: ColorTokens) {
     providerOptionText: {
       fontWeight: '600',
       color: colors.secondary,
-    },
-    phoneInput: {
-      marginTop: 12,
-      marginBottom: 16,
-      borderWidth: borders.width,
-      borderColor: colors.border,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      fontSize: 16,
-      color: colors.secondary,
-      backgroundColor: colors.surface,
-      borderRadius: radius.md,
     },
     secondaryAction: {
       marginTop: 12,

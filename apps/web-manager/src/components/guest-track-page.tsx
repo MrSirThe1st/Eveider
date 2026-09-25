@@ -1,7 +1,7 @@
 'use client';
 
 import { colors, radius, spacing, borderSubtle, webCardStyle } from '@eveider/config-ui';
-import { Spinner } from '@eveider/ui';
+import { PhoneField, Spinner } from '@eveider/ui';
 import type { CustomerParcelDto } from '@/lib/customer-parcel-presenter';
 import {
   canShowPublicCollectionCode,
@@ -372,19 +372,15 @@ export function GuestTrackPage() {
               />
             </label>
           ) : (
-            <label style={{ display: 'block', marginBottom: '1.25rem' }}>
-              <span style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>
-                TÉLÉPHONE DESTINATAIRE
-              </span>
-              <input
+            <div style={{ marginBottom: '1.25rem' }}>
+              <PhoneField
+                label="Téléphone destinataire"
+                name="phone"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+243 …"
+                onChange={setPhone}
                 required
-                inputMode="tel"
-                style={inputStyle}
               />
-            </label>
+            </div>
           )}
           <button
             type="submit"
@@ -557,16 +553,14 @@ export function GuestTrackPage() {
                     </button>
                   ))}
                 </div>
-                <label style={{ display: 'block', marginBottom: '1rem' }}>
-                  <span style={{ fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.08em' }}>
-                    NUMÉRO MOBILE MONEY
-                  </span>
-                  <input
+                <div style={{ marginBottom: '1rem' }}>
+                  <PhoneField
+                    label="Numéro Mobile Money"
+                    name="paymentPhone"
                     value={paymentPhone}
-                    onChange={(e) => setPaymentPhone(e.target.value)}
-                    style={inputStyle}
+                    onChange={setPaymentPhone}
                   />
-                </label>
+                </div>
                 <button
                   type="button"
                   disabled={paying || !selectedProvider}

@@ -76,6 +76,8 @@ type ServiceAreaOption = {
 type LockerCreatePanelProps = {
   address: string;
   onAddressChange: (value: string) => void;
+  /** When true, address is set via AddressMapPicker above — show read-only. */
+  addressReadOnly?: boolean;
   placementConfirmed: boolean;
   latitude?: number | null;
   longitude?: number | null;
@@ -94,6 +96,7 @@ const NETWORK_TYPE: LockerType = 'SMART_LOCKER';
 export function LockerCreatePanel({
   address,
   onAddressChange,
+  addressReadOnly = false,
   placementConfirmed,
   latitude = null,
   longitude = null,
@@ -316,7 +319,18 @@ export function LockerCreatePanel({
         </p>
         <label style={{ display: 'block', marginBottom: '0.85rem' }}>
           <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>ADRESSE</span>
-          <input value={address} onChange={(e) => onAddressChange(e.target.value)} style={inputStyle} />
+          <input
+            value={address}
+            onChange={(e) => onAddressChange(e.target.value)}
+            style={inputStyle}
+            readOnly={addressReadOnly}
+            aria-readonly={addressReadOnly}
+          />
+          {addressReadOnly ? (
+            <p style={{ margin: '0.35rem 0 0', fontSize: '0.75rem', color: colors.textMuted }}>
+              Modifiez l’adresse via la recherche sur la carte ci-dessus.
+            </p>
+          ) : null}
         </label>
         {latitude != null && longitude != null ? (
           <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>

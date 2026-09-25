@@ -56,6 +56,7 @@ describe('getParcelJourney', () => {
       }),
     );
 
+    expect(journey.steps.some((step) => step.label === 'En transport')).toBe(false);
     expect(journey.steps.some((step) => step.label === 'En cours de transport')).toBe(false);
     expect(journey.headline).toBe('Déposé au casier');
     expect(journey.lockerVisual).toBe('incoming');

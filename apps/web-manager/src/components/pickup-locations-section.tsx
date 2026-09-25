@@ -1,19 +1,16 @@
 'use client';
 
-import { colors, borderSubtle, radius, webInputStyle } from '@eveider/config-ui';
+import { colors, borderSubtle, radius } from '@eveider/config-ui';
 import { Button, InlineAlert, Modal, TextField } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
-import { LockerGoogleMap } from '@/components/locker-google-map';
+import { useEffect, useState } from 'react';
+import {
+  AddressMapPicker,
+  type AddressMapValue,
+} from '@/components/address-map-picker';
 import { SettingsFormSection } from '@/components/ops-ui';
 import type { PickupLocationDto } from '@/lib/pickup-location-presenter';
-import {
-  reverseGeocodeGoogle,
-  searchGooglePlaces,
-  zoomForPlaceType,
-  type MapPlace,
-  type MapSearchViewport,
-} from '@/lib/google-maps';
+import { normalizeFormattedAddress } from '@/lib/google-maps';
 
 type PickupLocationsSectionProps = {
   locations: PickupLocationDto[];
@@ -50,74 +47,16 @@ export function PickupLocationsSection({
   const [editor, setEditor] = useState<EditorState>(emptyEditor);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [addressQuery, setAddressQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<MapPlace[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [mapViewport, setMapViewport] = useState<MapSearchViewport | null>(null);
-  const [mapFocus, setMapFocus] = useState<{
-    latitude: number;
-    longitude: number;
-    zoom?: number;
-    key: number;
-  } | null>(null);
-  const searchRequestId = useRef(0);
-  /** After picking a suggestion, ignore search until the user types again. */
-  const suppressSearchRef = useRef(false);
+  const [pickerKey, setPickerKey] = useState(0);
 
   useEffect(() => {
     setLocations(initialLocations);
   }, [initialLocations]);
 
-  useEffect(() => {
-    if (!open) return;
-    if (suppressSearchRef.current) {
-      setSearching(false);
-      return;
-    }
-
-    const query = addressQuery.trim();
-    if (query.length < 2) {
-      setSearchResults([]);
-      setSearching(false);
-      return;
-    }
-
-    const requestId = ++searchRequestId.current;
-    setSearching(true);
-    const timer = window.setTimeout(() => {
-      void (async () => {
-        try {
-          const places = await searchGooglePlaces(query, {
-            limit: 8,
-            viewport: mapViewport ?? undefined,
-          });
-          if (requestId !== searchRequestId.current || suppressSearchRef.current) return;
-          setSearchResults(places);
-        } catch {
-          if (requestId !== searchRequestId.current) return;
-          setError('Recherche impossible. Vérifiez votre clé Google Maps.');
-        } finally {
-          if (requestId === searchRequestId.current) setSearching(false);
-        }
-      })();
-    }, 320);
-
-    return () => window.clearTimeout(timer);
-  }, [addressQuery, mapViewport, open]);
-
-  function resetAddressUi(nextQuery = '', suppress = Boolean(nextQuery)) {
-    suppressSearchRef.current = suppress;
-    searchRequestId.current += 1;
-    setAddressQuery(nextQuery);
-    setSearchResults([]);
-    setSearching(false);
-  }
-
   function openCreate() {
     setError(null);
     setEditor({ ...emptyEditor(), isDefault: locations.length === 0 });
-    resetAddressUi('', false);
-    setMapFocus(null);
+    setPickerKey(Date.now());
     setOpen(true);
   }
 
@@ -131,88 +70,17 @@ export function PickupLocationsSection({
       lng: location.lng,
       isDefault: location.isDefault,
     });
-    resetAddressUi(location.street, true);
-    if (location.lat != null && location.lng != null) {
-      setMapFocus({
-        latitude: location.lat,
-        longitude: location.lng,
-        zoom: 16,
-        key: Date.now(),
-      });
-    } else {
-      setMapFocus(null);
-    }
+    setPickerKey(Date.now());
     setOpen(true);
   }
 
-  function selectSearchResult(place: MapPlace) {
-    suppressSearchRef.current = true;
-    searchRequestId.current += 1;
-    setSearchResults([]);
-    setSearching(false);
-    setAddressQuery(place.label);
+  function onAddressChange(next: AddressMapValue) {
     setEditor((current) => ({
       ...current,
-      street: place.label,
-      lat: place.latitude,
-      lng: place.longitude,
+      street: next.street,
+      lat: next.lat,
+      lng: next.lng,
     }));
-    setMapFocus({
-      latitude: place.latitude,
-      longitude: place.longitude,
-      zoom: zoomForPlaceType(place.placeType),
-      key: Date.now(),
-    });
-    setError(null);
-  }
-
-  function onAddressInputChange(value: string) {
-    suppressSearchRef.current = false;
-    setAddressQuery(value);
-    setEditor((current) => ({
-      ...current,
-      street: value,
-      // Clear pin until a new suggestion is chosen or the map is clicked.
-      lat: null,
-      lng: null,
-    }));
-    setMapFocus(null);
-  }
-
-  async function handleMapPlacement(coords: { latitude: number; longitude: number }) {
-    setEditor((current) => ({
-      ...current,
-      lat: coords.latitude,
-      lng: coords.longitude,
-    }));
-    setMapFocus({
-      latitude: coords.latitude,
-      longitude: coords.longitude,
-      zoom: 17,
-      key: Date.now(),
-    });
-
-    // Keep the chosen address when refining the pin; only fill address if empty.
-    if (editor.street.trim()) {
-      setError(null);
-      return;
-    }
-
-    try {
-      const resolved = await reverseGeocodeGoogle(coords.latitude, coords.longitude);
-      if (resolved) {
-        suppressSearchRef.current = true;
-        setAddressQuery(resolved);
-        setEditor((current) => ({
-          ...current,
-          street: resolved,
-          lat: coords.latitude,
-          lng: coords.longitude,
-        }));
-      }
-    } catch {
-      /* keep pin without address */
-    }
     setError(null);
   }
 
@@ -234,7 +102,7 @@ export function PickupLocationsSection({
     try {
       const payload = {
         name: editor.name.trim(),
-        street: editor.street.trim(),
+        street: normalizeFormattedAddress(editor.street.trim()),
         city: defaultCity,
         country: defaultCountry,
         lat: editor.lat,
@@ -300,11 +168,6 @@ export function PickupLocationsSection({
       setError('Impossible de définir le défaut.');
     }
   }
-
-  const draft =
-    editor.lat != null && editor.lng != null
-      ? { latitude: editor.lat, longitude: editor.lng }
-      : null;
 
   return (
     <>
@@ -435,96 +298,17 @@ export function PickupLocationsSection({
             Définir comme adresse par défaut
           </label>
 
-          <div style={{ position: 'relative', zIndex: 2 }}>
-            <label style={{ display: 'grid', gap: 6 }}>
-              <span className="ops-field-label">Adresse de collecte</span>
-              <input
-                value={addressQuery}
-                onChange={(e) => onAddressInputChange(e.target.value)}
-                placeholder="Rechercher une adresse ou un lieu…"
-                style={{ ...webInputStyle, width: '100%' }}
-                autoComplete="off"
-                aria-autocomplete="list"
-                aria-expanded={searchResults.length > 0}
-              />
-            </label>
-            {searching ? (
-              <p style={{ margin: '0.4rem 0 0', fontSize: '0.75rem', color: colors.textMuted }}>
-                Recherche…
-              </p>
-            ) : null}
-            {searchResults.length > 0 ? (
-              <div
-                role="listbox"
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  top: '100%',
-                  marginTop: 4,
-                  border: borderSubtle(),
-                  borderRadius: radius.button,
-                  overflow: 'hidden',
-                  maxHeight: 220,
-                  overflowY: 'auto',
-                  background: colors.surface,
-                  boxShadow: '0 8px 24px rgba(18, 18, 18, 0.12)',
-                }}
-              >
-                {searchResults.map((place, index) => (
-                  <button
-                    key={place.id}
-                    type="button"
-                    role="option"
-                    onClick={() => selectSearchResult(place)}
-                    style={{
-                      display: 'block',
-                      width: '100%',
-                      textAlign: 'left',
-                      padding: '0.7rem 0.85rem',
-                      border: 'none',
-                      borderBottom: index < searchResults.length - 1 ? borderSubtle() : 'none',
-                      background: colors.surface,
-                      color: colors.secondary,
-                      fontSize: '0.8125rem',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {place.label}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
-
-          <div style={{ display: 'grid', gap: '0.55rem' }}>
-            <div>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.8125rem',
-                  fontWeight: 600,
-                  color: colors.secondary,
-                }}
-              >
-                Position exacte
-              </p>
-              <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: colors.textMuted }}>
-                Déplacez le repère si nécessaire pour indiquer précisément où le chauffeur doit se
-                rendre.
-              </p>
-            </div>
-            <LockerGoogleMap
-              lockers={[]}
-              draftMarker={draft}
-              draftMarkerDraggable={Boolean(draft)}
-              onDraftMarkerDrag={(coords) => void handleMapPlacement(coords)}
-              mapFocus={mapFocus}
-              onViewportChange={setMapViewport}
-              onMapClick={(coords) => void handleMapPlacement(coords)}
-              height={340}
-            />
-          </div>
+          <AddressMapPicker
+            key={pickerKey}
+            resetKey={pickerKey}
+            active={open}
+            value={{ street: editor.street, lat: editor.lat, lng: editor.lng }}
+            onChange={onAddressChange}
+            onSearchError={setError}
+            label="Adresse de collecte"
+            mapHint="Déplacez le repère si nécessaire pour indiquer précisément où le chauffeur doit se rendre."
+            mapHeight={340}
+          />
         </div>
       </Modal>
     </>

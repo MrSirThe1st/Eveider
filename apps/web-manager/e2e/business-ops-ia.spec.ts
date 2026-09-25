@@ -27,7 +27,7 @@ async function selectDestinationLocker(page: import('@playwright/test').Page) {
 test.describe('Business portal IA', () => {
   test.describe.configure({ timeout: 90_000 });
 
-  test('primary navigation is Tableau de bord / Colis / Organisation', async ({ page }) => {
+  test('primary navigation is Tableau de bord / Colis / Points / Organisation', async ({ page }) => {
     await signIn(page, 'boutique.lubum@eveider.cd');
     await page.goto('/organisation/tableau-de-bord');
     await dismissCookieBanner(page);
@@ -35,9 +35,9 @@ test.describe('Business portal IA', () => {
     const nav = page.locator('.nb-side-nav__link');
     await expect(nav.filter({ hasText: 'Tableau de bord' })).toBeVisible();
     await expect(nav.filter({ hasText: 'Colis' })).toBeVisible();
+    await expect(nav.filter({ hasText: 'Points' })).toBeVisible();
     await expect(nav.filter({ hasText: 'Organisation' })).toBeVisible();
 
-    await expect(nav.filter({ hasText: 'Points' })).toHaveCount(0);
     await expect(nav.filter({ hasText: 'Casiers' })).toHaveCount(0);
     await expect(nav.filter({ hasText: 'Livraisons' })).toHaveCount(0);
     await expect(nav.filter({ hasText: 'Retours' })).toHaveCount(0);
@@ -89,11 +89,11 @@ test.describe('Business portal IA', () => {
     await expect(page.getByLabel('Chauffeur')).toHaveCount(0);
 
     await page.getByRole('button', { name: /Collecte Eveider/ }).click();
-    const contact = page.getByLabel('Contact collecte');
+    const contact = page.getByLabel('Personne à joindre');
     if (!(await contact.inputValue())) {
       await contact.fill('Boutique Lubum');
     }
-    const phone = page.getByLabel('Téléphone de collecte');
+    const phone = page.getByLabel('Téléphone', { exact: true });
     if (!(await phone.inputValue())) {
       await phone.fill('+243900000010');
     }
@@ -130,11 +130,11 @@ test.describe('Business portal IA', () => {
     await page.getByRole('button', { name: /Dépôt au casier/ }).click();
     await expect(page.getByText('Aucun chauffeur Eveider n’intervient')).toBeVisible();
     await expect(page.getByLabel('Adresse de collecte')).toHaveCount(0);
-    const contact = page.getByLabel('Contact entreprise');
+    const contact = page.getByLabel('Personne à joindre');
     if (!(await contact.inputValue())) {
       await contact.fill('Boutique Lubum');
     }
-    const phone = page.getByLabel('Téléphone entreprise');
+    const phone = page.getByLabel('Téléphone', { exact: true });
     if (!(await phone.inputValue())) {
       await phone.fill('+243900000010');
     }

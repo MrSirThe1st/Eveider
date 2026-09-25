@@ -112,15 +112,15 @@ describe('toCustomerParcelDto pickup gating', () => {
     expect(dto.pickupPin).toBeNull();
   });
 
-  it('hides PIN until the parcel is ready for pickup', () => {
+  it('hides PIN until ready but still exposes fee preview earlier', () => {
     const dto = toCustomerParcelDto(
       { ...baseParcel, status: 'delivered_to_locker' },
       {
         pickupPayment: {
-          required: false,
+          required: true,
           status: 'none',
-          amount: null,
-          currency: null,
+          amount: '4',
+          currency: 'USD',
           provider: null,
           depositId: null,
           failureReason: null,
@@ -130,7 +130,8 @@ describe('toCustomerParcelDto pickup gating', () => {
     );
 
     expect(dto.pickupPin).toBeNull();
-    expect(dto.pickupPayment).toBeNull();
+    expect(dto.pickupPayment?.amount).toBe('4');
+    expect(dto.pickupPayment?.currency).toBe('USD');
     expect(dto.pickupType).toBe('courier_pickup');
   });
 

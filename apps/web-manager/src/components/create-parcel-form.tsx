@@ -2,7 +2,7 @@
 
 import { colors, borderSubtle } from '@eveider/config-ui';
 import { PACKAGE_SIZE_LABELS, PACKAGE_SIZES, formatDeliveryFee, type DeliveryPricingCurrency, type PackageSize, type ShipmentPickupType } from '@eveider/domain';
-import { InlineAlert, TextField, Wizard, type WizardStep, useToast } from '@eveider/ui';
+import { InlineAlert, TextField, PhoneField, Wizard, type WizardStep, useToast } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { LockerPicker } from '@/components/locker-picker';
@@ -209,11 +209,11 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
 
   function validateMethod(): boolean {
     if (senderName.trim().length < 2) {
-      setError('Nom de l’entreprise / contact requis.');
+      setError('Indiquez la personne à joindre.');
       return false;
     }
     if (!senderPhone.trim()) {
-      setError('Téléphone de contact requis.');
+      setError('Indiquez un numéro de téléphone.');
       return false;
     }
     if (pickupType === 'courier_pickup' && senderAddress.trim().length < 5) {
@@ -397,18 +397,12 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
                 Eveider organisera la prise en charge. Vous ne choisissez pas le chauffeur.
               </p>
               {pickupLocations.length === 0 ? (
-                <div style={{ display: 'grid', gap: '0.75rem' }}>
-                  <InlineAlert
-                    message="Ajoutez une adresse de collecte pour que les chauffeurs puissent venir récupérer vos colis."
-                    variant="info"
-                  />
-                  <a
-                    href={WEB_ROUTES.businessSettingsOrganisation}
-                    style={{ fontSize: '0.875rem', fontWeight: 600, color: colors.primary }}
-                  >
-                    + Ajouter une adresse
-                  </a>
-                </div>
+                <a
+                  href={WEB_ROUTES.businessSettingsOrganisation}
+                  style={{ fontSize: '0.875rem', fontWeight: 600, color: colors.primary }}
+                >
+                  + Ajouter une adresse
+                </a>
               ) : (
                 <>
                   <label className="ops-field">
@@ -464,20 +458,23 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
                     + Ajouter une adresse
                   </a>
                   <TextField
-                    label="Contact"
+                    label="Personne à joindre"
                     name="senderName"
                     value={senderName}
                     onChange={(e) => setSenderName(e.target.value)}
                     disabled={loading}
                     required
+                    hint="Quelqu’un présent à cette adresse, que le chauffeur Eveider pourra appeler."
+                    placeholder="Jean Mukendi"
                   />
-                  <TextField
+                  <PhoneField
                     label="Téléphone"
                     name="senderPhone"
                     value={senderPhone}
-                    onChange={(e) => setSenderPhone(e.target.value)}
+                    onChange={setSenderPhone}
                     disabled={loading}
                     required
+                    hint="Numéro joignable au moment de la prise en charge."
                   />
                 </>
               )}
@@ -488,18 +485,20 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
                 Vous devrez déposer ce colis au casier sélectionné. Aucun chauffeur Eveider n’intervient.
               </p>
               <TextField
-                label="Contact entreprise"
+                label="Personne à joindre"
                 name="senderName"
                 value={senderName}
                 onChange={(e) => setSenderName(e.target.value)}
                 disabled={loading}
                 required
+                hint="Personne à contacter au sujet de ce colis — pas le nom de l’entreprise."
+                placeholder="Jean Mukendi"
               />
-              <TextField
-                label="Téléphone entreprise"
+              <PhoneField
+                label="Téléphone"
                 name="senderPhone"
                 value={senderPhone}
-                onChange={(e) => setSenderPhone(e.target.value)}
+                onChange={setSenderPhone}
                 disabled={loading}
                 required
               />
@@ -518,11 +517,11 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
             disabled={loading}
             required
           />
-          <TextField
+          <PhoneField
             label="Téléphone"
             name="recipientPhone"
             value={recipientPhone}
-            onChange={(e) => setRecipientPhone(e.target.value)}
+            onChange={setRecipientPhone}
             disabled={loading}
             required
           />

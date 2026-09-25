@@ -1,7 +1,7 @@
 'use client';
 
 import { colors, radius, webCardStyle, webInputStyle, webPrimaryButtonStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
-import { Spinner } from '@eveider/ui';
+import { PhoneField, Spinner } from '@eveider/ui';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -18,7 +18,7 @@ export function BusinessRegistrationFlow() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('+243');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
@@ -160,17 +160,15 @@ export function BusinessRegistrationFlow() {
               />
             </label>
 
-            <label style={{ display: 'block', marginTop: '1.25rem' }}>
-              <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Numéro de téléphone *</span>
-              <input
-                type="tel"
-                required
+            <div style={{ marginTop: '1.25rem' }}>
+              <PhoneField
+                label="Numéro de téléphone *"
+                name="phone"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+243 810 000 000"
-                style={{ ...webInputStyle, marginTop: '0.35rem' }}
+                onChange={setPhone}
+                required
               />
-            </label>
+            </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1.25rem' }}>
               <label style={{ display: 'block' }}>

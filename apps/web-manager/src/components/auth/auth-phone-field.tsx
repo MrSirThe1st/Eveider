@@ -1,8 +1,7 @@
 'use client';
 
+import { DRC_PHONE_PREFIX, toE164Phone, toNationalPhoneDigits } from '@eveider/domain';
 import styles from './auth-shell.module.css';
-
-const PREFIX = '+243';
 
 type AuthPhoneFieldProps = {
   label: string;
@@ -13,27 +12,23 @@ type AuthPhoneFieldProps = {
 };
 
 export function AuthPhoneField({ label, value, onChange, required, hint }: AuthPhoneFieldProps) {
-  const local = value.replace(/^\+243\s*/, '').replace(/^\+243/, '');
+  const local = toNationalPhoneDigits(value);
 
   return (
     <div className={styles.field}>
       <span>{label}</span>
       <div className={styles.phoneRow}>
-        <span className={styles.phonePrefix}>{PREFIX}</span>
+        <span className={styles.phonePrefix}>{DRC_PHONE_PREFIX}</span>
         <input
           className={styles.input}
           type="tel"
           inputMode="numeric"
           required={required}
           value={local}
-          onChange={(event) => {
-            const digits = event.target.value.replace(/[^\d\s]/g, '');
-            const compact = digits.replace(/\s/g, '');
-            onChange(compact ? `${PREFIX}${compact}` : '');
-          }}
-          placeholder="810 000 000"
+          onChange={(event) => onChange(toE164Phone(event.target.value))}
+          placeholder="810000000"
           autoComplete="tel-national"
-          aria-label={`${label}, indicatif ${PREFIX}`}
+          aria-label={`${label}, indicatif ${DRC_PHONE_PREFIX}`}
         />
       </div>
       {hint ? <p className={styles.hint}>{hint}</p> : null}

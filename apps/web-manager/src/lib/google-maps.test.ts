@@ -3,6 +3,7 @@ import {
   isValidLatitude,
   isValidLongitude,
   isWithinDrcBounds,
+  normalizeFormattedAddress,
   parseCoordinateInput,
   placeTypeLabel,
   rankPlaceType,
@@ -10,6 +11,22 @@ import {
   type MapBounds,
   DRC_BOUNDS,
 } from './google-maps';
+
+describe('normalizeFormattedAddress', () => {
+  it('collapses empty comma-separated segments from Google', () => {
+    expect(
+      normalizeFormattedAddress(
+        'No.1, Kamina,, Commune de Manika, Kolwezi, République démocratique du Congo',
+      ),
+    ).toBe('No.1, Kamina, Commune de Manika, Kolwezi, République démocratique du Congo');
+  });
+
+  it('trims parts and leaves clean addresses unchanged', () => {
+    expect(normalizeFormattedAddress('14ème Rue Industrielle, Limete, Kinshasa')).toBe(
+      '14ème Rue Industrielle, Limete, Kinshasa',
+    );
+  });
+});
 
 describe('parseCoordinateInput', () => {
   it('parses decimal coordinates', () => {

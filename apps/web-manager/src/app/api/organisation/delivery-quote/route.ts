@@ -1,5 +1,6 @@
 import { deliveryQuoteQuerySchema, fail, ok } from '@eveider/api-contracts';
 import { NextResponse } from 'next/server';
+import { organisationParcelCreateStatus } from '@/lib/create-organisation-parcel';
 import { buildDeliveryQuote } from '@/lib/delivery-quote';
 import { requireBusinessSession } from '@/lib/session';
 
@@ -31,7 +32,7 @@ export async function GET(request: Request) {
     });
     return NextResponse.json(ok(quote));
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Erreur serveur';
-    return NextResponse.json(fail(message), { status: 500 });
+    const { status, message } = organisationParcelCreateStatus(err);
+    return NextResponse.json(fail(message), { status });
   }
 }

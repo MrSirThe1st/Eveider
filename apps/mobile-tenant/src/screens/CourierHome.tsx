@@ -8,9 +8,10 @@ import { DispatcherContactButton } from '../components/DispatcherContactButton';
 import { DropOffProofCard } from '../components/DropOffProofCard';
 import {
   LockerMapView,
-  openAddressSearch,
   openDirections,
+  openStopDirections,
 } from '../components/LockerMapView';
+import { ResolveDestinationModal } from '../components/AddressPlacesField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ReportIssueForm } from '../components/ReportIssueForm';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -97,6 +98,7 @@ export function CourierHome({ surface = 'active' }: CourierHomeProps) {
   const [scanCode, setScanCode] = useState('');
   const [photoBase64, setPhotoBase64] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [resolveQuery, setResolveQuery] = useState<string | null>(null);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -329,6 +331,7 @@ export function CourierHome({ surface = 'active' }: CourierHomeProps) {
                 }}
                 onOpenProof={() => void handleOpenExistingProof()}
                 onOpenRoute={() => openContextualRoute(selected.id)}
+                onNeedResolve={setResolveQuery}
               />
             ) : null}
 
@@ -384,6 +387,14 @@ export function CourierHome({ surface = 'active' }: CourierHomeProps) {
           </ScrollView>
         </KeyboardAvoidingView>
       ) : null}
+      <ResolveDestinationModal
+        open={resolveQuery != null}
+        initialQuery={resolveQuery ?? ''}
+        onClose={() => setResolveQuery(null)}
+        onResolved={(place) =>
+          openDirections(place.latitude, place.longitude, place.label)
+        }
+      />
     </View>
   );
 }
@@ -534,6 +545,7 @@ function DetailScreen({
   onReport,
   onOpenProof,
   onOpenRoute,
+  onNeedResolve,
 }: {
   delivery: CourierDelivery;
   busy: boolean;
@@ -546,6 +558,7 @@ function DetailScreen({
   onReport: () => void;
   onOpenProof: () => void;
   onOpenRoute: () => void;
+  onNeedResolve: (query: string) => void;
 }) {
   const { t } = useTranslation();
   const movement = getDriverMovementLabel(delivery);
@@ -606,7 +619,7 @@ function DetailScreen({
 
       <PrimaryButton
         label={t('courier.openMaps')}
-        onPress={() => openStop(current)}
+        onPress={() => openStop(current, onNeedResolve)}
         variant="secondary"
       />
       {current.contactPhone ? (
@@ -798,13 +811,17 @@ function ProofScreen({
   );
 }
 
-function openStop(place: ReturnType<typeof getDriverCurrentStop>) {
-  if (place.latitude != null && place.longitude != null) {
-    openDirections(place.latitude, place.longitude, place.name);
-    return;
-  }
-  const query = [place.name, place.address].filter(Boolean).join(' ');
-  if (query) openAddressSearch(query);
+function openStop(
+  place: ReturnType<typeof getDriverCurrentStop>,
+  onNeedResolve: (query: string) => void,
+) {
+  openStopDirections({
+    latitude: place.latitude,
+    longitude: place.longitude,
+    name: place.name,
+    address: place.address,
+    onNeedResolve,
+  });
 }
 
 function openPhone(phone: string) {

@@ -3,10 +3,11 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as Updates from 'expo-updates';
 import { useEffect, useRef, useState } from 'react';
-import { Linking, StyleSheet, View } from 'react-native';
+import { Linking } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import './src/i18n';
+import { BootSplash } from './src/components/BootSplash';
 import { SettingsProvider, useSettings } from './src/context/settings-context';
 import { ThemeProvider, useAppTheme } from './src/theme';
 import { apiFetch } from './src/lib/api-fetch';
@@ -17,8 +18,9 @@ import { MobileTabs } from './src/navigation/MobileTabs';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { LocaleSetupScreen } from './src/screens/LocaleSetupScreen';
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
+const BOOT_TIMEOUT_MS = 8_000;
 async function applyOtaUpdateIfAvailable() {
   if (__DEV__) return;
   try {
@@ -76,27 +78,44 @@ async function completeDriverInvite(accessToken: string) {
 
 function AppContent() {
   const { ready, setupComplete } = useSettings();
-  const { colors, scheme, navigationTheme } = useAppTheme();
+  const { scheme, navigationTheme } = useAppTheme();
   const [state, setState] = useState<AppState>({ kind: 'booting' });
   const [pendingInviteToken, setPendingInviteToken] = useState<string | null>(null);
   const authInProgressRef = useRef(false);
   const resetPasswordRef = useRef(false);
+
+  const showNativeSplash = !ready || (setupComplete && state.kind === 'booting');
 
   useEffect(() => {
     void applyOtaUpdateIfAvailable();
   }, []);
 
   useEffect(() => {
-    if (ready) {
-      void SplashScreen.hideAsync();
-    }
-  }, [ready]);
+    if (showNativeSplash) return;
+    void SplashScreen.hideAsync().catch(() => undefined);
+  }, [showNativeSplash]);
 
   useEffect(() => {
     if (!ready || !setupComplete) return;
 
     let mounted = true;
+    let bootSettled = false;
 
+    function applyState(next: AppState) {
+      if (!mounted) return;
+      if (!bootSettled) {
+        bootSettled = true;
+        clearTimeout(bootTimeout);
+      }
+      setState(next);
+    }
+
+    const bootTimeout = setTimeout(() => {
+      console.warn(
+        '[eveider:boot] Timed out restoring session — continuing as guest. Check network / EXPO_PUBLIC_AUTH_API_URL.',
+      );
+      applyState(GUEST_HOME);
+    }, BOOT_TIMEOUT_MS);
     async function loadInviteContext(token: string) {
       const preview = await fetchInvitePreview(token);
       if (!mounted) return { token, preview: null as InvitePreview | null };
@@ -131,48 +150,51 @@ function AppContent() {
           }
         }
 
-        if (mounted) {
-          setState({
-            kind: 'home',
-            role: role === 'courier' ? 'driver' : role,
-            guest: false,
-            initialParcelId,
-          });
-        }
+        applyState({
+          kind: 'home',
+          role: role === 'courier' ? 'driver' : role,
+          guest: false,
+          initialParcelId,
+        });
         return;
       }
 
       if (!meResult.success && isMissingProfile(meResult.error)) {
-        if (mounted) {
-          const inviteContext = inviteToken ? await loadInviteContext(inviteToken) : null;
-          setState({
-            kind: 'auth',
-            inviteToken: inviteContext?.token,
-            invitePreview: inviteContext?.preview ?? undefined,
-            needsProfile: true,
-          });
-        }
+        const inviteContext = inviteToken ? await loadInviteContext(inviteToken) : null;
+        applyState({
+          kind: 'auth',
+          inviteToken: inviteContext?.token,
+          invitePreview: inviteContext?.preview ?? undefined,
+          needsProfile: true,
+        });
         return;
       }
 
       if (!meResult.success && isInvalidSession(meResult.error) && !authInProgressRef.current) {
         await supabase.auth.signOut();
-        if (mounted) {
-          setState(GUEST_HOME);
-        }
+        applyState(GUEST_HOME);
         return;
       }
 
-      // Valid Supabase session but /me failed (network) or role not mobile —
+      // Offline / unreachable API — avoid authenticated screens that would spam
+      // the same Network request failed errors while Supabase keeps retrying.
+      if (
+        !meResult.success &&
+        (meResult.error.includes('Serveur inaccessible') || meResult.error.includes('Délai'))
+      ) {
+        console.warn('[eveider:boot] API unreachable during session restore:', meResult.error);
+        applyState(GUEST_HOME);
+        return;
+      }
+
+      // Valid Supabase session but /me failed (other) or role not mobile —
       // never demote to guest while a token still exists.
       if (meResult.success && !isMobileRole(role)) {
-        if (mounted) setState(GUEST_HOME);
+        applyState(GUEST_HOME);
         return;
       }
 
-      if (mounted) {
-        setState({ kind: 'home', role: 'customer', guest: false });
-      }
+      applyState({ kind: 'home', role: 'customer', guest: false });
     }
 
     async function consumeAuthUrl(url: string | null): Promise<'reset' | 'magic' | null> {
@@ -226,11 +248,12 @@ function AppContent() {
         const recovered = await consumeAuthUrl(initialUrl);
         if (recovered === 'reset') {
           resetPasswordRef.current = true;
-          if (mounted) setState({ kind: 'auth', resetPassword: true });
+          applyState({ kind: 'auth', resetPassword: true });
           return;
         }
         if (recovered === 'magic') {
           await finishMagicLink();
+          if (!bootSettled) applyState(GUEST_HOME);
           return;
         }
 
@@ -239,29 +262,39 @@ function AppContent() {
 
         const {
           data: { session },
+          error: sessionError,
         } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          console.warn('[eveider:boot] getSession failed:', sessionError.message);
+          // Stale refresh tokens + no network cause AuthRetryableFetchError loops.
+          await supabase.auth.signOut({ scope: 'local' });
+          applyState(GUEST_HOME);
+          return;
+        }
 
         if (!session) {
           if (inviteToken) {
             const inviteContext = await loadInviteContext(inviteToken);
-            if (mounted) {
-              setState({
-                kind: 'auth',
-                inviteToken: inviteContext.token,
-                invitePreview: inviteContext.preview ?? undefined,
-                optional: true,
-              });
-            }
+            applyState({
+              kind: 'auth',
+              inviteToken: inviteContext.token,
+              invitePreview: inviteContext.preview ?? undefined,
+              optional: true,
+            });
             return;
           }
 
-          if (mounted) setState(GUEST_HOME);
+          applyState(GUEST_HOME);
           return;
         }
 
         await restoreSession(session.access_token, inviteToken);
-      } catch {
-        if (mounted) setState(GUEST_HOME);
+        if (!bootSettled) applyState(GUEST_HOME);
+      } catch (error) {
+        console.warn('[eveider:boot] bootstrap failed:', error);
+        await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+        applyState(GUEST_HOME);
       }
     }
 
@@ -270,7 +303,7 @@ function AppContent() {
 
       if (event === 'PASSWORD_RECOVERY') {
         resetPasswordRef.current = true;
-        setState({ kind: 'auth', resetPassword: true });
+        applyState({ kind: 'auth', resetPassword: true });
         return;
       }
 
@@ -279,7 +312,7 @@ function AppContent() {
       if (event === 'SIGNED_OUT') {
         if (authInProgressRef.current) return;
         resetPasswordRef.current = false;
-        setState(GUEST_HOME);
+        applyState(GUEST_HOME);
         return;
       }
 
@@ -335,13 +368,14 @@ function AppContent() {
 
     return () => {
       mounted = false;
+      clearTimeout(bootTimeout);
       urlSubscription.remove();
       subscription.subscription.unsubscribe();
     };
   }, [pendingInviteToken, ready, setupComplete]);
 
-  if (!ready || state.kind === 'booting') {
-    return <View style={[styles.boot, { backgroundColor: colors.background }]} />;
+  if (!ready) {
+    return <BootSplash />;
   }
 
   if (!setupComplete) {
@@ -351,6 +385,10 @@ function AppContent() {
         <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
       </>
     );
+  }
+
+  if (state.kind === 'booting') {
+    return <BootSplash />;
   }
 
   if (state.kind === 'auth') {
@@ -419,10 +457,3 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  boot: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-});

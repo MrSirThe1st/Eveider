@@ -4,6 +4,7 @@ import {
   LockerSelectPanel,
   openAddressSearch,
   openDirections,
+  openStopDirections,
   useLockerMapStyles,
   type LockerMapViewProps,
 } from './locker-map-shared';
@@ -34,4 +35,10 @@ export function LockerMapView({
   );
 }
 
-export { LockerSelectPanel, getCurrentCoordinates, openAddressSearch, openDirections };
+export {
+  LockerSelectPanel,
+  getCurrentCoordinates,
+  openAddressSearch,
+  openDirections,
+  openStopDirections,
+} from './locker-map-shared';

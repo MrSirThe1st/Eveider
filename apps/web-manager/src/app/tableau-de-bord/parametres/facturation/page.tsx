@@ -212,35 +212,32 @@ export default function AdminBillingSettingsPage() {
                     </span>
                   }
                 >
-                  <div style={{ display: 'grid', gap: '1.25rem', marginTop: '0.85rem' }}>
+                  <div style={{ display: 'grid', gap: '1rem', marginTop: '0.85rem' }}>
                     {group.zones.map((zone) => (
                       <div
                         key={zone.id}
                         id={`zone-${zone.id}`}
-                        style={{
-                          display: 'grid',
-                          gap: '0.85rem',
-                          marginLeft: '0.25rem',
-                          paddingLeft: '1rem',
-                          borderLeft: `2px solid ${colors.borderSubtle}`,
-                        }}
+                        style={zoneBlockStyle}
                       >
                         <h4 style={zoneHeadingStyle}>{zoneSectionTitle(zone.name, group.city)}</h4>
                         <TariffPriceStepper
                           id={`livraison-${zone.id}`}
                           label="Livraison"
-                          hint="Ces frais s’appliquent quand Eveider livre le colis au destinataire."
+                          hint="Eveider transporte le colis jusqu’au casier de destination."
+                          payer="recipient"
                           ariaLabel={`Livraison ${zone.name}`}
                           amount={zone.outboundDeliveryAmount}
                           currency={rules.currency}
                           nullable
                           onChange={(amount) => updateZonePrice(zone.id, 'outboundDeliveryAmount', amount)}
                         />
+                        <div style={feeDividerStyle} role="separator" />
                         <TariffPriceStepper
                           id={`retour-${zone.id}`}
-                          label="Retour vers l’entreprise"
-                          hint="Ces frais s’appliquent quand Eveider ramène un retour à l’entreprise."
-                          ariaLabel={`Retour vers l’entreprise ${zone.name}`}
+                          label="Retour du colis à l’entreprise"
+                          hint="Eveider récupère le colis retourné au casier et le ramène à l’entreprise."
+                          payer="business"
+                          ariaLabel={`Retour du colis à l’entreprise ${zone.name}`}
                           amount={zone.returnDeliveryAmount}
                           currency={rules.currency}
                           nullable
@@ -260,11 +257,12 @@ export default function AdminBillingSettingsPage() {
           <h2 id="tarifs-casier" style={sectionOverlineStyle}>
             Frais de casier
           </h2>
-          <div style={{ display: 'grid', gap: '1.25rem', marginTop: '1.25rem' }}>
+          <div style={{ display: 'grid', gap: '0', marginTop: '1.25rem' }}>
             <TariffPriceStepper
               id="retrait-casier"
               label="Retrait au casier"
-              hint="Ces frais s’appliquent quand l’entreprise dépose le colis au casier et que le destinataire vient le chercher."
+              hint="Le destinataire vient retirer au casier un colis déposé par l’entreprise."
+              payer="recipient"
               ariaLabel="Retrait au casier"
               amount={rules.lockerCollectionAmount}
               currency={rules.currency}
@@ -272,20 +270,24 @@ export default function AdminBillingSettingsPage() {
                 setRules({ ...rules, lockerCollectionAmount: amount ?? 0 })
               }
             />
+            <div style={{ ...feeDividerStyle, margin: '1.15rem 0' }} role="separator" />
             <TariffPriceStepper
               id="retrait-retour"
-              label="Retrait d’un retour par l’entreprise"
-              hint="Ces frais s’appliquent quand le destinataire dépose un retour au casier et que l’entreprise vient le récupérer."
-              ariaLabel="Retrait d’un retour par l’entreprise"
+              label="Retrait d’un colis retourné par l’entreprise"
+              hint="Le destinataire dépose le colis retourné au casier, et l’entreprise vient le récupérer."
+              payer="business"
+              ariaLabel="Retrait d’un colis retourné par l’entreprise"
               amount={rules.returnLockerAmount}
               currency={rules.currency}
               onChange={(amount) => setRules({ ...rules, returnLockerAmount: amount ?? 0 })}
             />
+            <div style={{ ...feeDividerStyle, margin: '1.15rem 0' }} role="separator" />
             <TariffPriceStepper
               id="stockage-supplementaire"
-              label="Stockage supplémentaire"
-              hint={`Ces frais s’appliquent pour chaque tranche de 24 h après les ${pickupHoldHours} h gratuites au casier.`}
-              ariaLabel="Stockage supplémentaire"
+              label="Stockage prolongé au casier"
+              hint={`Quand le colis reste au casier après les ${pickupHoldHours} h incluses — facturé par tranche de 24 h.`}
+              payer="business"
+              ariaLabel="Stockage prolongé au casier"
               amount={rules.lockerRentalRateAmount}
               currency={rules.currency}
               onChange={(amount) =>
@@ -321,6 +323,21 @@ const sectionHintStyle = {
   fontSize: typography.bodySm.fontSize,
   lineHeight: typography.bodySm.lineHeight,
   color: colors.textMuted,
+} as const;
+
+const zoneBlockStyle = {
+  display: 'grid',
+  gap: '0.85rem',
+  padding: '1rem 1.1rem',
+  borderRadius: 10,
+  border: `1px solid ${colors.borderSubtle}`,
+  background: colors.surfaceSubtle,
+} as const;
+
+const feeDividerStyle = {
+  height: 1,
+  margin: '0.15rem 0',
+  background: colors.borderSubtle,
 } as const;
 
 const zoneHeadingStyle = {

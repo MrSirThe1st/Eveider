@@ -3,6 +3,7 @@ import { createRepositories } from '@eveider/data-access';
 import { formatDeliveryFee } from '@eveider/domain';
 import { NextResponse } from 'next/server';
 import { getBusinessChargeLabel } from '@/lib/business-presentation';
+import { organisationParcelCreateStatus } from '@/lib/create-organisation-parcel';
 import { requireBusinessSession } from '@/lib/session';
 
 export async function GET(request: Request) {
@@ -42,7 +43,7 @@ export async function GET(request: Request) {
       }),
     );
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Erreur serveur';
-    return NextResponse.json(fail(message), { status: 500 });
+    const { status, message } = organisationParcelCreateStatus(err);
+    return NextResponse.json(fail(message), { status });
   }
 }

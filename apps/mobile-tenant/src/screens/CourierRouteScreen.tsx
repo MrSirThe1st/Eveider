@@ -17,11 +17,12 @@ import {
 import { ActionRow } from '../components/ActionRow';
 import { AppSpinner } from '../components/AppSpinner';
 import { EmptyState } from '../components/EmptyState';
+import { ResolveDestinationModal } from '../components/AddressPlacesField';
 import {
   LockerMapView,
   getCurrentCoordinates,
-  openAddressSearch,
   openDirections,
+  openStopDirections,
 } from '../components/LockerMapView';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -59,6 +60,7 @@ export function CourierRouteScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resolveQuery, setResolveQuery] = useState<string | null>(null);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -168,11 +170,13 @@ export function CourierRouteScreen() {
                   </View>
                   <Pressable
                     onPress={() => {
-                      if (stop.latitude != null && stop.longitude != null) {
-                        openDirections(stop.latitude, stop.longitude, stop.name);
-                        return;
-                      }
-                      openAddressSearch([stop.name, stop.address].filter(Boolean).join(' '));
+                      openStopDirections({
+                        latitude: stop.latitude,
+                        longitude: stop.longitude,
+                        name: stop.name,
+                        address: stop.address,
+                        onNeedResolve: setResolveQuery,
+                      });
                     }}
                     hitSlop={8}
                     accessibilityRole="button"
@@ -186,6 +190,14 @@ export function CourierRouteScreen() {
           )}
         </ScrollView>
       ) : null}
+      <ResolveDestinationModal
+        open={resolveQuery != null}
+        initialQuery={resolveQuery ?? ''}
+        onClose={() => setResolveQuery(null)}
+        onResolved={(place) =>
+          openDirections(place.latitude, place.longitude, place.label)
+        }
+      />
     </View>
   );
 }

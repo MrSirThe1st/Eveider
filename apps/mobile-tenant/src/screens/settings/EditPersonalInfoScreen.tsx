@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AppSpinner } from '../../components/AppSpinner';
+import { PhoneField } from '../../components/PhoneField';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { ScreenScaffold } from '../../components/ScreenHeader';
 import { TextField } from '../../components/TextField';
@@ -93,14 +94,10 @@ export function EditPersonalInfoScreen({ onBack }: EditPersonalInfoScreenProps) 
             autoComplete="name"
             textContentType="name"
           />
-          <TextField
+          <PhoneField
             label={t('personalInfoSettings.phone')}
-            placeholder="+243800000000"
             value={phone}
             onChangeText={setPhone}
-            keyboardType="phone-pad"
-            autoComplete="tel"
-            textContentType="telephoneNumber"
           />
           <TextField
             label={t('personalInfoSettings.email')}

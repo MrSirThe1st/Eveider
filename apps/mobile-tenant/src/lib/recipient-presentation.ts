@@ -1,9 +1,11 @@
 import type {
+  DeliveryStatus,
   ParcelReturnMethod,
   ParcelReturnStatus,
   ParcelStatus,
   ShipmentPickupType,
 } from '@eveider/domain';
+import { isActiveDeliveryStatus } from '@eveider/domain';
 import type { CustomerParcel, PickupPayment } from './api';
 
 export type RecipientListSection = 'action' | 'progress' | 'recent';
@@ -28,6 +30,21 @@ export type RecipientActionResult<T> =
   | { success: true; data: T }
   | { success: false; error: string };
 
+export type RecipientStatusExplanation = {
+  title: string;
+  body: string | null;
+};
+
+export type RecipientPaymentPreview = {
+  feeLabel: string;
+  note: string;
+  payableNow: boolean;
+};
+
+function hasDriverTakenCharge(deliveryStatus: DeliveryStatus | null | undefined): boolean {
+  return Boolean(deliveryStatus && isActiveDeliveryStatus(deliveryStatus));
+}
+
 export function isFlow2DropOff(pickupType: ShipmentPickupType | null | undefined): boolean {
   return pickupType === 'merchant_dropoff';
 }
@@ -38,6 +55,18 @@ export function isEveiderTransportFlow(pickupType: ShipmentPickupType | null | u
 
 export function isHistoricalRecipientRts(parcel: Pick<CustomerParcel, 'status' | 'customerReturn'>): boolean {
   return parcel.status === 'returned' && !parcel.customerReturn;
+}
+
+export function formatRecipientFee(payment: PickupPayment | null | undefined): string | null {
+  if (!payment?.amount || !payment.currency) return null;
+  const amount = payment.amount.trim();
+  const currency = payment.currency.trim().toUpperCase();
+  if (!amount) return null;
+  if (currency === 'USD') {
+    const numeric = Number(amount);
+    return Number.isFinite(numeric) ? `$${numeric.toFixed(2)}` : `$${amount}`;
+  }
+  return `${amount} ${currency}`;
 }
 
 export function getRecipientParcelStatus(parcel: CustomerParcel): string {
@@ -58,9 +87,9 @@ export function getRecipientParcelStatus(parcel: CustomerParcel): string {
 
   switch (parcel.status) {
     case 'created':
-      return 'Colis préparé';
+      return hasDriverTakenCharge(parcel.deliveryStatus) ? 'Pris en charge' : 'Colis préparé';
     case 'in_transit':
-      return 'En cours de transport';
+      return 'En transport';
     case 'delivered_to_locker':
       return isFlow2DropOff(parcel.pickupType) ? 'Déposé au casier' : 'Arrivé au casier';
     case 'ready_for_pickup':
@@ -78,25 +107,116 @@ export function getRecipientParcelStatus(parcel: CustomerParcel): string {
   }
 }
 
-export function getRecipientStatusDetail(parcel: CustomerParcel): string | null {
+export function getRecipientStatusExplanation(parcel: CustomerParcel): RecipientStatusExplanation {
+  const business = parcel.businessName || 'l’expéditeur';
+  const lockerName = parcel.customerReturn?.returnLocker?.name ?? parcel.locker?.name;
+
+  const ret = parcel.customerReturn;
+  if (ret?.status === 'requested') {
+    return {
+      title: 'Retour demandé',
+      body: 'En attente de la décision de l’entreprise.',
+    };
+  }
+  if (ret?.status === 'rejected') {
+    return {
+      title: 'Retour refusé',
+      body: 'Le colis reste retiré. Aucun dépôt n’est demandé.',
+    };
+  }
+  if (ret?.status === 'cancelled') {
+    return {
+      title: 'Retour annulé',
+      body: 'Le colis reste retiré.',
+    };
+  }
+  if (ret?.status === 'authorized') {
+    return {
+      title: 'Retour autorisé',
+      body: lockerName
+        ? `Déposez le colis au casier ${lockerName} avec votre code de retour.`
+        : 'Déposez le colis au casier Eveider avec votre code de retour.',
+    };
+  }
+  if (parcel.status === 'return_at_point' || ret?.status === 'awaiting_pickup') {
+    return {
+      title: 'Retour déposé au casier',
+      body: 'Votre retour a été déposé. Il sera récupéré par Eveider ou l’entreprise selon le mode choisi.',
+    };
+  }
+  if (parcel.status === 'returning' || ret?.status === 'in_transit') {
+    return {
+      title: 'Retour en cours',
+      body: 'Votre retour est en route vers l’entreprise.',
+    };
+  }
+  if (parcel.status === 'returned' || ret?.status === 'completed') {
+    return {
+      title: isHistoricalRecipientRts(parcel) ? 'Retour à l’expéditeur' : 'Retourné à l’entreprise',
+      body: null,
+    };
+  }
+
+  if (parcel.status === 'ready_for_pickup') {
+    return {
+      title: 'Votre colis est prêt !',
+      body: lockerName
+        ? `Retirez-le à ${lockerName}.`
+        : 'Retirez-le à votre casier Eveider.',
+    };
+  }
+
+  if (parcel.status === 'collected') {
+    return {
+      title: 'Colis retiré',
+      body: lockerName ? `Vous avez retiré ce colis à ${lockerName}.` : null,
+    };
+  }
+
   if (parcel.status === 'delivered_to_locker') {
     return isFlow2DropOff(parcel.pickupType)
-      ? 'Votre colis a été déposé au casier. Il sera bientôt prêt au retrait.'
-      : 'Votre colis est arrivé au casier. Il sera bientôt prêt au retrait.';
+      ? {
+          title: 'Votre colis est au casier',
+          body: 'Il a été déposé au casier. Il sera bientôt prêt au retrait.',
+        }
+      : {
+          title: 'Votre colis est arrivé au casier',
+          body: 'Il sera bientôt prêt au retrait.',
+        };
   }
-  if (parcel.customerReturn?.status === 'requested') {
-    return 'En attente de la décision de l’entreprise.';
+
+  if (parcel.status === 'in_transit') {
+    return {
+      title: 'Votre colis est en transport',
+      body: lockerName
+        ? `Eveider l’achemine vers ${lockerName}.`
+        : 'Eveider l’achemine vers votre casier.',
+    };
   }
-  if (parcel.customerReturn?.status === 'rejected') {
-    return 'Le colis reste retiré. Aucun dépôt n’est demandé.';
+
+  if (parcel.status === 'created' && hasDriverTakenCharge(parcel.deliveryStatus)) {
+    return {
+      title: 'Votre colis est pris en charge',
+      body: `Eveider a récupéré le colis auprès de ${business} et prépare son acheminement.`,
+    };
   }
-  if (parcel.customerReturn?.status === 'cancelled') {
-    return 'Le colis reste retiré.';
+
+  if (isFlow2DropOff(parcel.pickupType)) {
+    return {
+      title: 'Votre colis attend son dépôt',
+      body: `${business} déposera bientôt le colis au casier Eveider.`,
+    };
   }
-  if (parcel.status === 'return_at_point' || parcel.customerReturn?.status === 'awaiting_pickup') {
-    return 'Votre retour a été déposé. Il sera récupéré par Eveider ou l’entreprise selon le mode choisi.';
-  }
-  return null;
+
+  return {
+    title: 'Votre colis attend sa prise en charge',
+    body: `Eveider récupérera le colis auprès de ${business} avant de l’acheminer vers votre casier.`,
+  };
+}
+
+/** @deprecated Prefer getRecipientStatusExplanation */
+export function getRecipientStatusDetail(parcel: CustomerParcel): string | null {
+  return getRecipientStatusExplanation(parcel).body;
 }
 
 function markSteps(labels: string[], currentIndex: number): RecipientJourneyStep[] {
@@ -109,17 +229,28 @@ function markSteps(labels: string[], currentIndex: number): RecipientJourneyStep
 }
 
 function outboundIndex(parcel: CustomerParcel): number {
-  if (parcel.status === 'collected' || parcel.status === 'returned' || parcel.status === 'return_at_point' || parcel.status === 'returning') {
-    return 4;
+  if (
+    parcel.status === 'collected' ||
+    parcel.status === 'returned' ||
+    parcel.status === 'return_at_point' ||
+    parcel.status === 'returning'
+  ) {
+    return 5;
   }
-  if (parcel.status === 'ready_for_pickup') return 3;
-  if (parcel.status === 'delivered_to_locker') return 2;
-  if (parcel.status === 'in_transit') return 1;
+  if (parcel.status === 'ready_for_pickup') return 4;
+  if (parcel.status === 'delivered_to_locker') return 3;
+  if (parcel.status === 'in_transit') return 2;
+  if (hasDriverTakenCharge(parcel.deliveryStatus)) return 1;
   return 0;
 }
 
 function flow2Index(parcel: CustomerParcel): number {
-  if (parcel.status === 'collected' || parcel.status === 'returned' || parcel.status === 'return_at_point' || parcel.status === 'returning') {
+  if (
+    parcel.status === 'collected' ||
+    parcel.status === 'returned' ||
+    parcel.status === 'return_at_point' ||
+    parcel.status === 'returning'
+  ) {
     return 3;
   }
   if (parcel.status === 'ready_for_pickup') return 2;
@@ -181,7 +312,8 @@ export function getRecipientJourney(parcel: CustomerParcel): {
 
   const labels = [
     'Colis préparé',
-    'En cours de transport',
+    'Pris en charge',
+    'En transport',
     'Arrivé au casier',
     'Prêt au retrait',
     'Retiré',
@@ -223,6 +355,41 @@ export function canShowCollectionCode(parcel: CustomerParcel): boolean {
   return Boolean(parcel.pickupPin);
 }
 
+export function getRecipientPaymentPreview(parcel: CustomerParcel): RecipientPaymentPreview | null {
+  const payment = parcel.pickupPayment;
+  if (!payment) return null;
+  if (hasMissingCanonicalCharge(payment)) return null;
+
+  const fee = formatRecipientFee(payment);
+  if (payment.status === 'completed') {
+    return {
+      feeLabel: fee ? `Frais de livraison ${fee}` : 'Frais de livraison',
+      note: 'Payé',
+      payableNow: false,
+    };
+  }
+
+  if (!payment.required && !fee) return null;
+
+  if (parcel.status === 'ready_for_pickup' && payment.required) {
+    return {
+      feeLabel: fee ? `Frais à payer : ${fee}` : 'Frais à payer',
+      note: 'Payez pour obtenir votre code de retrait.',
+      payableNow: true,
+    };
+  }
+
+  if (fee || payment.required) {
+    return {
+      feeLabel: fee ? `Frais de livraison ${fee}` : 'Frais de livraison',
+      note: 'À payer lorsque le colis sera disponible au retrait.',
+      payableNow: false,
+    };
+  }
+
+  return null;
+}
+
 export function getRecipientPrimaryAction(parcel: CustomerParcel): {
   id: RecipientPrimaryActionId;
   label: string;
@@ -235,7 +402,7 @@ export function getRecipientPrimaryAction(parcel: CustomerParcel): {
       return { id: 'retry_payment', label: 'Réessayer le paiement' };
     }
     if (needsRecipientPayment(parcel)) {
-      return { id: 'pay', label: 'Payer les frais' };
+      return { id: 'pay', label: 'Payer et obtenir mon code' };
     }
     if (canShowCollectionCode(parcel)) {
       return { id: 'view_collection_code', label: 'Voir le code de retrait' };
@@ -284,9 +451,8 @@ export function getRecipientListSection(parcel: CustomerParcel): RecipientListSe
 export function getRecipientNextActionHint(parcel: CustomerParcel): string | null {
   const action = getRecipientPrimaryAction(parcel);
   if (action.id === 'pay') {
-    const amount = parcel.pickupPayment?.amount;
-    const currency = parcel.pickupPayment?.currency;
-    return amount && currency ? `Frais à payer · ${amount} ${currency}` : 'Frais à payer';
+    const fee = formatRecipientFee(parcel.pickupPayment);
+    return fee ? `Frais à payer · ${fee}` : 'Frais à payer';
   }
   if (action.id === 'view_collection_code') return 'Code de retrait disponible';
   if (action.id === 'view_return_instructions') return 'Déposer le retour au casier';

@@ -214,6 +214,34 @@ export async function fetchLockersByCity(city: string) {
   };
 }
 
+export type MapPlaceResult = {
+  id: string;
+  label: string;
+  latitude: number;
+  longitude: number;
+  placeType: string;
+  placeTypeLabel: string;
+};
+
+export async function searchMapPlaces(
+  query: string,
+  options?: { latitude?: number; longitude?: number; limit?: number },
+) {
+  const params = new URLSearchParams({ q: query.trim() });
+  if (options?.latitude != null) params.set('latitude', String(options.latitude));
+  if (options?.longitude != null) params.set('longitude', String(options.longitude));
+  if (options?.limit != null) params.set('limit', String(options.limit));
+  return apiFetch<{ places: MapPlaceResult[] }>(`/api/maps/places?${params.toString()}`);
+}
+
+export async function reverseGeocodeMap(latitude: number, longitude: number) {
+  return apiFetch<{ address: string | null }>('/api/maps/reverse-geocode', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ latitude, longitude }),
+  });
+}
+
 export async function fetchPublicLockers(latitude: number, longitude: number) {
   const result = await apiFetch<{ lockers: CustomerLocker[] }>(
     `/api/lockers/nearest?latitude=${latitude}&longitude=${longitude}&limit=20`,

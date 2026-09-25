@@ -11,11 +11,14 @@ import {
 import {
   applyRecipientMutationResult,
   canShowCollectionCode,
+  formatRecipientFee,
   getRecipientJourney,
   getRecipientListSection,
   getRecipientParcelStatus,
+  getRecipientPaymentPreview,
   getRecipientPrimaryAction,
   getRecipientStatusDetail,
+  getRecipientStatusExplanation,
   hasMissingCanonicalCharge,
   isHistoricalRecipientRts,
   isPaymentProviderUnavailable,
@@ -53,8 +56,11 @@ function parcel(partial: Partial<CustomerParcel>): CustomerParcel {
 }
 
 describe('Flow 1 journey', () => {
-  it('uses transport then arrival then ready then collected', () => {
+  it('uses prise en charge then transport then arrival then ready then collected', () => {
     const prepared = getRecipientJourney(parcel({ status: 'created' }));
+    const charged = getRecipientJourney(
+      parcel({ status: 'created', deliveryStatus: 'assigned' }),
+    );
     const transit = getRecipientJourney(parcel({ status: 'in_transit', deliveryStatus: 'scanned' }));
     const arrived = getRecipientJourney(
       parcel({ status: 'delivered_to_locker', deliveryStatus: 'completed' }),
@@ -64,13 +70,17 @@ describe('Flow 1 journey', () => {
 
     expect(prepared.steps.map((step) => step.label)).toEqual([
       'Colis préparé',
-      'En cours de transport',
+      'Pris en charge',
+      'En transport',
       'Arrivé au casier',
       'Prêt au retrait',
       'Retiré',
     ]);
     expect(prepared.headline).toBe('Colis préparé');
-    expect(transit.headline).toBe('En cours de transport');
+    expect(prepared.steps.find((step) => step.label === 'Colis préparé')?.current).toBe(true);
+    expect(charged.headline).toBe('Pris en charge');
+    expect(charged.steps.find((step) => step.label === 'Pris en charge')?.current).toBe(true);
+    expect(transit.headline).toBe('En transport');
     expect(arrived.headline).toBe('Arrivé au casier');
     expect(arrived.steps.find((step) => step.label === 'Prêt au retrait')?.done).toBe(false);
     expect(ready.headline).toBe('Prêt au retrait');
@@ -120,9 +130,68 @@ describe('AT_POINT vs READY', () => {
       failureReason: null,
     } });
     expect(getRecipientParcelStatus(ready)).toBe('Prêt au retrait');
+    expect(getRecipientStatusExplanation(ready).title).toBe('Votre colis est prêt !');
     expect(canShowCollectionCode(ready)).toBe(true);
     expect(getRecipientPrimaryAction(ready).label).toBe('Voir le code de retrait');
     expect(getRecipientListSection(ready)).toBe('action');
+  });
+});
+
+describe('status explanation and payment preview', () => {
+  it('explains awaiting handoff without repeating the status label', () => {
+    const prepared = parcel({ status: 'created', businessName: 'mulikap' });
+    const explanation = getRecipientStatusExplanation(prepared);
+    expect(explanation.title).toBe('Votre colis attend sa prise en charge');
+    expect(explanation.body).toMatch(/mulikap/);
+    expect(explanation.body).toMatch(/casier/i);
+  });
+
+  it('previews unpaid delivery fees before ready for pickup', () => {
+    const preview = getRecipientPaymentPreview(
+      parcel({
+        status: 'created',
+        pickupPayment: {
+          required: true,
+          status: 'none',
+          amount: '4',
+          currency: 'USD',
+          provider: null,
+          depositId: null,
+          failureReason: null,
+        },
+      }),
+    );
+    expect(formatRecipientFee({
+      required: true,
+      status: 'none',
+      amount: '4',
+      currency: 'USD',
+      provider: null,
+      depositId: null,
+      failureReason: null,
+    })).toBe('$4.00');
+    expect(preview?.feeLabel).toBe('Frais de livraison $4.00');
+    expect(preview?.note).toMatch(/disponible au retrait/i);
+    expect(preview?.payableNow).toBe(false);
+  });
+
+  it('marks fees as payable when the parcel is ready', () => {
+    const preview = getRecipientPaymentPreview(
+      parcel({
+        status: 'ready_for_pickup',
+        pickupPayment: {
+          required: true,
+          status: 'none',
+          amount: '4',
+          currency: 'USD',
+          provider: null,
+          depositId: null,
+          failureReason: null,
+        },
+      }),
+    );
+    expect(preview?.feeLabel).toBe('Frais à payer : $4.00');
+    expect(preview?.payableNow).toBe(true);
   });
 });
 
@@ -144,7 +213,7 @@ describe('payment gating', () => {
     });
     expect(needsRecipientPayment(unpaid)).toBe(true);
     expect(canShowCollectionCode(unpaid)).toBe(false);
-    expect(getRecipientPrimaryAction(unpaid).label).toBe('Payer les frais');
+    expect(getRecipientPrimaryAction(unpaid).label).toBe('Payer et obtenir mon code');
   });
 
   it('fails closed when the canonical charge is missing', () => {

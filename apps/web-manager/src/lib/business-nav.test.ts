@@ -6,19 +6,20 @@ describe('BUSINESS_PRIMARY_NAV', () => {
     expect(BUSINESS_PRIMARY_NAV.map((item) => item.label)).toEqual([
       'Tableau de bord',
       'Colis',
+      'Points',
       'Organisation',
     ]);
     expect(BUSINESS_PRIMARY_NAV.map((item) => ('section' in item ? item.section : undefined))).toEqual([
+      undefined,
       undefined,
       undefined,
       'Entreprise',
     ]);
   });
 
-  it('does not expose Points, Incidents, Chauffeurs or Facturation', () => {
+  it('exposes Points but not Incidents, Chauffeurs or Facturation', () => {
     expect(BUSINESS_HIDDEN_PRIMARY_LABELS).toEqual(
       expect.arrayContaining([
-        'Points',
         'Casiers',
         'Livraisons',
         'Retours',
@@ -27,7 +28,8 @@ describe('BUSINESS_PRIMARY_NAV', () => {
         'Facturation',
       ]),
     );
-    expect(BUSINESS_PRIMARY_NAV.some((item) => item.href.includes('/points'))).toBe(false);
+    expect(BUSINESS_HIDDEN_PRIMARY_LABELS).not.toContain('Points');
+    expect(BUSINESS_PRIMARY_NAV.some((item) => item.href.includes('/points'))).toBe(true);
     expect(BUSINESS_PRIMARY_NAV.some((item) => item.href.includes('/incidents'))).toBe(false);
     expect(BUSINESS_PRIMARY_NAV.some((item) => item.href.includes('/chauffeurs'))).toBe(false);
   });

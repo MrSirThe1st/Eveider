@@ -1,10 +1,12 @@
 import { type ColorTokens } from '@eveider/config-ui';
+import { isCompleteDrcPhone } from '@eveider/domain';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ActionRow } from '../components/ActionRow';
 import { AuthRequired } from '../components/AuthRequired';
 import { EmptyState } from '../components/EmptyState';
+import { PhoneField } from '../components/PhoneField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { TextField } from '../components/TextField';
@@ -87,16 +89,15 @@ export function SendScreen() {
                 onChangeText={setRecipientName}
                 autoCapitalize="words"
               />
-              <TextField
+              <PhoneField
                 label={t('send.recipientPhone')}
                 value={recipientPhone}
                 onChangeText={setRecipientPhone}
-                keyboardType="phone-pad"
               />
               <PrimaryButton
                 label={t('common.continue')}
                 onPress={() => setStep('destination')}
-                disabled={!recipientName.trim() || recipientPhone.trim().length < 8}
+                disabled={!recipientName.trim() || !isCompleteDrcPhone(recipientPhone)}
               />
               <View style={styles.spacer} />
               <PrimaryButton label={t('send.back')} variant="secondary" onPress={() => setStep('size')} />

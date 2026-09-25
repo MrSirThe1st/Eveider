@@ -1,5 +1,5 @@
 import { borders, radius, type ColorTokens } from '@eveider/config-ui';
-import { DRC_CITIES, type DrcCity } from '@eveider/domain';
+import { DRC_CITIES, haversineDistanceKm, type DrcCity } from '@eveider/domain';
 import { Feather } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -9,17 +9,18 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
+import { AddressPlacesField } from '../components/AddressPlacesField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenScaffold } from '../components/ScreenHeader';
 import {
   LockerMapView,
   LockerSelectPanel,
   openAddressSearch,
+  openDirections,
 } from '../components/LockerMapView';
-import { fetchLockersByCity, type CustomerLocker } from '../lib/api';
+import { fetchLockersByCity, type CustomerLocker, type MapPlaceResult } from '../lib/api';
 import { useColors } from '../theme';
 
 const LOCKER_EMPTY = require('../assets/locker2.png');
@@ -36,6 +37,11 @@ export function PointsScreen() {
   const [city, setCity] = useState<DrcCity | ''>(DEFAULT_CITY);
   const [cityOpen, setCityOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [searchOrigin, setSearchOrigin] = useState<{
+    latitude: number;
+    longitude: number;
+    key: number;
+  } | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>('nearest');
   const [viewMode, setViewMode] = useState<ViewMode>('map');
   const [lockers, setLockers] = useState<CustomerLocker[]>([]);
@@ -81,15 +87,17 @@ export function PointsScreen() {
   }, [city, loadCity]);
 
   const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    let items = lockers;
-    if (needle) {
-      items = items.filter(
-        (item) =>
-          item.name.toLowerCase().includes(needle) ||
-          item.address.toLowerCase().includes(needle),
-      );
-    }
+    let items = lockers.map((item) => {
+      if (!searchOrigin) return item;
+      return {
+        ...item,
+        distanceKm: haversineDistanceKm(searchOrigin, {
+          latitude: item.latitude,
+          longitude: item.longitude,
+        }),
+      };
+    });
+
     if (sortMode === 'nearest') {
       return [...items].sort((a, b) => {
         const da = a.distanceKm ?? Number.POSITIVE_INFINITY;
@@ -98,7 +106,7 @@ export function PointsScreen() {
       });
     }
     return [...items].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
-  }, [lockers, query, sortMode]);
+  }, [lockers, query, sortMode, searchOrigin]);
 
   useEffect(() => {
     if (filtered.length === 0) {
@@ -109,6 +117,22 @@ export function PointsScreen() {
       setSelectedLockerId(filtered[0]!.id);
     }
   }, [filtered, selectedLockerId]);
+
+  function onSelectPlace(place: MapPlaceResult) {
+    setQuery(place.label);
+    setSearchOrigin({
+      latitude: place.latitude,
+      longitude: place.longitude,
+      key: Date.now(),
+    });
+    setSortMode('nearest');
+    setViewMode('map');
+  }
+
+  function clearSearchOrigin() {
+    setQuery('');
+    setSearchOrigin(null);
+  }
 
   return (
     <ScreenScaffold title={t('tabs.points')}>
@@ -160,17 +184,21 @@ export function PointsScreen() {
           </View>
         ) : null}
 
-        <View style={styles.searchRow}>
-          <Feather name="search" size={16} color={colors.textMuted} />
-          <TextInput
+        <View style={styles.searchWrap}>
+          <AddressPlacesField
             value={query}
-            onChangeText={setQuery}
-            placeholder={t('points.pointSearchPlaceholder')}
-            placeholderTextColor={colors.textMuted}
-            style={styles.searchInput}
-            autoCorrect={false}
-            returnKeyType="search"
+            onChangeText={(value) => {
+              setQuery(value);
+              if (!value.trim()) setSearchOrigin(null);
+            }}
+            onSelectPlace={onSelectPlace}
+            placeholder={t('maps.addressPlaceholder')}
           />
+          {searchOrigin ? (
+            <Pressable onPress={clearSearchOrigin} style={styles.clearSearch} hitSlop={8}>
+              <Text style={styles.clearSearchText}>{t('maps.clearSearch')}</Text>
+            </Pressable>
+          ) : null}
         </View>
 
         <View style={styles.toolbar}>
@@ -239,16 +267,16 @@ export function PointsScreen() {
               <Image source={LOCKER_EMPTY} style={styles.emptyImage} resizeMode="contain" />
             </View>
             <Text style={styles.emptyTitle}>
-              {query.trim() ? t('points.emptySearchTitle') : t('points.emptyTitle')}
+              {searchOrigin ? t('points.emptySearchTitle') : t('points.emptyTitle')}
             </Text>
             <Text style={styles.emptyMessage}>
-              {query.trim()
+              {searchOrigin
                 ? t('points.emptySearchMessage')
                 : t('points.emptyCityMessage')}
             </Text>
-            {query.trim() ? (
-              <Pressable onPress={() => setQuery('')} style={styles.emptyAction} hitSlop={8}>
-                <Text style={styles.emptyActionText}>{t('points.clearSearch')}</Text>
+            {searchOrigin ? (
+              <Pressable onPress={clearSearchOrigin} style={styles.emptyAction} hitSlop={8}>
+                <Text style={styles.emptyActionText}>{t('maps.clearSearch')}</Text>
               </Pressable>
             ) : null}
           </View>
@@ -263,6 +291,7 @@ export function PointsScreen() {
                 onSelectLocker={setSelectedLockerId}
                 onRequestRecenter={() => setRecenterToken((value) => value + 1)}
                 recenterToken={recenterToken}
+                focusCoordinate={searchOrigin}
                 height={220}
               />
             ) : null}
@@ -271,9 +300,13 @@ export function PointsScreen() {
               lockers={filtered}
               selectedLockerId={selectedLockerId}
               onSelectLocker={setSelectedLockerId}
-              onViewDetails={(locker) =>
-                openAddressSearch(`${locker.name} ${locker.address}`)
-              }
+              onViewDetails={(locker) => {
+                if (locker.latitude != null && locker.longitude != null) {
+                  openDirections(locker.latitude, locker.longitude, locker.name);
+                  return;
+                }
+                openAddressSearch(`${locker.name} ${locker.address}`);
+              }}
             />
           </>
         ) : null}
@@ -338,6 +371,19 @@ function createStyles(colors: ColorTokens) {
     },
     cityOptionTextSelected: {
       fontWeight: '700',
+      color: colors.primary,
+    },
+    searchWrap: {
+      zIndex: 5,
+      gap: 6,
+    },
+    clearSearch: {
+      alignSelf: 'flex-start',
+      paddingVertical: 4,
+    },
+    clearSearchText: {
+      fontSize: 13,
+      fontWeight: '600',
       color: colors.primary,
     },
     searchRow: {

@@ -10,6 +10,7 @@ import {
   LockerSelectPanel,
   openAddressSearch,
   openDirections,
+  openStopDirections,
   useLockerMapStyles,
   type LockerMapViewProps,
 } from './locker-map-shared';
@@ -24,6 +25,7 @@ export function LockerMapView({
   height = 280,
   onRequestRecenter,
   recenterToken = 0,
+  focusCoordinate = null,
 }: LockerMapViewProps) {
   const { t } = useTranslation();
   const colors = useColors();
@@ -69,6 +71,19 @@ export function LockerMapView({
     })();
   }, [recenterToken]);
 
+  useEffect(() => {
+    if (!focusCoordinate) return;
+    mapRef.current?.animateToRegion(
+      {
+        latitude: focusCoordinate.latitude,
+        longitude: focusCoordinate.longitude,
+        latitudeDelta: 0.06,
+        longitudeDelta: 0.06,
+      },
+      320,
+    );
+  }, [focusCoordinate]);
+
   return (
     <View style={[styles.container, { height }]}>
       <MapView
@@ -104,4 +119,4 @@ export function LockerMapView({
   );
 }
 
-export { LockerSelectPanel, getCurrentCoordinates, openAddressSearch, openDirections };
+export { LockerSelectPanel, getCurrentCoordinates, openAddressSearch, openDirections, openStopDirections };

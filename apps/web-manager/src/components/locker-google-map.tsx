@@ -3,15 +3,24 @@
 import { colors, webCardStyle } from '@eveider/config-ui';
 import type { LockerMapMarkerDto } from '@/lib/locker-presenter';
 import {
+  BUSINESS_LOCATION_PIN,
   DRC_MAP_RESTRICTION,
   getDefaultMapCenter,
   getGoogleMapsApiKey,
   lockerPinColor,
   LOCKER_PIN_COLORS,
+  NETWORK_LOCKER_PIN,
   type MapSearchViewport,
 } from '@/lib/google-maps';
 import { APIProvider, Map, Marker, useApiIsLoaded, useMap } from '@vis.gl/react-google-maps';
 import { useEffect, useMemo } from 'react';
+
+export type BusinessLocationMapMarker = {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+};
 
 export type LockerGoogleMapProps = {
   lockers: LockerMapMarkerDto[];
@@ -21,6 +30,10 @@ export type LockerGoogleMapProps = {
   onMapClick?: (coords: { latitude: number; longitude: number }) => void;
   highlightLockerId?: string;
   hoveredLockerId?: string;
+  /** availability = capacity-tinted; network = uniform Eveider green. */
+  pinStyle?: 'availability' | 'network';
+  businessMarkers?: BusinessLocationMapMarker[];
+  selectedBusinessId?: string;
   draftMarker?: { latitude: number; longitude: number } | null;
   draftMarkerDraggable?: boolean;
   onDraftMarkerDrag?: (coords: { latitude: number; longitude: number }) => void;
@@ -82,6 +95,7 @@ function LockerMapPin({
   selected,
   hovered,
   interactive,
+  pinStyle,
   onSelect,
   onHover,
 }: {
@@ -89,11 +103,15 @@ function LockerMapPin({
   selected: boolean;
   hovered: boolean;
   interactive: boolean;
+  pinStyle: 'availability' | 'network';
   onSelect?: (lockerId: string) => void;
   onHover?: (lockerId: string | null) => void;
 }) {
   const ready = useApiIsLoaded();
-  const fillColor = lockerPinColor(locker.availableCompartments, locker.status);
+  const fillColor =
+    pinStyle === 'network'
+      ? NETWORK_LOCKER_PIN
+      : lockerPinColor(locker.availableCompartments, locker.status);
 
   if (!ready) return null;
 
@@ -124,6 +142,35 @@ function LockerMapPin({
   );
 }
 
+function BusinessLocationPin({
+  marker,
+  selected,
+}: {
+  marker: BusinessLocationMapMarker;
+  selected: boolean;
+}) {
+  const ready = useApiIsLoaded();
+  if (!ready) return null;
+
+  return (
+    <Marker
+      position={{ lat: marker.latitude, lng: marker.longitude }}
+      title={marker.name}
+      clickable={false}
+      zIndex={selected ? 5 : 2}
+      icon={{
+        path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z',
+        fillColor: BUSINESS_LOCATION_PIN,
+        fillOpacity: 1,
+        strokeColor: '#ffffff',
+        strokeWeight: selected ? 2.5 : 1.5,
+        scale: selected ? 1.6 : 1.35,
+        anchor: new google.maps.Point(12, 22),
+      }}
+    />
+  );
+}
+
 export function LockerGoogleMap({
   lockers,
   selectedLockerId,
@@ -132,6 +179,9 @@ export function LockerGoogleMap({
   onMapClick,
   highlightLockerId,
   hoveredLockerId,
+  pinStyle = 'availability',
+  businessMarkers = [],
+  selectedBusinessId,
   draftMarker,
   draftMarkerDraggable = false,
   onDraftMarkerDrag,
@@ -157,9 +207,13 @@ export function LockerGoogleMap({
       const target = lockers.find((l) => l.id === selectedLockerId) ?? lockers[0]!;
       return { lat: target.latitude, lng: target.longitude };
     }
+    const business = businessMarkers.find((m) => m.id === selectedBusinessId) ?? businessMarkers[0];
+    if (business) {
+      return { lat: business.latitude, lng: business.longitude };
+    }
     const defaultCenter = getDefaultMapCenter();
     return { lat: defaultCenter.latitude, lng: defaultCenter.longitude };
-  }, [lockers, selectedLockerId]);
+  }, [lockers, selectedLockerId, businessMarkers, selectedBusinessId]);
 
   if (!apiKey) {
     return (
@@ -215,6 +269,13 @@ export function LockerGoogleMap({
           }
         >
           <MapCameraController mapFocus={mapFocus} onViewportChange={onViewportChange} />
+          {businessMarkers.map((marker) => (
+            <BusinessLocationPin
+              key={marker.id}
+              marker={marker}
+              selected={marker.id === selectedBusinessId}
+            />
+          ))}
           {lockers.map((locker) => (
             <LockerMapPin
               key={locker.id}
@@ -222,6 +283,7 @@ export function LockerGoogleMap({
               selected={locker.id === selectedLockerId}
               hovered={locker.id === highlightedId}
               interactive={interactive}
+              pinStyle={pinStyle}
               onSelect={onSelectLocker}
               onHover={onHoverLocker}
             />

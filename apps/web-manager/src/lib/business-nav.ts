@@ -1,6 +1,7 @@
 export const BUSINESS_PRIMARY_NAV = [
   { id: 'dashboard', label: 'Tableau de bord', href: '/organisation/tableau-de-bord' },
   { id: 'colis', label: 'Colis', href: '/organisation/tableau-de-bord/colis' },
+  { id: 'points', label: 'Points', href: '/organisation/tableau-de-bord/points' },
   {
     id: 'organisation',
     label: 'Organisation',
@@ -10,7 +11,6 @@ export const BUSINESS_PRIMARY_NAV = [
 ] as const;
 
 export const BUSINESS_HIDDEN_PRIMARY_LABELS = [
-  'Points',
   'Casiers',
   'Livraisons',
   'Retours',

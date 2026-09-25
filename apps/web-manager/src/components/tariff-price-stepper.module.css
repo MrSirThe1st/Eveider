@@ -13,11 +13,32 @@
   color: var(--color-text-muted);
 }
 
+.metaRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.55rem;
+}
+
+.payer {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.payerValue {
+  font-weight: 700;
+  color: var(--color-secondary);
+}
+
 .row {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin-top: 0.7rem;
+  margin-top: 0.55rem;
 }
 
 .stepper {
@@ -76,7 +97,7 @@
 }
 
 .price {
-  margin: 0 0 0 auto;
+  margin: 0;
   font-size: 1.125rem;
   line-height: 1.3;
   font-weight: 600;

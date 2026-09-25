@@ -36,6 +36,22 @@ export const supabase = createClient(url, key, {
     persistSession: true,
     detectSessionInUrl: Platform.OS === 'web',
   },
+  global: {
+    // Surface unreachable auth once; avoid unhandled rejection spam in LogBox.
+    fetch: async (input, init) => {
+      try {
+        return await fetch(input, init);
+      } catch (error) {
+        if (__DEV__) {
+          console.warn(
+            '[eveider:supabase] Network request failed — check device/emulator internet and EXPO_PUBLIC_SUPABASE_URL.',
+            error instanceof Error ? error.message : error,
+          );
+        }
+        throw error;
+      }
+    },
+  },
 });
 
 export function getAuthApiUrl() {
@@ -46,3 +62,8 @@ export function getAuthApiUrl() {
 }
 
 export const authApiUrl = getAuthApiUrl();
+
+if (__DEV__) {
+  console.log(`[eveider] auth API → ${authApiUrl}`);
+  console.log(`[eveider] supabase → ${url}`);
+}

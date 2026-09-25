@@ -140,8 +140,11 @@ test.describe('Admin operations IA', () => {
 
     await expect(page.getByRole('heading', { name: 'Tarifs', level: 1 })).toBeVisible();
     await page.locator('summary').first().click({ timeout: 30_000 });
-    await expect(page.getByText(/Ces frais s’appliquent quand Eveider livre/)).toBeVisible();
-    await expect(page.getByText(/payée par le destinataire|payé par l.entreprise/i)).toHaveCount(0);
+    await expect(
+      page.getByText('Eveider transporte le colis jusqu’au casier de destination.'),
+    ).toBeVisible();
+    await expect(page.getByText('Payé par : Destinataire').first()).toBeVisible();
+    await expect(page.getByText('Payé par : Entreprise').first()).toBeVisible();
     await expect(page.getByText('distance et taille')).toHaveCount(0);
     await expect(page.getByText('distance × taille')).toHaveCount(0);
     await expect(page.getByText(/Flow 2|Flow 3/)).toHaveCount(0);

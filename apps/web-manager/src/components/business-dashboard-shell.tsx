@@ -1,6 +1,6 @@
 'use client';
 
-import { AppShell, IconHome, IconLayout, IconPackage, type NavModule } from '@eveider/ui';
+import { AppShell, IconHome, IconLayout, IconMapPin, IconPackage, type NavModule } from '@eveider/ui';
 import type { BusinessPermission } from '@eveider/domain';
 import { useRouter } from 'next/navigation';
 import { OrganizationSettingsChrome } from '@/components/settings-chrome';
@@ -25,6 +25,7 @@ function can(permissions: readonly BusinessPermission[] | undefined, permission:
 const NAV_ICONS = {
   dashboard: <IconHome {...NAV_ICON_PROPS} />,
   colis: <IconPackage {...NAV_ICON_PROPS} />,
+  points: <IconMapPin {...NAV_ICON_PROPS} />,
   organisation: <IconLayout {...NAV_ICON_PROPS} />,
 } as const;
 
@@ -37,7 +38,7 @@ export function BusinessDashboardShell({
   const router = useRouter();
 
   const modules: NavModule[] = BUSINESS_PRIMARY_NAV.filter((item) => {
-    if (item.id === 'colis') return can(permissions, 'view_parcels');
+    if (item.id === 'colis' || item.id === 'points') return can(permissions, 'view_parcels');
     return true;
   }).map((item) => ({
     id: item.id,
@@ -48,6 +49,7 @@ export function BusinessDashboardShell({
     match: (pathname: string) => {
       if (item.id === 'dashboard') return pathname === WEB_ROUTES.businessDashboard;
       if (item.id === 'colis') return pathname.startsWith(WEB_ROUTES.businessParcels);
+      if (item.id === 'points') return pathname.startsWith(WEB_ROUTES.businessLockers);
       return (
         pathname.startsWith(WEB_ROUTES.businessSettings) ||
         pathname.startsWith('/organisation/tableau-de-bord/profil')

@@ -27,6 +27,8 @@ export type LockerMapViewProps = {
   height?: number;
   onRequestRecenter?: () => void;
   recenterToken?: number;
+  /** Pan the map to this coordinate (e.g. Places selection). */
+  focusCoordinate?: { latitude: number; longitude: number; key: number } | null;
 };
 
 type LockerSelectPanelProps = {
@@ -201,6 +203,22 @@ export function openAddressSearch(query: string) {
       ? `http://maps.apple.com/?q=${encoded}`
       : `https://www.google.com/maps/search/?api=1&query=${encoded}`;
   void Linking.openURL(url);
+}
+
+/** Prefer coordinates; otherwise ask the caller to resolve via Places. */
+export function openStopDirections(input: {
+  latitude: number | null | undefined;
+  longitude: number | null | undefined;
+  name: string;
+  address?: string | null;
+  onNeedResolve: (query: string) => void;
+}) {
+  if (input.latitude != null && input.longitude != null) {
+    openDirections(input.latitude, input.longitude, input.name);
+    return;
+  }
+  const query = [input.name, input.address].filter(Boolean).join(' ').trim();
+  if (query) input.onNeedResolve(query);
 }
 
 export function useLockerMapStyles() {

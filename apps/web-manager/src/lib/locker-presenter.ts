@@ -2,6 +2,7 @@ import {
   COMPARTMENT_STATUS_LABELS,
   LOCKER_STATUS_LABELS,
   LOCKER_TYPE_LABELS,
+  formatDeliveryFee,
   hasPointAvailability,
   lockerAvailableLabel,
   lockerNetworkCapacity,
@@ -11,6 +12,7 @@ import {
   usesSoftCapacity,
   type CompartmentStatus,
   type CommissionType,
+  type DeliveryPricingCurrency,
   type LockerStatus,
   type LockerType,
 } from '@eveider/domain';
@@ -93,6 +95,13 @@ export type BusinessLockerDto = {
   latitude: number | null;
   longitude: number | null;
   selectable: boolean;
+  /** Zone display name for Points panel (e.g. "Zone 2"). */
+  zoneName: string | null;
+  zoneCode: string | null;
+  /** Outbound Eveider delivery fee to this point; null = not configured. */
+  outboundDeliveryAmount: number | null;
+  outboundDeliveryLabel: string | null;
+  pricingCurrency: 'CDF' | 'USD';
 };
 
 export type CompartmentDto = {
@@ -339,23 +348,29 @@ export function toLockerDetailDto(locker: {
   };
 }
 
-export function toBusinessLockerDto(locker: {
-  id: string;
-  name: string;
-  address: string;
-  type?: LockerType;
-  status: LockerStatus;
-  availableCompartments: number;
-  availableSlots?: number;
-  occupyingCount?: number;
-  maxCapacity?: number | null;
-  compartmentTotal?: number;
-  availableBySize?: { small: number; medium: number; large: number };
-  rows: number;
-  columns: number;
-  latitude: number | null;
-  longitude: number | null;
-}): BusinessLockerDto {
+export function toBusinessLockerDto(
+  locker: {
+    id: string;
+    name: string;
+    address: string;
+    type?: LockerType;
+    status: LockerStatus;
+    availableCompartments: number;
+    availableSlots?: number;
+    occupyingCount?: number;
+    maxCapacity?: number | null;
+    compartmentTotal?: number;
+    availableBySize?: { small: number; medium: number; large: number };
+    rows: number;
+    columns: number;
+    latitude: number | null;
+    longitude: number | null;
+    serviceAreaName?: string | null;
+    serviceAreaCode?: string | null;
+    outboundDeliveryAmount?: number | null;
+  },
+  currency: DeliveryPricingCurrency = 'CDF',
+): BusinessLockerDto {
   const type = locker.type ?? 'SMART_LOCKER';
   const availableSlots =
     locker.availableSlots ??
@@ -373,6 +388,8 @@ export function toBusinessLockerDto(locker: {
     rows: locker.rows,
     columns: locker.columns,
   });
+  const outboundAmount =
+    locker.outboundDeliveryAmount == null ? null : Number(locker.outboundDeliveryAmount);
 
   return {
     id: locker.id,
@@ -401,6 +418,12 @@ export function toBusinessLockerDto(locker: {
       maxCapacity: locker.maxCapacity ?? null,
       occupyingCount: locker.occupyingCount ?? 0,
     }),
+    zoneName: locker.serviceAreaName ?? null,
+    zoneCode: locker.serviceAreaCode ?? null,
+    outboundDeliveryAmount: outboundAmount,
+    outboundDeliveryLabel:
+      outboundAmount == null ? null : formatDeliveryFee(outboundAmount, currency),
+    pricingCurrency: currency,
   };
 }
 

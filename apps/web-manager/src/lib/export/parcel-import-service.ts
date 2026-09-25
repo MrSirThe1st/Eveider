@@ -1,6 +1,9 @@
 import type { DataAccessContext } from '@eveider/data-access';
 import type { CreateParcelInput } from '@eveider/api-contracts';
-import { createOrganisationParcel } from '@/lib/create-organisation-parcel';
+import {
+  createOrganisationParcel,
+  organisationParcelCreateStatus,
+} from '@/lib/create-organisation-parcel';
 
 export type ParcelImportCreateResult = {
   rowNumber: number;
@@ -25,7 +28,7 @@ export async function createParcelsFromImport(
         trackingNumber: created.parcel.trackingNumber,
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erreur serveur';
+      const { message } = organisationParcelCreateStatus(err);
       results.push({ rowNumber: row.rowNumber, success: false, error: message });
     }
   }

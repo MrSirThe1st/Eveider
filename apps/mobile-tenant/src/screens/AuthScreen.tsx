@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PasswordInput } from '../components/PasswordInput';
+import { PhoneField } from '../components/PhoneField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenScaffold } from '../components/ScreenHeader';
 import { TextField } from '../components/TextField';
@@ -423,15 +424,7 @@ export function AuthScreen({
         ) : null}
 
         {mode === 'register' || mode === 'complete' ? (
-          <TextField
-            label={t('auth.phone')}
-            placeholder="+243800000000"
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-            autoComplete="tel"
-            textContentType="telephoneNumber"
-          />
+          <PhoneField label={t('auth.phone')} value={phone} onChangeText={setPhone} />
         ) : null}
 
         {error ? <Text style={styles.error}>{error}</Text> : null}

@@ -7,7 +7,7 @@ import type {
   PaymentSetupStepInput,
 } from '@eveider/api-contracts';
 import { colors, radius, webCardStyle, webInputStyle, webPrimaryButtonStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
-import { Spinner } from '@eveider/ui';
+import { PhoneField, Spinner } from '@eveider/ui';
 import {
   BUSINESS_INDUSTRY_LABELS,
   BUSINESS_INDUSTRY_OPTIONS,
@@ -710,10 +710,13 @@ export function OnboardingWizard({
                   <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Personne de contact *</span>
                   <input type="text" value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} placeholder="Marc" style={{ ...webInputStyle, marginTop: '0.35rem' }} />
                 </label>
-                <label style={{ display: 'block' }}>
-                  <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Téléphone de contact *</span>
-                  <input type="text" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="+243810000000" style={{ ...webInputStyle, marginTop: '0.35rem' }} />
-                </label>
+                <PhoneField
+                  label="Téléphone de contact *"
+                  name="contactPhone"
+                  value={contactPhone}
+                  onChange={setContactPhone}
+                  required
+                />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -815,10 +818,20 @@ export function OnboardingWizard({
                 <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Nom du titulaire du compte *</span>
                 <input type="text" value={accountHolder} onChange={(e) => setAccountHolder(e.target.value)} placeholder="Kin Fashion SARL" style={{ ...webInputStyle, marginTop: '0.35rem' }} />
               </label>
-              <label style={{ display: 'block' }}>
-                <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Numéro de compte / téléphone *</span>
-                <input type="text" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="+243840000000" style={{ ...webInputStyle, marginTop: '0.35rem' }} />
-              </label>
+              {payoutMethod === 'bank_transfer' ? (
+                <label style={{ display: 'block' }}>
+                  <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Numéro de compte *</span>
+                  <input type="text" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="000123456789" style={{ ...webInputStyle, marginTop: '0.35rem' }} />
+                </label>
+              ) : (
+                <PhoneField
+                  label="Numéro Mobile Money *"
+                  name="accountNumber"
+                  value={accountNumber}
+                  onChange={setAccountNumber}
+                  required
+                />
+              )}
             </div>
           </div>
 

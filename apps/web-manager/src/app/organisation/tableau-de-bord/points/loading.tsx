@@ -1,13 +1,13 @@
-import { PageFrame, TableSkeleton } from '@eveider/ui';
+import { PageFrame, CardListSkeleton } from '@eveider/ui';
 
-export default function BusinessLockersLoading() {
+export default function BusinessPointsLoading() {
   return (
     <PageFrame
-      title="Points Eveider"
-      description="Où envoyer vos colis : lieu, adresse, capacité, compartiments disponibles et statut."
+      title="Points"
+      description="Explorez le réseau Eveider, comparez les tarifs depuis vos adresses et créez un colis vers un point."
       layout="wide"
     >
-      <TableSkeleton />
+      <CardListSkeleton cards={1} />
     </PageFrame>
   );
 }

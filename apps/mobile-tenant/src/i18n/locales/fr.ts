@@ -434,6 +434,15 @@ export const fr = {
     inviteMessage:
       '{{business}} vous a envoyé le colis {{tracking}}. Utilisez le numéro {{phone}}.',
   },
+  maps: {
+    addressPlaceholder: 'Adresse ou lieu…',
+    clearSearch: 'Effacer la recherche',
+    searching: 'Recherche…',
+    noResults: 'Aucun lieu trouvé',
+    pinHint: 'Déplacez le pin pour affiner la position',
+    resolveTitle: 'Résoudre l’adresse',
+    resolveHint: 'Choisissez une adresse pour ouvrir l’itinéraire.',
+  },
 };
 
 type DeepString<T> = {

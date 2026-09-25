@@ -1,5 +1,6 @@
 'use client';
 
+import { CHARGE_PAYER_LABELS, type ChargePayer } from '@eveider/domain';
 import { useState } from 'react';
 import {
   formatTariffPickerLabel,
@@ -13,6 +14,8 @@ type TariffPriceStepperProps = {
   id: string;
   label: string;
   hint: string;
+  /** Who is billed for this fee under the canonical commercial model. */
+  payer: ChargePayer;
   ariaLabel: string;
   amount: number | null;
   currency: 'USD' | 'CDF';
@@ -35,6 +38,7 @@ export function TariffPriceStepper({
   id,
   label,
   hint,
+  payer,
   ariaLabel,
   amount,
   currency,
@@ -46,6 +50,10 @@ export function TariffPriceStepper({
   const display = formatTariffPickerLabel(live, currency);
   const shown = draft ?? (amount == null ? '' : String(amount));
   const minusDisabled = live == null || (!nullable && live <= 0);
+  const payerLabel = CHARGE_PAYER_LABELS[payer];
+  const hintId = `${id}-hint`;
+  const payerId = `${id}-payer`;
+  const priceId = `${id}-price`;
 
   function commit(raw: string) {
     const parsed = parsePriceInput(raw);
@@ -67,9 +75,17 @@ export function TariffPriceStepper({
       <label htmlFor={id} className={styles.fieldLabel}>
         {label}
       </label>
-      <p id={`${id}-hint`} className={styles.hint}>
+      <p id={hintId} className={styles.hint}>
         {hint}
       </p>
+      <div className={styles.metaRow}>
+        <p id={payerId} className={styles.payer}>
+          Payé par : <span className={styles.payerValue}>{payerLabel}</span>
+        </p>
+        <p id={priceId} className={styles.price} data-unset={live == null ? 'true' : 'false'}>
+          {display}
+        </p>
+      </div>
       <div className={styles.row}>
         <div className={styles.stepper}>
           <button
@@ -89,7 +105,7 @@ export function TariffPriceStepper({
             autoComplete="off"
             value={shown}
             aria-label={ariaLabel}
-            aria-describedby={`${id}-hint ${id}-price`}
+            aria-describedby={`${hintId} ${payerId} ${priceId}`}
             onFocus={() => setDraft(amount == null ? '' : String(amount))}
             onChange={(event) => {
               const raw = event.target.value;
@@ -116,9 +132,6 @@ export function TariffPriceStepper({
             +
           </button>
         </div>
-        <p id={`${id}-price`} className={styles.price} data-unset={live == null ? 'true' : 'false'}>
-          {display}
-        </p>
       </div>
     </div>
   );

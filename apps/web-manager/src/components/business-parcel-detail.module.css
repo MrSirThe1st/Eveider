@@ -1,0 +1,201 @@
+.page {
+  width: 100%;
+  display: grid;
+  gap: 1.15rem;
+}
+
+.card {
+  padding: 1.25rem 1.35rem;
+}
+
+.headerTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.tracking {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.methodChip {
+  margin: 0.45rem 0 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.routeSummary {
+  margin: 0.85rem 0 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-secondary);
+  line-height: 1.4;
+}
+
+.created {
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.sectionTitle {
+  margin: 0 0 0.85rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-secondary);
+}
+
+.routeBlock {
+  display: grid;
+  gap: 1rem;
+}
+
+.routeLeg {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.routeLegLabel {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.routeLegName {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-secondary);
+}
+
+.routeLegDetail {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.routeArrow {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.driverNote {
+  margin: 0.85rem 0 0;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--color-border-subtle);
+  font-size: 0.8125rem;
+  color: var(--color-secondary);
+}
+
+.detailsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1.25rem;
+}
+
+.detailItem {
+  min-width: 0;
+}
+
+.detailLabel {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.detailValue {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-secondary);
+  word-break: break-word;
+}
+
+.paymentLead {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-secondary);
+}
+
+.paymentList {
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.paymentRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.875rem;
+  color: var(--color-secondary);
+}
+
+.paymentConsequence {
+  margin: 0.75rem 0 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-warning-fg, var(--color-secondary));
+}
+
+.mutedNote {
+  margin: 0.5rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.footerMeta {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.reportTrigger {
+  justify-self: start;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-danger);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+}
+
+.reportTrigger:hover {
+  color: var(--color-danger-hover);
+}
+
+.reportTrigger:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-focus-ring-danger);
+  border-radius: 4px;
+}
+
+@media (max-width: 640px) {
+  .detailsGrid {
+    grid-template-columns: 1fr;
+  }
+}

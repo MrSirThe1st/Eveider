@@ -1,4 +1,5 @@
 import type { BusinessLocation } from '@eveider/data-access';
+import { normalizeFormattedAddress } from '@/lib/google-maps';
 
 export type PickupLocationDto = {
   id: string;
@@ -18,7 +19,7 @@ export function toPickupLocationDto(location: BusinessLocation): PickupLocationD
   return {
     id: location.id,
     name: location.name?.trim() || 'Adresse de collecte',
-    street: location.street,
+    street: normalizeFormattedAddress(location.street),
     city: location.city,
     country: location.country,
     lat: location.lat,

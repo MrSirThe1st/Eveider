@@ -1,11 +1,10 @@
-import { Platform } from 'react-native';
-import { resolveAuthApiUrl } from './auth-api-url';
 import { authApiUrl } from './supabase';
 
 type ApiResult<T> = { success: true; data: T } | { success: false; error: string };
 
 function apiBase() {
-  return resolveAuthApiUrl(authApiUrl, Platform.OS);
+  // authApiUrl is already platform-resolved at module load; keep a single source of truth.
+  return authApiUrl;
 }
 
 function networkError() {

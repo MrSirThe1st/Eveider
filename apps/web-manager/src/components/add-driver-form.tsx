@@ -1,7 +1,7 @@
 'use client';
 
 import { spacing, webInputStyle } from '@eveider/config-ui';
-import { Button, Card, FileField, InlineAlert, Modal, TextField } from '@eveider/ui';
+import { Button, Card, FileField, InlineAlert, Modal, PhoneField, TextField } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { writeInviteCooldown } from '@/lib/invite-cooldown';
@@ -105,13 +105,12 @@ export function AddDriverForm({
         autoComplete="email"
         hint={emailHint}
       />
-      <TextField
+      <PhoneField
         label="Téléphone"
         name="phone"
-        type="tel"
         value={phone}
-        onChange={(event) => setPhone(event.target.value)}
-        autoComplete="tel"
+        onChange={setPhone}
+        autoComplete="tel-national"
       />
       <FileField
         label="Pièce d’identité"

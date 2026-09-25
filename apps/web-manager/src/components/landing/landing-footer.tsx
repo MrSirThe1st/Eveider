@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { ManageCookiesButton } from '@/components/cookies/manage-cookies-button';
 import styles from './landing.module.css';
 
 export function LandingFooter() {
@@ -50,17 +49,6 @@ export function LandingFooter() {
               </li>
               <li>
                 <Link href="/#faq">FAQ</Link>
-              </li>
-            </ul>
-          </div>
-          <div className={styles.footerCol}>
-            <h2>Légal</h2>
-            <ul>
-              <li>
-                <Link href="/cookies">Cookies</Link>
-              </li>
-              <li>
-                <ManageCookiesButton variant="footer" />
               </li>
             </ul>
           </div>

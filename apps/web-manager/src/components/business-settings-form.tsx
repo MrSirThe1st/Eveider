@@ -6,7 +6,7 @@ import {
   BUSINESS_INDUSTRY_OPTIONS,
   type BusinessIndustry,
 } from '@eveider/domain';
-import { Button, InlineAlert, TextField } from '@eveider/ui';
+import { Button, InlineAlert, TextField, PhoneField } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import {
@@ -199,11 +199,11 @@ export function BusinessSettingsForm(props: BusinessSettingsFormProps) {
               onChange={(e) => setContactEmail(e.target.value)}
               required
             />
-            <TextField
+            <PhoneField
               label="Téléphone"
               name="contactPhone"
               value={contactPhone}
-              onChange={(e) => setContactPhone(e.target.value)}
+              onChange={setContactPhone}
               required
             />
           </SettingsFieldGrid>
