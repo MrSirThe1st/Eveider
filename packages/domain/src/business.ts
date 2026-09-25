@@ -35,6 +35,18 @@ export const BUSINESS_INDUSTRY_OPTIONS = [
   'Pharmacy',
   'Retail',
   'Documents',
+  'Logistics',
+  'E-commerce',
+  'Health',
+  'Education',
+  'Hospitality',
+  'Automotive',
+  'Construction',
+  'Finance',
+  'Agriculture',
+  'Telecommunications',
+  'Manufacturing',
+  'Services',
   'Other',
 ] as const;
 

@@ -8,7 +8,11 @@ import type {
 } from '@eveider/api-contracts';
 import { colors, radius, webCardStyle, webInputStyle, webPrimaryButtonStyle, webSecondaryButtonStyle } from '@eveider/config-ui';
 import { Spinner } from '@eveider/ui';
-import type { OrganizationVerificationStatus } from '@eveider/domain';
+import {
+  BUSINESS_INDUSTRY_LABELS,
+  BUSINESS_INDUSTRY_OPTIONS,
+  type OrganizationVerificationStatus,
+} from '@eveider/domain';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { OnboardingSummary } from '@/hooks/queries/use-onboarding-summary-query';
@@ -416,20 +420,9 @@ export function OnboardingWizard({
                 onChange={(e) => setIndustry(e.target.value)}
                 style={{ ...webInputStyle, marginTop: '0.35rem' }}
               >
-                {(
-                  [
-                    ['Fashion', 'Mode'],
-                    ['Electronics', 'Électronique'],
-                    ['Beauty', 'Beauté'],
-                    ['Food', 'Alimentaire'],
-                    ['Pharmacy', 'Pharmacie'],
-                    ['Retail', 'Commerce'],
-                    ['Documents', 'Documents'],
-                    ['Other', 'Autre'],
-                  ] as const
-                ).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
+                {BUSINESS_INDUSTRY_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {BUSINESS_INDUSTRY_LABELS[option]}
                   </option>
                 ))}
               </select>

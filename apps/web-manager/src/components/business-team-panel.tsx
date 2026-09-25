@@ -1,79 +1,177 @@
 'use client';
 
-import { colors, webInputStyle } from '@eveider/config-ui';
+import { webInputStyle } from '@eveider/config-ui';
 import {
   INVITABLE_ORGANIZATION_ROLES,
   ORGANIZATION_ROLE_LABELS,
   type OrganizationRole,
 } from '@eveider/domain';
-import { Button, ConfirmDialog, DataTable, InlineAlert, type DataTableColumn } from '@eveider/ui';
+import {
+  Button,
+  ConfirmDialog,
+  DataTable,
+  FilterToolbar,
+  IconUsers,
+  InlineAlert,
+  Modal,
+  PageFrame,
+  StatusBadge,
+  TableCellStack,
+  type DataTableColumn,
+  type DropdownMenuItem,
+} from '@eveider/ui';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, type FormEvent } from 'react';
-import type { TeamInviteView, TeamMemberView } from '@/server/team';
-import { SettingsFormSection } from '@/components/ops-ui';
+import { useCallback, useMemo, useState, type FormEvent } from 'react';
+import { ListSearchField } from '@/components/list-search-field';
 import { inviteCooldownButtonLabel, useInviteCooldowns } from '@/lib/invite-cooldown';
+import { matchesListSearch } from '@/lib/list-search';
+import type { TeamInviteView, TeamMemberView } from '@/server/team';
 
 type BusinessTeamPanelProps = {
   members: TeamMemberView[];
   invites: TeamInviteView[];
 };
 
-function formatDate(iso: string) {
+type TeamRowStatus = 'active' | 'pending';
+
+type TeamRow = {
+  id: string;
+  kind: 'member' | 'invite';
+  status: TeamRowStatus;
+  primary: string;
+  secondary: string | null;
+  role: OrganizationRole;
+  roleLabel: string;
+  member: TeamMemberView | null;
+  invite: TeamInviteView | null;
+};
+
+const ROLE_FILTERS = [
+  { value: 'all', label: 'Tous' },
+  { value: 'account_owner', label: ORGANIZATION_ROLE_LABELS.account_owner },
+  { value: 'admin', label: ORGANIZATION_ROLE_LABELS.admin },
+  { value: 'dispatcher', label: ORGANIZATION_ROLE_LABELS.dispatcher },
+];
+
+const STATUS_FILTERS = [
+  { value: 'all', label: 'Tous' },
+  { value: 'active', label: 'Actif' },
+  { value: 'pending', label: 'Invitation en attente' },
+];
+
+function formatShortDate(iso: string) {
   return new Intl.DateTimeFormat('fr-CD', {
-    day: '2-digit',
+    day: 'numeric',
     month: 'short',
-    year: 'numeric',
   }).format(new Date(iso));
+}
+
+function buildTeamRows(members: TeamMemberView[], invites: TeamInviteView[]): TeamRow[] {
+  const memberRows: TeamRow[] = members.map((member) => {
+    const email = member.email?.trim() || '';
+    const name = member.fullName?.trim() || null;
+    return {
+      id: `member:${member.id}`,
+      kind: 'member',
+      status: 'active',
+      primary: name ?? (email || '—'),
+      secondary: name && email ? email : null,
+      role: member.userRole,
+      roleLabel: ORGANIZATION_ROLE_LABELS[member.userRole],
+      member,
+      invite: null,
+    };
+  });
+
+  const inviteRows: TeamRow[] = invites.map((invite) => ({
+    id: `invite:${invite.id}`,
+    kind: 'invite',
+    status: 'pending',
+    primary: invite.email,
+    secondary: `Invité le ${formatShortDate(invite.createdAt)}`,
+    role: invite.invitedRole,
+    roleLabel: ORGANIZATION_ROLE_LABELS[invite.invitedRole],
+    member: null,
+    invite,
+  }));
+
+  return [...memberRows, ...inviteRows];
 }
 
 export function BusinessTeamPanel({ members, invites }: BusinessTeamPanelProps) {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [role, setRole] = useState<OrganizationRole>('dispatcher');
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [editMember, setEditMember] = useState<TeamMemberView | null>(null);
+  const [editRole, setEditRole] = useState<OrganizationRole>('dispatcher');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<OrganizationRole>('dispatcher');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [inviteRows, setInviteRows] = useState(invites);
-  const [busyInvite, setBusyInvite] = useState<{ id: string; action: 'resend' | 'revoke' } | null>(
-    null,
-  );
   const [removeId, setRemoveId] = useState<string | null>(null);
-  const [removing, setRemoving] = useState(false);
+  const [cancelInviteId, setCancelInviteId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const inviteCooldown = useInviteCooldowns('org-team');
 
-  useEffect(() => {
-    setInviteRows(invites);
-  }, [invites]);
+  const closeInviteModal = useCallback(() => setInviteOpen(false), []);
+  const closeEditRoleModal = useCallback(() => setEditMember(null), []);
 
-  useEffect(() => {
-    if (!success) return;
-    const timer = window.setTimeout(() => setSuccess(null), 2000);
-    return () => window.clearTimeout(timer);
-  }, [success]);
+  const rows = useMemo(() => buildTeamRows(members, invites), [members, invites]);
+  const filteredRows = useMemo(
+    () =>
+      rows.filter((row) => {
+        if (roleFilter !== 'all' && row.role !== roleFilter) return false;
+        if (statusFilter !== 'all' && row.status !== statusFilter) return false;
+        return matchesListSearch(searchQuery, row.primary, row.secondary, row.roleLabel);
+      }),
+    [rows, roleFilter, statusFilter, searchQuery],
+  );
+
+  const filtersActive = searchQuery.trim() !== '' || roleFilter !== 'all' || statusFilter !== 'all';
 
   async function refresh() {
     router.refresh();
   }
 
-  async function handleInvite(event: FormEvent) {
-    event.preventDefault();
-    if (!inviteCooldown.guard(email)) return;
+  function resetAlerts() {
     setError(null);
     setSuccess(null);
+  }
+
+  function openInviteModal() {
+    resetAlerts();
+    setInviteEmail('');
+    setInviteRole('dispatcher');
+    setInviteOpen(true);
+  }
+
+  function openEditRoleModal(member: TeamMemberView) {
+    resetAlerts();
+    setEditMember(member);
+    setEditRole(member.userRole === 'account_owner' ? 'admin' : member.userRole);
+  }
+
+  async function handleInvite(event: FormEvent) {
+    event.preventDefault();
+    if (!inviteCooldown.guard(inviteEmail)) return;
+    resetAlerts();
     setSaving(true);
     try {
       const response = await fetch('/api/organisation/team/invites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, role }),
+        body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
       });
       const result = await response.json();
       if (!result.success) {
         setError(result.error ?? 'Impossible d’envoyer l’invitation');
         return;
       }
-      inviteCooldown.start(email, result.data?.invite?.id ?? '');
-      setEmail('');
+      inviteCooldown.start(inviteEmail, result.data?.invite?.id ?? '');
+      setInviteOpen(false);
       await refresh();
     } catch {
       setError('Erreur réseau. Veuillez réessayer.');
@@ -82,72 +180,69 @@ export function BusinessTeamPanel({ members, invites }: BusinessTeamPanelProps) 
     }
   }
 
-  async function handleRoleChange(memberId: string, nextRole: OrganizationRole) {
+  async function handleRoleConfirm() {
+    if (!editMember) return;
+    resetAlerts();
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/organisation/team/members/${editMember.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: editRole }),
+      });
+      const result = await response.json();
+      if (!result.success) {
+        setError(result.error ?? 'Impossible de modifier le rôle');
+        return;
+      }
+      setEditMember(null);
+      setSuccess('Rôle mis à jour.');
+      await refresh();
+    } catch {
+      setError('Erreur réseau. Veuillez réessayer.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleResend(inviteId: string, email?: string) {
+    if (!inviteCooldown.guard(inviteId)) return;
     setError(null);
-    setSuccess(null);
-    const response = await fetch(`/api/organisation/team/members/${memberId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: nextRole }),
-    });
+    const response = await fetch(`/api/organisation/team/invites/${inviteId}`, { method: 'POST' });
     const result = await response.json();
     if (!result.success) {
-      setError(result.error ?? 'Impossible de modifier le rôle');
+      setError(result.error ?? 'Impossible de renvoyer l’invitation');
       return;
     }
+    inviteCooldown.start(inviteId, email ?? '');
     await refresh();
   }
 
-  async function handleResend(inviteId: string, inviteEmail?: string) {
-    if (!inviteCooldown.guard(inviteId)) return;
+  async function confirmCancelInvite() {
+    if (!cancelInviteId) return;
+    setBusy(true);
     setError(null);
-    setSuccess(null);
-    setBusyInvite({ id: inviteId, action: 'resend' });
     try {
-      const response = await fetch(`/api/organisation/team/invites/${inviteId}`, { method: 'POST' });
+      const response = await fetch(`/api/organisation/team/invites/${cancelInviteId}`, {
+        method: 'DELETE',
+      });
       const result = await response.json();
       if (!result.success) {
-        setError(result.error ?? 'Impossible de renvoyer l’invitation');
+        setError(result.error ?? 'Impossible d’annuler l’invitation');
         return;
       }
-      inviteCooldown.start(inviteId, inviteEmail ?? '');
+      setCancelInviteId(null);
+      setSuccess('Invitation annulée.');
       await refresh();
-    } catch {
-      setError('Erreur réseau. Veuillez réessayer.');
     } finally {
-      setBusyInvite(null);
-    }
-  }
-
-  async function handleRevoke(inviteId: string) {
-    setError(null);
-    setSuccess(null);
-    setBusyInvite({ id: inviteId, action: 'revoke' });
-    const previous = inviteRows;
-    setInviteRows((rows) => rows.filter((row) => row.id !== inviteId));
-    try {
-      const response = await fetch(`/api/organisation/team/invites/${inviteId}`, { method: 'DELETE' });
-      const result = await response.json();
-      if (!result.success) {
-        setInviteRows(previous);
-        setError(result.error ?? 'Impossible de révoquer l’invitation');
-        return;
-      }
-      setSuccess('Invitation révoquée.');
-      await refresh();
-    } catch {
-      setInviteRows(previous);
-      setError('Erreur réseau. Veuillez réessayer.');
-    } finally {
-      setBusyInvite(null);
+      setBusy(false);
     }
   }
 
   async function confirmRemove() {
     if (!removeId) return;
-    setRemoving(true);
+    setBusy(true);
     setError(null);
-    setSuccess(null);
     try {
       const response = await fetch(`/api/organisation/team/members/${removeId}`, { method: 'DELETE' });
       const result = await response.json();
@@ -159,146 +254,190 @@ export function BusinessTeamPanel({ members, invites }: BusinessTeamPanelProps) 
       setSuccess('Membre retiré.');
       await refresh();
     } finally {
-      setRemoving(false);
+      setBusy(false);
     }
   }
 
-  const memberColumns: DataTableColumn<TeamMemberView>[] = [
-    {
-      id: 'name',
-      header: 'Membre',
-      sortable: true,
-      sortValue: (row) => row.fullName ?? row.email ?? '',
-      cell: (row) => (
-        <div>
-          <div style={{ fontWeight: 600 }}>{row.fullName ?? '—'}</div>
-          <div style={{ color: colors.textMuted, fontSize: '0.8125rem' }}>{row.email}</div>
-        </div>
-      ),
-    },
-    {
-      id: 'role',
-      header: 'Rôle',
-      cell: (row) => (
-        <select
-          aria-label={`Rôle de ${row.fullName ?? row.email ?? 'membre'}`}
-          value={row.userRole}
-          disabled={row.isCurrentUser}
-          onChange={(event) => void handleRoleChange(row.id, event.target.value as OrganizationRole)}
-          style={{ ...webInputStyle, height: 36, minWidth: 180 }}
-        >
-          {row.userRole === 'account_owner' ? (
-            <option value="account_owner">{ORGANIZATION_ROLE_LABELS.account_owner}</option>
-          ) : (
-            INVITABLE_ORGANIZATION_ROLES.map((value) => (
-              <option key={value} value={value}>
-                {ORGANIZATION_ROLE_LABELS[value]}
-              </option>
-            ))
-          )}
-        </select>
-      ),
-    },
-    {
-      id: 'actions',
-      header: '',
-      align: 'right',
-      cell: (row) =>
-        row.isCurrentUser ? (
-          <span style={{ color: colors.textMuted, fontSize: '0.75rem' }}>Vous</span>
-        ) : (
-          <Button variant="ghost" size="sm" onClick={() => setRemoveId(row.id)}>
-            Retirer
-          </Button>
-        ),
-    },
-  ];
-
-  const inviteColumns: DataTableColumn<TeamInviteView>[] = [
-    {
-      id: 'email',
-      header: 'Email',
-      sortable: true,
-      sortValue: (row) => row.email,
-      cell: (row) => row.email,
-    },
-    {
-      id: 'role',
-      header: 'Rôle',
-      cell: (row) => ORGANIZATION_ROLE_LABELS[row.invitedRole],
-    },
-    {
-      id: 'expires',
-      header: 'Expire le',
-      cell: (row) => formatDate(row.expiresAt),
-    },
-    {
-      id: 'actions',
-      header: '',
-      align: 'right',
-      cell: (row) => {
-        const busy = busyInvite?.id === row.id;
-        const remaining = inviteCooldown.remainingMs(row.id);
-        const cooling = remaining > 0;
-        return (
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <Button
-              variant="secondary"
-              size="sm"
-              loading={busy && busyInvite?.action === 'resend'}
-              disabled={busyInvite !== null || cooling}
-              onClick={() => void handleResend(row.id, row.email)}
-            >
-              {busy && busyInvite?.action === 'resend'
-                ? 'Envoi…'
-                : inviteCooldownButtonLabel('Renvoyer', remaining)}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              loading={busy && busyInvite?.action === 'revoke'}
-              disabled={busyInvite !== null}
-              onClick={() => void handleRevoke(row.id)}
-            >
-              Révoquer
-            </Button>
-          </div>
-        );
+  const columns = useMemo<DataTableColumn<TeamRow>[]>(
+    () => [
+      {
+        id: 'member',
+        header: 'Membre',
+        sortable: true,
+        sortValue: (row) => `${row.kind === 'member' ? '0' : '1'}:${row.primary}`,
+        cell: (row) => <TableCellStack primary={row.primary} secondary={row.secondary ?? undefined} />,
       },
-    },
-  ];
+      {
+        id: 'role',
+        header: 'Rôle',
+        sortable: true,
+        sortValue: (row) => row.roleLabel,
+        cell: (row) => row.roleLabel,
+      },
+      {
+        id: 'status',
+        header: 'Statut',
+        sortable: true,
+        sortValue: (row) => row.status,
+        cell: (row) =>
+          row.status === 'active' ? (
+            <StatusBadge tone="success">Actif</StatusBadge>
+          ) : (
+            <StatusBadge tone="warning">Invitation en attente</StatusBadge>
+          ),
+      },
+    ],
+    [],
+  );
+
+  function rowActions(row: TeamRow): DropdownMenuItem[] {
+    if (row.member) {
+      if (row.member.isCurrentUser) return [];
+      const actions: DropdownMenuItem[] = [];
+      if (row.member.userRole !== 'account_owner') {
+        actions.push({
+          id: 'role',
+          label: 'Modifier le rôle',
+          onClick: () => openEditRoleModal(row.member!),
+        });
+      }
+      actions.push({
+        id: 'remove',
+        label: 'Retirer',
+        tone: 'danger',
+        onClick: () => setRemoveId(row.member!.id),
+      });
+      return actions;
+    }
+    if (row.invite) {
+      const remaining = inviteCooldown.remainingMs(row.invite.id);
+      return [
+        {
+          id: 'resend',
+          label: inviteCooldownButtonLabel('Renvoyer l’invitation', remaining),
+          onClick: () => void handleResend(row.invite!.id, row.invite!.email),
+        },
+        {
+          id: 'cancel',
+          label: 'Annuler l’invitation',
+          tone: 'danger',
+          onClick: () => setCancelInviteId(row.invite!.id),
+        },
+      ];
+    }
+    return [];
+  }
+
+  const memberCountLabel = `${filteredRows.length} membre${filteredRows.length === 1 ? '' : 's'}`;
 
   return (
-    <div className="ops-form">
-      {inviteCooldown.waitMessage ? (
-        <InlineAlert message={inviteCooldown.waitMessage} variant="info" autoDismissMs={0} />
-      ) : error ? (
-        <InlineAlert message={error} variant="error" onDismiss={() => setError(null)} />
-      ) : null}
-      {success ? (
-        <InlineAlert message={success} variant="success" onDismiss={() => setSuccess(null)} />
-      ) : null}
+    <PageFrame
+      title="Équipe"
+      layout="wide"
+      action={
+        <Button type="button" size="sm" onClick={openInviteModal}>
+          Inviter un membre
+        </Button>
+      }
+    >
+      <div style={{ display: 'grid', gap: '1rem' }}>
+        {inviteCooldown.waitMessage ? (
+          <InlineAlert message={inviteCooldown.waitMessage} variant="info" autoDismissMs={0} />
+        ) : error ? (
+          <InlineAlert message={error} variant="error" onDismiss={() => setError(null)} />
+        ) : success ? (
+          <InlineAlert message={success} variant="success" onDismiss={() => setSuccess(null)} />
+        ) : null}
 
-      <SettingsFormSection title="Inviter un membre" description="La personne recevra un e-mail pour rejoindre votre entreprise.">
-        <form onSubmit={handleInvite} className="ops-field-grid" style={{ maxWidth: 640 }}>
-          <label className="ops-field">
-            <span className="ops-field-label">Email</span>
+        <DataTable
+          caption={memberCountLabel}
+          columns={columns}
+          rows={filteredRows}
+          getRowId={(row) => row.id}
+          initialSortId="member"
+          rowActions={rowActions}
+          search={
+            <ListSearchField
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Rechercher par nom ou email..."
+              ariaLabel="Rechercher par nom ou email"
+            />
+          }
+          filters={
+            <FilterToolbar
+              embedded
+              onClearAll={() => {
+                setRoleFilter('all');
+                setStatusFilter('all');
+              }}
+              filters={[
+                {
+                  id: 'role',
+                  label: 'Rôle',
+                  value: roleFilter,
+                  emptyValue: 'all',
+                  options: ROLE_FILTERS,
+                  onChange: setRoleFilter,
+                },
+                {
+                  id: 'status',
+                  label: 'Statut',
+                  value: statusFilter,
+                  emptyValue: 'all',
+                  options: STATUS_FILTERS,
+                  onChange: setStatusFilter,
+                },
+              ]}
+            />
+          }
+          emptyTitle={filtersActive ? 'Aucun résultat' : 'Aucun membre'}
+          emptyDescription={
+            filtersActive
+              ? 'Aucun membre ne correspond à la recherche actuelle.'
+              : 'Invitez la première personne à rejoindre votre entreprise.'
+          }
+          emptyIcon={<IconUsers />}
+        />
+      </div>
+
+      <Modal
+        open={inviteOpen}
+        onClose={closeInviteModal}
+        title="Inviter un membre"
+        footer={
+          <>
+            <Button variant="ghost" onClick={closeInviteModal} disabled={saving}>
+              Annuler
+            </Button>
+            <Button
+              type="submit"
+              form="business-team-invite-form"
+              disabled={saving || inviteCooldown.isCooling(inviteEmail)}
+              loading={saving}
+            >
+              {saving ? 'Envoi…' : inviteCooldown.buttonLabel(inviteEmail, 'Inviter')}
+            </Button>
+          </>
+        }
+      >
+        <form id="business-team-invite-form" onSubmit={handleInvite} style={{ display: 'grid', gap: '0.75rem' }}>
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Email</span>
             <input
               type="email"
               required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              value={inviteEmail}
+              onChange={(event) => setInviteEmail(event.target.value)}
               placeholder="marie@commerce.cd"
-              className="nb-input"
               style={webInputStyle}
             />
           </label>
-          <label className="ops-field">
-            <span className="ops-field-label">Rôle</span>
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Rôle</span>
             <select
-              value={role}
-              onChange={(event) => setRole(event.target.value as OrganizationRole)}
-              className="nb-input"
+              value={inviteRole}
+              onChange={(event) => setInviteRole(event.target.value as OrganizationRole)}
               style={{ ...webInputStyle, height: 44 }}
             >
               {INVITABLE_ORGANIZATION_ROLES.map((value) => (
@@ -308,35 +447,55 @@ export function BusinessTeamPanel({ members, invites }: BusinessTeamPanelProps) 
               ))}
             </select>
           </label>
-          <div style={{ display: 'flex', alignItems: 'end' }}>
-            <Button
-              type="submit"
-              disabled={saving || inviteCooldown.isCooling(email)}
-              loading={saving}
-            >
-              {saving
-                ? 'Envoi…'
-                : inviteCooldown.buttonLabel(email, 'Inviter')}
-            </Button>
-          </div>
         </form>
-      </SettingsFormSection>
+      </Modal>
 
-      <section>
-        <h2 className="ops-section__title" style={{ marginBottom: '0.75rem' }}>
-          Membres
-        </h2>
-        <DataTable columns={memberColumns} rows={members} getRowId={(row) => row.id} />
-      </section>
+      <Modal
+        open={Boolean(editMember)}
+        onClose={closeEditRoleModal}
+        title="Modifier le rôle"
+        description={
+          editMember
+            ? `Rôle de ${editMember.fullName ?? editMember.email ?? 'ce membre'}.`
+            : undefined
+        }
+        footer={
+          <>
+            <Button variant="ghost" onClick={closeEditRoleModal} disabled={saving}>
+              Annuler
+            </Button>
+            <Button onClick={() => void handleRoleConfirm()} disabled={saving} loading={saving}>
+              {saving ? 'Enregistrement…' : 'Enregistrer'}
+            </Button>
+          </>
+        }
+      >
+        <label style={{ display: 'grid', gap: 6 }}>
+          <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>Rôle</span>
+          <select
+            value={editRole}
+            onChange={(event) => setEditRole(event.target.value as OrganizationRole)}
+            style={{ ...webInputStyle, height: 44 }}
+          >
+            {INVITABLE_ORGANIZATION_ROLES.map((value) => (
+              <option key={value} value={value}>
+                {ORGANIZATION_ROLE_LABELS[value]}
+              </option>
+            ))}
+          </select>
+        </label>
+      </Modal>
 
-      {inviteRows.length > 0 ? (
-        <section>
-          <h2 className="ops-section__title" style={{ marginBottom: '0.75rem' }}>
-            Invitations en attente
-          </h2>
-          <DataTable columns={inviteColumns} rows={inviteRows} getRowId={(row) => row.id} />
-        </section>
-      ) : null}
+      <ConfirmDialog
+        open={Boolean(cancelInviteId)}
+        onClose={() => setCancelInviteId(null)}
+        onConfirm={() => void confirmCancelInvite()}
+        title="Annuler l’invitation ?"
+        description="Cette personne ne pourra plus rejoindre votre entreprise avec ce lien."
+        confirmLabel="Annuler l’invitation"
+        tone="danger"
+        loading={busy}
+      />
 
       <ConfirmDialog
         open={Boolean(removeId)}
@@ -346,8 +505,8 @@ export function BusinessTeamPanel({ members, invites }: BusinessTeamPanelProps) 
         description="La personne n’aura plus accès au tableau de bord de l’entreprise."
         confirmLabel="Retirer"
         tone="danger"
-        loading={removing}
+        loading={busy}
       />
-    </div>
+    </PageFrame>
   );
 }

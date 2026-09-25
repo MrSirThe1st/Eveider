@@ -42,6 +42,7 @@ export { CommercialRepository } from './repositories/commercial.repository.js';
 export {
   ParcelChargeRepository,
   quoteForPickupType,
+  type BusinessBillingHistoryRow,
 } from './repositories/parcel-charge.repository.js';
 export { syncParcelLockerRental } from './repositories/parcel-rental.js';
 export {

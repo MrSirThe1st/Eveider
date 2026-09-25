@@ -18,7 +18,7 @@ export default async function OrganizationDetailsSettingsPage() {
   return (
     <PageFrame
       title="Entreprise"
-      description="Informations de votre boutique. Les champs avancés se trouvent plus bas."
+      description="Identité, adresse et mode d’envoi habituels de votre boutique."
       layout="standard"
     >
       <BusinessSettingsForm

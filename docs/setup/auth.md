@@ -10,6 +10,9 @@ All web roles share one app (`apps/web-manager`, port **3000**):
 |-----|---------|
 | `/` | Public landing page |
 | `/connexion` | Shared login (all web roles) |
+| `/mot-de-passe-oublie` | Request password reset email |
+| `/reinitialiser-mot-de-passe` | Set new password after recovery link |
+| `/auth/callback` | Supabase PKCE / email-confirm exchange |
 | `/inscription` | Organization self-registration |
 | `/organisation/tableau-de-bord/verification` | Optional KYC / Get verified |
 | `/onboarding` | Redirects to organization verification |
@@ -46,9 +49,19 @@ Customers should register with the **same phone** used as `recipientPhone` on bu
 
 Courier accounts are **not self-service**. Eveider or a company submits a dossier; admin reviews it; then an invite is sent. The courier only signs in on mobile. Web `/inscription` has no Coursier tab. Mobile `POST /api/auth/onboard` accepts `customer` only.
 
-Password reset: `Mot de passe oublié` on the auth screen sends a Supabase recovery email. Add these redirect URLs in Supabase Auth:
+Password reset:
+
+- **Mobile**: `Mot de passe oublié` on the auth screen sends a Supabase recovery email. Deep link: `eveider://reset-password`
+- **Web** (`/connexion` → `/mot-de-passe-oublie`): recovery email redirects to `/auth/callback?next=/reinitialiser-mot-de-passe`, then the user sets a new password
+
+Add these redirect URLs in Supabase Auth (**Authentication → URL configuration → Redirect URLs**):
 
 - `eveider://reset-password`
+- `http://localhost:3000/auth/callback`
+- `https://www.eveider.com/auth/callback`
+- (plus any preview / staging portal origins ending in `/auth/callback`)
+
+Email change (web profile → Mon compte): `updateUser({ email })` confirms via the same `/auth/callback` route, which syncs `public.users.email` from Auth.
 
 The native app exchanges the recovery (or invite) URL for a session, then opens the set-password screen. Courier invites use the same mobile password-set deep link — not the web team-invite page.
 

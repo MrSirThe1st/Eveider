@@ -255,8 +255,12 @@ export function getRecipientPrimaryAction(parcel: CustomerParcel): {
 }
 
 export function getRecipientListSection(parcel: CustomerParcel): RecipientListSection {
+  const primary = getRecipientPrimaryAction(parcel);
   if (
     parcel.status === 'ready_for_pickup' ||
+    primary.id === 'pay' ||
+    primary.id === 'view_collection_code' ||
+    primary.id === 'view_return_instructions' ||
     (parcel.customerReturn?.status === 'authorized' &&
       (parcel.customerReturn.canDeposit || Boolean(parcel.customerReturn.returnCode)))
   ) {

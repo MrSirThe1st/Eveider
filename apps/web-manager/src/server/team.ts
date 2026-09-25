@@ -17,6 +17,7 @@ export type TeamInviteView = {
   email: string;
   invitedRole: OrganizationRole;
   status: string;
+  createdAt: string;
   expiresAt: string;
   inviteUrl: string;
 };
@@ -45,6 +46,7 @@ export async function loadBusinessTeam(ctx: DataAccessContext, currentUserId: st
         email: invite.email,
         invitedRole: invite.invitedRole,
         status: invite.status,
+        createdAt: invite.createdAt.toISOString(),
         expiresAt: invite.expiresAt.toISOString(),
         inviteUrl: buildTeamInviteLink(invite.token),
       }),

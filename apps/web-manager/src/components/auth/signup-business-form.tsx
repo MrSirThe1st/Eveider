@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { Spinner } from '@eveider/ui';
 import { getPostLoginPath, WEB_ROUTES } from '@/lib/auth-routing';
 import { createClient } from '@/lib/supabase/client';
+import { AuthIndustryField } from './auth-industry-field';
 import { AuthPasswordField } from './auth-password-field';
 import { AuthPhoneField } from './auth-phone-field';
 import styles from './auth-shell.module.css';
@@ -143,21 +144,7 @@ export function SignupBusinessForm({ inviteToken }: SignupBusinessFormProps) {
               autoComplete="organization"
             />
           </label>
-          <label className={styles.field}>
-            <span>Secteur d’activité</span>
-            <select
-              className={styles.input}
-              required
-              value={industry}
-              onChange={(event) => setIndustry(event.target.value)}
-            >
-              {BUSINESS_INDUSTRY_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
+          <AuthIndustryField value={industry} onChange={setIndustry} required />
         </>
       )}
       <label className={styles.field}>

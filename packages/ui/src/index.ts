@@ -71,7 +71,14 @@ export {
   type TableCellStackProps,
   type TruncatedTextProps,
 } from './table-cells.js';
-export { Wizard, WizardStepper, type WizardProps, type WizardStep, type WizardStepperProps } from './wizard.js';
+export {
+  Wizard,
+  WizardStepper,
+  type WizardOrientation,
+  type WizardProps,
+  type WizardStep,
+  type WizardStepperProps,
+} from './wizard.js';
 export {
   FilterBar,
   FilterChipGroup,

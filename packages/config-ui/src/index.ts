@@ -334,7 +334,7 @@ export const typography = {
 
 export const borders = {
   width: 1,
-  widthStrong: 1,
+  widthStrong: 2,
   style: 'solid',
 } as const;
 
@@ -427,7 +427,7 @@ export function borderSubtle(width: number = borders.width): string {
 }
 
 export function borderStrong(width: number = borders.widthStrong): string {
-  return `${width}px ${borders.style} ${colors.borderSubtle}`;
+  return `${width}px ${borders.style} ${colors.borderStrong}`;
 }
 
 export const webCardStyle = {

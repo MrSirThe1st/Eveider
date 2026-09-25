@@ -76,10 +76,16 @@ export async function resolveCurrentUser(): Promise<CurrentUser | null> {
   }
 
   const { users, memberships } = createRepositories();
-  const profile = await users.findByAuthId(authUser.id);
+  let profile = await users.findByAuthId(authUser.id);
   if (!profile || profile.isBlocked || profile.deletedAt || profile.deactivatedAt) {
     identityCache.delete(authUser.id);
     return null;
+  }
+
+  // Keep app profile email in sync after Supabase email confirmation.
+  const authEmail = authUser.email?.trim();
+  if (authEmail && profile.email?.toLowerCase() !== authEmail.toLowerCase()) {
+    profile = await users.updateProfile(profile.id, { email: authEmail });
   }
 
   const rows = await memberships.listByUserIdWithOrgFlags(profile.id);

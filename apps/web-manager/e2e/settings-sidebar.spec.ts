@@ -18,9 +18,9 @@ test.describe('Settings secondary sidebar', () => {
     await expect(nav.getByRole('heading', { name: 'Avancé', level: 2 })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Entreprise' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Vérification' })).toHaveCount(0);
-    await expect(nav.getByRole('link', { name: 'Membres' })).toHaveAttribute(
+    await expect(nav.getByRole('link', { name: 'Équipe' })).toHaveAttribute(
       'href',
-      '/organisation/tableau-de-bord/parametres/membres',
+      '/organisation/tableau-de-bord/parametres/equipe',
     );
     await expect(nav.getByRole('link', { name: 'Équipes' })).toHaveCount(0);
     await expect(nav.getByRole('link', { name: 'Casiers' })).toHaveCount(0);
@@ -46,11 +46,11 @@ test.describe('Settings secondary sidebar', () => {
     await expect(page.locator('.nb-side-nav__link', { hasText: 'Facturation' })).toHaveCount(0);
     await expect(page.locator('.nb-side-nav__link', { hasText: 'Équipe' })).toHaveCount(0);
 
-    await page.goto('/organisation/tableau-de-bord/parametres/membres');
-    await expect(page.getByRole('heading', { name: 'Membres', level: 1 })).toBeVisible();
+    await page.goto('/organisation/tableau-de-bord/parametres/equipe');
+    await expect(page.getByRole('heading', { name: 'Équipe', level: 1 })).toBeVisible();
 
     await page.goto('/organisation/tableau-de-bord/parametres/roles');
-    await expect(page).toHaveURL(/\/parametres\/membres$/);
+    await expect(page).toHaveURL(/\/parametres\/equipe$/);
     await expect(page.getByText('Bientôt disponible')).toHaveCount(0);
 
     await page.goto('/organisation/tableau-de-bord/parametres/facturation');
@@ -96,7 +96,7 @@ test.describe('Settings secondary sidebar', () => {
     await expect(nav.getByRole('link', { name: 'Sécurité' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Notifications' })).toHaveCount(0);
     await expect(nav.getByRole('link', { name: 'Entreprise' })).toHaveCount(0);
-    await expect(nav.getByRole('link', { name: 'Membres' })).toHaveCount(0);
+    await expect(nav.getByRole('link', { name: 'Équipe' })).toHaveCount(0);
     await expect(nav.getByRole('link', { name: 'Facturation' })).toHaveCount(0);
     await expect(nav.getByRole('link', { name: 'Excel' })).toHaveCount(0);
 

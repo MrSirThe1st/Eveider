@@ -499,14 +499,15 @@ export class StatsRepository {
             JOIN parcels p ON p.id = pc.parcel_id
            WHERE p.business_id = $1
              AND pc.payer = 'business'
-             AND pc.status <> 'void'
+             AND pc.status = 'owed'
              AND pc.kind IN ('return_delivery', 'return_locker', 'locker_rental')) AS owed_amount,
          (SELECT COALESCE(MAX(pc.currency), 'CDF')
             FROM parcel_charges pc
             JOIN parcels p ON p.id = pc.parcel_id
            WHERE p.business_id = $1
              AND pc.payer = 'business'
-             AND pc.status <> 'void') AS owed_currency`,
+             AND pc.status = 'owed'
+             AND pc.kind IN ('return_delivery', 'return_locker', 'locker_rental')) AS owed_currency`,
       [businessId],
     );
     const row = result.rows[0] ?? {};

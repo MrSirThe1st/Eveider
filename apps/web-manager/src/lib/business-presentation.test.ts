@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   getBusinessAttentionLabel,
+  getBusinessBillingChargeStatusLabel,
+  getBusinessBillingHistoryDescription,
   getBusinessChargeLabel,
   getBusinessDeliveryKindLabel,
   getBusinessParcelDisplayStatus,
@@ -43,6 +45,25 @@ describe('business charges', () => {
     expect(getBusinessChargeLabel('return_locker')).toBe('Retrait du retour par l’entreprise');
     expect(getBusinessChargeLabel('locker_collection')).toBe('Retrait au casier');
     expect(getBusinessChargeLabel('locker_rental')).toBe('Stockage');
+  });
+
+  it('formats Facturation history descriptions and statuses', () => {
+    expect(getBusinessBillingHistoryDescription('return_delivery')).toBe(
+      'Retour transporté par Eveider',
+    );
+    expect(getBusinessBillingHistoryDescription('return_locker')).toBe('Retrait d’un retour');
+    expect(getBusinessBillingHistoryDescription('locker_rental', 1)).toBe(
+      'Stockage supplémentaire — 24 h',
+    );
+    expect(getBusinessBillingHistoryDescription('locker_rental', 2)).toBe(
+      'Stockage supplémentaire — 48 h',
+    );
+    expect(getBusinessBillingHistoryDescription('locker_rental', null)).toBe(
+      'Stockage supplémentaire',
+    );
+    expect(getBusinessBillingChargeStatusLabel('owed')).toBe('À payer');
+    expect(getBusinessBillingChargeStatusLabel('pending')).toBe('En cours');
+    expect(getBusinessBillingChargeStatusLabel('void')).toBe('Annulé');
   });
 });
 

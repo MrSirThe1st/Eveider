@@ -1,9 +1,10 @@
-import { borders, type ColorTokens } from '@eveider/config-ui';
+import { borders, radius, type ColorTokens } from '@eveider/config-ui';
 import { DRC_CITIES, type DrcCity } from '@eveider/domain';
 import { Feather } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,31 +12,37 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { EmptyState } from '../components/EmptyState';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ScreenScaffold } from '../components/ScreenHeader';
-import { SelectField } from '../components/SelectField';
-import { LockerMapView, LockerSelectPanel } from '../components/LockerMapView';
+import {
+  LockerMapView,
+  LockerSelectPanel,
+  openAddressSearch,
+} from '../components/LockerMapView';
 import { fetchLockersByCity, type CustomerLocker } from '../lib/api';
 import { useColors } from '../theme';
+
+const LOCKER_EMPTY = require('../assets/locker2.png');
+
+type SortMode = 'nearest' | 'all';
+type ViewMode = 'map' | 'list';
+
+const DEFAULT_CITY: DrcCity = 'Kolwezi';
 
 export function PointsScreen() {
   const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const [city, setCity] = useState<DrcCity | ''>('');
+  const [city, setCity] = useState<DrcCity | ''>(DEFAULT_CITY);
   const [cityOpen, setCityOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [sortMode, setSortMode] = useState<SortMode>('nearest');
+  const [viewMode, setViewMode] = useState<ViewMode>('map');
   const [lockers, setLockers] = useState<CustomerLocker[]>([]);
   const [selectedLockerId, setSelectedLockerId] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recenterToken, setRecenterToken] = useState(0);
-
-  const cityOptions = useMemo(
-    () => DRC_CITIES.map((value) => ({ value, label: value })),
-    [],
-  );
 
   const loadCity = useCallback(
     async (nextCity: DrcCity) => {
@@ -75,13 +82,23 @@ export function PointsScreen() {
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return lockers;
-    return lockers.filter(
-      (item) =>
-        item.name.toLowerCase().includes(needle) ||
-        item.address.toLowerCase().includes(needle),
-    );
-  }, [lockers, query]);
+    let items = lockers;
+    if (needle) {
+      items = items.filter(
+        (item) =>
+          item.name.toLowerCase().includes(needle) ||
+          item.address.toLowerCase().includes(needle),
+      );
+    }
+    if (sortMode === 'nearest') {
+      return [...items].sort((a, b) => {
+        const da = a.distanceKm ?? Number.POSITIVE_INFINITY;
+        const db = b.distanceKm ?? Number.POSITIVE_INFINITY;
+        return da - db;
+      });
+    }
+    return [...items].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  }, [lockers, query, sortMode]);
 
   useEffect(() => {
     if (filtered.length === 0) {
@@ -101,38 +118,113 @@ export function PointsScreen() {
         keyboardShouldPersistTaps="handled"
         nestedScrollEnabled
       >
-        <SelectField
-          label={t('points.regionLabel')}
-          value={city}
-          options={cityOptions}
-          open={cityOpen}
-          onOpenChange={setCityOpen}
-          onChange={(value) => setCity(value as DrcCity)}
-          placeholder={t('points.regionPlaceholder')}
-          searchable
-          emptyLabel={t('points.noCityMatch')}
-        />
+        <Pressable
+          onPress={() => setCityOpen((open) => !open)}
+          style={styles.cityButton}
+          accessibilityRole="button"
+        >
+          <Feather name="map-pin" size={16} color={colors.primary} />
+          <Text style={styles.cityValue} numberOfLines={1}>
+            {city || t('points.regionPlaceholder')}
+          </Text>
+          <Feather
+            name={cityOpen ? 'chevron-up' : 'chevron-down'}
+            size={18}
+            color={colors.textMuted}
+          />
+        </Pressable>
 
-        {city ? (
-          <View style={styles.searchRow}>
-            <Feather name="search" size={16} color={colors.textMuted} />
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder={t('points.pointSearchPlaceholder')}
-              placeholderTextColor={colors.textMuted}
-              style={styles.searchInput}
-              autoCorrect={false}
-              returnKeyType="search"
-            />
+        {cityOpen ? (
+          <View style={styles.cityMenu}>
+            <ScrollView style={styles.cityMenuScroll} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+              {DRC_CITIES.map((item) => (
+                <Pressable
+                  key={item}
+                  onPress={() => {
+                    setCity(item);
+                    setCityOpen(false);
+                  }}
+                  style={[styles.cityOption, item === city && styles.cityOptionSelected]}
+                >
+                  <Text
+                    style={[
+                      styles.cityOptionText,
+                      item === city && styles.cityOptionTextSelected,
+                    ]}
+                  >
+                    {item}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
           </View>
         ) : null}
 
+        <View style={styles.searchRow}>
+          <Feather name="search" size={16} color={colors.textMuted} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder={t('points.pointSearchPlaceholder')}
+            placeholderTextColor={colors.textMuted}
+            style={styles.searchInput}
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+        </View>
+
+        <View style={styles.toolbar}>
+          <View style={styles.sortTabs}>
+            <Pressable onPress={() => setSortMode('nearest')} style={styles.sortTab}>
+              <Text
+                style={[
+                  styles.sortLabel,
+                  sortMode === 'nearest' && styles.sortLabelActive,
+                ]}
+              >
+                {t('points.sortNearest')}
+              </Text>
+            </Pressable>
+            <Pressable onPress={() => setSortMode('all')} style={styles.sortTab}>
+              <Text
+                style={[styles.sortLabel, sortMode === 'all' && styles.sortLabelActive]}
+              >
+                {t('points.sortAll')}
+              </Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.viewToggle}>
+            <Pressable
+              onPress={() => setViewMode('map')}
+              style={[styles.viewBtn, viewMode === 'map' && styles.viewBtnActive]}
+              accessibilityRole="button"
+              accessibilityLabel={t('points.viewMap')}
+            >
+              <Feather
+                name="map"
+                size={14}
+                color={viewMode === 'map' ? colors.onPrimary : colors.textMuted}
+              />
+            </Pressable>
+            <Pressable
+              onPress={() => setViewMode('list')}
+              style={[styles.viewBtn, viewMode === 'list' && styles.viewBtnActive]}
+              accessibilityRole="button"
+              accessibilityLabel={t('points.viewList')}
+            >
+              <Feather
+                name="list"
+                size={14}
+                color={viewMode === 'list' ? colors.onPrimary : colors.textMuted}
+              />
+            </Pressable>
+          </View>
+        </View>
+
         {!city ? <Text style={styles.prompt}>{t('points.prompt')}</Text> : null}
 
-        {city && loading ? (
-          <Text style={styles.prompt}>{t('common.loading')}</Text>
-        ) : null}
+        {city && loading ? <Text style={styles.prompt}>{t('common.loading')}</Text> : null}
 
         {city && !loading && error ? (
           <View style={styles.feedback}>
@@ -142,25 +234,46 @@ export function PointsScreen() {
         ) : null}
 
         {city && !loading && !error && filtered.length === 0 ? (
-          <EmptyState title={t('points.emptyTitle')} message={t('points.emptyCityMessage')} />
+          <View style={styles.empty}>
+            <View style={styles.emptyIconWrap}>
+              <Image source={LOCKER_EMPTY} style={styles.emptyImage} resizeMode="contain" />
+            </View>
+            <Text style={styles.emptyTitle}>
+              {query.trim() ? t('points.emptySearchTitle') : t('points.emptyTitle')}
+            </Text>
+            <Text style={styles.emptyMessage}>
+              {query.trim()
+                ? t('points.emptySearchMessage')
+                : t('points.emptyCityMessage')}
+            </Text>
+            {query.trim() ? (
+              <Pressable onPress={() => setQuery('')} style={styles.emptyAction} hitSlop={8}>
+                <Text style={styles.emptyActionText}>{t('points.clearSearch')}</Text>
+              </Pressable>
+            ) : null}
+          </View>
         ) : null}
 
         {city && !loading && !error && filtered.length > 0 ? (
           <>
-            <LockerMapView
-              lockers={filtered}
-              selectedLockerId={selectedLockerId}
-              onSelectLocker={setSelectedLockerId}
-              onRequestRecenter={() => setRecenterToken((value) => value + 1)}
-              recenterToken={recenterToken}
-            />
-            <Text style={styles.nearby}>
-              {t('points.nearby', { count: filtered.length })}
-            </Text>
+            {viewMode === 'map' ? (
+              <LockerMapView
+                lockers={filtered}
+                selectedLockerId={selectedLockerId}
+                onSelectLocker={setSelectedLockerId}
+                onRequestRecenter={() => setRecenterToken((value) => value + 1)}
+                recenterToken={recenterToken}
+                height={220}
+              />
+            ) : null}
+
             <LockerSelectPanel
               lockers={filtered}
               selectedLockerId={selectedLockerId}
               onSelectLocker={setSelectedLockerId}
+              onViewDetails={(locker) =>
+                openAddressSearch(`${locker.name} ${locker.address}`)
+              }
             />
           </>
         ) : null}
@@ -177,19 +290,65 @@ function createStyles(colors: ColorTokens) {
     },
     content: {
       paddingHorizontal: 20,
-      paddingTop: 16,
+      paddingTop: 8,
       paddingBottom: 40,
+      gap: 12,
+    },
+    cityButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      minHeight: 48,
+      paddingHorizontal: 14,
+      borderRadius: radius.md,
+      backgroundColor: colors.surface,
+      borderWidth: borders.width,
+      borderColor: colors.border,
+    },
+    cityValue: {
+      flex: 1,
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.secondary,
+    },
+    cityMenu: {
+      borderWidth: borders.width,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      backgroundColor: colors.surface,
+      maxHeight: 220,
+      overflow: 'hidden',
+    },
+    cityMenuScroll: {
+      maxHeight: 220,
+    },
+    cityOption: {
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    cityOptionSelected: {
+      backgroundColor: colors.successMuted,
+    },
+    cityOptionText: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.secondary,
+    },
+    cityOptionTextSelected: {
+      fontWeight: '700',
+      color: colors.primary,
     },
     searchRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 10,
-      marginTop: 12,
-      marginBottom: 16,
       minHeight: 48,
-      paddingHorizontal: 12,
+      paddingHorizontal: 14,
       borderWidth: borders.width,
       borderColor: colors.border,
+      borderRadius: radius.md,
       backgroundColor: colors.surface,
     },
     searchInput: {
@@ -199,23 +358,100 @@ function createStyles(colors: ColorTokens) {
       color: colors.secondary,
       paddingVertical: 10,
     },
+    toolbar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    sortTabs: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      flex: 1,
+    },
+    sortTab: {
+      paddingVertical: 4,
+    },
+    sortLabel: {
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.textMuted,
+    },
+    sortLabelActive: {
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    viewToggle: {
+      flexDirection: 'row',
+      borderWidth: borders.width,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      overflow: 'hidden',
+    },
+    viewBtn: {
+      width: 40,
+      height: 34,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.surface,
+    },
+    viewBtnActive: {
+      backgroundColor: colors.primary,
+    },
     prompt: {
-      marginTop: 20,
+      marginTop: 8,
       fontSize: 14,
       lineHeight: 20,
       color: colors.textMuted,
     },
-    nearby: {
+    empty: {
+      alignItems: 'center',
+      paddingTop: 36,
+      paddingBottom: 24,
+      paddingHorizontal: 20,
+    },
+    emptyIconWrap: {
+      width: 120,
+      height: 120,
+      borderRadius: 60,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+      backgroundColor: colors.successMuted,
+      overflow: 'hidden',
+    },
+    emptyImage: {
+      width: 100,
+      height: 100,
+    },
+    emptyTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.secondary,
+      textAlign: 'center',
+    },
+    emptyMessage: {
+      marginTop: 8,
+      fontSize: 13,
+      fontWeight: '400',
+      color: colors.textMuted,
+      textAlign: 'center',
+      lineHeight: 19,
+    },
+    emptyAction: {
       marginTop: 16,
-      marginBottom: 8,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+    },
+    emptyActionText: {
       fontSize: 14,
       fontWeight: '600',
-      color: colors.secondary,
+      color: colors.primary,
     },
     feedback: {
       gap: 12,
-      marginTop: 20,
-      marginBottom: 16,
+      marginTop: 8,
     },
     error: {
       color: colors.danger,

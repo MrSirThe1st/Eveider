@@ -12,28 +12,40 @@ export default async function OrganizationBillingSettingsPage() {
     redirect(WEB_ROUTES.businessDashboard);
   }
 
-  const { billing, owedCharges, pickupHoldHours } = page;
+  const {
+    owedCharges,
+    billingHistory,
+    pickupHoldHours,
+    lockerRentalRateAmount,
+    pricingCurrency,
+  } = page;
 
   return (
     <PageFrame
       title="Facturation"
-      description="Montants dus à Eveider, compte de règlement et limites."
+      description="Frais à la charge de votre entreprise."
       layout="standard"
     >
       <BusinessBillingForm
-        paymentRule={billing.paymentRule ?? 'customer_pays'}
-        billingType={billing.billingType ?? 'pay_per_shipment'}
-        payoutMethod={billing.payoutMethod ?? 'mobile_money_orange'}
-        accountHolder={billing.accountHolder ?? ''}
-        accountNumber={billing.accountNumber ?? ''}
-        dailyShipments={billing.dailyShipments ?? null}
         pickupHoldHours={pickupHoldHours}
+        lockerRentalRateAmount={lockerRentalRateAmount}
+        pricingCurrency={pricingCurrency}
         owedCharges={owedCharges.map((charge) => ({
           id: charge.id,
           kind: charge.kind,
           amount: charge.amount,
           currency: charge.currency,
+        }))}
+        billingHistory={billingHistory.map((charge) => ({
+          id: charge.id,
+          kind: charge.kind,
+          amount: charge.amount,
+          currency: charge.currency,
           status: charge.status,
+          quantity: charge.quantity,
+          createdAt: charge.createdAt.toISOString(),
+          parcelId: charge.parcelId,
+          parcelLabel: charge.parcelReference?.trim() || charge.parcelTrackingNumber,
         }))}
       />
     </PageFrame>

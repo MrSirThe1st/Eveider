@@ -304,10 +304,10 @@ describe('customer return', () => {
 });
 
 describe('recipient navigation and hardware boundary', () => {
-  it('exposes Accueil, Recevoir and Points (Envoyer hidden for now)', () => {
+  it('exposes Accueil, Mes colis and Points (Envoyer hidden for now)', () => {
     expect(RECIPIENT_PRIMARY_TABS.map((tab) => tab.label)).toEqual([
       'Accueil',
-      'Recevoir',
+      'Mes colis',
       'Points',
     ]);
     expect(RECIPIENT_HIDDEN_PRIMARY_TABS).toEqual(['Envoyer']);

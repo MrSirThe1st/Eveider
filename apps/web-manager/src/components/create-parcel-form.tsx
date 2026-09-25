@@ -1,7 +1,7 @@
 'use client';
 
 import { colors, borderSubtle } from '@eveider/config-ui';
-import { PACKAGE_SIZE_LABELS, PACKAGE_SIZES, type PackageSize, type ShipmentPickupType } from '@eveider/domain';
+import { PACKAGE_SIZE_LABELS, PACKAGE_SIZES, formatDeliveryFee, type DeliveryPricingCurrency, type PackageSize, type ShipmentPickupType } from '@eveider/domain';
 import { InlineAlert, TextField, Wizard, type WizardStep, useToast } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -11,7 +11,7 @@ import { getFulfillmentMethodLabel } from '@/lib/business-presentation';
 
 const STEPS: WizardStep[] = [
   { id: 'method', title: 'Méthode', description: 'Comment le colis entre dans le réseau Eveider.' },
-  { id: 'recipient', title: 'Destinataire', description: 'Qui retirera le colis.' },
+  { id: 'recipient', title: 'Destinataire', description: 'Qui retirera le colis ?' },
   { id: 'package', title: 'Colis', description: 'Taille pour le casier, et référence si utile.' },
   { id: 'locker', title: 'Casier', description: 'Casier Eveider de destination.' },
   { id: 'review', title: 'Revue', description: 'Vérifiez avant de créer le colis.' },
@@ -34,6 +34,28 @@ type CreateParcelFormProps = {
   initialLockerId?: string;
 };
 
+function ReviewRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'grid', gap: '0.2rem' }}>
+      <dt
+        style={{
+          margin: 0,
+          fontSize: '0.6875rem',
+          fontWeight: 600,
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+          color: colors.textMuted,
+        }}
+      >
+        {label}
+      </dt>
+      <dd style={{ margin: 0, fontSize: '0.9375rem', fontWeight: 600, color: colors.secondary }}>
+        {children}
+      </dd>
+    </div>
+  );
+}
+
 export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
   const router = useRouter();
   const toast = useToast();
@@ -55,7 +77,6 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
   const [lockers, setLockers] = useState<LockerOption[]>([]);
   const [packageSize, setPackageSize] = useState<PackageSize>('medium');
   const [deliveryQuoteLabel, setDeliveryQuoteLabel] = useState<string | null>(null);
-  const [quoteChargeLabel, setQuoteChargeLabel] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -111,7 +132,6 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
   useEffect(() => {
     if (!lockerId) {
       setDeliveryQuoteLabel(null);
-      setQuoteChargeLabel(null);
       return;
     }
     const params = new URLSearchParams({ lockerId, pickupType, packageSize });
@@ -124,14 +144,19 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
       .then((res) => res.json())
       .then((json) => {
         if (!cancelled && json.success) {
-          setDeliveryQuoteLabel(json.data.deliveryFeeLabel as string);
-          setQuoteChargeLabel((json.data.purpose as string | undefined) ?? null);
+          const amount = Number(json.data.deliveryFeeAmount);
+          const currency = (json.data.deliveryFeeCurrency === 'USD' ? 'USD' : 'CDF') as DeliveryPricingCurrency;
+          // Format from amount + platform currency — never invent a $ display for CDF.
+          setDeliveryQuoteLabel(
+            Number.isFinite(amount)
+              ? formatDeliveryFee(amount, currency)
+              : ((json.data.deliveryFeeLabel as string | undefined) ?? null),
+          );
         }
       })
       .catch(() => {
         if (!cancelled) {
           setDeliveryQuoteLabel(null);
-          setQuoteChargeLabel(null);
         }
       });
     return () => {
@@ -240,13 +265,24 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
     background: colors.surface,
   };
 
-  const chargeTitle =
-    pickupType === 'merchant_dropoff' ? 'Frais de retrait' : 'Frais de livraison';
+  const isDropoff = pickupType === 'merchant_dropoff';
+  const chargeTitle = isDropoff ? 'Frais de retrait' : 'Frais de livraison';
+  const lockerTitle = selectedLocker?.networkLabel ?? selectedLocker?.name ?? '—';
+  const nextAction = isDropoff
+    ? {
+        title: 'Prochaine étape',
+        body: `Après création, vous recevrez les instructions de dépôt. Apportez ensuite le colis au casier ${lockerTitle}.`,
+      }
+    : {
+        title: 'Prochaine étape',
+        body: 'Après création, Eveider organisera la collecte auprès de votre entreprise. Préparez le colis à l’adresse indiquée.',
+      };
 
   return (
     <Wizard
       steps={STEPS}
       currentStepIndex={stepIndex}
+      orientation="vertical"
       onBack={() => {
         setError(null);
         setStepIndex((current) => Math.max(current - 1, 0));
@@ -356,7 +392,7 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
       {stepIndex === 1 ? (
         <section style={{ display: 'grid', gap: '1rem' }}>
           <TextField
-            label="Nom destinataire"
+            label="Nom"
             name="recipientName"
             value={recipientName}
             onChange={(e) => setRecipientName(e.target.value)}
@@ -364,7 +400,7 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
             required
           />
           <TextField
-            label="Téléphone destinataire"
+            label="Téléphone"
             name="recipientPhone"
             value={recipientPhone}
             onChange={(e) => setRecipientPhone(e.target.value)}
@@ -372,7 +408,7 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
             required
           />
           <TextField
-            label="Email destinataire (optionnel)"
+            label="Email (optionnel)"
             name="recipientEmail"
             value={recipientEmail}
             onChange={(e) => setRecipientEmail(e.target.value)}
@@ -415,53 +451,139 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
       {stepIndex === 3 ? (
         <section style={{ display: 'grid', gap: '1rem' }}>
           <p style={{ margin: 0, fontWeight: 700, fontSize: '0.8125rem' }}>Casier de destination</p>
-          {pickupType === 'merchant_dropoff' ? (
+          {isDropoff ? (
             <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>
               Vous devrez déposer ce colis au casier sélectionné.
             </p>
           ) : null}
           {selectedLocker ? (
-            <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600 }}>
-              {selectedLocker.networkLabel ?? selectedLocker.name}
-              <span style={{ display: 'block', fontWeight: 500, color: colors.textMuted, marginTop: 2 }}>
+            <div
+              style={{
+                border: `2px solid ${colors.primary}`,
+                borderRadius: 8,
+                background: colors.primaryMuted,
+                padding: '0.85rem 1rem',
+              }}
+            >
+              <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700 }}>
+                Sélectionné · {selectedLocker.networkLabel ?? selectedLocker.name}
+              </p>
+              <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', color: colors.textMuted }}>
                 {selectedLocker.address}
-              </span>
-            </p>
+              </p>
+            </div>
           ) : null}
           <LockerPicker lockers={lockers} selectedLockerId={lockerId} onSelectLocker={setLockerId} />
         </section>
       ) : null}
 
       {stepIndex === 4 ? (
-        <section style={{ display: 'grid', gap: '1rem' }}>
+        <section style={{ display: 'grid', gap: '1.25rem' }}>
+          <dl
+            style={{
+              margin: 0,
+              border: borderSubtle(),
+              borderRadius: 8,
+              padding: '1.15rem 1.25rem',
+              display: 'grid',
+              gap: '1.15rem',
+              background: colors.surface,
+            }}
+          >
+            <ReviewRow label="Entrée dans le réseau">{getFulfillmentMethodLabel(pickupType)}</ReviewRow>
+
+            <ReviewRow label="Destinataire">
+              <span style={{ display: 'block' }}>{recipientName.trim() || '—'}</span>
+              <span style={{ display: 'block', marginTop: 2, fontWeight: 500, color: colors.textMuted }}>
+                {recipientPhone.trim() || '—'}
+              </span>
+              {recipientEmail.trim() ? (
+                <span style={{ display: 'block', marginTop: 2, fontWeight: 500, color: colors.textMuted }}>
+                  {recipientEmail.trim()}
+                </span>
+              ) : null}
+            </ReviewRow>
+
+            <ReviewRow label="Colis">
+              <span style={{ display: 'block' }}>{PACKAGE_SIZE_LABELS[packageSize]}</span>
+              {reference.trim() ? (
+                <span style={{ display: 'block', marginTop: 2, fontWeight: 500, color: colors.textMuted }}>
+                  Réf. {reference.trim()}
+                </span>
+              ) : null}
+            </ReviewRow>
+
+            <ReviewRow label="Casier">
+              <span style={{ display: 'block' }}>{lockerTitle}</span>
+              {selectedLocker?.address ? (
+                <span style={{ display: 'block', marginTop: 2, fontWeight: 500, color: colors.textMuted }}>
+                  {selectedLocker.address}
+                </span>
+              ) : null}
+            </ReviewRow>
+
+            <div
+              style={{
+                borderTop: borderSubtle(),
+                paddingTop: '1rem',
+                display: 'grid',
+                gap: '0.55rem',
+                fontSize: '0.875rem',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: '1rem',
+                  alignItems: 'baseline',
+                }}
+              >
+                <span style={{ fontWeight: 500, color: colors.textMuted }}>{chargeTitle}</span>
+                <span style={{ fontWeight: 700, color: colors.secondary }}>
+                  {deliveryQuoteLabel ?? 'Tarif indisponible'}
+                </span>
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: '1rem',
+                  alignItems: 'baseline',
+                }}
+              >
+                <span style={{ fontWeight: 500, color: colors.textMuted }}>Payé par</span>
+                <span style={{ fontWeight: 600, color: colors.secondary }}>Destinataire</span>
+              </div>
+              <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', color: colors.textMuted }}>
+                Votre entreprise ne paie aucun frais pour {isDropoff ? 'ce retrait' : 'cette livraison'}.
+              </p>
+            </div>
+          </dl>
+
           <div
             style={{
               border: borderSubtle(),
               borderRadius: 8,
-              padding: '1rem',
-              display: 'grid',
-              gap: '0.4rem',
-              fontSize: '0.875rem',
+              padding: '1rem 1.15rem',
+              background: colors.primaryMuted,
             }}
           >
-            <strong>Revue</strong>
-            <span>Méthode : {getFulfillmentMethodLabel(pickupType)}</span>
-            <span>
-              Destinataire : {recipientName} · {recipientPhone}
-            </span>
-            <span>Casier : {selectedLocker?.networkLabel ?? selectedLocker?.name ?? '—'}</span>
-            <span>
-              {chargeTitle} : {deliveryQuoteLabel ?? 'Tarif indisponible'}
-            </span>
-            <span>Payé par : Destinataire</span>
-            {quoteChargeLabel ? (
-              <span style={{ fontSize: '0.8125rem', color: colors.textMuted }}>{quoteChargeLabel}</span>
-            ) : null}
-            <span style={{ fontSize: '0.8125rem', color: colors.textMuted }}>
-              {pickupType === 'courier_pickup'
-                ? 'Eveider organisera la prise en charge du colis. Votre entreprise ne paie pas ce frais.'
-                : 'Après création, déposez le colis au casier. Votre entreprise ne paie pas ce frais.'}
-            </span>
+            <p
+              style={{
+                margin: 0,
+                fontSize: '0.6875rem',
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                color: colors.successFg,
+              }}
+            >
+              {nextAction.title}
+            </p>
+            <p style={{ margin: '0.4rem 0 0', fontSize: '0.875rem', fontWeight: 500, lineHeight: 1.45 }}>
+              {nextAction.body}
+            </p>
           </div>
         </section>
       ) : null}

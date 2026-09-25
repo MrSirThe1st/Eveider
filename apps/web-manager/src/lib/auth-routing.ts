@@ -9,6 +9,8 @@ export const WEB_ROUTES = {
   landing: '/',
   login: '/connexion',
   register: '/inscription',
+  forgotPassword: '/mot-de-passe-oublie',
+  resetPassword: '/reinitialiser-mot-de-passe',
   adminDashboard: '/tableau-de-bord',
   adminDrivers: '/tableau-de-bord/flotte',
   adminNewDriver: '/tableau-de-bord/flotte?ajouter=1',
@@ -22,7 +24,7 @@ export const WEB_ROUTES = {
   businessSettingsOrganisation: '/organisation/tableau-de-bord/parametres/organisation',
   businessSettingsProfile: '/organisation/tableau-de-bord/parametres/mon-compte/profil',
   businessBilling: '/organisation/tableau-de-bord/parametres/facturation',
-  businessTeam: '/organisation/tableau-de-bord/parametres/membres',
+  businessTeam: '/organisation/tableau-de-bord/parametres/equipe',
   businessCouriers: '/organisation/tableau-de-bord/chauffeurs',
   businessNewDriver: '/organisation/tableau-de-bord/chauffeurs/nouveau',
   businessVerification: '/organisation/tableau-de-bord',
@@ -55,6 +57,10 @@ export function isSafeRedirect(path: string | undefined): path is string {
   if (!path.startsWith('/')) return false;
   if (path.startsWith('//')) return false;
   if (path.startsWith('/connexion') || path.startsWith('/inscription')) return false;
+  if (path.startsWith('/mot-de-passe-oublie') || path.startsWith('/reinitialiser-mot-de-passe')) {
+    return false;
+  }
+  if (path.startsWith('/auth/')) return false;
   return true;
 }
 

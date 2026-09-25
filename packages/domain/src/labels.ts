@@ -1,5 +1,10 @@
 import type { ParcelStatus } from './parcel.js';
-import type { AdminAccountStatus, BusinessStatus, OrganizationVerificationStatus } from './business.js';
+import type {
+  AdminAccountStatus,
+  BusinessIndustry,
+  BusinessStatus,
+  OrganizationVerificationStatus,
+} from './business.js';
 import type { CompartmentStatus, LockerStatus, LockerType } from './locker.js';
 import type { DeliveryKind, DeliveryStatus } from './delivery.js';
 import type { IssueStatus, IssueType } from './issue.js';
@@ -76,6 +81,30 @@ export const BUSINESS_STATUS_LABELS: Record<BusinessStatus, string> = {
   active: 'ACTIF',
   suspended: 'SUSPENDU',
   blocked: 'BLOQUÉ',
+};
+
+/** Sentence-case French labels for industry pickers (signup / onboarding). */
+export const BUSINESS_INDUSTRY_LABELS: Record<BusinessIndustry, string> = {
+  Fashion: 'Mode',
+  Electronics: 'Électronique',
+  Beauty: 'Beauté',
+  Food: 'Alimentaire',
+  Pharmacy: 'Pharmacie',
+  Retail: 'Commerce de détail',
+  Documents: 'Documents',
+  Logistics: 'Logistique',
+  'E-commerce': 'E-commerce',
+  Health: 'Santé',
+  Education: 'Éducation',
+  Hospitality: 'Hôtellerie & restauration',
+  Automotive: 'Automobile',
+  Construction: 'Construction',
+  Finance: 'Finance & assurance',
+  Agriculture: 'Agriculture',
+  Telecommunications: 'Télécommunications',
+  Manufacturing: 'Industrie & fabrication',
+  Services: 'Services',
+  Other: 'Autre',
 };
 
 export const ADMIN_ACCOUNT_STATUS_LABELS: Record<AdminAccountStatus, string> = {

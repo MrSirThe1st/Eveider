@@ -19,6 +19,7 @@ import { LocaleSetupScreen } from './src/screens/LocaleSetupScreen';
 SplashScreen.preventAutoHideAsync();
 
 type AppState =
+  | { kind: 'booting' }
   | {
       kind: 'auth';
       inviteToken?: string;
@@ -34,8 +35,12 @@ const MOBILE_ROLES = ['customer', 'courier', 'driver'] as const;
 
 const GUEST_HOME: AppState = { kind: 'home', role: 'customer', guest: true };
 
+function isMobileRole(role: string | undefined | null): role is (typeof MOBILE_ROLES)[number] {
+  return Boolean(role && (MOBILE_ROLES as readonly string[]).includes(role));
+}
+
 async function fetchMe(accessToken: string) {
-  return apiFetch<{ profile: { role: UserRole } }>('/api/auth/me', {
+  return apiFetch<{ profile: { role: UserRole | 'courier' | 'business' } }>('/api/auth/me', {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 }
@@ -59,7 +64,7 @@ async function completeDriverInvite(accessToken: string) {
 function AppContent() {
   const { ready, setupComplete } = useSettings();
   const { colors, scheme, navigationTheme } = useAppTheme();
-  const [state, setState] = useState<AppState>(GUEST_HOME);
+  const [state, setState] = useState<AppState>({ kind: 'booting' });
   const [pendingInviteToken, setPendingInviteToken] = useState<string | null>(null);
   const authInProgressRef = useRef(false);
   const resetPasswordRef = useRef(false);
@@ -98,12 +103,9 @@ function AppContent() {
       }
 
       const meResult = await fetchMe(accessToken);
+      const role = meResult.success ? meResult.data.profile.role : null;
 
-      if (
-        meResult.success &&
-        meResult.data &&
-        MOBILE_ROLES.includes(meResult.data.profile.role as (typeof MOBILE_ROLES)[number])
-      ) {
+      if (meResult.success && isMobileRole(role)) {
         let initialParcelId: string | undefined;
         if (inviteToken) {
           const preview = await fetchInvitePreview(inviteToken);
@@ -115,7 +117,7 @@ function AppContent() {
         if (mounted) {
           setState({
             kind: 'home',
-            role: meResult.data.profile.role,
+            role: role === 'courier' ? 'driver' : role,
             guest: false,
             initialParcelId,
           });
@@ -144,8 +146,15 @@ function AppContent() {
         return;
       }
 
+      // Valid Supabase session but /me failed (network) or role not mobile —
+      // never demote to guest while a token still exists.
+      if (meResult.success && !isMobileRole(role)) {
+        if (mounted) setState(GUEST_HOME);
+        return;
+      }
+
       if (mounted) {
-        setState(GUEST_HOME);
+        setState({ kind: 'home', role: 'customer', guest: false });
       }
     }
 
@@ -242,10 +251,16 @@ function AppContent() {
         return;
       }
 
-      if (event === 'SIGNED_OUT' || !session) {
+      // Only explicit sign-out clears the session. INITIAL_SESSION with a null
+      // session must not wipe a restore that bootstrap is about to finish.
+      if (event === 'SIGNED_OUT') {
         if (authInProgressRef.current) return;
         resetPasswordRef.current = false;
         setState(GUEST_HOME);
+        return;
+      }
+
+      if (!session) {
         return;
       }
 
@@ -302,7 +317,7 @@ function AppContent() {
     };
   }, [pendingInviteToken, ready, setupComplete]);
 
-  if (!ready) {
+  if (!ready || state.kind === 'booting') {
     return <View style={[styles.boot, { backgroundColor: colors.background }]} />;
   }
 

@@ -47,7 +47,12 @@ const nextConfig: NextConfig = {
       },
       {
         source: '/organisation/tableau-de-bord/equipe',
-        destination: '/organisation/tableau-de-bord/parametres/membres',
+        destination: '/organisation/tableau-de-bord/parametres/equipe',
+        permanent: true,
+      },
+      {
+        source: '/organisation/tableau-de-bord/parametres/membres',
+        destination: '/organisation/tableau-de-bord/parametres/equipe',
         permanent: true,
       },
       {

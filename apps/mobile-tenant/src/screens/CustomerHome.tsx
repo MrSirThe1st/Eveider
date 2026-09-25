@@ -1,9 +1,9 @@
-import { borders, type ColorTokens } from '@eveider/config-ui';
+import { borders, radius, type ColorTokens } from '@eveider/config-ui';
 import { Feather } from '@expo/vector-icons';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  ImageBackground,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -12,9 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { ActionRow } from '../components/ActionRow';
 import { AppSpinner } from '../components/AppSpinner';
-import { EmptyState } from '../components/EmptyState';
 import { ParcelCard } from '../components/ParcelCard';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { useCustomerShell } from '../navigation/customer-shell';
@@ -26,7 +24,8 @@ import {
 } from '../lib/api';
 import { useColors } from '../theme';
 
-const HOME_HERO = require('../assets/mobile-home.jpeg');
+const LOCKER_HERO = require('../assets/lockerhero.png');
+const BOX_EMPTY = require('../assets/boxIllustration.png');
 
 type CustomerHomeProps = {
   onTrackResult: (parcel: CustomerParcel) => void;
@@ -42,7 +41,7 @@ export const CustomerHome = memo(function CustomerHome({ onTrackResult }: Custom
   const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { isGuest, requestAuth, goToReceive, goToPoints } = useCustomerShell();
+  const { isGuest, requestAuth, goToReceive, goToPoints, openSettings } = useCustomerShell();
   const [trackingNumber, setTrackingNumber] = useState('');
   const [trackError, setTrackError] = useState<string | null>(null);
   const [tracking, setTracking] = useState(false);
@@ -68,7 +67,11 @@ export const CustomerHome = memo(function CustomerHome({ onTrackResult }: Custom
     setRefreshing(false);
     if (parcelsResult.success) setParcels(parcelsResult.data.parcels);
     if (profileResult.success) {
-      setFirstName(firstNameFrom(profileResult.data.profile.fullName));
+      const profile = profileResult.data.profile;
+      setFirstName(
+        firstNameFrom(profile.fullName) ??
+          firstNameFrom(profileResult.data.email?.split('@')[0] ?? null),
+      );
     }
   }, [isGuest]);
 
@@ -121,9 +124,6 @@ export const CustomerHome = memo(function CustomerHome({ onTrackResult }: Custom
   }
 
   const recent = parcels.filter((item) => item.status !== 'collected').slice(0, 3);
-  const greeting = firstName
-    ? `${t('home.greeting')} ${firstName}`
-    : t('home.greetingPlain');
 
   return (
     <View style={styles.screen}>
@@ -141,17 +141,28 @@ export const CustomerHome = memo(function CustomerHome({ onTrackResult }: Custom
           />
         }
       >
-        <View style={styles.intro}>
-          <Text style={styles.hello}>{greeting}</Text>
+        <View style={styles.hero}>
+          <View style={styles.heroCopy}>
+            <Text style={styles.hello}>
+              {firstName ? (
+                <>
+                  {t('home.greeting')}{' '}
+                  <Text style={styles.helloName}>{firstName}</Text>
+                </>
+              ) : (
+                t('home.greetingPlain')
+              )}
+            </Text>
+            <Text style={styles.heroSubtitle}>{t('home.heroSubtitle')}</Text>
+          </View>
+          <View style={styles.heroArt}>
+            <Image source={LOCKER_HERO} style={styles.heroImage} resizeMode="cover" />
+          </View>
         </View>
 
-        <ImageBackground source={HOME_HERO} style={styles.hero} imageStyle={styles.heroImage}>
-          <View style={styles.heroScrim} />
-        </ImageBackground>
-
         <View style={styles.body}>
-          <Text style={styles.trackTitle}>{t('home.trackTitle')}</Text>
           <View style={styles.trackRow}>
+            <Feather name="search" size={18} color={colors.textMuted} />
             <TextInput
               value={trackingNumber}
               onChangeText={setTrackingNumber}
@@ -172,7 +183,7 @@ export const CustomerHome = memo(function CustomerHome({ onTrackResult }: Custom
               {tracking ? (
                 <AppSpinner size="sm" color={colors.onPrimary} />
               ) : (
-                <Feather name="chevron-right" size={22} color={colors.onPrimary} />
+                <Feather name="arrow-right" size={20} color={colors.onPrimary} />
               )}
             </Pressable>
           </View>
@@ -193,45 +204,76 @@ export const CustomerHome = memo(function CustomerHome({ onTrackResult }: Custom
             </View>
           ) : null}
 
-          {!isGuest ? <View style={styles.divider} /> : null}
+          <View style={styles.actions}>
+            <Pressable
+              onPress={goToPoints}
+              style={styles.actionCard}
+              accessibilityRole="button"
+            >
+              <Feather name="map-pin" size={20} color={colors.primary} />
+              <Text style={styles.actionTitle}>{t('home.findPoint')}</Text>
+              <Text style={styles.actionHint}>{t('home.findPointHint')}</Text>
+              <Feather
+                name="chevron-right"
+                size={16}
+                color={colors.textMuted}
+                style={styles.actionChevron}
+              />
+            </Pressable>
+            <Pressable
+              onPress={() => openSettings('Help')}
+              style={styles.actionCard}
+              accessibilityRole="button"
+            >
+              <Feather name="phone" size={20} color={colors.primary} />
+              <Text style={styles.actionTitle}>{t('home.contactEveider')}</Text>
+              <Text style={styles.actionHint}>{t('home.contactEveiderHint')}</Text>
+              <Feather
+                name="chevron-right"
+                size={16}
+                color={colors.textMuted}
+                style={styles.actionChevron}
+              />
+            </Pressable>
+          </View>
 
-          {!isGuest && loading && !refreshing && parcels.length === 0 ? <AppSpinner /> : null}
-
-          {!isGuest && !loading && recent.length > 0 ? (
+          {!isGuest ? (
             <View style={styles.parcelsSection}>
-              <Text style={styles.section}>{t('home.recentTitle')}</Text>
-              {recent.map((item) => (
-                <Pressable key={item.id} onPress={() => goToReceive(item.id)} style={styles.rowWrap}>
-                  <ParcelCard parcel={item} />
+              <View style={styles.sectionHeader}>
+                <Text style={styles.section}>{t('home.recentTitle')}</Text>
+                <Pressable
+                  onPress={() => goToReceive()}
+                  style={styles.viewAll}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.viewAllText}>{t('home.viewAllShort')}</Text>
+                  <Feather name="chevron-right" size={14} color={colors.primary} />
                 </Pressable>
-              ))}
-              <Pressable
-                onPress={() => goToReceive()}
-                style={styles.viewAll}
-                accessibilityRole="button"
-              >
-                <Text style={styles.viewAllText}>{t('home.viewAllParcels')}</Text>
-                <Feather name="chevron-right" size={16} color={colors.primary} />
-              </Pressable>
+              </View>
+
+              {loading && !refreshing && parcels.length === 0 ? <AppSpinner /> : null}
+
+              {!loading && recent.length > 0
+                ? recent.map((item) => (
+                    <Pressable
+                      key={item.id}
+                      onPress={() => goToReceive(item.id)}
+                      style={styles.rowWrap}
+                    >
+                      <ParcelCard parcel={item} />
+                    </Pressable>
+                  ))
+                : null}
+
+              {!loading && recent.length === 0 ? (
+                <View style={styles.empty}>
+                  <Image source={BOX_EMPTY} style={styles.emptyImage} resizeMode="contain" />
+                  <Text style={styles.emptyTitle}>{t('home.emptyTitle')}</Text>
+                  <Text style={styles.emptyMessage}>{t('home.emptyMessage')}</Text>
+                </View>
+              ) : null}
             </View>
           ) : null}
-
-          {!isGuest && !loading && recent.length === 0 ? (
-            <EmptyState
-              icon="package"
-              title={t('home.emptyTitle')}
-              message={t('home.emptyMessage')}
-            />
-          ) : null}
-
-          <View style={styles.divider} />
-
-          <ActionRow
-            icon="map-pin"
-            label={t('home.findPoint')}
-            onPress={goToPoints}
-            last
-          />
         </View>
       </ScrollView>
     </View>
@@ -251,57 +293,73 @@ function createStyles(colors: ColorTokens) {
       flexGrow: 1,
       paddingBottom: 40,
     },
-    intro: {
-      paddingHorizontal: 20,
-      paddingTop: 8,
-      paddingBottom: 12,
+    hero: {
+      height: 190,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingLeft: 20,
+      overflow: 'hidden',
+    },
+    heroCopy: {
+      flex: 1,
+      paddingRight: 4,
+      zIndex: 1,
+      gap: 6,
     },
     hello: {
       fontSize: 26,
       fontWeight: '700',
       color: colors.secondary,
+      lineHeight: 32,
     },
-    hero: {
-      height: 200,
-      marginHorizontal: 20,
+    helloName: {
+      color: colors.primary,
+    },
+    heroSubtitle: {
+      fontSize: 14,
+      fontWeight: '400',
+      color: colors.textMuted,
+      lineHeight: 20,
+      maxWidth: 150,
+    },
+    heroArt: {
+      width: 200,
+      height: 190,
       overflow: 'hidden',
     },
     heroImage: {
-      resizeMode: 'cover',
-    },
-    heroScrim: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0,0,0,0.18)',
+      width: 280,
+      height: 190,
+      marginLeft: -40,
     },
     body: {
       paddingHorizontal: 20,
-      paddingTop: 20,
-    },
-    trackTitle: {
-      fontSize: 15,
-      fontWeight: '600',
-      color: colors.secondary,
-      marginBottom: 10,
+      paddingTop: 4,
     },
     trackRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 10,
+      minHeight: 52,
+      paddingLeft: 14,
+      paddingRight: 6,
+      borderWidth: borders.width,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      backgroundColor: colors.surface,
     },
     trackInput: {
       flex: 1,
-      minHeight: 48,
-      paddingHorizontal: 12,
-      backgroundColor: colors.surface,
-      borderWidth: borders.width,
-      borderColor: colors.border,
+      minHeight: 44,
       color: colors.secondary,
       fontSize: 15,
-      fontWeight: '600',
+      fontWeight: '500',
+      paddingVertical: 8,
     },
     trackButton: {
-      width: 48,
-      height: 48,
+      width: 40,
+      height: 40,
+      borderRadius: radius.sm,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: colors.primary,
@@ -316,11 +374,11 @@ function createStyles(colors: ColorTokens) {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginTop: 20,
+      marginTop: 16,
       gap: 12,
     },
     getStartedLabel: {
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: '600',
       color: colors.secondary,
       flex: 1,
@@ -340,35 +398,91 @@ function createStyles(colors: ColorTokens) {
       fontWeight: '600',
       color: colors.primary,
     },
-    divider: {
-      height: StyleSheet.hairlineWidth,
-      backgroundColor: colors.border,
-      marginVertical: 24,
+    actions: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 16,
+    },
+    actionCard: {
+      flex: 1,
+      minHeight: 112,
+      padding: 14,
+      borderWidth: borders.width,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      backgroundColor: colors.surface,
+      gap: 4,
+    },
+    actionTitle: {
+      marginTop: 8,
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.secondary,
+      lineHeight: 18,
+    },
+    actionHint: {
+      fontSize: 12,
+      fontWeight: '400',
+      color: colors.textMuted,
+      lineHeight: 16,
+      paddingRight: 12,
+    },
+    actionChevron: {
+      position: 'absolute',
+      right: 10,
+      bottom: 12,
     },
     parcelsSection: {
-      gap: 0,
+      marginTop: 24,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
     },
     section: {
-      marginBottom: 10,
-      fontSize: 15,
-      fontWeight: '600',
+      fontSize: 17,
+      fontWeight: '700',
       color: colors.secondary,
-    },
-    rowWrap: {
-      marginBottom: 8,
     },
     viewAll: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
-      gap: 4,
-      paddingVertical: 12,
-      marginTop: 4,
+      gap: 2,
     },
     viewAllText: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: '600',
       color: colors.primary,
+    },
+    rowWrap: {
+      marginBottom: 8,
+    },
+    empty: {
+      alignItems: 'center',
+      paddingTop: 8,
+      paddingBottom: 16,
+      paddingHorizontal: 12,
+    },
+    emptyImage: {
+      width: 140,
+      height: 110,
+      marginBottom: 12,
+    },
+    emptyTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.secondary,
+      textAlign: 'center',
+    },
+    emptyMessage: {
+      marginTop: 8,
+      fontSize: 13,
+      fontWeight: '400',
+      color: colors.textMuted,
+      textAlign: 'center',
+      lineHeight: 19,
     },
   });
 }

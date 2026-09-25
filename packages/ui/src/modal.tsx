@@ -46,7 +46,11 @@ export function Modal({
   const titleId = useId();
   const descriptionId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
+  // Only run when `open` flips — unstable inline `onClose` must not re-focus the
+  // panel (that steals input focus and closes native <select> on parent re-renders).
   useEffect(() => {
     if (!open) return;
 
@@ -54,7 +58,7 @@ export function Modal({
     document.body.style.overflow = 'hidden';
 
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') onCloseRef.current();
     }
 
     document.addEventListener('keydown', onKeyDown);
@@ -64,7 +68,7 @@ export function Modal({
       document.body.style.overflow = previousOverflow;
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [onClose, open]);
+  }, [open]);
 
   if (!open || typeof document === 'undefined') return null;
 

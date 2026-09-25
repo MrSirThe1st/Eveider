@@ -87,8 +87,13 @@ export function LockerCard({ locker, selected, onSelect }: LockerCardProps) {
       }}
       style={{
         ...webCardStyle,
-        background: selectable ? colors.surface : colors.background,
-        border: selected ? borderStrong() : 'none',
+        background: selected
+          ? colors.primaryMuted
+          : selectable
+            ? colors.surface
+            : colors.background,
+        border: selected ? borderStrong() : borderSubtle(),
+        boxShadow: selected ? `0 0 0 1px ${colors.borderStrong}` : webCardStyle.boxShadow,
         padding: '1.25rem',
         cursor: selectable ? 'pointer' : 'not-allowed',
         opacity: selectable ? 1 : 0.6,
@@ -97,6 +102,16 @@ export function LockerCard({ locker, selected, onSelect }: LockerCardProps) {
         display: 'flex',
         flexDirection: 'column',
         gap: '0.75rem',
+      }}
+      aria-pressed={selected}
+      role="button"
+      tabIndex={selectable ? 0 : -1}
+      onKeyDown={(event) => {
+        if (!selectable) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onSelect(locker.id);
+        }
       }}
     >
       {selected ? (

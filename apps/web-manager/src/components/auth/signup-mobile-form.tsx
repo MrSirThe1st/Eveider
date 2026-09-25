@@ -32,6 +32,11 @@ export function SignupMobileForm({ role }: SignupMobileFormProps) {
       return;
     }
 
+    if (fullName.trim().length < 2) {
+      setError('Indiquez votre nom complet');
+      return;
+    }
+
     const hasPhone = phone.replace(/\D/g, '').length >= 12;
 
     setLoading(true);
@@ -43,7 +48,7 @@ export function SignupMobileForm({ role }: SignupMobileFormProps) {
           role,
           email,
           password,
-          fullName: fullName.trim() || undefined,
+          fullName: fullName.trim(),
           phone: hasPhone ? phone : phoneRequired ? phone : undefined,
         }),
       });
@@ -80,10 +85,12 @@ export function SignupMobileForm({ role }: SignupMobileFormProps) {
   return (
     <form className={styles.form} method="dialog" onSubmit={handleSubmit}>
       <label className={styles.field}>
-        <span>Nom complet (optionnel)</span>
+        <span>Nom complet</span>
         <input
           className={styles.input}
           type="text"
+          required
+          minLength={2}
           value={fullName}
           onChange={(event) => setFullName(event.target.value)}
           placeholder="Patrick Mwamba"

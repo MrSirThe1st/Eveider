@@ -38,6 +38,11 @@ export function mapParcelCharge(row: Record<string, unknown>): ParcelCharge {
   };
 }
 
+export type BusinessBillingHistoryRow = ParcelCharge & {
+  parcelTrackingNumber: string;
+  parcelReference: string | null;
+};
+
 async function findActiveCharge(
   db: Queryable,
   parcelId: string,
@@ -75,18 +80,49 @@ export class ParcelChargeRepository {
     return result.rows.map((row) => mapParcelCharge(row));
   }
 
+  /**
+   * Finalized business-owed charges only (`status = 'owed'`).
+   * Pending storage accrual must not inflate the organisation balance.
+   */
   async listOwedForBusiness(businessId: string): Promise<ParcelCharge[]> {
     const result = await this.db.query(
       `SELECT * FROM parcel_charges
        WHERE business_id = $1
          AND payer = 'business'
-         AND status <> 'void'
+         AND status = 'owed'
          AND kind IN ('return_delivery', 'return_locker', 'locker_rental')
        ORDER BY created_at DESC
        LIMIT 100`,
       [businessId],
     );
     return result.rows.map((row) => mapParcelCharge(row));
+  }
+
+  /**
+   * Business billing ledger for Facturation history (owed, pending, and void).
+   * Recipient-paid kinds are excluded.
+   */
+  async listBillingHistoryForBusiness(
+    businessId: string,
+  ): Promise<BusinessBillingHistoryRow[]> {
+    const result = await this.db.query(
+      `SELECT pc.*,
+              p.tracking_number AS parcel_tracking_number,
+              p.reference AS parcel_reference
+       FROM parcel_charges pc
+       JOIN parcels p ON p.id = pc.parcel_id
+       WHERE pc.business_id = $1
+         AND pc.payer = 'business'
+         AND pc.kind IN ('return_delivery', 'return_locker', 'locker_rental')
+       ORDER BY pc.created_at DESC
+       LIMIT 100`,
+      [businessId],
+    );
+    return result.rows.map((row) => ({
+      ...mapParcelCharge(row),
+      parcelTrackingNumber: String(row.parcel_tracking_number),
+      parcelReference: row.parcel_reference == null ? null : String(row.parcel_reference),
+    }));
   }
 
   async recordDeliveryFee(

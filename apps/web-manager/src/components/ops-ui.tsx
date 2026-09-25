@@ -143,16 +143,21 @@ export function SettingsForm({
 export function SettingsFormSection({
   title,
   description,
+  badge,
   children,
 }: {
   title: string;
   description?: string;
+  badge?: string;
   children: ReactNode;
 }) {
   return (
     <section className="ops-form-section">
       <header className="ops-form-section__header">
-        <h2 className="ops-form-section__title">{title}</h2>
+        <div className="ops-form-section__heading">
+          <h2 className="ops-form-section__title">{title}</h2>
+          {badge ? <span className="ops-form-section__badge">{badge}</span> : null}
+        </div>
         {description ? <p className="ops-form-section__description">{description}</p> : null}
       </header>
       {children}
@@ -164,8 +169,19 @@ export function SettingsFormActions({ children }: { children: ReactNode }) {
   return <div className="ops-form-actions">{children}</div>;
 }
 
-export function SettingsFieldGrid({ children }: { children: ReactNode }) {
-  return <div className="ops-field-grid">{children}</div>;
+export function SettingsFieldGrid({
+  children,
+  columns = 'auto',
+}: {
+  children: ReactNode;
+  /** Prefer two columns for address-heavy content; auto keeps the denser fit. */
+  columns?: 'auto' | 2;
+}) {
+  return (
+    <div className={columns === 2 ? 'ops-field-grid ops-field-grid--two' : 'ops-field-grid'}>
+      {children}
+    </div>
+  );
 }
 
 export function SettingsSelect({

@@ -2,7 +2,15 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 
 /** Pages anyone can open without an account (guest track, marketing, auth). */
-const PUBLIC_PREFIXES = ['/connexion', '/inscription', '/suivi', '/invite'];
+const PUBLIC_PREFIXES = [
+  '/connexion',
+  '/inscription',
+  '/mot-de-passe-oublie',
+  '/reinitialiser-mot-de-passe',
+  '/auth',
+  '/suivi',
+  '/invite',
+];
 
 function isPublicPath(pathname: string) {
   return pathname === '/' || PUBLIC_PREFIXES.some((path) => pathname === path || pathname.startsWith(`${path}/`));

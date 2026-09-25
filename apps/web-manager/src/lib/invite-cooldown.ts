@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 export const INVITE_COOLDOWN_MS = 30_000;
 const STORAGE_PREFIX = 'eveider:invite-cooldown:';
@@ -55,11 +55,28 @@ export function useInviteCooldowns(scope: string) {
   const [untilById, setUntilById] = useState<Record<string, number>>({});
   const [noticeId, setNoticeId] = useState<string | null>(null);
 
+  const clock = now || Date.now();
+
+  const hasActiveCooldown = useMemo(() => {
+    if (Object.values(untilById).some((until) => remainingInviteCooldownMs(until, clock) > 0)) {
+      return true;
+    }
+    if (!noticeId) return false;
+    const until = untilById[noticeId] ?? readInviteCooldownUntil(scope, noticeId);
+    return remainingInviteCooldownMs(until, clock) > 0;
+  }, [clock, noticeId, scope, untilById]);
+
+  // Seed the clock once; only tick while a cooldown is actually running so idle
+  // forms (invite modal, etc.) are not re-rendered every 250ms.
   useEffect(() => {
     setNow(Date.now());
+  }, []);
+
+  useEffect(() => {
+    if (!hasActiveCooldown) return;
     const timer = window.setInterval(() => setNow(Date.now()), 250);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [hasActiveCooldown]);
 
   const remainingMs = useCallback(
     (id: string) => {
@@ -83,6 +100,7 @@ export function useInviteCooldowns(scope: string) {
         }
         return next;
       });
+      setNow(Date.now());
     },
     [scope],
   );

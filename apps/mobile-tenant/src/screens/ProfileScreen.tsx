@@ -135,7 +135,10 @@ export function ProfileScreen({
 
   const displayName = isGuest
     ? t('profile.guestName')
-    : (profile?.profile.fullName ?? t('profile.guestName'));
+    : (profile?.profile.fullName?.trim() ||
+        profile?.email?.split('@')[0] ||
+        profile?.phone ||
+        t('profile.account'));
   const contactLine = isGuest
     ? null
     : (profile?.phone ?? profile?.email ?? profile?.profile.email ?? null);

@@ -15,7 +15,7 @@ export default async function NewParcelPage({ searchParams }: NewParcelPageProps
   return (
     <PageFrame
       title="Nouveau colis"
-      description="Choisissez d’abord comment le colis entre dans le réseau Eveider."
+      description="Créez un colis à envoyer vers un casier Eveider."
       layout="standard"
       breadcrumbs={[
         { label: 'Colis', href: WEB_ROUTES.businessParcels },

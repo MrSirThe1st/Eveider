@@ -18,11 +18,18 @@ export function LoginView() {
   const searchParams = useSearchParams();
   const redirectTarget = searchParams.get('redirect') || undefined;
   const adminInvite = searchParams.get('adminInvite') || undefined;
+  const resetDone = searchParams.get('reset') === '1';
+  const linkError = searchParams.get('error') === 'lien_invalide';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    linkError ? 'Lien invalide ou expiré. Demandez un nouveau lien ou reconnectez-vous.' : null,
+  );
+  const [info, setInfo] = useState<string | null>(
+    resetDone ? 'Mot de passe mis à jour. Connectez-vous avec le nouveau mot de passe.' : null,
+  );
   const [formReady, setFormReady] = useState(false);
 
   useEffect(() => {
@@ -33,6 +40,7 @@ export function LoginView() {
     event.preventDefault();
     setLoading(true);
     setError(null);
+    setInfo(null);
 
     setAuthPersistencePreference(remember);
     const supabase = createClient();
@@ -145,14 +153,20 @@ export function LoginView() {
             placeholder="8 caractères minimum"
             autoComplete="current-password"
           />
-          <label className={styles.check}>
-            <input
-              type="checkbox"
-              checked={remember}
-              onChange={(event) => setRemember(event.target.checked)}
-            />
-            Se souvenir de moi
-          </label>
+          <div className={styles.formMeta}>
+            <label className={styles.check}>
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(event) => setRemember(event.target.checked)}
+              />
+              Se souvenir de moi
+            </label>
+            <Link href={WEB_ROUTES.forgotPassword} className={styles.metaLink}>
+              Mot de passe oublié ?
+            </Link>
+          </div>
+          {info ? <p className={styles.info}>{info}</p> : null}
           {error ? <p className={styles.error}>{error}</p> : null}
           <button type="submit" className={styles.submit} disabled={loading || !formReady}>
             {loading ? <Spinner size="sm" color="currentColor" /> : null}

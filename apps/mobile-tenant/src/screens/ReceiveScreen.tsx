@@ -1,9 +1,10 @@
-import { borders, type ColorTokens } from '@eveider/config-ui';
+import { borders, radius, type ColorTokens } from '@eveider/config-ui';
 import { Feather } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  Image,
   Platform,
   Pressable,
   RefreshControl,
@@ -16,7 +17,6 @@ import {
 import { AppSpinner } from '../components/AppSpinner';
 import { AuthRequired } from '../components/AuthRequired';
 import { CommissioningCollectConfirm } from '../components/CommissioningCollectConfirm';
-import { EmptyState } from '../components/EmptyState';
 import { openAddressSearch, openDirections } from '../components/LockerMapView';
 import { ParcelCard } from '../components/ParcelCard';
 import { ParcelStatusBadge } from '../components/ParcelStatusBadge';
@@ -55,6 +55,10 @@ import {
   translateRecipientError,
 } from '../lib/recipient-presentation';
 import { useColors } from '../theme';
+
+const BOX_EMPTY = require('../assets/boxIllustration.png');
+
+type ParcelFilter = 'all' | 'pickup' | 'progress' | 'done';
 
 type CustomerScreen =
   | { name: 'list' }
@@ -106,6 +110,7 @@ export function ReceiveScreen({
   const [unreadCount, setUnreadCount] = useState(0);
   const [trackingNumber, setTrackingNumber] = useState('');
   const [tracking, setTracking] = useState(false);
+  const [filter, setFilter] = useState<ParcelFilter>('all');
 
   const loadList = useCallback(
     async (silent = false) => {
@@ -306,8 +311,30 @@ export function ReceiveScreen({
     if (updated) setScreen({ name: 'detail', parcelId: item.id });
   }
 
-  const grouped = groupRecipientParcels(parcels);
+  const grouped = useMemo(() => groupRecipientParcels(parcels), [parcels]);
+  const filteredParcels = useMemo(() => {
+    if (filter === 'pickup') return grouped.action;
+    if (filter === 'progress') return grouped.progress;
+    if (filter === 'done') return grouped.recent;
+    return [...grouped.action, ...grouped.progress, ...grouped.recent];
+  }, [filter, grouped]);
+
+  const filterEmptyMessage =
+    filter === 'pickup'
+      ? t('receive.emptyPickup')
+      : filter === 'progress'
+        ? t('receive.emptyProgress')
+        : filter === 'done'
+          ? t('receive.emptyDone')
+          : t('receive.emptyMessage');
+
   const title = t(titleKey);
+  const filters: { key: ParcelFilter; label: string }[] = [
+    { key: 'all', label: t('receive.filterAll') },
+    { key: 'pickup', label: t('receive.filterPickup') },
+    { key: 'progress', label: t('receive.filterProgress') },
+    { key: 'done', label: t('receive.filterDone') },
+  ];
 
   if (screen.name === 'list') {
     return (
@@ -364,6 +391,27 @@ export function ReceiveScreen({
                 onSubmit={() => void handleTrack()}
                 placeholder={t('receive.searchPlaceholder')}
               />
+
+              <View style={styles.filterRow}>
+                {filters.map((item) => {
+                  const active = filter === item.key;
+                  return (
+                    <Pressable
+                      key={item.key}
+                      onPress={() => setFilter(item.key)}
+                      style={styles.filterTab}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: active }}
+                    >
+                      <Text style={[styles.filterLabel, active && styles.filterLabelActive]}>
+                        {item.label}
+                      </Text>
+                      {active ? <View style={styles.filterUnderline} /> : null}
+                    </Pressable>
+                  );
+                })}
+              </View>
+
               {unreadCount > 0 ? (
                 <Pressable onPress={onOpenNotifications} style={styles.notificationPreview}>
                   <Text style={styles.notificationPreviewLabel}>
@@ -371,39 +419,30 @@ export function ReceiveScreen({
                   </Text>
                 </Pressable>
               ) : null}
-              {parcels.length === 0 ? (
-                <EmptyState
-                  icon="package"
-                  title={t('receive.emptyTitle')}
-                  message={t('receive.emptyMessage')}
-                />
+
+              {parcels.length === 0 || filteredParcels.length === 0 ? (
+                <View style={styles.empty}>
+                  <Image source={BOX_EMPTY} style={styles.emptyImage} resizeMode="contain" />
+                  <Text style={styles.emptyTitle}>
+                    {parcels.length === 0 ? t('receive.emptyTitle') : filterEmptyMessage}
+                  </Text>
+                  {parcels.length === 0 ? (
+                    <Text style={styles.emptyBody}>{t('receive.emptyMessage')}</Text>
+                  ) : null}
+                </View>
               ) : (
-                <>
-                  <ParcelSection
-                    title={t('receive.actionTitle')}
-                    items={grouped.action}
-                    empty={t('receive.actionEmpty')}
-                    styles={styles}
-                    onOpen={(item) => {
+                filteredParcels.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => {
                       setError(null);
                       setScreen({ name: 'detail', parcelId: item.id });
                     }}
-                  />
-                  <ParcelSection
-                    title={t('receive.progressTitle')}
-                    items={grouped.progress}
-                    empty={t('receive.progressEmpty')}
-                    styles={styles}
-                    onOpen={(item) => setScreen({ name: 'detail', parcelId: item.id })}
-                  />
-                  <ParcelSection
-                    title={t('receive.recentTitle')}
-                    items={grouped.recent}
-                    empty={t('receive.recentEmpty')}
-                    styles={styles}
-                    onOpen={(item) => setScreen({ name: 'detail', parcelId: item.id })}
-                  />
-                </>
+                    style={styles.cardWrap}
+                  >
+                    <ParcelCard parcel={item} />
+                  </Pressable>
+                ))
               )}
             </ScrollView>
           )}
@@ -671,7 +710,6 @@ function SearchBox({
   error,
   onChange,
   onSubmit,
-  label,
   placeholder,
 }: {
   styles: ReturnType<typeof createStyles>;
@@ -681,13 +719,12 @@ function SearchBox({
   error: string | null;
   onChange: (value: string) => void;
   onSubmit: () => void;
-  label?: string;
   placeholder: string;
 }) {
   return (
     <View style={styles.search}>
-      {label ? <Text style={styles.sectionTitle}>{label}</Text> : null}
       <View style={styles.trackRow}>
+        <Feather name="search" size={18} color={colors.textMuted} />
         <TextInput
           value={trackingNumber}
           onChangeText={onChange}
@@ -700,39 +737,14 @@ function SearchBox({
           style={styles.trackInput}
         />
         <Pressable onPress={onSubmit} style={styles.trackButton} accessibilityRole="button">
-          {tracking ? <AppSpinner size="sm" color={colors.onPrimary} /> : <Feather name="search" size={18} color={colors.onPrimary} />}
+          {tracking ? (
+            <AppSpinner size="sm" color={colors.onPrimary} />
+          ) : (
+            <Feather name="arrow-right" size={18} color={colors.onPrimary} />
+          )}
         </Pressable>
       </View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
-    </View>
-  );
-}
-
-function ParcelSection({
-  title,
-  items,
-  empty,
-  styles,
-  onOpen,
-}: {
-  title: string;
-  items: CustomerParcel[];
-  empty: string;
-  styles: ReturnType<typeof createStyles>;
-  onOpen: (item: CustomerParcel) => void;
-}) {
-  return (
-    <View>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {items.length === 0 ? (
-        <Text style={styles.emptyMessage}>{empty}</Text>
-      ) : (
-        items.map((item) => (
-          <Pressable key={item.id} onPress={() => onOpen(item)} style={styles.cardWrap}>
-            <ParcelCard parcel={item} />
-          </Pressable>
-        ))
-      )}
     </View>
   );
 }
@@ -901,7 +913,7 @@ function createStyles(colors: ColorTokens) {
     listContainer: {
       flex: 1,
       paddingHorizontal: 20,
-      paddingTop: 16,
+      paddingTop: 8,
       backgroundColor: colors.background,
     },
     container: {
@@ -920,40 +932,91 @@ function createStyles(colors: ColorTokens) {
     listContent: {
       flexGrow: 1,
       paddingBottom: 24,
-      gap: 20,
+      gap: 16,
     },
     search: { gap: 8 },
-    trackRow: { flexDirection: 'row', gap: 8 },
-    trackInput: {
-      flex: 1,
+    trackRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      minHeight: 52,
+      paddingLeft: 14,
+      paddingRight: 6,
       borderWidth: borders.width,
       borderColor: colors.border,
+      borderRadius: radius.md,
       backgroundColor: colors.surface,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      fontSize: 15,
-      fontWeight: '600',
+    },
+    trackInput: {
+      flex: 1,
+      minHeight: 44,
       color: colors.secondary,
+      fontSize: 15,
+      fontWeight: '500',
+      paddingVertical: 8,
     },
     trackButton: {
-      width: 48,
+      width: 40,
+      height: 40,
+      borderRadius: radius.sm,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: colors.primary,
     },
-    emptyMessage: {
+    filterRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: 16,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    filterTab: {
+      paddingBottom: 10,
+      position: 'relative',
+    },
+    filterLabel: {
+      fontSize: 14,
       fontWeight: '500',
       color: colors.textMuted,
-      fontSize: 13,
-      lineHeight: 20,
     },
-    sectionTitle: {
-      fontSize: 13,
+    filterLabelActive: {
       fontWeight: '700',
       color: colors.secondary,
-      marginBottom: 8,
     },
-    cardWrap: { marginBottom: 12 },
+    filterUnderline: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: 2,
+      backgroundColor: colors.secondary,
+    },
+    empty: {
+      alignItems: 'center',
+      paddingTop: 28,
+      paddingBottom: 16,
+      paddingHorizontal: 16,
+    },
+    emptyImage: {
+      width: 140,
+      height: 110,
+      marginBottom: 14,
+    },
+    emptyTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.secondary,
+      textAlign: 'center',
+    },
+    emptyBody: {
+      marginTop: 8,
+      fontSize: 13,
+      fontWeight: '400',
+      color: colors.textMuted,
+      textAlign: 'center',
+      lineHeight: 19,
+    },
+    cardWrap: { marginBottom: 4 },
     feedback: { gap: 12 },
     error: {
       color: colors.danger,
@@ -1017,6 +1080,7 @@ function createStyles(colors: ColorTokens) {
       alignItems: 'center',
       marginVertical: 16,
       backgroundColor: colors.surface,
+      borderRadius: radius.md,
     },
     pinLabel: {
       fontSize: 12,
@@ -1037,6 +1101,7 @@ function createStyles(colors: ColorTokens) {
       paddingVertical: 14,
       alignItems: 'center',
       backgroundColor: colors.surface,
+      borderRadius: radius.md,
     },
     reportButtonText: {
       fontWeight: '600',
@@ -1050,6 +1115,7 @@ function createStyles(colors: ColorTokens) {
       paddingHorizontal: 16,
       marginTop: 8,
       backgroundColor: colors.surface,
+      borderRadius: radius.md,
     },
     providerOptionSelected: {
       borderColor: colors.primary,
@@ -1068,6 +1134,7 @@ function createStyles(colors: ColorTokens) {
       fontSize: 16,
       color: colors.secondary,
       backgroundColor: colors.surface,
+      borderRadius: radius.md,
     },
     secondaryAction: {
       marginTop: 12,
@@ -1076,6 +1143,7 @@ function createStyles(colors: ColorTokens) {
       paddingVertical: 12,
       alignItems: 'center',
       backgroundColor: colors.surface,
+      borderRadius: radius.md,
     },
     secondaryActionText: {
       fontWeight: '700',
@@ -1084,12 +1152,14 @@ function createStyles(colors: ColorTokens) {
     },
     notificationPreview: {
       borderWidth: borders.width,
-      borderColor: colors.primary,
+      borderColor: colors.border,
+      borderRadius: radius.md,
       padding: 14,
+      backgroundColor: colors.surface,
     },
     notificationPreviewLabel: {
-      fontSize: 12,
-      fontWeight: '700',
+      fontSize: 13,
+      fontWeight: '600',
       color: colors.primary,
     },
     kicker: {
@@ -1105,6 +1175,7 @@ function createStyles(colors: ColorTokens) {
       borderColor: colors.border,
       padding: 16,
       backgroundColor: colors.surface,
+      borderRadius: radius.md,
     },
   });
 }

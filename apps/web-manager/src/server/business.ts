@@ -122,15 +122,20 @@ export async function loadBusinessSettingsPageData(businessId: string) {
 }
 
 export async function loadBusinessBillingPageData(businessId: string) {
-  const { businessOnboarding, parcelCharges, lockerSettings } = createRepositories();
-  const [billing, owedCharges, networkSettings] = await Promise.all([
+  const { businessOnboarding, parcelCharges, lockerSettings, pricing } = createRepositories();
+  const [billing, owedCharges, billingHistory, networkSettings, deliveryRules] = await Promise.all([
     businessOnboarding.getBillingSnapshot(businessId),
     parcelCharges.listOwedForBusiness(businessId),
+    parcelCharges.listBillingHistoryForBusiness(businessId),
     lockerSettings.getNetworkSettings(),
+    pricing.getDeliveryRules(),
   ]);
   return {
     billing,
     owedCharges,
+    billingHistory,
     pickupHoldHours: networkSettings.pickupHoldHours,
+    lockerRentalRateAmount: deliveryRules.lockerRentalRateAmount,
+    pricingCurrency: deliveryRules.currency,
   };
 }

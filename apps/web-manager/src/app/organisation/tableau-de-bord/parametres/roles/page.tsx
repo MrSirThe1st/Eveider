@@ -4,5 +4,5 @@ import { requireBusinessPermission } from '@/server/business';
 
 export default async function OrganizationRolesSettingsPage() {
   await requireBusinessPermission('settings');
-  redirect(ORG_SETTINGS_ROUTES.members);
+  redirect(ORG_SETTINGS_ROUTES.team);
 }

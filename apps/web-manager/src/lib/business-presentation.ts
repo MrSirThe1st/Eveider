@@ -2,6 +2,7 @@ import type {
   DeliveryKind,
   DeliveryStatus,
   ParcelChargeKind,
+  ParcelChargeStatus,
   ParcelReturnMethod,
   ParcelReturnStatus,
   ParcelStatus,
@@ -91,6 +92,39 @@ export function getBusinessChargeLabel(kind: ParcelChargeKind): string {
       return 'Stockage';
     default:
       return kind;
+  }
+}
+
+/** Facturation history copy — business-paid charge kinds only. */
+export function getBusinessBillingHistoryDescription(
+  kind: ParcelChargeKind,
+  quantity?: number | null,
+): string {
+  switch (kind) {
+    case 'return_delivery':
+      return 'Retour transporté par Eveider';
+    case 'return_locker':
+      return 'Retrait d’un retour';
+    case 'locker_rental':
+      if (quantity != null && quantity > 0) {
+        return `Stockage supplémentaire — ${quantity * 24} h`;
+      }
+      return 'Stockage supplémentaire';
+    default:
+      return getBusinessChargeLabel(kind);
+  }
+}
+
+export function getBusinessBillingChargeStatusLabel(status: ParcelChargeStatus): string {
+  switch (status) {
+    case 'owed':
+      return 'À payer';
+    case 'pending':
+      return 'En cours';
+    case 'void':
+      return 'Annulé';
+    default:
+      return status;
   }
 }
 

@@ -43,10 +43,10 @@ describe('filterOrganizationSettingsNav', () => {
     const ids = groups.flatMap((group) => group.items.map((item) => item.id));
     expect(ids).toContain('organisation-details');
     expect(ids).not.toContain('verification');
-    expect(ids).toContain('membres');
+    expect(ids).toContain('equipe');
     expect(ids).toContain('plans');
-    expect(ids).toContain('api');
-    expect(ids).toContain('excel');
+    expect(ids).not.toContain('api');
+    expect(ids).not.toContain('excel');
     expect(ids).not.toContain('roles');
     expect(ids).not.toContain('notifications');
     expect(ids).not.toContain('equipes');
@@ -60,6 +60,8 @@ describe('unpublished settings stay hidden', () => {
     const adminIds = ADMIN_SETTINGS_NAV.flatMap((group) => group.items.map((item) => item.id));
     expect(orgIds).not.toContain('roles');
     expect(orgIds).not.toContain('notifications');
+    expect(orgIds).not.toContain('api');
+    expect(orgIds).not.toContain('excel');
     expect(adminIds).not.toContain('roles');
     expect(adminIds).not.toContain('notifications');
     expect(adminIds).not.toContain('api');
@@ -72,6 +74,14 @@ describe('unpublished settings stay hidden', () => {
     );
     expect(equipe?.label).toBe('Équipe');
     expect(equipe?.href).toBe('/tableau-de-bord/parametres/administrateurs');
+  });
+
+  it('labels the organization team page as Équipe', () => {
+    const equipe = ORGANIZATION_SETTINGS_NAV.flatMap((group) => group.items).find(
+      (item) => item.id === 'equipe',
+    );
+    expect(equipe?.label).toBe('Équipe');
+    expect(equipe?.href).toBe(ORG_SETTINGS_ROUTES.team);
   });
 });
 

@@ -103,16 +103,17 @@ test.describe('Business portal IA', () => {
     }
     await page.getByRole('button', { name: 'Continuer' }).click();
 
-    await page.getByLabel('Nom destinataire').fill('Test Flow Un');
-    await page.getByLabel('Téléphone destinataire').fill(`+24397${Date.now().toString().slice(-7)}`);
+    await page.getByLabel('Nom', { exact: true }).fill('Test Flow Un');
+    await page.getByLabel('Téléphone', { exact: true }).fill(`+24397${Date.now().toString().slice(-7)}`);
     await page.getByRole('button', { name: 'Continuer' }).click();
     await page.getByRole('button', { name: 'Continuer' }).click();
 
     await selectDestinationLocker(page);
     await page.getByRole('button', { name: 'Continuer' }).click();
 
-    await expect(page.getByText('Payé par : Destinataire')).toBeVisible();
+    await expect(page.getByText('Payé par')).toBeVisible();
     await expect(page.getByText('Frais de livraison')).toBeVisible();
+    await expect(page.getByText('Prochaine étape')).toBeVisible();
     await page.getByRole('button', { name: 'Créer le colis' }).click();
 
     await expect(page).toHaveURL(/\/colis\/[0-9a-f-]+\?created=1/, { timeout: 30_000 });
@@ -139,8 +140,8 @@ test.describe('Business portal IA', () => {
     }
     await page.getByRole('button', { name: 'Continuer' }).click();
 
-    await page.getByLabel('Nom destinataire').fill('Test Flow Deux');
-    await page.getByLabel('Téléphone destinataire').fill(`+24396${Date.now().toString().slice(-7)}`);
+    await page.getByLabel('Nom', { exact: true }).fill('Test Flow Deux');
+    await page.getByLabel('Téléphone', { exact: true }).fill(`+24396${Date.now().toString().slice(-7)}`);
     await page.getByRole('button', { name: 'Continuer' }).click();
     await page.getByRole('button', { name: 'Continuer' }).click();
 
@@ -149,8 +150,10 @@ test.describe('Business portal IA', () => {
     await page.getByRole('button', { name: 'Continuer' }).click();
 
     await expect(page.getByText('Frais de retrait')).toBeVisible();
-    await expect(page.getByText('Payé par : Destinataire')).toBeVisible();
-    await expect(page.getByText('Livraison')).toHaveCount(0);
+    await expect(page.getByText('Payé par')).toBeVisible();
+    await expect(page.getByText('Prochaine étape')).toBeVisible();
+    await expect(page.getByText(/instructions de dépôt/i)).toBeVisible();
+    await expect(page.getByText('Frais de livraison')).toHaveCount(0);
     await page.getByRole('button', { name: 'Créer le colis' }).click();
 
     await expect(page).toHaveURL(/\/colis\/[0-9a-f-]+\?created=1/);
@@ -196,10 +199,13 @@ test.describe('Business portal IA', () => {
     await dismissCookieBanner(page);
 
     await expect(page.getByRole('heading', { name: 'Facturation', level: 1 })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Ce que votre entreprise doit' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Montant à payer' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Historique des frais' })).toBeVisible();
     await expect(page.getByLabel('Qui paie la livraison')).toHaveCount(0);
     await expect(page.getByText('Paiement à la livraison')).toHaveCount(0);
-    await expect(page.getByText(/h incluses/)).toBeVisible();
+    await expect(page.getByText(/h de stockage incluses/)).toBeVisible();
+    await expect(page.getByText('Compte de règlement')).toHaveCount(0);
+    await expect(page.getByText('Limites Eveider')).toHaveCount(0);
   });
 
   test('legacy COD, payment-responsibility and org-driver controls stay out of the product', async ({
