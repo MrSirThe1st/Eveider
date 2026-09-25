@@ -50,7 +50,8 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "marcilungambuyu@icloud.com"
+        "appleId": "marcilungambuyu@icloud.com",
+        "ascAppId": "6815644198"
       }
     }
   }
