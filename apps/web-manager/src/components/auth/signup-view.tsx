@@ -7,28 +7,37 @@ import { AuthRoleTabs, type SignupRole } from './auth-role-tabs';
 import styles from './auth-shell.module.css';
 import { AuthSplitShell } from './auth-split-shell';
 import { SignupBusinessForm } from './signup-business-form';
+import { SignupDriverForm } from './signup-driver-form';
 import { SignupMobileForm } from './signup-mobile-form';
 import { SignupPlatformAdminForm } from './signup-platform-admin-form';
 
 type SignupViewProps = {
   inviteToken?: string;
   adminInviteToken?: string;
+  driverInviteToken?: string;
 };
 
-export function SignupView({ inviteToken, adminInviteToken }: SignupViewProps) {
+export function SignupView({ inviteToken, adminInviteToken, driverInviteToken }: SignupViewProps) {
   const joiningTeam = Boolean(inviteToken);
   const joiningPlatformAdmin = Boolean(adminInviteToken);
+  const joiningDriver = Boolean(driverInviteToken);
+  const inviteOnly = joiningTeam || joiningPlatformAdmin || joiningDriver;
   const [role, setRole] = useState<SignupRole>('business');
 
   const visual = SIGNUP_VISUALS[role];
-  const heading = joiningPlatformAdmin
+  const heading = joiningDriver
     ? {
-        title: 'Administration Eveider',
-        sub: 'Créez votre compte pour accepter l’invitation administrateur.',
+        title: 'Accès chauffeur',
+        sub: 'Créez votre compte et choisissez un mot de passe pour accepter l’invitation.',
       }
-    : joiningTeam
-      ? { title: 'Rejoindre l’équipe', sub: 'Créez votre compte pour accepter l’invitation.' }
-      : SIGNUP_HEADINGS[role];
+    : joiningPlatformAdmin
+      ? {
+          title: 'Administration Eveider',
+          sub: 'Créez votre compte pour accepter l’invitation administrateur.',
+        }
+      : joiningTeam
+        ? { title: 'Rejoindre l’équipe', sub: 'Créez votre compte pour accepter l’invitation.' }
+        : SIGNUP_HEADINGS[role];
 
   const dots = useMemo(
     () =>
@@ -47,14 +56,14 @@ export function SignupView({ inviteToken, adminInviteToken }: SignupViewProps) {
     <AuthSplitShell
       visual={visual}
       visualKey={role}
-      dots={joiningTeam || joiningPlatformAdmin ? [] : dots}
-      toolbar={joiningTeam || joiningPlatformAdmin ? null : <AuthRoleTabs value={role} onChange={setRole} />}
+      dots={inviteOnly ? [] : dots}
+      toolbar={inviteOnly ? null : <AuthRoleTabs value={role} onChange={setRole} />}
     >
       <div className={styles.formCardHead}>
         <div className={styles.panelHead}>
           <h1 className={styles.panelTitle}>{heading.title}</h1>
           <p className={styles.panelSub}>{heading.sub}</p>
-          {joiningTeam || role === 'business' ? null : (
+          {inviteOnly || role === 'business' ? null : (
             <p className={styles.panelSub}>
               Les chauffeurs sont invités par Eveider ou par leur entreprise — pas d’inscription libre.
             </p>
@@ -68,7 +77,9 @@ export function SignupView({ inviteToken, adminInviteToken }: SignupViewProps) {
           role="tabpanel"
           aria-labelledby={`signup-tab-${role}`}
         >
-          {joiningPlatformAdmin ? (
+          {joiningDriver ? (
+            <SignupDriverForm driverInviteToken={driverInviteToken!} />
+          ) : joiningPlatformAdmin ? (
             <SignupPlatformAdminForm adminInviteToken={adminInviteToken!} />
           ) : role === 'business' || joiningTeam ? (
             <SignupBusinessForm inviteToken={inviteToken} />
@@ -77,7 +88,16 @@ export function SignupView({ inviteToken, adminInviteToken }: SignupViewProps) {
           )}
         </div>
         <p className={styles.switchLine}>
-          Déjà un compte ? <Link href="/connexion">Se connecter</Link>
+          Déjà un compte ?{' '}
+          <Link
+            href={
+              driverInviteToken
+                ? `/connexion?driverInvite=${encodeURIComponent(driverInviteToken)}`
+                : '/connexion'
+            }
+          >
+            Se connecter
+          </Link>
         </p>
       </div>
     </AuthSplitShell>

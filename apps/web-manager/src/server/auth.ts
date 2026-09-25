@@ -1,4 +1,4 @@
-import type { RegisterBusinessAccountInput, RegisterPlatformAdminInput } from '@eveider/api-contracts';
+import type { RegisterBusinessAccountInput, RegisterDriverInput, RegisterPlatformAdminInput } from '@eveider/api-contracts';
 import { createRepositories } from '@eveider/data-access';
 import type { Business, User } from '@eveider/data-access';
 
@@ -47,6 +47,20 @@ export async function registerPlatformAdminAccount(
     throw new Error('Profil introuvable');
   }
   return { user: refreshed };
+}
+
+export async function registerDriverAccount(
+  authId: string,
+  input: RegisterDriverInput,
+): Promise<{ fullName: string | null; status: string }> {
+  const { accounts } = createRepositories();
+  return accounts.acceptDriverInvite({
+    token: input.driverInviteToken,
+    authId,
+    email: input.email,
+    fullName: `${input.firstName} ${input.lastName}`.trim(),
+    phone: input.phone,
+  });
 }
 
 export async function registerBusinessAccount(

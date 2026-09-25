@@ -8,13 +8,19 @@ export const metadata: Metadata = {
 };
 
 type PageProps = {
-  searchParams: Promise<{ invite?: string; adminInvite?: string }>;
+  searchParams: Promise<{ invite?: string; adminInvite?: string; driverInvite?: string }>;
 };
 
 export default async function InscriptionPage({ searchParams }: PageProps) {
-  const { invite, adminInvite } = await searchParams;
-  if (!invite && !adminInvite) {
+  const { invite, adminInvite, driverInvite } = await searchParams;
+  if (!invite && !adminInvite && !driverInvite) {
     await redirectIfAuthenticated();
   }
-  return <SignupView inviteToken={invite} adminInviteToken={adminInvite} />;
+  return (
+    <SignupView
+      inviteToken={invite}
+      adminInviteToken={adminInvite}
+      driverInviteToken={driverInvite}
+    />
+  );
 }

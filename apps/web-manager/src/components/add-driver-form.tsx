@@ -23,7 +23,7 @@ export function AddDriverForm({
   apiPath,
   detailBasePath,
   submitLabel = 'Ajouter et inviter',
-  emailHint = 'L’invitation part par email. Il ouvre le lien — pas de mot de passe à créer.',
+  emailHint = 'L’invitation part par email. Il crée son compte et choisit un mot de passe.',
   bodyExtras,
   serviceAreas = [],
   onCancel,
@@ -181,7 +181,7 @@ export function AddDriverModal({
   open,
   onClose,
   title = 'Ajouter un chauffeur',
-  description = 'Ajoutez un chauffeur Eveider. L’invitation part par email : il ouvre le lien et est connecté, sans mot de passe. Il peut travailler tout de suite.',
+  description = 'Ajoutez un chauffeur Eveider. L’invitation part par email : il crée son compte, choisit un mot de passe, puis se connecte.',
   ...formProps
 }: AddDriverModalProps) {
   return (

@@ -18,6 +18,7 @@ export function LoginView() {
   const searchParams = useSearchParams();
   const redirectTarget = searchParams.get('redirect') || undefined;
   const adminInvite = searchParams.get('adminInvite') || undefined;
+  const driverInvite = searchParams.get('driverInvite') || undefined;
   const resetDone = searchParams.get('reset') === '1';
   const linkError = searchParams.get('error') === 'lien_invalide';
   const [email, setEmail] = useState('');
@@ -70,6 +71,24 @@ export function LoginView() {
       setLoading(false);
       setError('Profil utilisateur introuvable');
       await signOutClient(supabase);
+      return;
+    }
+
+    if (driverInvite) {
+      const acceptResponse = await fetch('/api/driver-invite/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: driverInvite }),
+      });
+      const acceptResult = await acceptResponse.json();
+      if (!acceptResult.success) {
+        setLoading(false);
+        setError(acceptResult.error ?? 'Impossible d’accepter l’invitation');
+        await signOutClient(supabase);
+        return;
+      }
+      setLoading(false);
+      router.replace(WEB_ROUTES.driverHome);
       return;
     }
 

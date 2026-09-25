@@ -58,7 +58,7 @@ export function AdminFleetView({
         onClose={closeAdd}
         apiPath="/api/admin/driver-dossiers"
         detailBasePath={WEB_ROUTES.adminDrivers}
-        emailHint="L’invitation part par email. Il ouvre le lien — pas de mot de passe à créer."
+        emailHint="L’invitation part par email. Il crée son compte et choisit un mot de passe."
         serviceAreas={serviceAreas}
       />
     </PageFrame>

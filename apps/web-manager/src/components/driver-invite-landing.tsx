@@ -4,116 +4,57 @@ import { colors, radius, shadows, spacing, webCardStyle } from '@eveider/config-
 import { LoadingSpinner } from '@eveider/ui';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+
+type Preview = {
+  email: string;
+  fullName: string;
+};
 
 type DriverInviteLandingProps = {
   token?: string;
 };
 
-type Phase = 'prompt' | 'loading' | 'done' | 'error';
-
-/**
- * Supabase deprecated `magiclink` / `signup` for verifyOtp — use `email`.
- * Keep a magiclink fallback for older Auth rows still tagged that way.
- */
-async function verifyMagicLinkToken(token: string) {
-  const supabase = createClient();
-  const primary = await supabase.auth.verifyOtp({
-    token_hash: token,
-    type: 'email',
-  });
-  if (!primary.error) return primary;
-
-  const fallback = await supabase.auth.verifyOtp({
-    token_hash: token,
-    type: 'magiclink',
-  });
-  return fallback.error ? primary : fallback;
-}
-
-async function completeDriverInvite(): Promise<string | null> {
-  const response = await fetch('/api/driver-invite/complete', { method: 'POST' });
-  const result = (await response.json()) as {
-    success: boolean;
-    error?: string;
-    data?: { fullName: string | null };
-  };
-  if (!result.success) {
-    throw new Error(result.error ?? 'Impossible d’activer le compte');
-  }
-  return result.data?.fullName ?? null;
-}
-
 export function DriverInviteLanding({ token }: DriverInviteLandingProps) {
-  const [phase, setPhase] = useState<Phase>(token ? 'prompt' : 'loading');
-  const [fullName, setFullName] = useState<string | null>(null);
+  const [preview, setPreview] = useState<Preview | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (token) return;
-
-    let cancelled = false;
-
-    async function activateFromSession() {
-      try {
-        const supabase = createClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) {
-          throw new Error('Lien invalide ou expiré. Demandez un nouveau lien à Eveider.');
-        }
-        const name = await completeDriverInvite();
-        if (!cancelled) {
-          setFullName(name);
-          setPhase('done');
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Impossible d’activer le compte');
-          setPhase('error');
-        }
-      }
+    if (!token) {
+      setError('Lien invalide ou expiré. Demandez un nouveau lien à Eveider.');
+      setLoading(false);
+      return;
     }
 
-    void activateFromSession();
-    return () => {
-      cancelled = true;
-    };
+    void fetch(`/api/driver-invite/${encodeURIComponent(token)}`)
+      .then((response) => response.json())
+      .then((result) => {
+        if (!result.success) {
+          setError(result.error ?? 'Invitation invalide');
+          return;
+        }
+        setPreview(result.data.invite);
+      })
+      .catch(() => setError('Erreur réseau'))
+      .finally(() => setLoading(false));
   }, [token]);
 
-  async function activateWithToken() {
-    if (!token || phase === 'loading') return;
-    setPhase('loading');
-    setError(null);
-    try {
-      const { error: otpError } = await verifyMagicLinkToken(token);
-      if (otpError) {
-        throw new Error(otpError.message);
-      }
-      const name = await completeDriverInvite();
-      setFullName(name);
-      setPhase('done');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible d’activer le compte');
-      setPhase('error');
-    }
-  }
-
-  if (phase === 'loading') {
+  if (loading) {
     return (
       <main style={pageStyle}>
-        <LoadingSpinner label="Activation de votre accès chauffeur…" />
+        <LoadingSpinner label="Chargement de l’invitation…" />
       </main>
     );
   }
 
-  if (phase === 'error') {
+  if (error || !preview) {
     return (
       <main style={pageStyle}>
         <section style={cardStyle}>
-          <h1 style={titleStyle}>Lien invalide</h1>
-          <p style={{ margin: '0 0 1.25rem', fontWeight: 500, color: colors.textMuted }}>{error}</p>
+          <h1 style={titleStyle}>Invitation invalide</h1>
+          <p style={{ margin: '0 0 1.25rem', fontWeight: 500, color: colors.textMuted }}>
+            {error ?? 'Lien expiré ou déjà utilisé.'}
+          </p>
           <Link href="/connexion" style={primaryButtonStyle}>
             Se connecter
           </Link>
@@ -122,36 +63,32 @@ export function DriverInviteLanding({ token }: DriverInviteLandingProps) {
     );
   }
 
-  if (phase === 'prompt') {
-    return (
-      <main style={pageStyle}>
-        <section style={cardStyle}>
-          <h1 style={titleStyle}>Activer votre accès</h1>
-          <p style={{ margin: '0 0 1.25rem', fontWeight: 500, color: colors.textMuted }}>
-            Cliquez pour activer votre compte chauffeur Eveider. Aucun mot de passe à créer.
-          </p>
-          <button type="button" onClick={() => void activateWithToken()} style={primaryButtonStyle}>
-            Activer mon accès
-          </button>
-        </section>
-      </main>
-    );
-  }
-
-  const greeting = fullName ? `Bonjour ${fullName}.` : 'Bonjour.';
+  const signupHref = `/inscription?driverInvite=${encodeURIComponent(token!)}`;
+  const loginHref = `/connexion?driverInvite=${encodeURIComponent(token!)}`;
 
   return (
     <main style={pageStyle}>
       <section style={cardStyle}>
-        <h1 style={titleStyle}>Accès chauffeur activé</h1>
+        <h1 style={titleStyle}>Accès chauffeur</h1>
         <p style={{ margin: '0 0 1.25rem', fontWeight: 500, color: colors.textMuted }}>
-          {greeting} Votre compte est actif. Les livraisons se feront dans l’application Eveider.
-          Elle n’est pas encore partout en téléchargement, donc cet accès web suffit pour
-          l’instant.
+          {preview.fullName ? (
+            <>
+              {preview.fullName}, vous êtes invité(e) à rejoindre Eveider avec l’adresse{' '}
+              {preview.email}.
+            </>
+          ) : (
+            <>Vous êtes invité(e) à rejoindre Eveider avec l’adresse {preview.email}.</>
+          )}{' '}
+          Créez votre compte et choisissez un mot de passe pour vous connecter ensuite.
         </p>
-        <Link href="/chauffeur" style={primaryButtonStyle}>
-          Voir mon accès
-        </Link>
+        <div style={{ display: 'grid', gap: '0.75rem' }}>
+          <Link href={signupHref} style={primaryButtonStyle}>
+            Créer mon compte
+          </Link>
+          <Link href={loginHref} style={secondaryButtonStyle}>
+            J’ai déjà un compte
+          </Link>
+        </div>
       </section>
     </main>
   );
@@ -183,7 +120,6 @@ const titleStyle: React.CSSProperties = {
 
 const primaryButtonStyle: React.CSSProperties = {
   display: 'block',
-  width: '100%',
   textAlign: 'center',
   height: spacing.buttonHeight,
   lineHeight: `${spacing.buttonHeight}px`,
@@ -195,6 +131,11 @@ const primaryButtonStyle: React.CSSProperties = {
   fontWeight: 700,
   textDecoration: 'none',
   boxShadow: shadows.none,
-  cursor: 'pointer',
-  font: 'inherit',
+};
+
+const secondaryButtonStyle: React.CSSProperties = {
+  ...primaryButtonStyle,
+  background: '#FFFFFF',
+  color: colors.secondary,
+  border: `1px solid ${colors.border}`,
 };
