@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCustomerShell } from '../navigation/customer-shell';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { openDispatcherWhatsApp } from '../lib/support';
 import { useColors } from '../theme';
 
 const DRAWER_WIDTH = Math.min(Dimensions.get('window').width * 0.86, 360);
@@ -160,10 +161,12 @@ const DrawerBody = memo(function DrawerBody({
       onRequestAuth={() => requestAuth('login')}
       onOpenNotifications={() => openSettings('Notifications')}
       onOpenPersonalInfo={() => openSettings('PersonalInfo')}
+      onOpenDriverProfile={mode === 'DRIVER' ? () => openSettings('DriverProfile') : undefined}
+      onContactDispatch={mode === 'DRIVER' ? () => openDispatcherWhatsApp() : undefined}
       onOpenLanguage={() => openSettings('Language')}
       onOpenAppearance={() => openSettings('Appearance')}
       onOpenHelp={() => openSettings('Help')}
-      onOpenHowItWorks={mode === 'CLIENT' ? () => openSettings('HowItWorks') : undefined}
+      onOpenHowItWorks={() => openSettings('HowItWorks')}
       onOpenTerms={() => openSettings('Terms')}
       onOpenPrivacy={() => openSettings('Privacy')}
       onOpenAbout={() => openSettings('About')}

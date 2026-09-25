@@ -391,6 +391,38 @@ export type CourierHistorySummary = {
   successRate: number;
 };
 
+export type CourierDriverDocumentStatus =
+  | 'verified'
+  | 'pending'
+  | 'needs_correction'
+  | 'missing';
+
+export type CourierDriverProfile = {
+  fullName: string | null;
+  phone: string | null;
+  email: string | null;
+  driverCode: string;
+  dossierId: string;
+  accountStatus: string;
+  accountStatusLabel: string;
+  operationalStatus: string;
+  operationalStatusLabel: string;
+  organization: {
+    id: string;
+    name: string;
+    isPlatformOrg: boolean;
+  } | null;
+  contractorType: string;
+  documents: Array<{
+    key: 'identity';
+    status: CourierDriverDocumentStatus;
+  }>;
+};
+
+export async function fetchCourierDriverProfile() {
+  return courierFetch<CourierDriverProfile>('/api/driver/profile');
+}
+
 export async function fetchCourierDeliveries() {
   return courierFetch<{ deliveries: CourierDelivery[]; summary: CourierHistorySummary }>(
     '/api/driver/deliveries',

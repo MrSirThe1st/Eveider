@@ -67,11 +67,7 @@ export const CustomerHome = memo(function CustomerHome({ onTrackResult }: Custom
     setRefreshing(false);
     if (parcelsResult.success) setParcels(parcelsResult.data.parcels);
     if (profileResult.success) {
-      const profile = profileResult.data.profile;
-      setFirstName(
-        firstNameFrom(profile.fullName) ??
-          firstNameFrom(profileResult.data.email?.split('@')[0] ?? null),
-      );
+      setFirstName(firstNameFrom(profileResult.data.profile.fullName));
     }
   }, [isGuest]);
 

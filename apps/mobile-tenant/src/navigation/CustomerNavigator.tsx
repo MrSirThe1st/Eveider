@@ -108,7 +108,10 @@ export function CustomerNavigator({
       requestAuth: (mode?: 'login' | 'register') => onRequestAuth?.(mode),
       openSettings: (screen: CustomerSettingsScreen) => {
         setDrawerOpenRef.current(false);
-        stackNavRef.current?.navigate(screen);
+        if (screen === 'DriverProfile') return;
+        stackNavRef.current?.navigate(
+          screen as Exclude<CustomerSettingsScreen, 'DriverProfile'>,
+        );
       },
       goToReceive: (parcelId?: string) => {
         setDrawerOpenRef.current(false);

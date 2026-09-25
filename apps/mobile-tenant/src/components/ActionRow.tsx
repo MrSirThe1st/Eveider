@@ -1,4 +1,4 @@
-import { borders, type ColorTokens } from '@eveider/config-ui';
+import { radius, type ColorTokens } from '@eveider/config-ui';
 import { Feather } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
 import { useMemo } from 'react';
@@ -56,8 +56,7 @@ function createStyles(colors: ColorTokens) {
       gap: 12,
       paddingVertical: 14,
       paddingHorizontal: 14,
-      borderWidth: borders.width,
-      borderColor: colors.border,
+      borderRadius: radius.md,
       backgroundColor: colors.surface,
       marginBottom: 8,
     },
@@ -65,6 +64,7 @@ function createStyles(colors: ColorTokens) {
       marginBottom: 0,
     },
     rowSelected: {
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.primary,
     },
     text: {

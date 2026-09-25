@@ -10,15 +10,20 @@ import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ProfileDrawer } from '../components/ProfileDrawer';
 import { DRIVER_PRIMARY_TABS } from '../lib/driver-nav';
+import { callEveiderSupport } from '../lib/support';
 import { CourierHistoryScreen } from '../screens/CourierHistoryScreen';
 import { CourierHome } from '../screens/CourierHome';
 import { CourierRouteScreen } from '../screens/CourierRouteScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { AppearanceSettingsScreen } from '../screens/settings/AppearanceSettingsScreen';
+import { ChangePasswordScreen } from '../screens/settings/ChangePasswordScreen';
 import { CountrySettingsScreen } from '../screens/settings/CountrySettingsScreen';
+import { EditPersonalInfoScreen } from '../screens/settings/EditPersonalInfoScreen';
 import { LanguageSettingsScreen } from '../screens/settings/LanguageSettingsScreen';
 import { NotificationPreferencesScreen } from '../screens/settings/NotificationPreferencesScreen';
 import { AboutSettingsScreen } from '../screens/settings/AboutSettingsScreen';
+import { DriverProfileScreen } from '../screens/settings/DriverProfileScreen';
+import { PersonalInfoHubScreen } from '../screens/settings/PersonalInfoHubScreen';
 import { PlaceholderSettingsScreen } from '../screens/settings/PlaceholderSettingsScreen';
 import { useColors } from '../theme';
 import {
@@ -64,13 +69,6 @@ export function CourierNavigator({ onRequestAuth }: CourierNavigatorProps) {
       requestAuth: (mode?: 'login' | 'register') => onRequestAuth?.(mode),
       openSettings: (screen: CustomerSettingsScreen) => {
         setDrawerOpenRef.current(false);
-        if (
-          screen === 'HowItWorks' ||
-          screen === 'EditPersonalInfo' ||
-          screen === 'ChangePassword'
-        ) {
-          return;
-        }
         stackNavRef.current?.navigate(screen);
       },
       goToReceive: () => {
@@ -110,10 +108,14 @@ const CourierStack = memo(function CourierStack() {
       <Stack.Screen name="Notifications" component={NotificationsRoute} />
       <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesRoute} />
       <Stack.Screen name="PersonalInfo" component={PersonalInfoRoute} />
+      <Stack.Screen name="EditPersonalInfo" component={EditPersonalInfoRoute} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordRoute} />
+      <Stack.Screen name="DriverProfile" component={DriverProfileRoute} />
       <Stack.Screen name="Language" component={LanguageRoute} />
       <Stack.Screen name="Country" component={CountryRoute} />
       <Stack.Screen name="Appearance" component={AppearanceRoute} />
       <Stack.Screen name="Help" component={HelpRoute} />
+      <Stack.Screen name="HowItWorks" component={HowItWorksRoute} />
       <Stack.Screen name="Terms" component={TermsRoute} />
       <Stack.Screen name="Privacy" component={PrivacyRoute} />
       <Stack.Screen name="About" component={AboutRoute} />
@@ -220,11 +222,69 @@ function AppearanceRoute() {
 }
 
 function PersonalInfoRoute() {
-  return <PlaceholderRoute screen="PersonalInfo" />;
+  const navigation = useNavigation<NativeStackNavigationProp<CourierStackParamList>>();
+  return (
+    <PersonalInfoHubScreen
+      mode="DRIVER"
+      onBack={() => navigation.goBack()}
+      onOpenEditProfile={() => navigation.navigate('EditPersonalInfo')}
+      onOpenChangePassword={() => navigation.navigate('ChangePassword')}
+    />
+  );
+}
+
+function EditPersonalInfoRoute() {
+  const navigation = useNavigation<NativeStackNavigationProp<CourierStackParamList>>();
+  return <EditPersonalInfoScreen mode="DRIVER" onBack={() => navigation.goBack()} />;
+}
+
+function ChangePasswordRoute() {
+  const navigation = useNavigation<NativeStackNavigationProp<CourierStackParamList>>();
+  return <ChangePasswordScreen mode="DRIVER" onBack={() => navigation.goBack()} />;
+}
+
+function DriverProfileRoute() {
+  const navigation = useNavigation<NativeStackNavigationProp<CourierStackParamList>>();
+  return <DriverProfileScreen onBack={() => navigation.goBack()} />;
 }
 
 function HelpRoute() {
-  return <PlaceholderRoute screen="Help" />;
+  const { t } = useTranslation();
+  const navigation = useNavigation<NativeStackNavigationProp<CourierStackParamList>>();
+  return (
+    <PlaceholderSettingsScreen
+      mode="DRIVER"
+      title={t('profile.help')}
+      onBack={() => navigation.goBack()}
+      intro={t('placeholders.helpIntroDriver')}
+      bullets={[
+        t('placeholders.helpDispatch'),
+        t('placeholders.helpAssignment'),
+        t('placeholders.helpReport'),
+      ]}
+      action={{ label: t('home.callEveider'), onPress: callEveiderSupport }}
+    />
+  );
+}
+
+function HowItWorksRoute() {
+  const { t } = useTranslation();
+  const navigation = useNavigation<NativeStackNavigationProp<CourierStackParamList>>();
+  return (
+    <PlaceholderSettingsScreen
+      mode="DRIVER"
+      title={t('driverHowItWorks.title')}
+      onBack={() => navigation.goBack()}
+      intro={t('driverHowItWorks.intro')}
+      bullets={[
+        t('driverHowItWorks.bullet1'),
+        t('driverHowItWorks.bullet2'),
+        t('driverHowItWorks.bullet3'),
+        t('driverHowItWorks.bullet4'),
+      ]}
+      hideFooter
+    />
+  );
 }
 
 function TermsRoute() {
@@ -243,21 +303,11 @@ function AboutRoute() {
 function PlaceholderRoute({
   screen,
 }: {
-  screen: 'PersonalInfo' | 'Help' | 'Terms' | 'Privacy';
+  screen: 'Terms' | 'Privacy';
 }) {
   const navigation = useNavigation<NativeStackNavigationProp<CourierStackParamList>>();
   const { t } = useTranslation();
   const copy = {
-    PersonalInfo: {
-      title: t('profile.personalInfo'),
-      intro: t('placeholders.personalInfoIntro'),
-      bullets: [t('placeholders.fullName'), t('placeholders.phone'), t('placeholders.email')],
-    },
-    Help: {
-      title: t('profile.help'),
-      intro: t('placeholders.helpIntro'),
-      bullets: [t('placeholders.helpPickup'), t('placeholders.helpContact'), t('placeholders.helpReport')],
-    },
     Terms: {
       title: t('profile.terms'),
       intro: t('placeholders.termsIntro'),

@@ -69,11 +69,30 @@ export function getDriverDeliveryKind(delivery: Pick<DriverDeliveryLike, 'kind'>
   return delivery.kind ?? 'outbound';
 }
 
+/** Coarse flow direction (business↔locker), independent of current step. */
 export function getDriverDeliveryKindLabel(delivery: Pick<DriverDeliveryLike, 'kind'>): string {
   const kind = getDriverDeliveryKind(delivery);
-  if (kind === 'customer_return') return 'Retour client';
+  if (kind === 'customer_return') return 'Casier → entreprise';
   if (kind === 'return') return 'Retour non retiré (historique)';
-  return 'Aller';
+  return 'Entreprise → casier';
+}
+
+/**
+ * Operational movement for the driver's current (or last) stop.
+ * Prefer this on queue cards over parcel status labels.
+ */
+export function getDriverMovementLabel(
+  delivery: Pick<DriverDeliveryLike, 'status' | 'kind'>,
+): string {
+  if (isHistoricalRts(delivery)) return 'Retour non retiré';
+
+  if (isCustomerReturnJob(delivery)) {
+    if (delivery.status === 'assigned') return 'Collecte au casier';
+    return 'Retour entreprise';
+  }
+
+  if (delivery.status === 'assigned') return 'Collecte entreprise';
+  return 'Dépôt au casier';
 }
 
 export function isHistoricalRts(delivery: Pick<DriverDeliveryLike, 'kind'>): boolean {

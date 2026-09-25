@@ -11,10 +11,14 @@ export type CourierStackParamList = {
   Notifications: undefined;
   NotificationPreferences: undefined;
   PersonalInfo: undefined;
+  EditPersonalInfo: undefined;
+  ChangePassword: undefined;
+  DriverProfile: undefined;
   Language: undefined;
   Country: undefined;
   Appearance: undefined;
   Help: undefined;
+  HowItWorks: undefined;
   Terms: undefined;
   Privacy: undefined;
   About: undefined;

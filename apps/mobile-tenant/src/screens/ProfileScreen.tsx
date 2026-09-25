@@ -18,8 +18,10 @@ import {
   deleteCustomerAccount,
   deactivateCourierAccount,
   fetchCustomerNotifications,
+  fetchCourierDriverProfile,
   fetchCourierNotifications,
   fetchProfile,
+  type CourierDriverProfile,
   type UserProfile,
 } from '../lib/api';
 import { supabase } from '../lib/supabase';
@@ -31,6 +33,8 @@ type ProfileScreenProps = {
   onRequestAuth?: () => void;
   onOpenNotifications?: () => void;
   onOpenPersonalInfo: () => void;
+  onOpenDriverProfile?: () => void;
+  onContactDispatch?: () => void;
   onOpenLanguage: () => void;
   onOpenAppearance: () => void;
   onOpenHelp: () => void;
@@ -47,6 +51,8 @@ export function ProfileScreen({
   onRequestAuth,
   onOpenNotifications,
   onOpenPersonalInfo,
+  onOpenDriverProfile,
+  onContactDispatch,
   onOpenLanguage,
   onOpenAppearance,
   onOpenHelp,
@@ -61,16 +67,19 @@ export function ProfileScreen({
   const { t } = useTranslation();
   const { language, theme } = useSettings();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [driverProfile, setDriverProfile] = useState<CourierDriverProfile | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isCustomer = mode === 'CLIENT';
+  const isDriver = mode === 'DRIVER';
 
   const loadProfile = useCallback(async (silent = false) => {
     if (isGuest) {
       setProfile(null);
+      setDriverProfile(null);
       setUnreadCount(0);
       setError(null);
       if (!silent) setLoading(false);
@@ -87,12 +96,13 @@ export function ProfileScreen({
     if (!result.success) {
       setError(result.error);
       setProfile(null);
+      setDriverProfile(null);
       return;
     }
 
     setProfile(result.data);
 
-    if (isCustomer || mode === 'DRIVER') {
+    if (isCustomer || isDriver) {
       const notifications = isCustomer
         ? await fetchCustomerNotifications()
         : await fetchCourierNotifications();
@@ -100,7 +110,18 @@ export function ProfileScreen({
         setUnreadCount(notifications.data.unreadCount);
       }
     }
-  }, [isCustomer, isGuest, mode]);
+
+    if (isDriver) {
+      const driver = await fetchCourierDriverProfile();
+      if (driver.success) {
+        setDriverProfile(driver.data);
+      } else {
+        setDriverProfile(null);
+      }
+    } else {
+      setDriverProfile(null);
+    }
+  }, [isCustomer, isDriver, isGuest]);
 
   function confirmCloseAccount() {
     const isCourier = mode === 'DRIVER';
@@ -133,15 +154,30 @@ export function ProfileScreen({
     void loadProfile();
   }, [loadProfile]);
 
+  const registeredName =
+    (isDriver ? driverProfile?.fullName?.trim() : null) ||
+    profile?.profile.fullName?.trim() ||
+    null;
   const displayName = isGuest
     ? t('profile.guestName')
-    : (profile?.profile.fullName?.trim() ||
-        profile?.email?.split('@')[0] ||
-        profile?.phone ||
-        t('profile.account'));
+    : (registeredName || t('profile.account'));
   const contactLine = isGuest
     ? null
-    : (profile?.phone ?? profile?.email ?? profile?.profile.email ?? null);
+    : (driverProfile?.phone ??
+        profile?.phone ??
+        profile?.email ??
+        profile?.profile.email ??
+        null);
+  const avatarLetter = (
+    registeredName ||
+    contactLine ||
+    displayName
+  )
+    .charAt(0)
+    .toUpperCase();
+  const organizationName =
+    driverProfile?.organization?.name ||
+    (driverProfile?.contractorType === 'eveider' ? 'Eveider' : null);
 
   if (loading && !profile && !isGuest) {
     return (
@@ -172,18 +208,20 @@ export function ProfileScreen({
       {error && !isGuest ? <Text style={styles.error}>{error}</Text> : null}
 
       <Pressable
-        onPress={isGuest ? onRequestAuth : onOpenPersonalInfo}
+        onPress={isGuest ? onRequestAuth : isDriver && onOpenDriverProfile ? onOpenDriverProfile : onOpenPersonalInfo}
         style={styles.identity}
         accessibilityRole="button"
       >
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
+          <Text style={styles.avatarText}>{avatarLetter}</Text>
         </View>
         <View style={styles.identityText}>
           <Text style={styles.name} numberOfLines={2}>
             {displayName}
           </Text>
-          {contactLine ? (
+          {isDriver && driverProfile?.accountStatusLabel ? (
+            <Text style={styles.status}>{driverProfile.accountStatusLabel}</Text>
+          ) : contactLine ? (
             <Text style={styles.contact} numberOfLines={1}>
               {contactLine}
             </Text>
@@ -218,6 +256,26 @@ export function ProfileScreen({
         )}
       </ProfileSection>
 
+      {isDriver && !isGuest ? (
+        <ProfileSection title={t('profile.driver')}>
+          {onOpenDriverProfile ? (
+            <ProfileMenuItem
+              icon="truck"
+              label={t('profile.driverProfile')}
+              subtitle={t('profile.driverProfileSubtitle')}
+              onPress={onOpenDriverProfile}
+            />
+          ) : null}
+          <ProfileMenuItem
+            icon="briefcase"
+            label={t('profile.organization')}
+            value={organizationName ?? t('driverProfile.organizationUnknown')}
+            showChevron={false}
+            last
+          />
+        </ProfileSection>
+      ) : null}
+
       <ProfileSection title={t('profile.application')}>
         <ProfileMenuItem
           icon="globe"
@@ -234,7 +292,14 @@ export function ProfileScreen({
         />
       </ProfileSection>
 
-      <ProfileSection title={t('profile.support')}>
+      <ProfileSection title={isDriver ? t('profile.assistance') : t('profile.support')}>
+        {isDriver && onContactDispatch ? (
+          <ProfileMenuItem
+            icon="message-circle"
+            label={t('courier.contactDispatch')}
+            onPress={onContactDispatch}
+          />
+        ) : null}
         <ProfileMenuItem icon="help-circle" label={t('profile.help')} onPress={onOpenHelp} />
         {onOpenHowItWorks ? (
           <ProfileMenuItem icon="info" label={t('profile.howItWorks')} onPress={onOpenHowItWorks} />
@@ -325,6 +390,12 @@ function createStyles(colors: ColorTokens) {
       fontSize: 13,
       fontWeight: '400',
       color: colors.textMuted,
+    },
+    status: {
+      marginTop: 2,
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
     },
     version: {
       marginTop: 24,

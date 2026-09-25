@@ -28,7 +28,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { fetchCourierDeliveries, type CourierDelivery } from '../lib/api';
 import {
   getDriverCurrentStop,
-  getDriverDeliveryKindLabel,
+  getDriverMovementLabel,
   getDriverTrackingLabel,
   isActiveDriverDelivery,
   translateDriverError,
@@ -125,7 +125,7 @@ export function CourierRouteScreen() {
         >
           {focused ? (
             <View style={styles.focus}>
-              <Text style={styles.focusKicker}>{getDriverDeliveryKindLabel(focused).toUpperCase()}</Text>
+              <Text style={styles.focusKicker}>{getDriverMovementLabel(focused)}</Text>
               <Text style={styles.focusTitle}>{getDriverCurrentStop(focused).name}</Text>
               <Text style={styles.focusMeta}>{getDriverTrackingLabel(focused)}</Text>
             </View>
@@ -202,7 +202,7 @@ function buildJobStops(
       address: current.address ?? '',
       latitude: current.latitude,
       longitude: current.longitude,
-      kindLabel: getDriverDeliveryKindLabel(item),
+      kindLabel: getDriverMovementLabel(item),
       tracking: getDriverTrackingLabel(item),
     };
   });

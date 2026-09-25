@@ -1,20 +1,3 @@
-import { borders, type ColorTokens } from '@eveider/config-ui';
-import { orderLockerStops } from '@eveider/domain';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
 import { ActionRow } from '../components/ActionRow';
 import { AppSpinner } from '../components/AppSpinner';
 import { BarcodeScannerCard } from '../components/BarcodeScannerCard';
@@ -23,7 +6,6 @@ import { DeliveryCard } from '../components/DeliveryCard';
 import { DeliveryStepIndicator } from '../components/DeliveryStepIndicator';
 import { DispatcherContactButton } from '../components/DispatcherContactButton';
 import { DropOffProofCard } from '../components/DropOffProofCard';
-import { EmptyState } from '../components/EmptyState';
 import {
   LockerMapView,
   openAddressSearch,
@@ -48,9 +30,9 @@ import {
   applyDriverMutationResult,
   canDriverActOnDelivery,
   getDriverCurrentStop,
-  getDriverDeliveryKindLabel,
   getDriverDeliveryStep,
   getDriverDestination,
+  getDriverMovementLabel,
   getDriverOrigin,
   getDriverPackageSizeLabel,
   getDriverPrimaryAction,
@@ -64,7 +46,27 @@ import {
 import { openDispatcherWhatsApp } from '../lib/support';
 import type { CourierStackParamList } from '../navigation/courier-params';
 import { useColors } from '../theme';
+import { radius, type ColorTokens } from '@eveider/config-ui';
+import { Feather } from '@expo/vector-icons';
+import { orderLockerStops } from '@eveider/domain';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import {
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
+const BOX_EMPTY = require('../assets/boxIllustration.png');
 const EMPTY_SUMMARY: CourierHistorySummary = {
   days: 90,
   completed: 0,
@@ -240,7 +242,7 @@ export function CourierHome({ surface = 'active' }: CourierHomeProps) {
           ? 'Preuve de dépôt'
           : screen === 'report'
             ? t('courier.reportIssue')
-            : getDriverDeliveryKindLabel(selected ?? { kind: 'outbound' });
+            : getDriverMovementLabel(selected ?? { kind: 'outbound', status: 'assigned' });
 
   return (
     <View style={styles.screen}>
@@ -294,14 +296,6 @@ export function CourierHome({ surface = 'active' }: CourierHomeProps) {
                 nextJobId={nextJobId}
                 summary={summary}
                 styles={styles}
-                emptyTitle={
-                  surface === 'history' ? t('courier.historyEmptyTitle') : t('courier.emptyTitle')
-                }
-                emptyMessage={
-                  surface === 'history'
-                    ? t('courier.historyEmptyMessage')
-                    : t('courier.emptyMessage')
-                }
                 onOpen={(item) => {
                   setSelected(item);
                   setError(null);
@@ -399,8 +393,6 @@ function ListScreen({
   nextJobId,
   summary,
   styles,
-  emptyTitle,
-  emptyMessage,
   onOpen,
   onContactDispatch,
   onOpenRoute,
@@ -410,37 +402,88 @@ function ListScreen({
   nextJobId?: string;
   summary: CourierHistorySummary;
   styles: ReturnType<typeof createStyles>;
-  emptyTitle: string;
-  emptyMessage: string;
   onOpen: (item: CourierDelivery) => void;
   onContactDispatch: () => void;
   onOpenRoute: () => void;
 }) {
   const { t } = useTranslation();
+  const colors = useColors();
+  const totalActivity = summary.completed + summary.failed;
+  const isHistory = surface === 'history';
+  const isEmpty = items.length === 0;
+
   return (
     <View>
-      {surface === 'history' ? (
+      {isHistory && !isEmpty ? (
         <View style={styles.summary}>
-          <Text style={styles.summaryLabel}>{t('courier.summaryLabel', { days: summary.days })}</Text>
-          <Text style={styles.summaryText}>
-            {t('courier.summaryText', {
-              completed: summary.completed,
-              failed: summary.failed,
-              rate: summary.successRate,
-            })}
-          </Text>
+          {totalActivity === 0 ? (
+            <Text style={styles.summaryIdle}>
+              {t('courier.summaryIdle', { days: summary.days })}
+            </Text>
+          ) : (
+            <>
+              <View style={styles.metricsRow}>
+                <View style={styles.metric}>
+                  <Text style={styles.metricValue}>{totalActivity}</Text>
+                  <Text style={styles.metricLabel}>{t('courier.metricDeliveries')}</Text>
+                </View>
+                <View style={styles.metric}>
+                  <Text style={styles.metricValue}>{summary.completed}</Text>
+                  <Text style={styles.metricLabel}>{t('courier.metricCompleted')}</Text>
+                </View>
+                <View style={styles.metric}>
+                  <Text style={styles.metricValue}>{summary.failed}</Text>
+                  <Text style={styles.metricLabel}>{t('courier.metricIncidents')}</Text>
+                </View>
+              </View>
+              <Text style={styles.summaryRate}>
+                {t('courier.summaryRate', {
+                  days: summary.days,
+                  rate: summary.successRate,
+                })}
+              </Text>
+            </>
+          )}
         </View>
-      ) : (
-        <View style={styles.toolbar}>
-          <ActionRow icon="message-circle" label={t('courier.contactDispatch')} onPress={onContactDispatch} />
-          {items.length > 0 ? (
-            <ActionRow icon="navigation" label={t('courier.viewRoute')} onPress={onOpenRoute} last />
+      ) : null}
+
+      {!isHistory && !isEmpty ? (
+        <View style={styles.queueHeader}>
+          <Text style={styles.queueCount}>
+            {t('courier.queueCount', { count: items.length })}
+          </Text>
+          <Pressable
+            onPress={onOpenRoute}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t('courier.viewRoute')}
+          >
+            <Text style={styles.queueRoute}>{t('courier.viewRoute')}</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {isEmpty ? (
+        <View style={styles.empty}>
+          <Image source={BOX_EMPTY} style={styles.emptyImage} resizeMode="contain" />
+          <Text style={styles.emptyTitle}>
+            {isHistory ? t('courier.summaryIdle', { days: summary.days }) : t('courier.emptyTitle')}
+          </Text>
+          <Text style={styles.emptyMessage}>
+            {isHistory ? t('courier.historyEmptyMessage') : t('courier.emptyMessage')}
+          </Text>
+          {!isHistory ? (
+            <Pressable
+              onPress={onContactDispatch}
+              style={styles.dispatchLink}
+              accessibilityRole="button"
+              accessibilityLabel={t('courier.contactDispatch')}
+            >
+              <Text style={styles.dispatchLinkText}>{t('courier.contactDispatch')}</Text>
+              <Feather name="arrow-right" size={16} color={colors.primary} />
+            </Pressable>
           ) : null}
         </View>
-      )}
-
-      {items.length === 0 ? (
-        <EmptyState title={emptyTitle} message={emptyMessage} />
       ) : (
         <View style={styles.list}>
           {items.map((item, index) => (
@@ -448,16 +491,32 @@ function ListScreen({
               key={item.id}
               onPress={() => onOpen(item)}
               accessibilityRole="button"
-              accessibilityLabel={`${getDriverDeliveryKindLabel(item)} ${getDriverTrackingLabel(item)}`}
+              accessibilityLabel={`${getDriverMovementLabel(item)} ${getDriverTrackingLabel(item)}`}
             >
               {surface === 'active' && item.id === nextJobId && index === 0 ? (
                 <Text style={styles.nextHint}>{t('courier.nextJob')}</Text>
               ) : null}
-              <DeliveryCard delivery={item} highlight={item.id === nextJobId} />
+              <DeliveryCard
+                delivery={item}
+                highlight={item.id === nextJobId}
+                variant={isHistory ? 'history' : 'queue'}
+              />
             </Pressable>
           ))}
         </View>
       )}
+
+      {!isHistory && !isEmpty ? (
+        <Pressable
+          onPress={onContactDispatch}
+          style={styles.dispatchLinkInline}
+          accessibilityRole="button"
+          accessibilityLabel={t('courier.contactDispatch')}
+        >
+          <Text style={styles.dispatchLinkMuted}>{t('courier.contactDispatch')}</Text>
+          <Feather name="arrow-right" size={14} color={colors.textMuted} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -488,7 +547,7 @@ function DetailScreen({
   onOpenRoute: () => void;
 }) {
   const { t } = useTranslation();
-  const kindLabel = getDriverDeliveryKindLabel(delivery);
+  const movement = getDriverMovementLabel(delivery);
   const step = getDriverDeliveryStep(delivery);
   const origin = getDriverOrigin(delivery);
   const destination = getDriverDestination(delivery);
@@ -515,7 +574,7 @@ function DetailScreen({
   return (
     <View>
       <DeliveryStepIndicator status={delivery.status} kind={delivery.kind} />
-      <Text style={styles.kind}>{kindLabel.toUpperCase()}</Text>
+      <Text style={styles.kind}>{movement}</Text>
       <Text style={styles.stepTitle}>{step.label}</Text>
       <Text style={styles.stepDetail}>{step.detail}</Text>
 
@@ -776,42 +835,130 @@ function createStyles(colors: ColorTokens) {
       padding: 20,
       gap: 12,
     },
-    toolbar: {
-      marginBottom: 16,
-      gap: 0,
-    },
     summary: {
-      borderWidth: borders.width,
-      borderColor: colors.border,
       backgroundColor: colors.surface,
-      padding: 14,
-      marginBottom: 16,
+      borderRadius: radius.md,
+      paddingVertical: 18,
+      paddingHorizontal: 16,
+      marginBottom: 20,
     },
-    summaryLabel: {
-      fontSize: 13,
+    summaryIdle: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.textMuted,
+      lineHeight: 20,
+      textAlign: 'center',
+    },
+    metricsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
+    metric: {
+      flex: 1,
+      alignItems: 'center',
+    },
+    metricValue: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: colors.secondary,
+      fontVariant: ['tabular-nums'],
+    },
+    metricLabel: {
+      marginTop: 4,
+      fontSize: 12,
+      fontWeight: '500',
+      color: colors.textMuted,
+      textAlign: 'center',
+    },
+    summaryRate: {
+      marginTop: 14,
+      fontSize: 12,
+      fontWeight: '500',
+      color: colors.textMuted,
+      textAlign: 'center',
+    },
+    queueHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+      gap: 12,
+    },
+    queueCount: {
+      fontSize: 14,
       fontWeight: '600',
       color: colors.secondary,
     },
-    summaryText: {
-      marginTop: 6,
+    queueRoute: {
       fontSize: 13,
-      color: colors.textMuted,
+      fontWeight: '600',
+      color: colors.primary,
     },
     list: {
-      gap: 12,
+      gap: 10,
     },
     nextHint: {
       marginBottom: 6,
-      fontSize: 12,
+      fontSize: 11,
       fontWeight: '700',
-      letterSpacing: 0.4,
+      letterSpacing: 0.5,
       color: colors.primary,
       textTransform: 'uppercase',
     },
+    empty: {
+      alignItems: 'center',
+      paddingTop: 28,
+      paddingBottom: 16,
+      paddingHorizontal: 12,
+    },
+    emptyImage: {
+      width: 140,
+      height: 110,
+      marginBottom: 16,
+    },
+    emptyTitle: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: colors.secondary,
+      textAlign: 'center',
+    },
+    emptyMessage: {
+      marginTop: 8,
+      fontSize: 14,
+      fontWeight: '400',
+      color: colors.textMuted,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    dispatchLink: {
+      marginTop: 24,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    dispatchLinkText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    dispatchLinkInline: {
+      marginTop: 20,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 8,
+    },
+    dispatchLinkMuted: {
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.textMuted,
+    },
     kind: {
-      fontSize: 12,
-      fontWeight: '800',
-      letterSpacing: 0.8,
+      fontSize: 13,
+      fontWeight: '700',
+      letterSpacing: 0.2,
       color: colors.primary,
       marginBottom: 6,
     },
@@ -828,9 +975,8 @@ function createStyles(colors: ColorTokens) {
       color: colors.textMuted,
     },
     panel: {
-      borderWidth: borders.width,
-      borderColor: colors.border,
       backgroundColor: colors.surface,
+      borderRadius: radius.md,
       padding: 14,
       marginBottom: 8,
     },
@@ -888,8 +1034,7 @@ function createStyles(colors: ColorTokens) {
     },
     mapWrap: {
       marginVertical: 12,
-      borderWidth: borders.width,
-      borderColor: colors.border,
+      borderRadius: radius.md,
       overflow: 'hidden',
     },
     spacer: {
@@ -907,8 +1052,7 @@ function createStyles(colors: ColorTokens) {
       gap: 12,
     },
     input: {
-      borderWidth: borders.width,
-      borderColor: colors.border,
+      borderRadius: radius.md,
       backgroundColor: colors.surface,
       paddingHorizontal: 14,
       paddingVertical: 14,

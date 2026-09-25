@@ -12,6 +12,7 @@ import {
   getDriverDeliveryKindLabel,
   getDriverDeliveryStep,
   getDriverDestination,
+  getDriverMovementLabel,
   getDriverOrigin,
   getDriverPrimaryAction,
   getDriverSuccessCopy,
@@ -53,17 +54,17 @@ function delivery(
   };
 }
 
-describe('driver kind labels', () => {
-  it('labels Flow 1 as Aller', () => {
+describe('driver kind and movement labels', () => {
+  it('labels Flow 1 as Entreprise → casier', () => {
     expect(getDriverDeliveryKindLabel(delivery({ status: 'assigned', kind: 'outbound' }))).toBe(
-      'Aller',
+      'Entreprise → casier',
     );
   });
 
-  it('labels Flow 3A as Retour client, never Retour', () => {
+  it('labels Flow 3A as Casier → entreprise, never Retour alone', () => {
     expect(
       getDriverDeliveryKindLabel(delivery({ status: 'assigned', kind: 'customer_return' })),
-    ).toBe('Retour client');
+    ).toBe('Casier → entreprise');
     expect(
       getDriverDeliveryKindLabel(delivery({ status: 'assigned', kind: 'customer_return' })),
     ).not.toBe('Retour');
@@ -74,7 +75,22 @@ describe('driver kind labels', () => {
       'Retour non retiré (historique)',
     );
     expect(getDriverDeliveryKindLabel(delivery({ status: 'completed', kind: 'return' }))).not.toBe(
-      'Retour client',
+      'Casier → entreprise',
+    );
+  });
+
+  it('uses explicit movement labels for the current stop', () => {
+    expect(getDriverMovementLabel(delivery({ status: 'assigned', kind: 'outbound' }))).toBe(
+      'Collecte entreprise',
+    );
+    expect(getDriverMovementLabel(delivery({ status: 'scanned', kind: 'outbound' }))).toBe(
+      'Dépôt au casier',
+    );
+    expect(getDriverMovementLabel(delivery({ status: 'assigned', kind: 'customer_return' }))).toBe(
+      'Collecte au casier',
+    );
+    expect(getDriverMovementLabel(delivery({ status: 'scanned', kind: 'customer_return' }))).toBe(
+      'Retour entreprise',
     );
   });
 });
@@ -113,7 +129,7 @@ describe('Flow 1 Aller presentation', () => {
   });
 });
 
-describe('Flow 3A Retour client presentation', () => {
+describe('Flow 3A return presentation', () => {
   it('shows locker as origin and business as destination', () => {
     const job = delivery({ status: 'assigned', kind: 'customer_return' });
     expect(getDriverOrigin(job).role).toBe('Casier');
