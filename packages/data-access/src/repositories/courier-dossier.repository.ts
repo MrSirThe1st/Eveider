@@ -408,7 +408,38 @@ export class CourierDossierRepository {
   }
 
   /**
-   * Links an Auth user after an invite magic link is issued.
+   * Marks the dossier as invited when a password-signup invite is issued.
+   * Does not link a user yet — that happens on accept.
+   */
+  async markInviteIssued(current: CourierDossier): Promise<CourierDossier> {
+    if (
+      current.status !== 'approved' &&
+      current.status !== 'invited' &&
+      current.status !== 'active'
+    ) {
+      throw new Error('Ce chauffeur ne peut pas être invité');
+    }
+
+    let nextStatus = current.status;
+    if (current.status === 'approved') {
+      assertCourierDossierTransition(current.status, 'invited');
+      nextStatus = 'invited';
+    }
+
+    const result = await this.db.query(
+      `UPDATE driver_dossiers
+       SET invited_at = COALESCE(invited_at, NOW()),
+           status = $2,
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [current.id, nextStatus],
+    );
+    return mapCourierDossier(result.rows[0]!);
+  }
+
+  /**
+   * Links an Auth user after the chauffeur accepts the invite (password signup or login).
    * Eveider fleet is already approved at create; business chauffeurs must be approved first.
    * `approved` promotes to `invited`. Already invited / active keep their status (resend).
    */
@@ -496,6 +527,12 @@ export class CourierDossierRepository {
     return mapCourierDossier(result.rows[0]!);
   }
 
+  async requireById(id: string): Promise<CourierDossier> {
+    const dossier = await this.findById(id);
+    if (!dossier) throw new Error('Dossier coursier introuvable');
+    return dossier;
+  }
+
   async requireInScope(ctx: DataAccessContext, id: string): Promise<CourierDossier> {
     const dossier = await this.requireById(id);
     if (ctx.role === 'admin') return dossier;
@@ -504,12 +541,6 @@ export class CourierDossierRepository {
     if (dossier.contractorType !== 'business' || dossier.businessId !== ctx.businessId) {
       throw new AccessDeniedError('Dossier hors périmètre');
     }
-    return dossier;
-  }
-
-  private async requireById(id: string): Promise<CourierDossier> {
-    const dossier = await this.findById(id);
-    if (!dossier) throw new Error('Dossier coursier introuvable');
     return dossier;
   }
 

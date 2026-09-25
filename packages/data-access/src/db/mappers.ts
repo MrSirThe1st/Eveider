@@ -26,6 +26,7 @@ import type {
   ParcelReturn,
   BusinessTeamInvite,
   PlatformAdminInvite,
+  DriverInvite,
   ParcelPayment,
   PickupPin,
   City,
@@ -373,6 +374,22 @@ export function mapPlatformAdminInvite(row: Record<string, unknown>): PlatformAd
     invitedRole: row.invited_role as PlatformAdminInvite['invitedRole'],
     invitedByUserId: row.invited_by_user_id == null ? null : String(row.invited_by_user_id),
     status: row.status as PlatformAdminInvite['status'],
+    expiresAt: asDate(row.expires_at),
+    acceptedAt: asDateOrNull(row.accepted_at),
+    acceptedUserId: row.accepted_user_id == null ? null : String(row.accepted_user_id),
+    createdAt: asDate(row.created_at),
+    updatedAt: asDate(row.updated_at),
+  };
+}
+
+export function mapDriverInvite(row: Record<string, unknown>): DriverInvite {
+  return {
+    id: String(row.id),
+    token: String(row.token),
+    dossierId: String(row.dossier_id),
+    email: String(row.email),
+    invitedByUserId: row.invited_by_user_id == null ? null : String(row.invited_by_user_id),
+    status: row.status as DriverInvite['status'],
     expiresAt: asDate(row.expires_at),
     acceptedAt: asDateOrNull(row.accepted_at),
     acceptedUserId: row.accepted_user_id == null ? null : String(row.accepted_user_id),

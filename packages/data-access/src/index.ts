@@ -68,7 +68,7 @@ export {
   distanceKmToLocker,
   type PickupCoordinates,
 } from './pricing/delivery-distance.js';
-export { buildInviteLinks, getInviteConfig, buildParcelPickupLink, buildParcelTrackLink, buildTeamInviteLink, buildPlatformAdminInviteLink } from './invitations/invite-links.js';
+export { buildInviteLinks, getInviteConfig, buildParcelPickupLink, buildParcelTrackLink, buildTeamInviteLink, buildPlatformAdminInviteLink, buildDriverInviteLink } from './invitations/invite-links.js';
 export { sendInvitation } from './invitations/invitation.service.js';
 export {
   createGuestTrackToken,
@@ -134,6 +134,7 @@ import { ParcelChargeRepository } from './repositories/parcel-charge.repository.
 import { LockerSettingsRepository } from './repositories/locker-settings.repository.js';
 import { PlatformSettingsRepository } from './repositories/platform-settings.repository.js';
 import { PlatformStaffRepository } from './repositories/platform-staff.repository.js';
+import { DriverInviteRepository } from './repositories/driver-invite.repository.js';
 import { CourierDossierRepository } from './repositories/courier-dossier.repository.js';
 import { OnboardingService } from './auth/onboarding.service.js';
 import { AccountService } from './auth/account.service.js';
@@ -148,6 +149,7 @@ export function createRepositories() {
   const invites = new ParcelInviteRepository(db);
   const teamInvites = new TeamInviteRepository(db, users, memberships);
   const courierDossiers = new CourierDossierRepository(db);
+  const driverInvites = new DriverInviteRepository(db);
   const payments = new PaymentRepository(db);
   const pricing = new PricingRepository(db);
   const parcelCharges = new ParcelChargeRepository(db);
@@ -184,6 +186,7 @@ export function createRepositories() {
     notifications,
     invites,
     teamInvites,
+    driverInvites,
     courierDossiers,
     payments,
     pricing,
@@ -191,6 +194,14 @@ export function createRepositories() {
     commercial,
     stats: new StatsRepository(db),
     onboarding: new OnboardingService(users, businesses, memberships, db),
-    accounts: new AccountService(users, courierDossiers, deliveries, notifications, memberships, businesses),
+    accounts: new AccountService(
+      users,
+      courierDossiers,
+      deliveries,
+      notifications,
+      memberships,
+      businesses,
+      driverInvites,
+    ),
   };
 }

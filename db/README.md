@@ -40,6 +40,7 @@ pnpm db:migrate
 | `043_20260921190000_drc_geography_catalog.sql` | DRC province/city catalog vs Eveider operating `cities`; holding-zone flag |
 | `044_20260925120000_driver_dossier_deleted.sql` | `deleted` terminal status on `DriverDossierStatus` for admin driver removal |
 | `045_20260925120100_driver_dossier_deleted_email_index.sql` | Unique email index excludes `deleted` dossiers |
+| `046_20260925130000_driver_invites.sql` | Password-signup driver invites (`driver_invites`) |
 
 Hardware locker clients authenticate with `EVEIDER_LOCKER_API_TOKENS` (JSON map of locker UUID → secret) via `Authorization: Bearer <secret>`. The token identifies the locker; the client cannot claim another `locker_id`. Keep secrets out of git. Default authorization TTL is 180 seconds (`EVEIDER_LOCKER_ACTION_TTL_SECONDS`).
 

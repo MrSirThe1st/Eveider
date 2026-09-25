@@ -2,16 +2,13 @@ import { canInviteDriverDossier } from '@eveider/domain';
 import type { DataAccessContext } from '../context.js';
 import { AccessDeniedError } from '../context.js';
 import type { CourierDossier, User } from '../db/types.js';
-import {
-  buildDriverAppInviteLink,
-  buildDriverInviteLink,
-  resolveDriverInviteWebBaseUrl,
-} from '../invitations/invite-links.js';
-import { sendDriverInviteEmail } from '../messaging/driver-invite-email.js';
-import { getResendConfig } from '../messaging/resend-config.js';
 import { BusinessRepository } from '../repositories/business.repository.js';
 import { CourierDossierRepository } from '../repositories/courier-dossier.repository.js';
 import { DeliveryRepository } from '../repositories/delivery.repository.js';
+import {
+  DriverInviteRepository,
+  type DriverInviteDelivery,
+} from '../repositories/driver-invite.repository.js';
 import { NotificationRepository } from '../repositories/notification.repository.js';
 import { OrganizationMembershipRepository } from '../repositories/organization-membership.repository.js';
 import { UserRepository } from '../repositories/user.repository.js';
@@ -19,10 +16,8 @@ import { createSupabaseAdminClient } from '../supabase/server.js';
 
 const AUTH_BAN_DURATION = '876000h';
 
-export type DriverInviteResult = {
+export type DriverInviteResult = DriverInviteDelivery & {
   dossier: CourierDossier;
-  inviteUrl: string;
-  delivered: 'email' | 'simulated';
 };
 
 export class AccountService {
@@ -33,6 +28,7 @@ export class AccountService {
     private readonly notifications: NotificationRepository,
     private readonly memberships: OrganizationMembershipRepository,
     private readonly businesses: BusinessRepository,
+    private readonly driverInvites: DriverInviteRepository,
   ) {}
 
   async deleteCustomer(user: User): Promise<void> {
@@ -164,9 +160,60 @@ export class AccountService {
   }
 
   /**
-   * After the chauffeur opens the magic link, promote Invité → Actif
-   * and make sure they have a driver membership.
+   * After the chauffeur creates a password account (or logs in) with a valid invite token,
+   * link dossier + membership and promote Invité → Actif.
    */
+  async acceptDriverInvite(input: {
+    token: string;
+    authId: string;
+    email: string;
+    fullName?: string;
+    phone?: string;
+  }): Promise<{
+    fullName: string | null;
+    status: CourierDossier['status'];
+  }> {
+    const preview = await this.driverInvites.getPreview(input.token);
+    if (!preview) {
+      throw new Error('Invitation introuvable');
+    }
+    if (input.email.trim().toLowerCase() !== preview.email.trim().toLowerCase()) {
+      throw new Error('Cette invitation est destinée à une autre adresse email');
+    }
+
+    let user = await this.users.findByAuthId(input.authId);
+    if (!user) {
+      user = await this.users.createProfile({
+        authId: input.authId,
+        email: input.email,
+        phone: input.phone,
+        fullName: input.fullName?.trim() || preview.fullName || undefined,
+      });
+    }
+
+    if (user.isBlocked || user.deactivatedAt || user.deletedAt) {
+      throw new AccessDeniedError('Compte chauffeur indisponible');
+    }
+
+    const invite = await this.driverInvites.acceptForUser({
+      token: input.token,
+      email: input.email,
+      userId: user.id,
+    });
+
+    const dossier = await this.dossiers.requireById(invite.dossierId);
+    await this.ensureDriverMembership(dossier, user.id);
+    const linked = await this.dossiers.attachInvite(dossier, user.id);
+    const active = await this.dossiers.markActive(user.id);
+    const next = active ?? linked;
+
+    return {
+      fullName: user.fullName ?? next.fullName,
+      status: next.status,
+    };
+  }
+
+  /** @deprecated Magic-link activation — kept only so old emailed hashes show a clear error. */
   async completeDriverMagicLink(authId: string): Promise<{
     fullName: string | null;
     status: CourierDossier['status'];
@@ -201,77 +248,14 @@ export class AccountService {
       dossier = await this.dossiers.review(ctx, dossier.id, { status: 'approved' });
     }
 
-    const admin = createSupabaseAdminClient();
-    const redirectTo = `${resolveDriverInviteWebBaseUrl()}/invite/chauffeur`;
-
-    let link = await admin.auth.admin.generateLink({
-      type: 'magiclink',
-      email: dossier.email,
-      options: { redirectTo },
+    const issued = await this.dossiers.markInviteIssued(dossier);
+    const delivery = await this.driverInvites.createForDossier(ctx, {
+      dossierId: issued.id,
+      email: issued.email,
+      fullName: issued.fullName,
     });
-    if (link.error) {
-      const created = await admin.auth.admin.createUser({
-        email: dossier.email,
-        email_confirm: true,
-        user_metadata: { full_name: dossier.fullName, kind: 'driver' },
-      });
-      if (created.error && !/already|registered|exists|déjà/i.test(created.error.message)) {
-        throw new Error(created.error.message);
-      }
-      link = await admin.auth.admin.generateLink({
-        type: 'magiclink',
-        email: dossier.email,
-        options: { redirectTo },
-      });
-    }
-    if (link.error) {
-      throw new Error(link.error.message);
-    }
 
-    const authId = link.data.user?.id;
-    const tokenHash = link.data.properties?.hashed_token;
-    if (!authId || !tokenHash) {
-      throw new Error('Invitation Auth impossible');
-    }
-
-    let user = await this.users.findByAuthId(authId);
-    if (!user) {
-      user = await this.users.createProfile({
-        authId,
-        email: dossier.email,
-        phone: dossier.phone ?? undefined,
-        fullName: dossier.fullName,
-      });
-    }
-
-    await this.ensureDriverMembership(dossier, user.id);
-    const invited = await this.dossiers.attachInvite(dossier, user.id);
-    const inviteUrl = buildDriverInviteLink(tokenHash);
-    const appUrl = buildDriverAppInviteLink(tokenHash);
-
-    let delivered: DriverInviteResult['delivered'] = 'email';
-    try {
-      await sendDriverInviteEmail({
-        to: dossier.email,
-        fullName: dossier.fullName,
-        inviteUrl,
-        appUrl,
-      });
-    } catch (error) {
-      if (!getResendConfig()) {
-        console.info('[eveider:driver-invite:simulated]', {
-          email: dossier.email,
-          inviteUrl,
-          appUrl,
-          dossierId: dossier.id,
-        });
-        delivered = 'simulated';
-      } else {
-        throw error;
-      }
-    }
-
-    return { dossier: invited, inviteUrl, delivered };
+    return { dossier: issued, ...delivery };
   }
 
   private async ensureDriverMembership(dossier: CourierDossier, userId: string): Promise<void> {

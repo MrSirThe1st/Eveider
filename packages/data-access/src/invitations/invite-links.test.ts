@@ -1,10 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import {
-  buildDriverAppInviteLink,
-  buildDriverInviteLink,
-  getInviteConfig,
-  resolveDriverInviteWebBaseUrl,
-} from './invite-links.js';
+import { buildDriverInviteLink, getInviteConfig } from './invite-links.js';
 
 describe('driver invite links', () => {
   const originalEnv = process.env;
@@ -22,7 +17,7 @@ describe('driver invite links', () => {
     process.env = originalEnv;
   });
 
-  it('builds a web magic-link landing and matching app deep link', () => {
+  it('builds a production web invite landing from a DB token', () => {
     expect(getInviteConfig()).toEqual({
       deepLinkScheme: 'eveider',
       webBaseUrl: 'https://www.eveider.com',
@@ -30,14 +25,10 @@ describe('driver invite links', () => {
     expect(buildDriverInviteLink('hash/value')).toBe(
       'https://www.eveider.com/invite/chauffeur/hash%2Fvalue',
     );
-    expect(buildDriverAppInviteLink('hash/value')).toBe(
-      'eveider://auth?token_hash=hash%2Fvalue&type=magiclink',
-    );
   });
 
-  it('uses the local portal for chauffeur invites so verifyOtp runs on the same host', () => {
+  it('keeps using INVITE_WEB_BASE_URL even when the portal is localhost', () => {
     process.env.NEXT_PUBLIC_PORTAL_URL = 'http://localhost:3000';
-    expect(resolveDriverInviteWebBaseUrl()).toBe('http://localhost:3000');
-    expect(buildDriverInviteLink('abc')).toBe('http://localhost:3000/invite/chauffeur/abc');
+    expect(buildDriverInviteLink('abc')).toBe('https://www.eveider.com/invite/chauffeur/abc');
   });
 });

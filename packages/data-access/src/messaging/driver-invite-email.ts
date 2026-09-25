@@ -12,7 +12,6 @@ export type SendDriverInviteEmailInput = {
   to: string;
   fullName: string;
   inviteUrl: string;
-  appUrl: string;
 };
 
 export type SendDriverInviteEmailResult = { ok: true; id: string };
@@ -28,34 +27,31 @@ export function buildDriverInviteEmail(input: SendDriverInviteEmailInput): {
   const text = buildBrandedEmailText({
     greeting: `Bonjour ${name},`,
     paragraphs: [
-      'Eveider vous donne accès à l’application chauffeur. Ouvrez ce lien pour activer votre compte — vous n’avez pas de mot de passe à créer.',
-      'L’application n’est pas encore partout en téléchargement : le lien fonctionne aussi dans le navigateur de votre téléphone.',
-      'Si vous avez déjà l’application, le même lien l’ouvre et vous connecte.',
-      'Ce lien est personnel et expire rapidement. Demandez-en un nouveau à Eveider s’il ne fonctionne plus.',
+      'Eveider vous invite à rejoindre l’équipe chauffeur. Ouvrez ce lien pour créer votre compte et choisir un mot de passe.',
+      'Ensuite, connectez-vous avec votre email et ce mot de passe sur le portail Eveider.',
+      'Ce lien est personnel et expire dans 14 jours. Demandez-en un nouveau à Eveider s’il ne fonctionne plus.',
       'Si vous n’attendiez pas cet email, vous pouvez l’ignorer.',
     ],
-    ctaLabel: 'Activer mon accès',
+    ctaLabel: 'Créer mon compte',
     ctaUrl: input.inviteUrl,
   });
 
   const html = buildBrandedEmailHtml({
-    preheader: 'Ouvrez ce lien pour activer votre accès chauffeur Eveider — sans mot de passe.',
+    preheader: 'Créez votre compte chauffeur Eveider et choisissez un mot de passe.',
     heading: 'Accès chauffeur',
     bodyHtml: `
               <p style="margin:0 0 12px;font-size:15px;color:#334155;">
                 Bonjour ${escapeHtml(name)},<br /><br />
-                Eveider vous donne accès à l’application chauffeur. Ouvrez ce lien pour activer
-                votre compte — vous n’avez pas de mot de passe à créer.
+                Eveider vous invite à rejoindre l’équipe chauffeur. Ouvrez ce lien pour créer
+                votre compte et choisir un mot de passe.
               </p>
               <p style="margin:0;font-size:15px;color:#334155;">
-                L’application n’est pas encore partout en téléchargement : le lien fonctionne aussi
-                dans le navigateur de votre téléphone.
+                Ensuite, connectez-vous avec votre email et ce mot de passe sur le portail Eveider.
               </p>`,
-    ctaLabel: 'Activer mon accès',
+    ctaLabel: 'Créer mon compte',
     ctaUrl: input.inviteUrl,
     footnoteHtml: `<p style="margin:16px 0 0;font-size:13px;color:#64748B;">
-                Si vous avez déjà l’application, <a href="${escapeHtml(input.appUrl)}" style="color:#121212;font-weight:600;">ouvrez-la avec ce lien</a>.
-                Ce lien est personnel et expire rapidement.
+                Ce lien est personnel et expire dans 14 jours.
               </p>`,
   });
 

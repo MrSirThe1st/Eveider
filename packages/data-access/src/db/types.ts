@@ -57,6 +57,20 @@ export type PlatformAdminInvite = {
   updatedAt: Date;
 };
 
+export type DriverInvite = {
+  id: string;
+  token: string;
+  dossierId: string;
+  email: string;
+  invitedByUserId: string | null;
+  status: BusinessTeamInviteStatus;
+  expiresAt: Date;
+  acceptedAt: Date | null;
+  acceptedUserId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export type BusinessType =
   | 'registered_company'
   | 'individual_seller'
