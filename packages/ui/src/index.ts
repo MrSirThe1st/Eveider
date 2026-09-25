@@ -127,6 +127,7 @@ export {
   IconInbox,
 } from './icons.js';
 export { PasswordInput, type PasswordInputProps } from './password-input.js';
+export { PhoneField, type PhoneFieldProps } from './phone-field.js';
 export {
   LoadingSpinner,
   Spinner,

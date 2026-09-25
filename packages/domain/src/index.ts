@@ -25,3 +25,4 @@ export * from './identifiers.js';
 export * from './shipment.js';
 export * from './pricing.js';
 export * from './commercial.js';
+export * from './phone.js';
