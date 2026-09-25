@@ -1,6 +1,7 @@
 import type { UserRole } from '@eveider/domain';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import * as Updates from 'expo-updates';
 import { useEffect, useRef, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
@@ -17,6 +18,18 @@ import { AuthScreen } from './src/screens/AuthScreen';
 import { LocaleSetupScreen } from './src/screens/LocaleSetupScreen';
 
 SplashScreen.preventAutoHideAsync();
+
+async function applyOtaUpdateIfAvailable() {
+  if (__DEV__) return;
+  try {
+    const check = await Updates.checkForUpdateAsync();
+    if (!check.isAvailable) return;
+    await Updates.fetchUpdateAsync();
+    await Updates.reloadAsync();
+  } catch (error) {
+    console.warn('[eveider:updates] check/fetch failed:', error);
+  }
+}
 
 type AppState =
   | { kind: 'booting' }
@@ -68,6 +81,10 @@ function AppContent() {
   const [pendingInviteToken, setPendingInviteToken] = useState<string | null>(null);
   const authInProgressRef = useRef(false);
   const resetPasswordRef = useRef(false);
+
+  useEffect(() => {
+    void applyOtaUpdateIfAvailable();
+  }, []);
 
   useEffect(() => {
     if (ready) {
