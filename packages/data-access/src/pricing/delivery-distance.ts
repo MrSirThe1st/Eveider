@@ -30,6 +30,7 @@ export async function resolveBusinessPickupCoordinates(
          WHEN 'business_address' THEN 1
          ELSE 2
        END,
+       is_default DESC,
        created_at ASC`,
     [businessId],
   );

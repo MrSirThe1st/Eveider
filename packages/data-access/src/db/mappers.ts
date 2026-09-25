@@ -196,6 +196,17 @@ export function mapParcel(row: Record<string, unknown>): Parcel {
       row.sender_address == null || row.sender_address === ''
         ? null
         : String(row.sender_address),
+    pickupLocationId: row.pickup_location_id == null ? null : String(row.pickup_location_id),
+    senderLocationName:
+      row.sender_location_name == null || row.sender_location_name === ''
+        ? null
+        : String(row.sender_location_name),
+    senderLat: asNumberOrNull(row.sender_lat),
+    senderLng: asNumberOrNull(row.sender_lng),
+    senderInstructions:
+      row.sender_instructions == null || row.sender_instructions === ''
+        ? null
+        : String(row.sender_instructions),
     packageSize: (row.package_size as Parcel['packageSize']) ?? 'medium',
     packageLengthCm: asNumberOrNull(row.package_length_cm),
     packageWidthCm: asNumberOrNull(row.package_width_cm),
@@ -423,13 +434,16 @@ export function mapBusinessLocation(row: Record<string, unknown>): BusinessLocat
     businessId: String(row.business_id),
     type: row.type as BusinessLocation['type'],
     pickupMethod: row.pickup_method as BusinessLocation['pickupMethod'],
-    country: String(row.country),
-    city: String(row.city),
+    name: row.name == null || row.name === '' ? null : String(row.name),
+    country: String(row.country ?? ''),
+    city: String(row.city ?? ''),
     street: String(row.street),
     lat: row.lat == null ? null : Number(row.lat),
     lng: row.lng == null ? null : Number(row.lng),
     contactPerson: row.contact_person == null ? null : String(row.contact_person),
     contactPhone: row.contact_phone == null ? null : String(row.contact_phone),
+    instructions: row.instructions == null || row.instructions === '' ? null : String(row.instructions),
+    isDefault: Boolean(row.is_default),
     availableDays: row.available_days == null ? null : String(row.available_days),
     availableHours: row.available_hours == null ? null : String(row.available_hours),
     dropoffLockerId: row.dropoff_locker_id == null ? null : String(row.dropoff_locker_id),

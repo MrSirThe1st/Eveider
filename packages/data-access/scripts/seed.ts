@@ -485,6 +485,16 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
       [businessId, city, street, lat, lng, contact, phone],
     );
     await db.query(
+      `INSERT INTO business_locations (
+         business_id, type, pickup_method, name, country, city, street, lat, lng,
+         contact_person, contact_phone, instructions, is_default, available_days, available_hours
+       ) VALUES (
+         $1, 'pickup_point', 'courier_pickup', 'Adresse de collecte', 'RDC', $2, $3, $4, $5,
+         $6, $7, NULL, true, 'Mon-Sat', '08:00-18:00'
+       )`,
+      [businessId, city, street, lat, lng, contact, phone],
+    );
+    await db.query(
       `INSERT INTO billing_accounts (business_id, payment_rule, billing_type)
        VALUES ($1, 'merchant_pays', 'pay_per_shipment')`,
       [businessId],

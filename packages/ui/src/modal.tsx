@@ -23,6 +23,8 @@ export type ModalProps = {
   closeOnBackdrop?: boolean;
   /** Max width of the dialog panel. */
   maxWidth?: number | string;
+  /** Max height of the dialog panel. Default min(90vh, 720px). */
+  maxHeight?: number | string;
   className?: string;
   style?: CSSProperties;
 };
@@ -40,6 +42,7 @@ export function Modal({
   footer,
   closeOnBackdrop = true,
   maxWidth = 480,
+  maxHeight = 'min(90vh, 720px)',
   className,
   style,
 }: ModalProps) {
@@ -112,8 +115,10 @@ export function Modal({
           position: 'relative',
           width: '100%',
           maxWidth,
-          maxHeight: 'min(90vh, 720px)',
-          overflow: 'auto',
+          maxHeight,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
           background: colors.surface,
           borderRadius: radius.card,
           border: borderSubtle(),
@@ -129,6 +134,7 @@ export function Modal({
             justifyContent: 'space-between',
             gap: spacing[4],
             padding: `${spacing[5]}px ${spacing[5]}px ${spacing[3]}px`,
+            flexShrink: 0,
           }}
         >
           <div style={{ minWidth: 0 }}>
@@ -164,7 +170,16 @@ export function Modal({
         </header>
 
         {children ? (
-          <div style={{ padding: `0 ${spacing[5]}px ${spacing[5]}px` }}>{children}</div>
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: 'auto',
+              padding: `0 ${spacing[5]}px ${spacing[5]}px`,
+            }}
+          >
+            {children}
+          </div>
         ) : null}
 
         {footer ? (
@@ -176,6 +191,8 @@ export function Modal({
               flexWrap: 'wrap',
               padding: `${spacing[4]}px ${spacing[5]}px`,
               borderTop: borderSubtle(),
+              flexShrink: 0,
+              background: colors.surface,
             }}
           >
             {footer}

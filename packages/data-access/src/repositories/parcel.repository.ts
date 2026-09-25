@@ -197,6 +197,11 @@ export type CreateParcelInput = {
   senderName: string;
   senderPhone: string;
   senderAddress?: string | null;
+  pickupLocationId?: string | null;
+  senderLocationName?: string | null;
+  senderLat?: number | null;
+  senderLng?: number | null;
+  senderInstructions?: string | null;
   recipientPhone: string;
   recipientName: string;
   recipientEmail?: string;
@@ -277,8 +282,29 @@ export class ParcelRepository {
 
     const reference = input.reference?.trim() ? input.reference.trim() : null;
     const trackingNumber = await allocateTrackingNumber(this.db);
-    const senderAddress =
-      input.pickupType === 'courier_pickup' ? (input.senderAddress?.trim() ?? null) : null;
+    const isCourierPickup = input.pickupType === 'courier_pickup';
+    const senderAddress = isCourierPickup ? (input.senderAddress?.trim() ?? null) : null;
+    const pickupLocationId = isCourierPickup ? (input.pickupLocationId ?? null) : null;
+    const senderLocationName = isCourierPickup
+      ? (input.senderLocationName?.trim() || null)
+      : null;
+    const senderLat = isCourierPickup ? (input.senderLat ?? null) : null;
+    const senderLng = isCourierPickup ? (input.senderLng ?? null) : null;
+    const senderInstructions = isCourierPickup
+      ? (input.senderInstructions?.trim() || null)
+      : null;
+
+    if (pickupLocationId) {
+      const locationCheck = await this.db.query(
+        `SELECT id FROM business_locations
+         WHERE id = $1 AND business_id = $2 AND type = 'pickup_point'
+         LIMIT 1`,
+        [pickupLocationId, input.businessId],
+      );
+      if (!locationCheck.rows[0]) {
+        throw new Error('Lieu de collecte introuvable');
+      }
+    }
 
     const shipmentValues = [
       input.businessId,
@@ -292,6 +318,11 @@ export class ParcelRepository {
       input.senderName.trim(),
       input.senderPhone.trim(),
       senderAddress,
+      pickupLocationId,
+      senderLocationName,
+      senderLat,
+      senderLng,
+      senderInstructions,
       input.packageSize,
       input.packageLengthCm ?? null,
       input.packageWidthCm ?? null,
@@ -312,6 +343,7 @@ export class ParcelRepository {
     const insertColumns = `
       business_id, tracking_number, reference, recipient_phone, recipient_name,
       customer_id, locker_id, pickup_type, sender_name, sender_phone, sender_address,
+      pickup_location_id, sender_location_name, sender_lat, sender_lng, sender_instructions,
       package_size, package_length_cm, package_width_cm, package_height_cm, package_weight_kg,
       package_category, declared_value_cdf, declared_value_usd,
       payment_responsibility, cod_amount_cdf, cod_amount_usd,
@@ -347,7 +379,8 @@ export class ParcelRepository {
              ${insertColumns}, compartment_id
            ) VALUES (
              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-             $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, 'canonical', 'created', $27
+             $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31,
+             'canonical', 'created', $32
            )
            RETURNING *`,
           [...shipmentValues, compartment.id],
@@ -386,7 +419,8 @@ export class ParcelRepository {
            ${insertColumns}
          ) VALUES (
            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-           $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, 'canonical', 'created'
+           $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31,
+           'canonical', 'created'
          )
          RETURNING *`,
         shipmentValues,

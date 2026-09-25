@@ -300,42 +300,245 @@ export class BusinessOnboardingRepository {
         );
       }
 
+      // Habitual fulfillment method / dropoff locker — do not overwrite named pickup locations.
       const pickupExisting = await tx.query(
+        `SELECT id FROM business_locations
+         WHERE business_id = $1 AND type = 'pickup_point'
+         ORDER BY is_default DESC, created_at ASC
+         LIMIT 1
+         FOR UPDATE`,
+        [businessId],
+      );
+      if (pickupExisting.rows[0]) {
+        await tx.query(
+          `UPDATE business_locations
+           SET pickup_method = $1,
+               dropoff_locker_id = $2,
+               available_days = COALESCE($3, available_days),
+               available_hours = COALESCE($4, available_hours),
+               updated_at = NOW()
+           WHERE business_id = $5 AND type = 'pickup_point'`,
+          [
+            input.pickupMethod,
+            input.dropoffLockerId ?? null,
+            input.availableDays ?? null,
+            input.availableHours ?? null,
+            businessId,
+          ],
+        );
+      } else if (input.pickupMethod === 'merchant_dropoff' || input.pickupAddress) {
+        await tx.query(
+          `INSERT INTO business_locations
+             (business_id, type, pickup_method, name, street, contact_person, contact_phone,
+              available_days, available_hours, dropoff_locker_id, is_default)
+           VALUES ($1, 'pickup_point', $2, $3, $4, $5, $6, $7, $8, $9, true)`,
+          [
+            businessId,
+            input.pickupMethod,
+            'Adresse de collecte',
+            input.pickupAddress ?? input.address,
+            input.contactPerson ?? null,
+            input.pickupContactPhone ?? null,
+            input.availableDays ?? null,
+            input.availableHours ?? null,
+            input.dropoffLockerId ?? null,
+          ],
+        );
+      }
+
+      return mapBusiness(requiredRow(businessResult.rows, `Business ${businessId} not found`));
+    });
+  }
+
+  async listPickupLocations(businessId: string): Promise<BusinessLocation[]> {
+    const result = await this.db.query(
+      `SELECT * FROM business_locations
+       WHERE business_id = $1 AND type = 'pickup_point'
+       ORDER BY is_default DESC, created_at ASC`,
+      [businessId],
+    );
+    return result.rows.map(mapBusinessLocation);
+  }
+
+  async createPickupLocation(
+    businessId: string,
+    input: {
+      name: string;
+      street: string;
+      city?: string;
+      country?: string;
+      lat: number;
+      lng: number;
+      contactPerson?: string;
+      contactPhone?: string;
+      instructions?: string | null;
+      isDefault?: boolean;
+    },
+  ): Promise<BusinessLocation> {
+    return withTransaction(async (tx) => {
+      const existing = await tx.query(
         `SELECT id FROM business_locations
          WHERE business_id = $1 AND type = 'pickup_point'
          LIMIT 1
          FOR UPDATE`,
         [businessId],
       );
-      const pickupValues = [
-        input.pickupMethod,
-        input.pickupAddress ?? input.address,
-        input.contactPerson ?? null,
-        input.pickupContactPhone ?? null,
-        input.availableDays ?? null,
-        input.availableHours ?? null,
-        input.dropoffLockerId ?? null,
-      ];
-      if (pickupExisting.rows[0]) {
+      const makeDefault = input.isDefault === true || existing.rows.length === 0;
+
+      if (makeDefault) {
         await tx.query(
           `UPDATE business_locations
-           SET pickup_method = $1, street = $2, contact_person = $3, contact_phone = $4,
-               available_days = $5, available_hours = $6, dropoff_locker_id = $7, updated_at = NOW()
-           WHERE id = $8`,
-          [...pickupValues, pickupExisting.rows[0].id],
-        );
-      } else {
-        await tx.query(
-          `INSERT INTO business_locations
-             (business_id, type, pickup_method, street, contact_person, contact_phone,
-              available_days, available_hours, dropoff_locker_id)
-           VALUES ($1, 'pickup_point', $2, $3, $4, $5, $6, $7, $8)`,
-          [businessId, ...pickupValues],
+           SET is_default = false, updated_at = NOW()
+           WHERE business_id = $1 AND type = 'pickup_point' AND is_default = true`,
+          [businessId],
         );
       }
 
-      return mapBusiness(requiredRow(businessResult.rows, `Business ${businessId} not found`));
+      const address = await tx.query(
+        `SELECT country, city FROM business_locations
+         WHERE business_id = $1 AND type = 'business_address'
+         ORDER BY created_at ASC
+         LIMIT 1`,
+        [businessId],
+      );
+      const country = input.country?.trim() || String(address.rows[0]?.country ?? 'RDC');
+      const city = input.city?.trim() || String(address.rows[0]?.city ?? 'Kinshasa');
+
+      const result = await tx.query(
+        `INSERT INTO business_locations (
+           business_id, type, pickup_method, name, country, city, street, lat, lng,
+           contact_person, contact_phone, instructions, is_default
+         ) VALUES (
+           $1, 'pickup_point', 'courier_pickup', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+         )
+         RETURNING *`,
+        [
+          businessId,
+          input.name.trim(),
+          country,
+          city,
+          input.street.trim(),
+          input.lat,
+          input.lng,
+          input.contactPerson?.trim() || null,
+          input.contactPhone?.trim() || null,
+          input.instructions?.trim() || null,
+          makeDefault,
+        ],
+      );
+      return mapBusinessLocation(requiredRow(result.rows, 'Pickup location create failed'));
     });
+  }
+
+  async updatePickupLocation(
+    businessId: string,
+    locationId: string,
+    input: {
+      name?: string;
+      street?: string;
+      city?: string;
+      country?: string;
+      lat?: number;
+      lng?: number;
+      contactPerson?: string;
+      contactPhone?: string;
+      instructions?: string | null;
+      isDefault?: boolean;
+    },
+  ): Promise<BusinessLocation> {
+    return withTransaction(async (tx) => {
+      const existing = await tx.query(
+        `SELECT * FROM business_locations
+         WHERE id = $1 AND business_id = $2 AND type = 'pickup_point'
+         LIMIT 1
+         FOR UPDATE`,
+        [locationId, businessId],
+      );
+      const row = existing.rows[0];
+      if (!row) {
+        throw new Error('Lieu de collecte introuvable');
+      }
+
+      if (input.isDefault === true) {
+        await tx.query(
+          `UPDATE business_locations
+           SET is_default = false, updated_at = NOW()
+           WHERE business_id = $1 AND type = 'pickup_point' AND is_default = true AND id <> $2`,
+          [businessId, locationId],
+        );
+      }
+
+      const result = await tx.query(
+        `UPDATE business_locations
+         SET name = COALESCE($1, name),
+             street = COALESCE($2, street),
+             city = COALESCE($3, city),
+             country = COALESCE($4, country),
+             lat = COALESCE($5, lat),
+             lng = COALESCE($6, lng),
+             contact_person = COALESCE($7, contact_person),
+             contact_phone = COALESCE($8, contact_phone),
+             instructions = CASE WHEN $9::boolean THEN $10 ELSE instructions END,
+             is_default = CASE WHEN $11::boolean THEN true ELSE is_default END,
+             updated_at = NOW()
+         WHERE id = $12
+         RETURNING *`,
+        [
+          input.name?.trim() ?? null,
+          input.street?.trim() ?? null,
+          input.city?.trim() ?? null,
+          input.country?.trim() ?? null,
+          input.lat ?? null,
+          input.lng ?? null,
+          input.contactPerson?.trim() ?? null,
+          input.contactPhone?.trim() ?? null,
+          Object.prototype.hasOwnProperty.call(input, 'instructions'),
+          input.instructions?.trim() || null,
+          input.isDefault === true,
+          locationId,
+        ],
+      );
+      return mapBusinessLocation(requiredRow(result.rows, 'Pickup location update failed'));
+    });
+  }
+
+  async deletePickupLocation(businessId: string, locationId: string): Promise<void> {
+    await withTransaction(async (tx) => {
+      const existing = await tx.query(
+        `SELECT id, is_default FROM business_locations
+         WHERE id = $1 AND business_id = $2 AND type = 'pickup_point'
+         LIMIT 1
+         FOR UPDATE`,
+        [locationId, businessId],
+      );
+      const row = existing.rows[0];
+      if (!row) {
+        throw new Error('Lieu de collecte introuvable');
+      }
+
+      await tx.query(`DELETE FROM business_locations WHERE id = $1`, [locationId]);
+
+      if (row.is_default) {
+        const next = await tx.query(
+          `SELECT id FROM business_locations
+           WHERE business_id = $1 AND type = 'pickup_point'
+           ORDER BY created_at ASC
+           LIMIT 1
+           FOR UPDATE`,
+          [businessId],
+        );
+        if (next.rows[0]) {
+          await tx.query(
+            `UPDATE business_locations SET is_default = true, updated_at = NOW() WHERE id = $1`,
+            [next.rows[0].id],
+          );
+        }
+      }
+    });
+  }
+
+  async setDefaultPickupLocation(businessId: string, locationId: string): Promise<BusinessLocation> {
+    return this.updatePickupLocation(businessId, locationId, { isDefault: true });
   }
 
   async saveLegalVerification(businessId: string, input: LegalVerificationStepInput) {
@@ -419,10 +622,20 @@ export class BusinessOnboardingRepository {
       } else {
         await tx.query(
           `INSERT INTO business_locations
-             (business_id, type, pickup_method, street, contact_person, contact_phone,
-              available_days, available_hours, dropoff_locker_id)
-           VALUES ($1, 'pickup_point', $2, $3, $4, $5, $6, $7, $8)`,
-          [businessId, ...values],
+             (business_id, type, pickup_method, name, street, contact_person, contact_phone,
+              available_days, available_hours, dropoff_locker_id, is_default)
+           VALUES ($1, 'pickup_point', $2, $3, $4, $5, $6, $7, $8, $9, true)`,
+          [
+            businessId,
+            input.pickupMethod,
+            'Adresse de collecte',
+            input.pickupAddress ?? 'Eveider Locker Location',
+            input.contactPerson,
+            input.contactPhone,
+            input.availableDays,
+            input.availableHours,
+            input.dropoffLockerId,
+          ],
         );
       }
       const businessResult = await tx.query(`SELECT * FROM businesses WHERE id = $1 LIMIT 1`, [businessId]);

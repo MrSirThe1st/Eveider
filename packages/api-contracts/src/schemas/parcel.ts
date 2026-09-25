@@ -63,6 +63,21 @@ export const createParcelSchema = z
       .max(255)
       .optional()
       .transform((value) => (value && value.length > 0 ? value : undefined)),
+    pickupLocationId: z.string().uuid().optional(),
+    senderLocationName: z
+      .string()
+      .trim()
+      .max(120)
+      .optional()
+      .transform((value) => (value && value.length > 0 ? value : undefined)),
+    senderLat: z.number().min(-90).max(90).optional().nullable(),
+    senderLng: z.number().min(-180).max(180).optional().nullable(),
+    senderInstructions: z
+      .string()
+      .trim()
+      .max(500)
+      .optional()
+      .transform((value) => (value && value.length > 0 ? value : undefined)),
     recipientName: z.string().trim().min(2, 'Nom destinataire requis').max(120),
     recipientPhone: phoneSchema,
     recipientEmail: emailSchema.optional(),
@@ -86,6 +101,18 @@ export const createParcelSchema = z
         code: z.ZodIssueCode.custom,
         message: 'Adresse expéditeur requise pour une collecte par chauffeur',
         path: ['senderAddress'],
+      });
+    }
+
+    if (
+      data.pickupType === 'courier_pickup' &&
+      ((data.senderLat == null && data.senderLng != null) ||
+        (data.senderLat != null && data.senderLng == null))
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Coordonnées de collecte incomplètes',
+        path: ['senderLat'],
       });
     }
 

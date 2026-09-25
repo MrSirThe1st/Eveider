@@ -254,6 +254,11 @@ export type Parcel = {
   senderName: string;
   senderPhone: string;
   senderAddress: string | null;
+  pickupLocationId: string | null;
+  senderLocationName: string | null;
+  senderLat: number | null;
+  senderLng: number | null;
+  senderInstructions: string | null;
   packageSize: PackageSize;
   packageLengthCm: number | null;
   packageWidthCm: number | null;
@@ -481,6 +486,7 @@ export type BusinessLocation = {
   businessId: string;
   type: LocationType;
   pickupMethod: PickupMethod;
+  name: string | null;
   country: string;
   city: string;
   street: string;
@@ -488,6 +494,8 @@ export type BusinessLocation = {
   lng: number | null;
   contactPerson: string | null;
   contactPhone: string | null;
+  instructions: string | null;
+  isDefault: boolean;
   availableDays: string | null;
   availableHours: string | null;
   dropoffLockerId: string | null;

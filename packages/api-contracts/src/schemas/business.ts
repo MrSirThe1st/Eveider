@@ -165,6 +165,41 @@ export const updateBusinessSettingsSchema = z.object({
     .pipe(z.string().uuid().optional()),
 });
 
+export const upsertPickupLocationSchema = z.object({
+  name: z.string().trim().min(2, 'Nom du lieu requis').max(120),
+  street: z.string().trim().min(5, 'Adresse requise').max(255),
+  city: z.string().trim().min(2).max(80).optional(),
+  country: z.string().trim().min(2).max(80).optional(),
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  contactPerson: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .transform((value) => (value && value.length > 0 ? value : undefined)),
+  contactPhone: optionalPhone,
+  instructions: z
+    .string()
+    .trim()
+    .max(500)
+    .optional()
+    .transform((value) => (value && value.length > 0 ? value : undefined)),
+  isDefault: z.boolean().optional(),
+});
+
+export const updatePickupLocationSchema = upsertPickupLocationSchema.partial().extend({
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
+  instructions: z
+    .string()
+    .trim()
+    .max(500)
+    .nullable()
+    .optional()
+    .transform((value) => (value == null || value.length === 0 ? null : value)),
+});
+
 // Wizard Step 4: Payment & Settlement Setup
 export const paymentSetupStepSchema = z.object({
   paymentRule: deliveryPaymentRuleSchema,
@@ -226,6 +261,8 @@ export const adminReviewDecisionSchema = z
 export type UpdateBusinessStatusInput = z.infer<typeof updateBusinessStatusSchema>;
 export type UpdateBusinessProfileInput = z.infer<typeof updateBusinessProfileSchema>;
 export type UpdateBusinessSettingsInput = z.infer<typeof updateBusinessSettingsSchema>;
+export type UpsertPickupLocationInput = z.infer<typeof upsertPickupLocationSchema>;
+export type UpdatePickupLocationInput = z.infer<typeof updatePickupLocationSchema>;
 export type RegisterBusinessAccountInput = z.infer<typeof registerBusinessAccountSchema>;
 
 export const inviteTeamMemberSchema = z.object({
