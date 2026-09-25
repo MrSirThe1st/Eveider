@@ -69,6 +69,7 @@ describe('assignable driver dossiers', () => {
     expect(isAssignableDriverDossier('invited')).toBe(true);
     expect(isAssignableDriverDossier('active')).toBe(true);
     expect(isAssignableDriverDossier('deactivated')).toBe(false);
+    expect(isAssignableDriverDossier('deleted')).toBe(false);
   });
 
   it('allows business drivers to operate without Eveider KYC approval', () => {
@@ -79,6 +80,7 @@ describe('assignable driver dossiers', () => {
     expect(isAssignableDriverDossier('active', 'business')).toBe(true);
     expect(isAssignableDriverDossier('rejected', 'business')).toBe(false);
     expect(isAssignableDriverDossier('deactivated', 'business')).toBe(false);
+    expect(isAssignableDriverDossier('deleted', 'business')).toBe(false);
   });
 });
 
@@ -90,6 +92,7 @@ describe('driver invite gate', () => {
     expect(canInviteDriverDossier('active')).toBe(true);
     expect(canInviteDriverDossier('needs_correction')).toBe(false);
     expect(canInviteDriverDossier('rejected')).toBe(false);
+    expect(canInviteDriverDossier('deleted')).toBe(false);
   });
 
   it('sends a business chauffeur invite only after Eveider approval', () => {

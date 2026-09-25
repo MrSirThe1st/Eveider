@@ -23,7 +23,7 @@ function dash(value: string | null | undefined): ReactNode {
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div>
+    <div style={{ minWidth: 0 }}>
       <dt
         style={{
           margin: 0,
@@ -39,6 +39,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
           margin: `${spacing[1]}px 0 0`,
           fontSize: typography.body.fontSize,
           color: colors.secondary,
+          overflowWrap: 'anywhere',
         }}
       >
         {children}

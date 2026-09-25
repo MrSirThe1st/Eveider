@@ -65,7 +65,7 @@ Email change (web profile → Mon compte): `updateUser({ email })` confirms via 
 
 The native app exchanges the recovery (or invite) URL for a session, then opens the set-password screen. Courier invites use the same mobile password-set deep link — not the web team-invite page.
 
-Deleted customers keep parcel history; email/phone stay reserved (Auth user is banned, not hard-deleted). Deactivated couriers cannot log in until the contractor reactivates them. Blocked (`is_blocked`) remains a separate disciplinary status.
+Deleted customers keep parcel history; email/phone stay reserved (Auth user is banned, not hard-deleted). Deactivated couriers cannot log in until the contractor reactivates them. Admin **pause** sets `is_blocked` (disciplinary — login and new assignments blocked until resumed). Admin **delete** soft-deletes the user, bans Auth, and marks the dossier `deleted` (removed from the fleet roster).
 
 ## Surfaces
 

@@ -5,7 +5,7 @@ import type { CourierDossier, User } from '../db/types.js';
 import {
   buildDriverAppInviteLink,
   buildDriverInviteLink,
-  getInviteConfig,
+  resolveDriverInviteWebBaseUrl,
 } from '../invitations/invite-links.js';
 import { sendDriverInviteEmail } from '../messaging/driver-invite-email.js';
 import { getResendConfig } from '../messaging/resend-config.js';
@@ -50,6 +50,67 @@ export class AccountService {
 
     const admin = createSupabaseAdminClient();
     await admin.auth.admin.updateUserById(user.authId, { ban_duration: AUTH_BAN_DURATION });
+  }
+
+  /**
+   * Admin disciplinary pause — blocks login and new assignments (`users.is_blocked`).
+   * Distinct from self-service deactivate (`deactivated_at`).
+   */
+  async setCourierPaused(
+    ctx: DataAccessContext,
+    dossierId: string,
+    paused: boolean,
+  ): Promise<User> {
+    const dossier = await this.dossiers.requireInScope(ctx, dossierId);
+    if (!dossier.userId) {
+      throw new Error('Aucun compte utilisateur lié à ce dossier');
+    }
+    const user = await this.users.findById(dossier.userId);
+    if (!user) {
+      throw new Error('Compte chauffeur introuvable');
+    }
+    if (user.deletedAt) {
+      throw new AccessDeniedError('Compte déjà supprimé');
+    }
+    return this.users.updateProfile(user.id, { isBlocked: paused });
+  }
+
+  /**
+   * Admin hard removal — soft-deletes the user, bans Auth, and marks the dossier deleted.
+   */
+  async deleteCourier(ctx: DataAccessContext, dossierId: string): Promise<void> {
+    const dossier = await this.dossiers.requireInScope(ctx, dossierId);
+    if (dossier.status === 'deleted') {
+      throw new AccessDeniedError('Dossier déjà supprimé');
+    }
+
+    if (dossier.userId) {
+      const user = await this.users.findById(dossier.userId);
+      if (!user) {
+        throw new Error('Compte chauffeur introuvable');
+      }
+      if (user.deletedAt) {
+        throw new AccessDeniedError('Compte déjà supprimé');
+      }
+
+      const inProgress = await this.deliveries.hasActiveForCourier(user.id);
+      if (inProgress) {
+        throw new Error(
+          'Impossible de supprimer le compte tant qu’une livraison est en cours',
+        );
+      }
+
+      await this.users.updateProfile(user.id, {
+        fullName: 'Compte supprimé',
+        deletedAt: new Date(),
+        isBlocked: true,
+      });
+
+      const admin = createSupabaseAdminClient();
+      await admin.auth.admin.updateUserById(user.authId, { ban_duration: AUTH_BAN_DURATION });
+    }
+
+    await this.dossiers.markDeleted(ctx, dossierId);
   }
 
   async deactivateCourier(user: User): Promise<void> {
@@ -141,8 +202,7 @@ export class AccountService {
     }
 
     const admin = createSupabaseAdminClient();
-    const { webBaseUrl } = getInviteConfig();
-    const redirectTo = `${webBaseUrl}/invite/chauffeur`;
+    const redirectTo = `${resolveDriverInviteWebBaseUrl()}/invite/chauffeur`;
 
     let link = await admin.auth.admin.generateLink({
       type: 'magiclink',

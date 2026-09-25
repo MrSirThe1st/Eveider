@@ -169,7 +169,7 @@ export class CourierDossierRepository {
   async findOpenByEmail(email: string): Promise<CourierDossier | null> {
     const result = await this.db.query(
       `SELECT * FROM driver_dossiers
-       WHERE lower(email) = $1 AND status <> 'rejected'
+       WHERE lower(email) = $1 AND status <> 'rejected' AND status <> 'deleted'
        LIMIT 1`,
       [normalizeEmail(email)],
     );
@@ -211,6 +211,8 @@ export class CourierDossierRepository {
     const result = await this.db.query(
       `${ROSTER_SELECT}
        WHERE d.contractor_type = 'business' AND d.business_id = $2
+         AND d.status <> 'deleted'
+         AND (u.id IS NULL OR u.deleted_at IS NULL)
        ORDER BY d.full_name ASC`,
       [ACTIVE_DELIVERY_STATUSES, ctx.businessId],
     );
@@ -222,6 +224,8 @@ export class CourierDossierRepository {
     const result = await this.db.query(
       `${ROSTER_SELECT}
        WHERE d.contractor_type = 'eveider'
+         AND d.status <> 'deleted'
+         AND (u.id IS NULL OR u.deleted_at IS NULL)
        ORDER BY d.full_name ASC`,
       [ACTIVE_DELIVERY_STATUSES],
     );
@@ -456,6 +460,25 @@ export class CourierDossierRepository {
        WHERE id = $1
        RETURNING *`,
       [current.id],
+    );
+    return mapCourierDossier(result.rows[0]!);
+  }
+
+  async markDeleted(ctx: DataAccessContext, id: string): Promise<CourierDossier> {
+    const current = await this.requireInScope(ctx, id);
+    if (current.status === 'deleted') return current;
+    assertCourierDossierTransition(current.status, 'deleted');
+    const result = await this.db.query(
+      `UPDATE driver_dossiers
+       SET status = 'deleted',
+           full_name = 'Compte supprimé',
+           email = $2,
+           phone = NULL,
+           deactivated_at = COALESCE(deactivated_at, NOW()),
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [id, `deleted+${id}@deleted.local`],
     );
     return mapCourierDossier(result.rows[0]!);
   }

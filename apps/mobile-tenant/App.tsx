@@ -183,11 +183,17 @@ function AppContent() {
         (params.type === 'magiclink' || (!params.type && isDriverMagicLinkUrl(url)));
 
       if (isMagic && params.tokenHash) {
-        const { error } = await supabase.auth.verifyOtp({
+        // Supabase deprecated verifyOtp type `magiclink` — prefer `email`, with fallback.
+        const primary = await supabase.auth.verifyOtp({
+          token_hash: params.tokenHash,
+          type: 'email',
+        });
+        if (!primary.error) return 'magic';
+        const fallback = await supabase.auth.verifyOtp({
           token_hash: params.tokenHash,
           type: 'magiclink',
         });
-        return error ? null : 'magic';
+        return fallback.error ? null : 'magic';
       }
 
       if (!isPasswordResetUrl(url)) return null;

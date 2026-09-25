@@ -48,9 +48,23 @@ export function buildPlatformAdminInviteLink(token: string): string {
   return `${webBaseUrl}/invite/admin/${token}`;
 }
 
+/**
+ * Base URL for chauffeur magic-link landings.
+ * Prefer the portal when it is local so invites created in dev open on localhost
+ * (same Auth session + verifyOtp), even if INVITE_WEB_BASE_URL points at production
+ * for parcel / WhatsApp links.
+ */
+export function resolveDriverInviteWebBaseUrl(): string {
+  const portal = process.env.NEXT_PUBLIC_PORTAL_URL?.trim();
+  if (portal && isLocalWebBase(portal)) {
+    return portal.replace(/\/$/, '');
+  }
+  return getInviteConfig().webBaseUrl;
+}
+
 /** Web landing that consumes a Supabase magic-link token hash (no password). */
 export function buildDriverInviteLink(tokenHash: string): string {
-  const { webBaseUrl } = getInviteConfig();
+  const webBaseUrl = resolveDriverInviteWebBaseUrl();
   return `${webBaseUrl}/invite/chauffeur/${encodeURIComponent(tokenHash)}`;
 }
 

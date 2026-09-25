@@ -10,60 +10,97 @@ type DriverInviteLandingProps = {
   token?: string;
 };
 
+type Phase = 'prompt' | 'loading' | 'done' | 'error';
+
+/**
+ * Supabase deprecated `magiclink` / `signup` for verifyOtp — use `email`.
+ * Keep a magiclink fallback for older Auth rows still tagged that way.
+ */
+async function verifyMagicLinkToken(token: string) {
+  const supabase = createClient();
+  const primary = await supabase.auth.verifyOtp({
+    token_hash: token,
+    type: 'email',
+  });
+  if (!primary.error) return primary;
+
+  const fallback = await supabase.auth.verifyOtp({
+    token_hash: token,
+    type: 'magiclink',
+  });
+  return fallback.error ? primary : fallback;
+}
+
+async function completeDriverInvite(): Promise<string | null> {
+  const response = await fetch('/api/driver-invite/complete', { method: 'POST' });
+  const result = (await response.json()) as {
+    success: boolean;
+    error?: string;
+    data?: { fullName: string | null };
+  };
+  if (!result.success) {
+    throw new Error(result.error ?? 'Impossible d’activer le compte');
+  }
+  return result.data?.fullName ?? null;
+}
+
 export function DriverInviteLanding({ token }: DriverInviteLandingProps) {
+  const [phase, setPhase] = useState<Phase>(token ? 'prompt' : 'loading');
   const [fullName, setFullName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (token) return;
+
     let cancelled = false;
 
-    async function activate() {
+    async function activateFromSession() {
       try {
         const supabase = createClient();
-        if (token) {
-          const { error: otpError } = await supabase.auth.verifyOtp({
-            token_hash: token,
-            type: 'magiclink',
-          });
-          if (otpError) {
-            throw new Error(otpError.message);
-          }
-        } else {
-          const {
-            data: { user },
-          } = await supabase.auth.getUser();
-          if (!user) {
-            throw new Error('Lien invalide ou expiré. Demandez un nouveau lien à Eveider.');
-          }
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          throw new Error('Lien invalide ou expiré. Demandez un nouveau lien à Eveider.');
         }
-
-        const response = await fetch('/api/driver-invite/complete', { method: 'POST' });
-        const result = (await response.json()) as {
-          success: boolean;
-          error?: string;
-          data?: { fullName: string | null };
-        };
-        if (!result.success) {
-          throw new Error(result.error ?? 'Impossible d’activer le compte');
+        const name = await completeDriverInvite();
+        if (!cancelled) {
+          setFullName(name);
+          setPhase('done');
         }
-        if (!cancelled) setFullName(result.data?.fullName ?? null);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Impossible d’activer le compte');
+          setPhase('error');
         }
-      } finally {
-        if (!cancelled) setLoading(false);
       }
     }
 
-    void activate();
+    void activateFromSession();
     return () => {
       cancelled = true;
     };
   }, [token]);
 
-  if (loading) {
+  async function activateWithToken() {
+    if (!token || phase === 'loading') return;
+    setPhase('loading');
+    setError(null);
+    try {
+      const { error: otpError } = await verifyMagicLinkToken(token);
+      if (otpError) {
+        throw new Error(otpError.message);
+      }
+      const name = await completeDriverInvite();
+      setFullName(name);
+      setPhase('done');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Impossible d’activer le compte');
+      setPhase('error');
+    }
+  }
+
+  if (phase === 'loading') {
     return (
       <main style={pageStyle}>
         <LoadingSpinner label="Activation de votre accès chauffeur…" />
@@ -71,7 +108,7 @@ export function DriverInviteLanding({ token }: DriverInviteLandingProps) {
     );
   }
 
-  if (error) {
+  if (phase === 'error') {
     return (
       <main style={pageStyle}>
         <section style={cardStyle}>
@@ -80,6 +117,22 @@ export function DriverInviteLanding({ token }: DriverInviteLandingProps) {
           <Link href="/connexion" style={primaryButtonStyle}>
             Se connecter
           </Link>
+        </section>
+      </main>
+    );
+  }
+
+  if (phase === 'prompt') {
+    return (
+      <main style={pageStyle}>
+        <section style={cardStyle}>
+          <h1 style={titleStyle}>Activer votre accès</h1>
+          <p style={{ margin: '0 0 1.25rem', fontWeight: 500, color: colors.textMuted }}>
+            Cliquez pour activer votre compte chauffeur Eveider. Aucun mot de passe à créer.
+          </p>
+          <button type="button" onClick={() => void activateWithToken()} style={primaryButtonStyle}>
+            Activer mon accès
+          </button>
         </section>
       </main>
     );
@@ -130,6 +183,7 @@ const titleStyle: React.CSSProperties = {
 
 const primaryButtonStyle: React.CSSProperties = {
   display: 'block',
+  width: '100%',
   textAlign: 'center',
   height: spacing.buttonHeight,
   lineHeight: `${spacing.buttonHeight}px`,
@@ -141,4 +195,6 @@ const primaryButtonStyle: React.CSSProperties = {
   fontWeight: 700,
   textDecoration: 'none',
   boxShadow: shadows.none,
+  cursor: 'pointer',
+  font: 'inherit',
 };

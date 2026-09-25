@@ -7,7 +7,8 @@ export type DriverDossierStatus =
   | 'approved'
   | 'invited'
   | 'active'
-  | 'deactivated';
+  | 'deactivated'
+  | 'deleted';
 
 export const DRIVER_DOSSIER_STATUSES: readonly DriverDossierStatus[] = [
   'pending_review',
@@ -17,16 +18,18 @@ export const DRIVER_DOSSIER_STATUSES: readonly DriverDossierStatus[] = [
   'invited',
   'active',
   'deactivated',
+  'deleted',
 ] as const;
 
 const TRANSITIONS: Record<DriverDossierStatus, readonly DriverDossierStatus[]> = {
-  pending_review: ['approved', 'needs_correction', 'rejected'],
-  needs_correction: ['pending_review'],
-  rejected: [],
-  approved: ['invited'],
-  invited: ['active', 'deactivated'],
-  active: ['deactivated'],
-  deactivated: ['active'],
+  pending_review: ['approved', 'needs_correction', 'rejected', 'deleted'],
+  needs_correction: ['pending_review', 'deleted'],
+  rejected: ['deleted'],
+  approved: ['invited', 'deleted'],
+  invited: ['active', 'deactivated', 'deleted'],
+  active: ['deactivated', 'deleted'],
+  deactivated: ['active', 'deleted'],
+  deleted: [],
 };
 
 export function canTransitionDriverDossier(
@@ -54,7 +57,7 @@ export function canInviteDriverDossier(
   status: DriverDossierStatus,
   contractorType: DriverContractorKind | 'business' = 'eveider',
 ): boolean {
-  if (status === 'rejected' || status === 'deactivated' || status === 'needs_correction') {
+  if (status === 'rejected' || status === 'deactivated' || status === 'deleted' || status === 'needs_correction') {
     return false;
   }
   const isBusiness = contractorType === 'business' || contractorType === 'organization';
@@ -68,7 +71,7 @@ export function isAssignableDriverDossier(
   status: DriverDossierStatus,
   contractorType: DriverContractorKind | 'business' = 'eveider',
 ): boolean {
-  if (status === 'rejected' || status === 'deactivated') return false;
+  if (status === 'rejected' || status === 'deactivated' || status === 'deleted') return false;
   if (contractorType === 'business' || contractorType === 'organization') {
     return (
       status === 'pending_review' ||
@@ -100,7 +103,7 @@ export const DRIVER_OPERATIONAL_STATUS_LABELS: Record<DriverOperationalStatus, s
   pending_approval: 'PIÈCES À CONTRÔLER',
   available: 'DISPONIBLE',
   on_delivery: 'EN LIVRAISON',
-  suspended: 'SUSPENDU',
+  suspended: 'EN PAUSE',
   rejected: 'REJETÉ',
 };
 
@@ -115,6 +118,9 @@ export type DriverOperationalStatusInput = {
 export function deriveDriverOperationalStatus(
   input: DriverOperationalStatusInput,
 ): DriverOperationalStatus {
+  if (input.dossierStatus === 'deleted') {
+    return 'rejected';
+  }
   if (input.isBlocked || input.deactivated || input.dossierStatus === 'deactivated') {
     return 'suspended';
   }
@@ -143,6 +149,7 @@ export const DRIVER_DOSSIER_STATUS_LABELS: Record<DriverDossierStatus, string> =
   invited: 'Invité',
   active: 'Actif',
   deactivated: 'Désactivé',
+  deleted: 'Supprimé',
 };
 
 export type CourierContractorKind = 'eveider' | 'business' | 'organization';

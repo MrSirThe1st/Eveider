@@ -3,6 +3,7 @@ import {
   buildDriverAppInviteLink,
   buildDriverInviteLink,
   getInviteConfig,
+  resolveDriverInviteWebBaseUrl,
 } from './invite-links.js';
 
 describe('driver invite links', () => {
@@ -14,6 +15,7 @@ describe('driver invite links', () => {
       INVITE_WEB_BASE_URL: 'https://www.eveider.com',
       INVITE_DEEP_LINK_SCHEME: 'eveider',
     };
+    delete process.env.NEXT_PUBLIC_PORTAL_URL;
   });
 
   afterEach(() => {
@@ -31,5 +33,11 @@ describe('driver invite links', () => {
     expect(buildDriverAppInviteLink('hash/value')).toBe(
       'eveider://auth?token_hash=hash%2Fvalue&type=magiclink',
     );
+  });
+
+  it('uses the local portal for chauffeur invites so verifyOtp runs on the same host', () => {
+    process.env.NEXT_PUBLIC_PORTAL_URL = 'http://localhost:3000';
+    expect(resolveDriverInviteWebBaseUrl()).toBe('http://localhost:3000');
+    expect(buildDriverInviteLink('abc')).toBe('http://localhost:3000/invite/chauffeur/abc');
   });
 });
