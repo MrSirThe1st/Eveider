@@ -84,8 +84,7 @@ export function AddressMapPicker({
     } else {
       setMapFocus(null);
     }
-    // resetKey intentionally drives re-sync when parent opens create/edit.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only reset when key changes
+    // Intentionally only resetKey: re-sync form state when parent opens create/edit.
   }, [resetKey]);
 
   useEffect(() => {
