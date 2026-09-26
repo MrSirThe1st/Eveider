@@ -14,6 +14,8 @@ type ScreenHeaderProps = {
   onBack?: () => void;
   onMenu?: () => void;
   onLogout?: () => void;
+  onNotifications?: () => void;
+  unreadCount?: number;
 };
 
 export function ScreenHeader({
@@ -21,6 +23,8 @@ export function ScreenHeader({
   onBack,
   onMenu,
   onLogout,
+  onNotifications,
+  unreadCount = 0,
 }: ScreenHeaderProps) {
   const { t } = useTranslation();
   const colors = useColors();
@@ -70,6 +74,17 @@ export function ScreenHeader({
           <Pressable onPress={onLogout} hitSlop={8} style={styles.iconButton}>
             <Text style={styles.logout}>{t('common.signOut')}</Text>
           </Pressable>
+        ) : onNotifications ? (
+          <Pressable
+            onPress={onNotifications}
+            hitSlop={8}
+            style={styles.iconButton}
+            accessibilityRole="button"
+            accessibilityLabel={t('profile.notifications')}
+          >
+            <Feather name="bell" size={20} color={colors.secondary} />
+            {unreadCount > 0 ? <View style={styles.badge} /> : null}
+          </Pressable>
         ) : (
           <View style={styles.iconButton} />
         )}
@@ -79,16 +94,32 @@ export function ScreenHeader({
 }
 
 type ScreenScaffoldProps = {
+  mode?: 'CLIENT' | 'DRIVER';
   title?: string;
   onBack?: () => void;
+  onNotifications?: () => void;
+  unreadCount?: number;
   children: ReactNode;
 };
 
-export function ScreenScaffold({ title, onBack, children }: ScreenScaffoldProps) {
+export function ScreenScaffold({
+  mode,
+  title,
+  onBack,
+  onNotifications,
+  unreadCount,
+  children,
+}: ScreenScaffoldProps) {
   const colors = useColors();
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <ScreenHeader title={title} onBack={onBack} />
+      <ScreenHeader
+        mode={mode}
+        title={title}
+        onBack={onBack}
+        onNotifications={onNotifications}
+        unreadCount={unreadCount}
+      />
       {children}
     </View>
   );
@@ -128,6 +159,15 @@ function createStyles(colors: ReturnType<typeof useColors>) {
       fontSize: 13,
       fontWeight: '600',
       color: colors.secondary,
+    },
+    badge: {
+      position: 'absolute',
+      top: 10,
+      right: 10,
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.primary,
     },
   });
 }

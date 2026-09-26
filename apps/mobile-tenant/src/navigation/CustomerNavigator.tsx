@@ -5,11 +5,12 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NavigatorScreenParams, RouteProp } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { createContext, memo, useCallback, useContext, useMemo, useRef, useState, type MutableRefObject } from 'react';
+import { createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ProfileDrawer } from '../components/ProfileDrawer';
+import { useNotificationRoutingOptional } from '../context/notification-routing-context';
 import type { CustomerParcel } from '../lib/api';
 import { CustomerHome } from '../screens/CustomerHome';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
@@ -108,9 +109,9 @@ export function CustomerNavigator({
       requestAuth: (mode?: 'login' | 'register') => onRequestAuth?.(mode),
       openSettings: (screen: CustomerSettingsScreen) => {
         setDrawerOpenRef.current(false);
-        if (screen === 'DriverProfile') return;
+        if (screen === 'DriverProfile' || screen === 'DriverStats') return;
         stackNavRef.current?.navigate(
-          screen as Exclude<CustomerSettingsScreen, 'DriverProfile'>,
+          screen as Exclude<CustomerSettingsScreen, 'DriverProfile' | 'DriverStats'>,
         );
       },
       goToReceive: (parcelId?: string) => {
@@ -187,6 +188,7 @@ function CustomerTabs() {
   const navigation = useNavigation<NativeStackNavigationProp<CustomerStackParamList>>();
   const stackNavRef = useContext(StackNavRefContext);
   stackNavRef.current = navigation;
+  useCustomerNotificationDeepLinks(navigation);
 
   return (
     <View style={styles.fill}>
@@ -194,6 +196,23 @@ function CustomerTabs() {
       <DrawerHost />
     </View>
   );
+}
+
+function useCustomerNotificationDeepLinks(
+  navigation: NativeStackNavigationProp<CustomerStackParamList>,
+) {
+  const routing = useNotificationRoutingOptional();
+  useEffect(() => {
+    if (!routing?.pendingRoute) return;
+    const route = routing.consumePendingRoute();
+    if (!route) return;
+    const parcelId = route.parcelId ?? (route.entityType === 'parcel' ? route.entityId : null);
+    if (!parcelId) return;
+    navigation.navigate('Tabs', {
+      screen: 'Receive',
+      params: { parcelId, focusNonce: Date.now() },
+    });
+  }, [routing?.pendingRoute, routing, navigation]);
 }
 
 function DrawerHost() {

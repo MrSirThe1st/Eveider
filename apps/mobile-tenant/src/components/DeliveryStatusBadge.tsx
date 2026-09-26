@@ -14,7 +14,11 @@ export function DeliveryStatusBadge({ status, kind }: DeliveryStatusBadgeProps) 
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const step = getDriverDeliveryStep({ status, kind });
-  const active = status === 'scanned' || status === 'drop_off_pending';
+  const active =
+    status === 'accepted' ||
+    status === 'started' ||
+    status === 'scanned' ||
+    status === 'drop_off_pending';
   const done = status === 'completed';
   const failed = status === 'failed';
 

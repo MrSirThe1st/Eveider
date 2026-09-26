@@ -62,6 +62,8 @@
 
   /* Empty inset so the support bubble does not cover last rows, menus, or toasts. */
   --support-widget-clearance: max(96px, calc(76px + env(safe-area-inset-bottom, 0px)));
+  /* Always keep page-end breathing room; widget clearance may be larger when Tawk is on. */
+  --page-end-padding: var(--space-8);
   /* Settings pane fills the workspace; widget clearance is scroll padding inside the pane, not a dead band. */
   --settings-workspace-height: calc(100dvh - 56px - 24px);
 
@@ -1609,8 +1611,8 @@ button:focus-visible,
 .settings-layout-shell__content {
   flex: 1;
   min-width: 0;
-  padding-bottom: var(--support-widget-clearance);
-  scroll-padding-bottom: var(--support-widget-clearance);
+  padding-bottom: max(var(--page-end-padding), var(--support-widget-clearance));
+  scroll-padding-bottom: max(var(--page-end-padding), var(--support-widget-clearance));
 }
 
 @media (min-width: 901px) {
@@ -1670,8 +1672,8 @@ button:focus-visible,
 
 .portal-content {
   width: 100%;
-  padding-bottom: var(--support-widget-clearance) !important;
-  scroll-padding-bottom: var(--support-widget-clearance);
+  padding-bottom: max(var(--page-end-padding), var(--support-widget-clearance)) !important;
+  scroll-padding-bottom: max(var(--page-end-padding), var(--support-widget-clearance));
 }
 
 html {

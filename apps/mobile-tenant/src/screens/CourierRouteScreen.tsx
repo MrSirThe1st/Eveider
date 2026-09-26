@@ -1,60 +1,48 @@
 import { borders, type ColorTokens } from '@eveider/config-ui';
 import { orderLockerStops } from '@eveider/domain';
-import { Feather } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import type { RouteProp } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { ActionRow } from '../components/ActionRow';
-import { AppSpinner } from '../components/AppSpinner';
-import { EmptyState } from '../components/EmptyState';
 import { ResolveDestinationModal } from '../components/AddressPlacesField';
+import { AppSpinner } from '../components/AppSpinner';
+import { DriverEmptyState } from '../components/DriverEmptyState';
+import { DriverSecondaryAction } from '../components/DriverSecondaryAction';
+import { DriverSummaryCard } from '../components/DriverSummaryCard';
 import {
   LockerMapView,
   getCurrentCoordinates,
   openDirections,
+  openMultiStopDirections,
   openStopDirections,
 } from '../components/LockerMapView';
 import { PrimaryButton } from '../components/PrimaryButton';
+import { RouteStopRow } from '../components/RouteStopRow';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { fetchCourierDeliveries, type CourierDelivery } from '../lib/api';
 import {
-  getDriverCurrentStop,
-  getDriverMovementLabel,
-  getDriverTrackingLabel,
+  buildDriverRouteLegs,
   isActiveDriverDelivery,
+  summarizeDriverRoute,
   translateDriverError,
+  type DriverRouteLeg,
 } from '../lib/driver-presentation';
 import { openDispatcherWhatsApp } from '../lib/support';
 import type { CourierStackParamList } from '../navigation/courier-params';
 import { useColors } from '../theme';
-
-type RouteStop = {
-  id: string;
-  name: string;
-  address: string;
-  latitude: number | null;
-  longitude: number | null;
-  kindLabel: string;
-  tracking: string;
-};
 
 export function CourierRouteScreen() {
   const { t } = useTranslation();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<NativeStackNavigationProp<CourierStackParamList>>();
-  const route = useRoute<RouteProp<CourierStackParamList, 'Route'>>();
-  const focusDeliveryId = route.params?.deliveryId;
   const [deliveries, setDeliveries] = useState<CourierDelivery[]>([]);
   const [origin, setOrigin] = useState<{ latitude: number; longitude: number } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -82,8 +70,9 @@ export function CourierRouteScreen() {
   }, [load]);
 
   const active = deliveries.filter(isActiveDriverDelivery);
-  const focused = active.find((item) => item.id === focusDeliveryId) ?? active[0] ?? null;
-  const stops = buildJobStops(active, origin);
+  const stops = orderRouteLegs(buildDriverRouteLegs(active), origin);
+  const summary = summarizeDriverRoute(stops);
+  const nextStop = stops[0] ?? null;
   const mapLockers = stops
     .filter((stop) => stop.latitude != null && stop.longitude != null)
     .map((stop) => ({
@@ -94,6 +83,33 @@ export function CourierRouteScreen() {
       longitude: stop.longitude!,
       availableCompartments: 1,
     }));
+
+  function startFullRoute() {
+    const located = stops.filter(
+      (stop): stop is DriverRouteLeg & { latitude: number; longitude: number } =>
+        stop.latitude != null && stop.longitude != null,
+    );
+    if (located.length === 0) {
+      const first = stops[0];
+      if (first) {
+        openStopDirections({
+          latitude: first.latitude,
+          longitude: first.longitude,
+          name: first.name,
+          address: first.address,
+          onNeedResolve: setResolveQuery,
+        });
+      }
+      return;
+    }
+    openMultiStopDirections(
+      located.map((stop) => ({
+        latitude: stop.latitude,
+        longitude: stop.longitude,
+        name: stop.name,
+      })),
+    );
+  }
 
   return (
     <View style={styles.screen}>
@@ -125,67 +141,86 @@ export function CourierRouteScreen() {
             />
           }
         >
-          {focused ? (
-            <View style={styles.focus}>
-              <Text style={styles.focusKicker}>{getDriverMovementLabel(focused)}</Text>
-              <Text style={styles.focusTitle}>{getDriverCurrentStop(focused).name}</Text>
-              <Text style={styles.focusMeta}>{getDriverTrackingLabel(focused)}</Text>
-            </View>
+          {stops.length > 0 ? (
+            <DriverSummaryCard
+              variant="route"
+              title={t('tabs.route')}
+              subtitle={t('courier.routeSummary', {
+                stops: summary.stopCount,
+                parcels: summary.parcelCount,
+              })}
+            />
           ) : null}
 
-          <ActionRow
-            icon="message-circle"
-            label={t('courier.contactDispatch')}
-            onPress={() => openDispatcherWhatsApp()}
-            last
-          />
+          {nextStop ? (
+            <View style={styles.nextBlock}>
+              <Text style={styles.nextKicker}>{t('courier.nextStop')}</Text>
+              <Text style={styles.nextTitle} numberOfLines={2}>
+                {nextStop.kindLabel}
+                <Text style={styles.nextSep}> · </Text>
+                {nextStop.name}
+              </Text>
+              <Text style={styles.nextAction}>{nextStop.actionLabel}</Text>
+              {nextStop.address ? (
+                <Text style={styles.nextAddress} numberOfLines={2}>
+                  {nextStop.address}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
 
           {mapLockers.length > 0 ? (
             <View style={styles.mapWrap}>
               <LockerMapView
                 lockers={mapLockers}
-                height={220}
-                highlightLockerId={focused?.parcel.locker?.id}
+                height={240}
+                highlightLockerId={nextStop?.id}
               />
             </View>
           ) : null}
 
           {stops.length === 0 ? (
-            <EmptyState title={t('courier.emptyTitle')} message={t('courier.emptyMessage')} />
+            <DriverEmptyState
+              title={t('courier.emptyTitle')}
+              message={t('courier.emptyMessage')}
+              actionLabel={t('courier.contactDispatch')}
+              onAction={() => openDispatcherWhatsApp()}
+            />
           ) : (
             <View style={styles.stops}>
-              <Text style={styles.section}>{t('courier.viewRoute')}</Text>
               {stops.map((stop, index) => (
-                <View key={stop.id} style={styles.stopRow}>
-                  <View style={styles.stopIndex}>
-                    <Text style={styles.stopIndexText}>{index + 1}</Text>
-                  </View>
-                  <View style={styles.stopBody}>
-                    <Text style={styles.stopKind}>{stop.kindLabel}</Text>
-                    <Text style={styles.stopName}>{stop.name}</Text>
-                    <Text style={styles.stopMeta}>
-                      {stop.tracking}
-                      {stop.address ? ` · ${stop.address}` : ''}
-                    </Text>
-                  </View>
-                  <Pressable
-                    onPress={() => {
-                      openStopDirections({
-                        latitude: stop.latitude,
-                        longitude: stop.longitude,
-                        name: stop.name,
-                        address: stop.address,
-                        onNeedResolve: setResolveQuery,
-                      });
-                    }}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('courier.openMaps')}
-                  >
-                    <Feather name="navigation" size={18} color={colors.primary} />
-                  </Pressable>
-                </View>
+                <RouteStopRow
+                  key={stop.id}
+                  index={index + 1}
+                  kindLabel={stop.kindLabel}
+                  name={stop.name}
+                  actionLabel={stop.actionLabel}
+                  address={stop.address}
+                  dueAt={stop.dueAt}
+                  highlight={index === 0}
+                  navigateLabel={t('courier.openMaps')}
+                  onNavigate={() => {
+                    openStopDirections({
+                      latitude: stop.latitude,
+                      longitude: stop.longitude,
+                      name: stop.name,
+                      address: stop.address,
+                      onNeedResolve: setResolveQuery,
+                    });
+                  }}
+                />
               ))}
+
+              <PrimaryButton
+                label={t('courier.startRoute')}
+                onPress={startFullRoute}
+                variant="brand"
+              />
+
+              <DriverSecondaryAction
+                label={t('courier.contactDispatch')}
+                onPress={() => openDispatcherWhatsApp()}
+              />
             </View>
           )}
         </ScrollView>
@@ -202,33 +237,39 @@ export function CourierRouteScreen() {
   );
 }
 
-function buildJobStops(
-  items: CourierDelivery[],
+function orderRouteLegs(
+  legs: DriverRouteLeg[],
   origin: { latitude: number; longitude: number } | null,
-): RouteStop[] {
-  const stops: RouteStop[] = items.map((item) => {
-    const current = getDriverCurrentStop(item);
-    return {
-      id: item.id,
-      name: current.name,
-      address: current.address ?? '',
-      latitude: current.latitude,
-      longitude: current.longitude,
-      kindLabel: getDriverMovementLabel(item),
-      tracking: getDriverTrackingLabel(item),
-    };
-  });
+): DriverRouteLeg[] {
+  const collects = legs.filter((leg) => leg.kind === 'collect');
+  const deposits = legs.filter((leg) => leg.kind === 'deposit');
 
-  const withCoords = stops.filter((stop) => stop.latitude != null && stop.longitude != null);
-  const withoutCoords = stops.filter((stop) => stop.latitude == null || stop.longitude == null);
-  if (!origin || withCoords.length === 0) return [...withCoords, ...withoutCoords];
+  function orderGroup(
+    group: DriverRouteLeg[],
+    from: { latitude: number; longitude: number } | null,
+  ) {
+    const withCoords = group.filter((stop) => stop.latitude != null && stop.longitude != null);
+    const withoutCoords = group.filter((stop) => stop.latitude == null || stop.longitude == null);
+    if (!from || withCoords.length === 0) return [...withCoords, ...withoutCoords];
+    const ranked = orderLockerStops(from, withCoords);
+    const byId = new Map(withCoords.map((stop) => [stop.id, stop]));
+    return [
+      ...ranked
+        .map((stop) => byId.get(stop.id))
+        .filter((stop): stop is DriverRouteLeg => Boolean(stop)),
+      ...withoutCoords,
+    ];
+  }
 
-  const ranked = orderLockerStops(origin, withCoords);
-  const byId = new Map(withCoords.map((stop) => [stop.id, stop]));
-  return [
-    ...ranked.map((stop) => byId.get(stop.id)).filter((stop): stop is RouteStop => Boolean(stop)),
-    ...withoutCoords,
-  ];
+  const orderedCollects = orderGroup(collects, origin);
+  const lastCollect = [...orderedCollects]
+    .reverse()
+    .find((stop) => stop.latitude != null && stop.longitude != null);
+  const depositOrigin =
+    lastCollect && lastCollect.latitude != null && lastCollect.longitude != null
+      ? { latitude: lastCollect.latitude, longitude: lastCollect.longitude }
+      : origin;
+  return [...orderedCollects, ...orderGroup(deposits, depositOrigin)];
 }
 
 function createStyles(colors: ColorTokens) {
@@ -241,7 +282,7 @@ function createStyles(colors: ColorTokens) {
       paddingHorizontal: 20,
       paddingTop: 16,
       paddingBottom: 40,
-      gap: 8,
+      gap: 10,
     },
     body: {
       padding: 20,
@@ -251,90 +292,49 @@ function createStyles(colors: ColorTokens) {
       color: colors.danger,
       fontWeight: '500',
     },
-    focus: {
+    nextBlock: {
       borderWidth: borders.width,
-      borderColor: colors.primary,
+      borderColor: colors.border,
       backgroundColor: colors.surface,
       padding: 14,
-      marginBottom: 8,
     },
-    focusKicker: {
+    nextKicker: {
       fontSize: 11,
-      fontWeight: '800',
-      letterSpacing: 0.6,
+      fontWeight: '700',
+      letterSpacing: 0.5,
       color: colors.primary,
+      textTransform: 'uppercase',
     },
-    focusTitle: {
+    nextTitle: {
       marginTop: 6,
-      fontSize: 18,
+      fontSize: 17,
       fontWeight: '700',
       color: colors.secondary,
     },
-    focusMeta: {
+    nextSep: {
+      fontWeight: '500',
+      color: colors.textMuted,
+    },
+    nextAction: {
+      marginTop: 6,
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    nextAddress: {
       marginTop: 4,
       fontSize: 13,
       color: colors.textMuted,
+      lineHeight: 18,
     },
     mapWrap: {
-      marginTop: 8,
-      marginBottom: 8,
       borderWidth: borders.width,
       borderColor: colors.border,
       overflow: 'hidden',
     },
-    section: {
-      marginTop: 8,
-      marginBottom: 10,
-      fontSize: 13,
-      fontWeight: '600',
-      color: colors.secondary,
-    },
     stops: {
       marginTop: 4,
-    },
-    stopRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      borderWidth: borders.width,
-      borderColor: colors.border,
-      backgroundColor: colors.surface,
-      paddingVertical: 14,
-      paddingHorizontal: 14,
-      marginBottom: 8,
-    },
-    stopIndex: {
-      width: 28,
-      height: 28,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.primary,
-    },
-    stopIndexText: {
-      fontSize: 13,
-      fontWeight: '700',
-      color: colors.onPrimary,
-    },
-    stopBody: {
-      flex: 1,
-    },
-    stopKind: {
-      fontSize: 11,
-      fontWeight: '700',
-      letterSpacing: 0.4,
-      color: colors.primary,
-      textTransform: 'uppercase',
-    },
-    stopName: {
-      fontSize: 15,
-      fontWeight: '600',
-      color: colors.secondary,
-    },
-    stopMeta: {
-      marginTop: 3,
-      fontSize: 13,
-      fontWeight: '400',
-      color: colors.textMuted,
+      gap: 10,
     },
   });
 }

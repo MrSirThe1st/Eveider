@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -13,6 +12,7 @@ import {
 } from 'react-native';
 import { searchMapPlaces, type MapPlaceResult } from '../lib/api';
 import { useColors } from '../theme';
+import { BottomSheet } from './BottomSheet';
 
 export type AddressPlacesFieldProps = {
   value: string;
@@ -154,8 +154,6 @@ export function ResolveDestinationModal({
   onResolved,
 }: ResolveDestinationModalProps) {
   const { t } = useTranslation();
-  const colors = useColors();
-  const styles = useMemo(() => createStyles(colors), [colors]);
   const [query, setQuery] = useState(initialQuery);
 
   useEffect(() => {
@@ -163,29 +161,18 @@ export function ResolveDestinationModal({
   }, [open, initialQuery]);
 
   return (
-    <Modal visible={open} animationType="slide" transparent onRequestClose={onClose}>
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{t('maps.resolveTitle')}</Text>
-            <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button">
-              <Feather name="x" size={22} color={colors.secondary} />
-            </Pressable>
-          </View>
-          <Text style={styles.modalHint}>{t('maps.resolveHint')}</Text>
-          <AddressPlacesField
-            value={query}
-            onChangeText={setQuery}
-            onSelectPlace={(place) => {
-              onResolved(place);
-              onClose();
-            }}
-            active={open}
-            autoFocus
-          />
-        </Pressable>
-      </Pressable>
-    </Modal>
+    <BottomSheet open={open} onClose={onClose} title={t('maps.resolveTitle')} hint={t('maps.resolveHint')}>
+      <AddressPlacesField
+        value={query}
+        onChangeText={setQuery}
+        onSelectPlace={(place) => {
+          onResolved(place);
+          onClose();
+        }}
+        active={open}
+        autoFocus
+      />
+    </BottomSheet>
   );
 }
 
@@ -250,37 +237,6 @@ function createStyles(colors: ColorTokens) {
       fontSize: 11,
       fontWeight: '600',
       color: colors.textMuted,
-    },
-    modalBackdrop: {
-      flex: 1,
-      justifyContent: 'flex-end',
-      backgroundColor: 'rgba(0,0,0,0.4)',
-    },
-    modalSheet: {
-      backgroundColor: colors.background,
-      borderTopLeftRadius: radius.lg,
-      borderTopRightRadius: radius.lg,
-      paddingHorizontal: 20,
-      paddingTop: 16,
-      paddingBottom: 32,
-      minHeight: 280,
-    },
-    modalHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 8,
-    },
-    modalTitle: {
-      fontSize: 17,
-      fontWeight: '700',
-      color: colors.secondary,
-    },
-    modalHint: {
-      marginBottom: 12,
-      fontSize: 13,
-      color: colors.textMuted,
-      lineHeight: 18,
     },
   });
 }

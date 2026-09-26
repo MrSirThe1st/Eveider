@@ -41,31 +41,35 @@ export function AboutSettingsScreen({ onBack }: AboutSettingsScreenProps) {
   return (
     <ScreenScaffold title={t('profile.about')} onBack={onBack}>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <View style={styles.card}>
-          <Text style={styles.intro}>{t('placeholders.aboutIntro')}</Text>
-          <Text style={styles.bullet}>• {t('placeholders.aboutVersion')}</Text>
+        <Text style={styles.intro}>{t('placeholders.aboutIntro')}</Text>
 
-          <Text style={styles.heading}>{t('placeholders.aboutCitiesHeading')}</Text>
-          {loading ? <AppSpinner size="sm" fill={false} /> : null}
-          {!loading && error ? (
-            <View style={styles.feedback}>
-              <Text style={styles.error}>{error}</Text>
-              <PrimaryButton label={t('common.retry')} onPress={() => void loadCities()} />
-            </View>
-          ) : null}
-          {!loading && !error && cities?.length === 0 ? (
-            <Text style={styles.bullet}>{t('placeholders.aboutCitiesEmpty')}</Text>
-          ) : null}
-          {!loading && !error && cities && cities.length > 0
-            ? cities.map((name) => (
-                <Text key={name} style={styles.bullet}>
-                  • {name}
-                </Text>
-              ))
-            : null}
-
-          <Text style={styles.bullet}>• {t('placeholders.aboutCopyright')}</Text>
+        <View style={styles.row}>
+          <Text style={styles.rowLabel}>{t('placeholders.aboutVersion')}</Text>
         </View>
+
+        <Text style={styles.sectionTitle}>{t('placeholders.aboutCitiesHeading')}</Text>
+        {loading ? <AppSpinner size="sm" fill={false} /> : null}
+        {!loading && error ? (
+          <View style={styles.feedback}>
+            <Text style={styles.error}>{error}</Text>
+            <PrimaryButton label={t('common.retry')} onPress={() => void loadCities()} />
+          </View>
+        ) : null}
+        {!loading && !error && cities?.length === 0 ? (
+          <Text style={styles.muted}>{t('placeholders.aboutCitiesEmpty')}</Text>
+        ) : null}
+        {!loading && !error && cities && cities.length > 0
+          ? cities.map((name, index) => (
+              <View
+                key={name}
+                style={[styles.row, index === cities.length - 1 && styles.rowLast]}
+              >
+                <Text style={styles.rowLabel}>{name}</Text>
+              </View>
+            ))
+          : null}
+
+        <Text style={styles.footer}>{t('placeholders.aboutCopyright')}</Text>
       </ScrollView>
     </ScreenScaffold>
   );
@@ -78,34 +82,46 @@ function createStyles(colors: ColorTokens) {
       backgroundColor: colors.background,
     },
     content: {
-      padding: 20,
-      paddingTop: 0,
+      paddingHorizontal: 20,
+      paddingTop: 8,
       paddingBottom: 40,
     },
-    card: {
-      gap: 12,
-    },
     intro: {
+      marginBottom: 16,
       fontSize: 14,
+      fontWeight: '400',
+      color: colors.textMuted,
+      lineHeight: 21,
+    },
+    sectionTitle: {
+      marginTop: 20,
+      marginBottom: 4,
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textMuted,
+    },
+    row: {
+      paddingVertical: 14,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    rowLast: {
+      borderBottomWidth: 0,
+    },
+    rowLabel: {
+      fontSize: 16,
       fontWeight: '500',
       color: colors.secondary,
-      lineHeight: 22,
     },
-    heading: {
-      marginTop: 4,
-      fontSize: 13,
-      fontWeight: '700',
-      color: colors.secondary,
-      lineHeight: 20,
-    },
-    bullet: {
-      fontSize: 13,
-      fontWeight: '500',
-      color: colors.secondary,
-      opacity: 0.85,
+    muted: {
+      marginTop: 8,
+      fontSize: 14,
+      fontWeight: '400',
+      color: colors.textMuted,
       lineHeight: 20,
     },
     feedback: {
+      marginTop: 8,
       gap: 12,
     },
     error: {
@@ -113,6 +129,14 @@ function createStyles(colors: ColorTokens) {
       fontWeight: '500',
       color: colors.danger,
       lineHeight: 20,
+    },
+    footer: {
+      marginTop: 28,
+      fontSize: 12,
+      fontWeight: '400',
+      color: colors.textMuted,
+      lineHeight: 18,
+      opacity: 0.85,
     },
   });
 }

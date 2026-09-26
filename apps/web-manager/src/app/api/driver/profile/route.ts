@@ -1,9 +1,10 @@
-import { fail, ok } from '@eveider/api-contracts';
+import { fail, ok, updateDriverProfileSchema } from '@eveider/api-contracts';
 import { createRepositories } from '@eveider/data-access';
 import {
   DRIVER_DOSSIER_STATUS_LABELS,
   DRIVER_OPERATIONAL_STATUS_LABELS,
   deriveDriverOperationalStatus,
+  isActiveDeliveryStatus,
   type DriverDossierStatus,
   type DriverOperationalStatus,
 } from '@eveider/domain';
@@ -48,7 +49,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const { courierDossiers, memberships, deliveries } = createRepositories();
+    const { courierDossiers, memberships, deliveries, platformSettings } = createRepositories();
     const profile = auth.session.profile;
     const dossier = await courierDossiers.findByUserId(profile.id);
 
@@ -58,17 +59,16 @@ export async function GET(request: Request) {
       );
     }
 
-    const [orgRows, courierDeliveries] = await Promise.all([
+    const [orgRows, courierDeliveries, settings] = await Promise.all([
       memberships.listByUserIdWithOrgFlags(profile.id),
       deliveries.listForCourier(auth.session.ctx),
+      platformSettings.getSettings(),
     ]);
 
     const driverMembership =
       orgRows.find((row) => row.role === 'driver') ?? orgRows[0] ?? null;
     const hasActiveDelivery = courierDeliveries.some((item) =>
-      item.status === 'assigned' ||
-      item.status === 'scanned' ||
-      item.status === 'drop_off_pending',
+      isActiveDeliveryStatus(item.status),
     );
 
     const operationalStatus: DriverOperationalStatus = deriveDriverOperationalStatus({
@@ -102,6 +102,15 @@ export async function GET(request: Request) {
               }
             : null,
           contractorType: dossier.contractorType,
+          isAcceptingWork: dossier.isAcceptingWork,
+          selfAssignmentEnabled: Boolean(settings.driverSelfAssignmentEnabled),
+          profilePhotoUrl: dossier.profilePhotoRef ? '/api/driver/profile/photo' : null,
+          vehicle: {
+            type: dossier.vehicleType,
+            makeModel: dossier.vehicleMakeModel,
+            plate: dossier.vehiclePlate,
+            color: dossier.vehicleColor,
+          },
           documents: [
             {
               key: 'identity',
@@ -114,5 +123,45 @@ export async function GET(request: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Erreur serveur';
     return withMobileCors(NextResponse.json(fail(message), { status: 500 }));
+  }
+}
+
+export async function PATCH(request: Request) {
+  const auth = await requireCourierSession(request);
+  if ('error' in auth) {
+    return withMobileCors(
+      NextResponse.json(fail(auth.error ?? 'Accès refusé'), { status: auth.status }),
+    );
+  }
+
+  const body = updateDriverProfileSchema.safeParse(await request.json().catch(() => null));
+  if (!body.success) {
+    return withMobileCors(
+      NextResponse.json(fail(body.error.errors[0]?.message ?? 'Données invalides'), {
+        status: 400,
+      }),
+    );
+  }
+
+  try {
+    const { courierDossiers } = createRepositories();
+    const dossier = await courierDossiers.updateVehicleProfile(auth.session.ctx, body.data);
+
+    return withMobileCors(
+      NextResponse.json(
+        ok({
+          vehicle: {
+            type: dossier.vehicleType,
+            makeModel: dossier.vehicleMakeModel,
+            plate: dossier.vehiclePlate,
+            color: dossier.vehicleColor,
+          },
+        }),
+      ),
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Erreur serveur';
+    const status = message.includes('introuvable') ? 404 : 500;
+    return withMobileCors(NextResponse.json(fail(message), { status }));
   }
 }

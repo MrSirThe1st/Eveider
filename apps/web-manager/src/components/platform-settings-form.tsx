@@ -11,6 +11,8 @@ const inputStyle = { ...webInputStyle, width: '100%', height: 44, padding: '0 0.
 
 type PlatformSettingsFormProps = {
   initialSettings: PlatformSettingsDto;
+  /** full = plateforme page; operations = dedicated ops toggle page */
+  mode?: 'full' | 'operations';
 };
 
 function settingsPayload(settings: PlatformSettingsDto) {
@@ -25,10 +27,14 @@ function settingsPayload(settings: PlatformSettingsDto) {
     defaultEnabledFeatures: settings.defaultEnabledFeatures,
     supportPhone: settings.supportPhone ?? '',
     dispatcherWhatsapp: settings.dispatcherWhatsapp ?? '',
+    driverSelfAssignmentEnabled: settings.driverSelfAssignmentEnabled,
   };
 }
 
-export function PlatformSettingsForm({ initialSettings }: PlatformSettingsFormProps) {
+export function PlatformSettingsForm({
+  initialSettings,
+  mode = 'full',
+}: PlatformSettingsFormProps) {
   const router = useRouter();
   const toast = useToast();
   const [settings, setSettings] = useState(initialSettings);
@@ -79,59 +85,107 @@ export function PlatformSettingsForm({ initialSettings }: PlatformSettingsFormPr
     });
   }
 
+  const operationsSection = (
+    <section id="operations" style={{ ...webCardStyle, padding: '1.5rem' }}>
+      <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.875rem', fontWeight: 700 }}>
+        Opérations / Attribution des livraisons
+      </h3>
+      <p style={{ margin: '0 0 1.25rem', fontSize: '0.8125rem', color: colors.textMuted }}>
+        Quand cette option est activée, les chauffeurs Eveider disponibles peuvent s’attribuer
+        eux-mêmes des collectes non assignées depuis l’application.
+      </p>
+      <label
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '0.75rem',
+          maxWidth: 480,
+          cursor: saving ? 'default' : 'pointer',
+        }}
+      >
+        <input
+          type="checkbox"
+          name="driverSelfAssignmentEnabled"
+          checked={settings.driverSelfAssignmentEnabled}
+          disabled={saving}
+          onChange={(e) =>
+            setSettings({ ...settings, driverSelfAssignmentEnabled: e.target.checked })
+          }
+          style={{ marginTop: 3, width: 16, height: 16 }}
+        />
+        <span>
+          <span style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600 }}>
+            Autoriser l&apos;auto-attribution
+          </span>
+          <span style={{ display: 'block', marginTop: 4, fontSize: '0.75rem', color: colors.textMuted }}>
+            Les chauffeurs doivent aussi être en statut « Disponible » dans l’app.
+          </span>
+        </span>
+      </label>
+    </section>
+  );
+
   return (
     <form onSubmit={(event) => void handleSubmit(event)} style={{ display: 'grid', gap: '1.5rem' }}>
-      <section style={{ ...webCardStyle, padding: '1.5rem' }}>
-        <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.875rem', fontWeight: 700 }}>
-          Devise de la plateforme
-        </h3>
-        <p style={{ margin: '0 0 1.25rem', fontSize: '0.8125rem', color: colors.textMuted }}>
-          Tous les nouveaux tarifs et toutes les nouvelles facturations utilisent cette devise.
-          Les montants déjà facturés ne changent pas. Le choix est enregistré immédiatement.
-        </p>
-        <label style={{ display: 'grid', gap: 8, maxWidth: 320 }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Devise</span>
-          <select
-            value={settings.platformCurrency}
-            disabled={saving}
-            onChange={(e) => handleCurrencyChange(e.target.value as 'USD' | 'CDF')}
-            style={inputStyle}
-          >
-            <option value="CDF">CDF (franc congolais)</option>
-            <option value="USD">USD (dollar)</option>
-          </select>
-        </label>
-      </section>
+      {mode === 'operations' ? (
+        operationsSection
+      ) : (
+        <>
+          <section style={{ ...webCardStyle, padding: '1.5rem' }}>
+            <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.875rem', fontWeight: 700 }}>
+              Devise de la plateforme
+            </h3>
+            <p style={{ margin: '0 0 1.25rem', fontSize: '0.8125rem', color: colors.textMuted }}>
+              Tous les nouveaux tarifs et toutes les nouvelles facturations utilisent cette devise.
+              Les montants déjà facturés ne changent pas. Le choix est enregistré immédiatement.
+            </p>
+            <label style={{ display: 'grid', gap: 8, maxWidth: 320 }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Devise</span>
+              <select
+                value={settings.platformCurrency}
+                disabled={saving}
+                onChange={(e) => handleCurrencyChange(e.target.value as 'USD' | 'CDF')}
+                style={inputStyle}
+              >
+                <option value="CDF">CDF (franc congolais)</option>
+                <option value="USD">USD (dollar)</option>
+              </select>
+            </label>
+          </section>
 
-      <section style={{ ...webCardStyle, padding: '1.5rem' }}>
-        <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.875rem', fontWeight: 700 }}>
-          Contact
-        </h3>
-        <p style={{ margin: '0 0 1.25rem', fontSize: '0.8125rem', color: colors.textMuted }}>
-          Numéros affichés dans l’app pour joindre Eveider.
-        </p>
-        <div
-          style={{
-            display: 'grid',
-            gap: '1rem',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            maxWidth: 560,
-          }}
-        >
-          <PhoneField
-            label="Téléphone d’aide"
-            name="supportPhone"
-            value={settings.supportPhone ?? ''}
-            onChange={(supportPhone) => setSettings({ ...settings, supportPhone })}
-          />
-          <PhoneField
-            label="WhatsApp des tournées"
-            name="dispatcherWhatsapp"
-            value={settings.dispatcherWhatsapp ?? ''}
-            onChange={(dispatcherWhatsapp) => setSettings({ ...settings, dispatcherWhatsapp })}
-          />
-        </div>
-      </section>
+          <section style={{ ...webCardStyle, padding: '1.5rem' }}>
+            <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.875rem', fontWeight: 700 }}>
+              Contact
+            </h3>
+            <p style={{ margin: '0 0 1.25rem', fontSize: '0.8125rem', color: colors.textMuted }}>
+              Numéros affichés dans l’app pour joindre Eveider.
+            </p>
+            <div
+              style={{
+                display: 'grid',
+                gap: '1rem',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                maxWidth: 560,
+              }}
+            >
+              <PhoneField
+                label="Téléphone d’aide"
+                name="supportPhone"
+                value={settings.supportPhone ?? ''}
+                onChange={(supportPhone) => setSettings({ ...settings, supportPhone })}
+              />
+              <PhoneField
+                label="WhatsApp des tournées"
+                name="dispatcherWhatsapp"
+                value={settings.dispatcherWhatsapp ?? ''}
+                onChange={(dispatcherWhatsapp) => setSettings({ ...settings, dispatcherWhatsapp })}
+              />
+            </div>
+          </section>
+
+          {operationsSection}
+        </>
+      )}
 
       {error ? <InlineAlert message={error} variant="error" /> : null}
 

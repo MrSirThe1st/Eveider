@@ -10,7 +10,7 @@ import {
 
 function driverKindLabel(kind: DeliveryKind): string {
   if (kind === 'customer_return') return 'Retour client';
-  if (kind === 'return') return 'Retour non retiré (historique)';
+  if (kind === 'return') return 'Retour non retiré';
   return 'Aller';
 }
 
@@ -25,6 +25,8 @@ export type CourierDeliveryDto = {
   createdAt: string;
   updatedAt: string;
   hasDropOffPhoto: boolean;
+  dueAt: string | null;
+  driverInstructions: string | null;
   parcel: {
     id: string;
     trackingNumber: string;
@@ -77,6 +79,8 @@ export function toCourierDeliveryDto(delivery: {
     senderLat?: number | null;
     senderLng?: number | null;
     senderInstructions?: string | null;
+    driverInstructions?: string | null;
+    dueAt?: Date | null;
     packageSize?: PackageSize | null;
     business: { name: string };
     locker: {
@@ -101,6 +105,8 @@ export function toCourierDeliveryDto(delivery: {
     createdAt: delivery.createdAt.toISOString(),
     updatedAt: delivery.updatedAt.toISOString(),
     hasDropOffPhoto: delivery.hasDropOffPhoto,
+    dueAt: delivery.parcel.dueAt?.toISOString() ?? null,
+    driverInstructions: delivery.parcel.driverInstructions?.trim() || null,
     parcel: {
       id: delivery.parcel.id,
       trackingNumber: delivery.parcel.trackingNumber,

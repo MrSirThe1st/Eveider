@@ -53,15 +53,15 @@ describe('toCourierDeliveryDto', () => {
     expect(dto.parcel.senderInstructions).toBe('Entrée arrière, portail bleu');
     expect(dto.parcel.packageSize).toBe('medium');
     expect(dto.kindLabel).toBe('Aller');
+    expect(dto.dueAt).toBeNull();
+    expect(dto.driverInstructions).toBeNull();
   });
 
   it('labels customer_return as Retour client', () => {
     expect(toCourierDeliveryDto(delivery('customer_return')).kindLabel).toBe('Retour client');
   });
 
-  it('labels historical RTS distinctly from customer return', () => {
-    expect(toCourierDeliveryDto(delivery('return')).kindLabel).toBe(
-      'Retour non retiré (historique)',
-    );
+  it('labels legacy RTS distinctly from customer return', () => {
+    expect(toCourierDeliveryDto(delivery('return')).kindLabel).toBe('Retour non retiré');
   });
 });

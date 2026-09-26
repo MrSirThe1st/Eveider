@@ -1,7 +1,7 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 
 export type CourierTabParamList = {
-  Home: undefined;
+  Home: { deliveryId?: string; focusNonce?: number } | undefined;
   History: undefined;
 };
 
@@ -14,6 +14,7 @@ export type CourierStackParamList = {
   EditPersonalInfo: undefined;
   ChangePassword: undefined;
   DriverProfile: undefined;
+  DriverStats: undefined;
   Language: undefined;
   Country: undefined;
   Appearance: undefined;

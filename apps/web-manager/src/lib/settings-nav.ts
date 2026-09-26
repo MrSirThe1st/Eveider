@@ -46,6 +46,7 @@ export const ADMIN_SETTINGS_ROUTES = {
   notifications: `${ADMIN_BASE}/mon-compte/notifications`,
   preferences: `${ADMIN_BASE}/mon-compte/preferences`,
   platform: `${ADMIN_BASE}/plateforme`,
+  operations: `${ADMIN_BASE}/operations`,
   admins: `${ADMIN_BASE}/administrateurs`,
   roles: `${ADMIN_BASE}/roles`,
   teams: `${ADMIN_BASE}/equipes`,
@@ -93,7 +94,6 @@ const ORGANIZATION_SETTINGS_NAV_ALL: SettingsNavGroup[] = [
         label: 'Notifications',
         href: ORG_SETTINGS_ROUTES.notifications,
         description: 'Comment on vous prévient',
-        comingSoon: true,
       },
     ],
   },
@@ -186,7 +186,6 @@ const ADMIN_SETTINGS_NAV_ALL: SettingsNavGroup[] = [
         label: 'Notifications',
         href: ADMIN_SETTINGS_ROUTES.notifications,
         description: 'Comment on vous prévient',
-        comingSoon: true,
       },
       {
         id: 'preferences',
@@ -205,6 +204,12 @@ const ADMIN_SETTINGS_NAV_ALL: SettingsNavGroup[] = [
         label: 'Règles générales',
         href: ADMIN_SETTINGS_ROUTES.platform,
         description: 'Devise plateforme et contacts Eveider',
+      },
+      {
+        id: 'operations',
+        label: 'Opérations',
+        href: ADMIN_SETTINGS_ROUTES.operations,
+        description: 'Auto-attribution des livraisons par les chauffeurs',
       },
       {
         id: 'facturation',

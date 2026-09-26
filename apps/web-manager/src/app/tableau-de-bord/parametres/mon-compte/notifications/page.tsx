@@ -1,6 +1,17 @@
-import { redirect } from 'next/navigation';
-import { ADMIN_SETTINGS_ROUTES } from '@/lib/settings-nav';
+import { PageFrame } from '@eveider/ui';
+import { NotificationSettingsPanel } from '@/components/notification-settings-panel';
+import { requireWebRole } from '@/lib/require-web-role';
 
-export default function AdminNotificationSettingsPage() {
-  redirect(ADMIN_SETTINGS_ROUTES.profile);
+export default async function AdminNotificationSettingsPage() {
+  await requireWebRole(['admin']);
+
+  return (
+    <PageFrame
+      title="Notifications"
+      description="Préférences d’alerte pour votre compte."
+      layout="standard"
+    >
+      <NotificationSettingsPanel />
+    </PageFrame>
+  );
 }

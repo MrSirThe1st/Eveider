@@ -10,6 +10,8 @@ const TONE: Record<DeliveryStatus, StatusBadgeTone> = {
   completed: 'success',
   scanned: 'info',
   assigned: 'neutral',
+  accepted: 'neutral',
+  started: 'info',
   drop_off_pending: 'warning',
   failed: 'danger',
 };

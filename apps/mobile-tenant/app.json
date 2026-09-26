@@ -44,7 +44,16 @@
           "resizeMode": "contain"
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/adaptive-icon.png",
+          "color": "#1C1A17",
+          "defaultChannel": "eveider_operations",
+          "sounds": []
+        }
+      ]
     ],
     "splash": {
       "image": "./src/assets/eveider_logo.png",
@@ -57,7 +66,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Eveider utilise la caméra pour scanner les colis et photographier le dépôt au casier.",
         "NSLocationWhenInUseUsageDescription": "Eveider utilise votre position pour afficher les points de retrait proches.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": ["remote-notification"]
       }
     },
     "android": {
@@ -66,7 +76,6 @@
         "backgroundColor": "#1C1A17"
       },
       "package": "com.eveider.app",
-      "versionCode": 1,
       "intentFilters": [
         {
           "action": "VIEW",

@@ -25,6 +25,7 @@ import {
   type UserProfile,
 } from '../lib/api';
 import { supabase } from '../lib/supabase';
+import { unregisterCurrentPushDevice } from '../context/notification-routing-context';
 import { useColors } from '../theme';
 
 type ProfileScreenProps = {
@@ -34,6 +35,7 @@ type ProfileScreenProps = {
   onOpenNotifications?: () => void;
   onOpenPersonalInfo: () => void;
   onOpenDriverProfile?: () => void;
+  onOpenDriverStats?: () => void;
   onContactDispatch?: () => void;
   onOpenLanguage: () => void;
   onOpenAppearance: () => void;
@@ -52,6 +54,7 @@ export function ProfileScreen({
   onOpenNotifications,
   onOpenPersonalInfo,
   onOpenDriverProfile,
+  onOpenDriverStats,
   onContactDispatch,
   onOpenLanguage,
   onOpenAppearance,
@@ -142,6 +145,7 @@ export function ProfileScreen({
                 Alert.alert(t('common.error'), result.error);
                 return;
               }
+              await unregisterCurrentPushDevice();
               await supabase.auth.signOut();
             })();
           },
@@ -266,6 +270,14 @@ export function ProfileScreen({
               onPress={onOpenDriverProfile}
             />
           ) : null}
+          {onOpenDriverStats ? (
+            <ProfileMenuItem
+              icon="bar-chart-2"
+              label={t('profile.driverStats')}
+              subtitle={t('profile.driverStatsSubtitle')}
+              onPress={onOpenDriverStats}
+            />
+          ) : null}
           <ProfileMenuItem
             icon="briefcase"
             label={t('profile.organization')}
@@ -314,7 +326,12 @@ export function ProfileScreen({
           <ProfileMenuItem
             icon="log-out"
             label={t('profile.signOut')}
-            onPress={() => void supabase.auth.signOut()}
+            onPress={() => {
+              void (async () => {
+                await unregisterCurrentPushDevice();
+                await supabase.auth.signOut();
+              })();
+            }}
             destructive
             showChevron={false}
             last={false}

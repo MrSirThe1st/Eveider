@@ -24,6 +24,7 @@ describe('filterOrganizationSettingsNav', () => {
       'profil',
       'securite',
       'preferences',
+      'notifications',
     ]);
   });
 
@@ -48,7 +49,7 @@ describe('filterOrganizationSettingsNav', () => {
     expect(ids).not.toContain('api');
     expect(ids).not.toContain('excel');
     expect(ids).not.toContain('roles');
-    expect(ids).not.toContain('notifications');
+    expect(ids).toContain('notifications');
     expect(ids).not.toContain('equipes');
     expect(ids).not.toContain('casiers');
   });
@@ -59,11 +60,11 @@ describe('unpublished settings stay hidden', () => {
     const orgIds = ORGANIZATION_SETTINGS_NAV.flatMap((group) => group.items.map((item) => item.id));
     const adminIds = ADMIN_SETTINGS_NAV.flatMap((group) => group.items.map((item) => item.id));
     expect(orgIds).not.toContain('roles');
-    expect(orgIds).not.toContain('notifications');
+    expect(orgIds).toContain('notifications');
     expect(orgIds).not.toContain('api');
     expect(orgIds).not.toContain('excel');
     expect(adminIds).not.toContain('roles');
-    expect(adminIds).not.toContain('notifications');
+    expect(adminIds).toContain('notifications');
     expect(adminIds).not.toContain('api');
     expect(adminIds).not.toContain('integrations');
   });
@@ -74,6 +75,14 @@ describe('unpublished settings stay hidden', () => {
     );
     expect(equipe?.label).toBe('Équipe');
     expect(equipe?.href).toBe('/tableau-de-bord/parametres/administrateurs');
+  });
+
+  it('includes Opérations under Fonctionnement', () => {
+    const operations = ADMIN_SETTINGS_NAV.flatMap((group) => group.items).find(
+      (item) => item.id === 'operations',
+    );
+    expect(operations?.label).toBe('Opérations');
+    expect(operations?.href).toBe('/tableau-de-bord/parametres/operations');
   });
 
   it('labels the organization team page as Équipe', () => {
@@ -135,10 +144,11 @@ describe('isSettingsNavItemActive', () => {
 });
 
 describe('admin fonctionnement nav', () => {
-  it('orders Règles générales, Tarifs, Réseau, then Casiers', () => {
+  it('orders Règles générales, Opérations, Tarifs, Réseau, then Casiers', () => {
     const fonctionnement = ADMIN_SETTINGS_NAV.find((group) => group.id === 'fonctionnement');
     expect(fonctionnement?.items.map((item) => item.label)).toEqual([
       'Règles générales',
+      'Opérations',
       'Tarifs',
       'Réseau',
       'Casiers',

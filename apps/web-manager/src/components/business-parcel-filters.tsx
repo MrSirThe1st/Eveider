@@ -5,6 +5,7 @@ import {
   BUSINESS_PARCEL_ATTENTION_FILTERS,
   type BusinessParcelAttentionFilter,
 } from '@/lib/business-presentation';
+import { useOperationalBadges } from '@/components/operational-badges-context';
 
 type BusinessParcelFiltersProps = {
   attention: BusinessParcelAttentionFilter;
@@ -19,6 +20,22 @@ export function BusinessParcelFilters({
   onAttentionChange,
   onPickupTypeChange,
 }: BusinessParcelFiltersProps) {
+  const badges = useOperationalBadges().business;
+
+  const attentionOptions = BUSINESS_PARCEL_ATTENTION_FILTERS.map((option) => {
+    if (option.value === 'awaiting_handoff') {
+      return { ...option, count: badges?.awaitingHandoff };
+    }
+    if (option.value === 'awaiting_deposit') {
+      return { ...option, count: badges?.awaitingDeposit };
+    }
+    if (option.value === 'returns') {
+      const count = (badges?.returnsToReview ?? 0) + (badges?.returnsToCollect ?? 0);
+      return { ...option, count: count > 0 ? count : undefined };
+    }
+    return option;
+  });
+
   return (
     <FilterToolbar
       style={{ marginBottom: 0 }}
@@ -32,7 +49,7 @@ export function BusinessParcelFilters({
           label: 'État',
           value: attention,
           emptyValue: 'all',
-          options: BUSINESS_PARCEL_ATTENTION_FILTERS,
+          options: attentionOptions,
           onChange: (next) => onAttentionChange(next as BusinessParcelAttentionFilter),
         },
         {

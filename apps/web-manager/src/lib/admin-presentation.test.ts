@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
+  formatAssignableDriverOptionLabel,
+  formatDriverVehicleSummary,
   getAdminDeliveryKindLabel,
   getAdminDeliveryStatusLabel,
   getAdminParcelDisplayStatus,
   getAdminReturnMethodLabel,
   getAdminReturnProcessLabel,
+  getAdminUnassignedDeliveryLabel,
+  getDriverAvailabilityLabel,
   getFulfillmentMethodLabel,
   isEveiderOutboundTransport,
   isLegacyLockerType,
@@ -59,12 +63,36 @@ describe('getAdminParcelDisplayStatus', () => {
 });
 
 describe('getAdminDeliveryStatusLabel', () => {
-  it('uses transportation vocabulary rather than parcel states', () => {
-    expect(getAdminDeliveryStatusLabel('assigned')).toBe('Assignée');
+  it('uses driver-ops vocabulary for the accept/start pipeline', () => {
+    expect(getAdminDeliveryStatusLabel('assigned')).toBe('Assignée — en attente d’acceptation');
+    expect(getAdminDeliveryStatusLabel('accepted')).toBe('Acceptée');
+    expect(getAdminDeliveryStatusLabel('started')).toBe('En cours');
     expect(getAdminDeliveryStatusLabel('scanned')).toBe('Prise en charge');
     expect(getAdminDeliveryStatusLabel('drop_off_pending')).toBe('Dépôt en cours');
     expect(getAdminDeliveryStatusLabel('completed')).toBe('Terminée');
     expect(getAdminDeliveryStatusLabel('failed')).toBe('Échouée');
+  });
+});
+
+describe('assignable driver presentation', () => {
+  it('labels availability and vehicle summary for admin assign', () => {
+    expect(getDriverAvailabilityLabel(true)).toBe('Disponible');
+    expect(getDriverAvailabilityLabel(false)).toBe('Indisponible');
+    expect(formatDriverVehicleSummary({ vehicleType: 'motorcycle', vehicleMakeModel: 'Honda' })).toBe(
+      'Moto · Honda',
+    );
+    expect(
+      formatAssignableDriverOptionLabel({
+        id: 'd1',
+        fullName: 'Amina',
+        email: null,
+        phone: null,
+        isAcceptingWork: false,
+        vehicleType: 'car',
+        vehicleMakeModel: 'Toyota',
+      }),
+    ).toBe('Amina — Indisponible · Voiture · Toyota');
+    expect(getAdminUnassignedDeliveryLabel()).toBe('Non assignée');
   });
 });
 
@@ -75,9 +103,10 @@ describe('getAdminDeliveryKindLabel', () => {
   });
 
   it('keeps historical RTS readable without calling it a customer return', () => {
-    expect(getAdminDeliveryKindLabel('return')).toBe('Retour non retiré (historique)');
+    expect(getAdminDeliveryKindLabel('return')).toBe('Retour non retiré');
     expect(getAdminDeliveryKindLabel('return')).not.toBe('Retour client');
     expect(getAdminDeliveryKindLabel('return')).not.toContain('RTS');
+    expect(getAdminDeliveryKindLabel('return')).not.toContain('historique');
   });
 });
 
@@ -118,9 +147,7 @@ describe('summarizeAdminParcelEvent', () => {
     ).toBe('Compartiment A1');
   });
 
-  it('labels historical RTS events without RTS jargon', () => {
-    expect(summarizeAdminParcelEvent({ kind: 'return' })).toBe(
-      'Retour non retiré (historique)',
-    );
+  it('labels legacy RTS events without RTS jargon or historique badge', () => {
+    expect(summarizeAdminParcelEvent({ kind: 'return' })).toBe('Retour non retiré');
   });
 });

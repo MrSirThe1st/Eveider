@@ -5,6 +5,7 @@ import {
   ADMIN_PARCEL_ATTENTION_FILTERS,
   type AdminParcelAttentionFilter,
 } from '@/lib/admin-presentation';
+import { useOperationalBadges } from '@/components/operational-badges-context';
 
 type AdminParcelFiltersProps = {
   attention: AdminParcelAttentionFilter;
@@ -19,6 +20,18 @@ export function AdminParcelFilters({
   onAttentionChange,
   onPickupTypeChange,
 }: AdminParcelFiltersProps) {
+  const badges = useOperationalBadges().admin;
+
+  const attentionOptions = ADMIN_PARCEL_ATTENTION_FILTERS.map((option) => {
+    if (option.value === 'awaiting_assignment') {
+      return { ...option, count: badges?.awaitingAssignment };
+    }
+    if (option.value === 'return_at_locker') {
+      return { ...option, count: badges?.awaitingReturnAssignment };
+    }
+    return option;
+  });
+
   return (
     <FilterToolbar
       embedded
@@ -32,7 +45,7 @@ export function AdminParcelFilters({
           label: 'État',
           value: attention,
           emptyValue: 'all',
-          options: ADMIN_PARCEL_ATTENTION_FILTERS,
+          options: attentionOptions,
           onChange: (next) => onAttentionChange(next as AdminParcelAttentionFilter),
         },
         {

@@ -1,6 +1,10 @@
 import type { CourierAdminDetail, CourierDossier } from '@eveider/data-access';
 import { createRepositories, type DataAccessContext } from '@eveider/data-access';
-import { COURIER_DOSSIER_STATUS_LABELS, type CourierDossierStatus } from '@eveider/domain';
+import {
+  COURIER_DOSSIER_STATUS_LABELS,
+  type CourierDossierStatus,
+  type DriverVehicleType,
+} from '@eveider/domain';
 
 export type CourierDetailDto = {
   courier: {
@@ -76,6 +80,9 @@ export type AssignableCourierView = {
   fullName: string | null;
   email: string | null;
   phone: string | null;
+  isAcceptingWork: boolean;
+  vehicleType: DriverVehicleType | null;
+  vehicleMakeModel: string | null;
 };
 
 function toView(dossier: CourierDossier): CourierDossierView {
@@ -116,5 +123,8 @@ export async function loadAssignableBusinessCouriers(businessId: string): Promis
     fullName: courier.fullName,
     email: courier.email,
     phone: courier.phone,
+    isAcceptingWork: courier.isAcceptingWork,
+    vehicleType: courier.vehicleType,
+    vehicleMakeModel: courier.vehicleMakeModel,
   }));
 }

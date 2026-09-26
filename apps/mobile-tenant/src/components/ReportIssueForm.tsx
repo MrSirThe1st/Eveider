@@ -3,11 +3,13 @@ import type { IssueType } from '@eveider/domain';
 import { ISSUE_TYPE_LABELS } from '@eveider/domain';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import type { DriverIssueReason } from '../lib/driver-presentation';
 import { useColors } from '../theme';
 import { PrimaryButton } from './PrimaryButton';
 
 type ReportIssueFormProps = {
-  allowedTypes: IssueType[];
+  allowedTypes?: IssueType[];
+  reasons?: DriverIssueReason[];
   parcelId?: string;
   lockerId?: string;
   onSubmit: (input: { type: IssueType; description: string }) => Promise<string | null>;
@@ -17,26 +19,49 @@ type ReportIssueFormProps = {
 
 export function ReportIssueForm({
   allowedTypes,
+  reasons = [],
   onSubmit,
   onSuccess,
   onCancel,
 }: ReportIssueFormProps) {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const [type, setType] = useState<IssueType>(allowedTypes[0] ?? 'parcel_problem');
+  const [reasonId, setReasonId] = useState<string | null>(reasons[0]?.id ?? null);
+  const selectedReason = reasons.find((item) => item.id === reasonId) ?? reasons[0] ?? null;
+  const fallbackType = allowedTypes?.[0] ?? 'parcel_problem';
+  const [type, setType] = useState<IssueType>(selectedReason?.type ?? fallbackType);
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  function selectReason(reason: DriverIssueReason) {
+    setReasonId(reason.id);
+    setType(reason.type);
+  }
+
   async function handleSubmit() {
-    if (!description.trim()) {
+    if (reasons.length > 0 && !selectedReason) {
+      setError('Choisissez la raison du problème.');
+      return;
+    }
+    if (!description.trim() && !selectedReason) {
       setError('Décrivez le problème rencontré.');
       return;
     }
 
+    const detail = description.trim();
+    const composed = selectedReason
+      ? detail
+        ? `${selectedReason.label}. ${detail}`
+        : selectedReason.label
+      : detail;
+
     setSubmitting(true);
     setError(null);
-    const result = await onSubmit({ type, description: description.trim() });
+    const result = await onSubmit({
+      type: selectedReason?.type ?? type,
+      description: composed,
+    });
     setSubmitting(false);
 
     if (result) {
@@ -47,36 +72,63 @@ export function ReportIssueForm({
     onSuccess();
   }
 
+  const canSubmit = reasons.length > 0 ? Boolean(selectedReason) : Boolean(description.trim());
+
   return (
     <View style={styles.container}>
       <Text style={styles.hint}>
-        Décrivez le problème. L'équipe Eveider sera notifiée et traitera votre signalement.
+        Choisissez la raison la plus proche. Le dispatch Eveider sera notifié pour traiter
+        l’exception.
       </Text>
 
-      <Text style={styles.label}>TYPE D'INCIDENT</Text>
-      <View style={styles.typeList}>
-        {allowedTypes.map((item) => {
-          const selected = item === type;
-          return (
-            <Pressable
-              key={item}
-              onPress={() => setType(item)}
-              style={[styles.typeChip, selected && styles.typeChipSelected]}
-            >
-              <Text style={[styles.typeChipText, selected && styles.typeChipTextSelected]}>
-                {ISSUE_TYPE_LABELS[item]}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      {reasons.length > 0 ? (
+        <>
+          <Text style={styles.label}>RAISON</Text>
+          <View style={styles.typeList}>
+            {reasons.map((item) => {
+              const selected = item.id === selectedReason?.id;
+              return (
+                <Pressable
+                  key={item.id}
+                  onPress={() => selectReason(item)}
+                  style={[styles.typeChip, selected && styles.typeChipSelected]}
+                >
+                  <Text style={[styles.typeChipText, selected && styles.typeChipTextSelected]}>
+                    {item.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      ) : allowedTypes && allowedTypes.length > 0 ? (
+        <>
+          <Text style={styles.label}>TYPE D&apos;INCIDENT</Text>
+          <View style={styles.typeList}>
+            {allowedTypes.map((item) => {
+              const selected = item === type;
+              return (
+                <Pressable
+                  key={item}
+                  onPress={() => setType(item)}
+                  style={[styles.typeChip, selected && styles.typeChipSelected]}
+                >
+                  <Text style={[styles.typeChipText, selected && styles.typeChipTextSelected]}>
+                    {ISSUE_TYPE_LABELS[item]}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      ) : null}
 
-      <Text style={styles.label}>DESCRIPTION</Text>
+      <Text style={styles.label}>DÉTAILS (OPTIONNEL)</Text>
       <TextInput
         style={styles.input}
         value={description}
         onChangeText={setDescription}
-        placeholder="Que s'est-il passé ?"
+        placeholder="Précisions utiles pour le dispatch…"
         placeholderTextColor={colors.textMuted}
         multiline
         numberOfLines={4}
@@ -89,7 +141,7 @@ export function ReportIssueForm({
         label="ENVOYER LE SIGNALEMENT"
         onPress={() => void handleSubmit()}
         loading={submitting}
-        disabled={!description.trim()}
+        disabled={!canSubmit}
       />
       <Pressable onPress={onCancel} style={styles.cancel}>
         <Text style={styles.cancelText}>ANNULER</Text>
@@ -144,7 +196,7 @@ function createStyles(colors: ColorTokens) {
       color: colors.onPrimary,
     },
     input: {
-      minHeight: 120,
+      minHeight: 100,
       borderWidth: borders.width,
       borderColor: colors.border,
       borderRadius: radius.card,

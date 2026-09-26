@@ -49,6 +49,8 @@ export type DeliveryBoardItem = {
 
 export type DeliverySummary = {
   assigned: number;
+  accepted: number;
+  started: number;
   scanned: number;
   drop_off_pending: number;
   total: number;

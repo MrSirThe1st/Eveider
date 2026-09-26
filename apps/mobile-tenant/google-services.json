@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "784627283067",
+    "project_id": "eveider-1dd82",
+    "storage_bucket": "eveider-1dd82.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:784627283067:android:ce88b171fcd5ea81b31ede",
+        "android_client_info": {
+          "package_name": "com.eveider.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBMndI0dmOKlMj6PSqJoEpe06F3OinOYIo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

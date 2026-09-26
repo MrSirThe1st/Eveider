@@ -12,11 +12,16 @@ import {
   type NavModule,
 } from '@eveider/ui';
 import { useRouter } from 'next/navigation';
+import { useMemo, useState } from 'react';
+import {
+  NotificationBell,
+  type OperationalBadgeSnapshot,
+} from '@/components/notification-bell';
+import { OperationalBadgesProvider } from '@/components/operational-badges-context';
 import { AdminSettingsChrome } from '@/components/settings-chrome';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { ADMIN_PRIMARY_NAV } from '@/lib/admin-nav';
 import { signOutClient } from '@/lib/supabase/client';
-
 
 type AdminShellProps = {
   children: React.ReactNode;
@@ -36,29 +41,49 @@ const NAV_ICONS: Record<(typeof ADMIN_PRIMARY_NAV)[number]['id'], React.ReactNod
   parametres: <IconLayout {...NAV_ICON_PROPS} />,
 };
 
-const ADMIN_MODULES: NavModule[] = ADMIN_PRIMARY_NAV.map((item) => ({
-  id: item.id,
-  label: item.label,
-  href: item.href,
-  icon: NAV_ICONS[item.id],
-  section: 'section' in item ? item.section : undefined,
-  match: (p: string) => {
-    if (item.id === 'dashboard') return p === '/tableau-de-bord';
-    if (item.id === 'livraisons') {
-      return p.startsWith('/tableau-de-bord/livraisons') || p.startsWith('/tableau-de-bord/incidents');
-    }
-    if (item.id === 'casiers') {
-      return p.startsWith('/tableau-de-bord/casiers') || p.startsWith('/tableau-de-bord/points');
-    }
-    if (item.id === 'flotte') {
-      return p.startsWith('/tableau-de-bord/flotte') || p.startsWith('/tableau-de-bord/chauffeurs');
-    }
-    return p.startsWith(item.href);
-  },
-}));
-
 export function AdminShell({ children, userName, userEmail }: AdminShellProps) {
   const router = useRouter();
+  const [badges, setBadges] = useState<OperationalBadgeSnapshot>({});
+
+  const modules: NavModule[] = useMemo(
+    () =>
+      ADMIN_PRIMARY_NAV.map((item) => ({
+        id: item.id,
+        label: item.label,
+        href: item.href,
+        icon: NAV_ICONS[item.id],
+        section: 'section' in item ? item.section : undefined,
+        badge:
+          item.id === 'livraisons'
+            ? badges.admin?.livraisons
+            : item.id === 'organisations'
+              ? badges.admin?.organisations
+              : item.id === 'flotte'
+                ? badges.admin?.flotte
+                : undefined,
+        match: (p: string) => {
+          if (item.id === 'dashboard') return p === '/tableau-de-bord';
+          if (item.id === 'livraisons') {
+            return (
+              p.startsWith('/tableau-de-bord/livraisons') ||
+              p.startsWith('/tableau-de-bord/incidents')
+            );
+          }
+          if (item.id === 'casiers') {
+            return (
+              p.startsWith('/tableau-de-bord/casiers') || p.startsWith('/tableau-de-bord/points')
+            );
+          }
+          if (item.id === 'flotte') {
+            return (
+              p.startsWith('/tableau-de-bord/flotte') || p.startsWith('/tableau-de-bord/chauffeurs')
+            );
+          }
+          return p.startsWith(item.href);
+        },
+      })),
+    [badges],
+  );
 
   async function handleSignOut() {
     await signOutClient();
@@ -66,18 +91,28 @@ export function AdminShell({ children, userName, userEmail }: AdminShellProps) {
   }
 
   return (
-    <AppShell
-      brand="Admin"
-      brandShort="Admin"
-      onSignOut={handleSignOut}
-      modules={ADMIN_MODULES}
-      profileHref="/tableau-de-bord/parametres/mon-compte/profil"
-      profileLabel="Mon compte"
-      userName={userName}
-      userEmail={userEmail}
-      toolbar={<ThemeToggle />}
-    >
-      <AdminSettingsChrome>{children}</AdminSettingsChrome>
-    </AppShell>
+    <OperationalBadgesProvider value={badges}>
+      <AppShell
+        brand="Admin"
+        brandShort="Admin"
+        onSignOut={handleSignOut}
+        modules={modules}
+        profileHref="/tableau-de-bord/parametres/mon-compte/profil"
+        profileLabel="Mon compte"
+        userName={userName}
+        userEmail={userEmail}
+        toolbar={
+          <>
+            <NotificationBell
+              allHref="/tableau-de-bord/notifications"
+              onBadges={setBadges}
+            />
+            <ThemeToggle />
+          </>
+        }
+      >
+        <AdminSettingsChrome>{children}</AdminSettingsChrome>
+      </AppShell>
+    </OperationalBadgesProvider>
   );
 }

@@ -10,6 +10,7 @@ import {
   LockerSelectPanel,
   openAddressSearch,
   openDirections,
+  openMultiStopDirections,
   openStopDirections,
   useLockerMapStyles,
   type LockerMapViewProps,
@@ -119,4 +120,4 @@ export function LockerMapView({
   );
 }
 
-export { LockerSelectPanel, getCurrentCoordinates, openAddressSearch, openDirections, openStopDirections };
+export { LockerSelectPanel, getCurrentCoordinates, openAddressSearch, openDirections, openMultiStopDirections, openStopDirections };

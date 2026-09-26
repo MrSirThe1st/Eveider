@@ -1,8 +1,17 @@
-import { redirect } from 'next/navigation';
-import { ORG_SETTINGS_ROUTES } from '@/lib/settings-nav';
-import { requireBusinessPageContext } from '@/server/business';
+import { PageFrame } from '@eveider/ui';
+import { NotificationSettingsPanel } from '@/components/notification-settings-panel';
+import { requireWebRole } from '@/lib/require-web-role';
 
-export default async function OrganizationNotificationSettingsPage() {
-  await requireBusinessPageContext();
-  redirect(ORG_SETTINGS_ROUTES.profile);
+export default async function OrgNotificationSettingsPage() {
+  await requireWebRole(['organization']);
+
+  return (
+    <PageFrame
+      title="Notifications"
+      description="Préférences d’alerte pour votre compte."
+      layout="standard"
+    >
+      <NotificationSettingsPanel />
+    </PageFrame>
+  );
 }

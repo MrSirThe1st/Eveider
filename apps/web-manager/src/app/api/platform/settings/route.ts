@@ -17,6 +17,7 @@ function serializeSettings(row: Awaited<ReturnType<ReturnType<typeof createRepos
     defaultEnabledFeatures: row.defaultEnabledFeatures,
     supportPhone: row.supportPhone,
     dispatcherWhatsapp: row.dispatcherWhatsapp,
+    driverSelfAssignmentEnabled: row.driverSelfAssignmentEnabled,
     updatedAt: row.updatedAt.toISOString(),
     pawapayConfigured: Boolean(process.env.PAWAPAY_API_TOKEN?.trim()),
   };

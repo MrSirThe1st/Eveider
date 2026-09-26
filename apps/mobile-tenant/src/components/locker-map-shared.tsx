@@ -195,6 +195,37 @@ export function openDirections(latitude: number, longitude: number, label: strin
   void Linking.openURL(url);
 }
 
+/** Open an external multi-stop route (Google waypoints / Apple sequential daddr). */
+export function openMultiStopDirections(
+  stops: Array<{ latitude: number; longitude: number; name?: string }>,
+) {
+  const located = stops.filter(
+    (stop) => Number.isFinite(stop.latitude) && Number.isFinite(stop.longitude),
+  );
+  if (located.length === 0) return;
+  if (located.length === 1) {
+    const only = located[0]!;
+    openDirections(only.latitude, only.longitude, only.name ?? 'Destination');
+    return;
+  }
+
+  const destination = located[located.length - 1]!;
+  const waypoints = located.slice(0, -1);
+
+  if (Platform.OS === 'ios') {
+    const parts = [
+      `http://maps.apple.com/?daddr=${destination.latitude},${destination.longitude}`,
+      ...waypoints.map((stop) => `daddr=${stop.latitude},${stop.longitude}`),
+    ];
+    void Linking.openURL(parts.join('&'));
+    return;
+  }
+
+  const waypointParam = waypoints.map((stop) => `${stop.latitude},${stop.longitude}`).join('|');
+  const url = `https://www.google.com/maps/dir/?api=1&destination=${destination.latitude},${destination.longitude}&waypoints=${encodeURIComponent(waypointParam)}`;
+  void Linking.openURL(url);
+}
+
 export function openAddressSearch(query: string) {
   const encoded = encodeURIComponent(query.trim());
   if (!encoded) return;

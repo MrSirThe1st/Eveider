@@ -40,6 +40,8 @@ export async function createOrganisationParcel(
     senderLat: data.senderLat,
     senderLng: data.senderLng,
     senderInstructions: data.senderInstructions,
+    driverInstructions: data.driverInstructions,
+    dueAt: data.dueAt ?? null,
     recipientPhone: data.recipientPhone,
     recipientName: data.recipientName,
     recipientEmail: data.recipientEmail,

@@ -1,4 +1,4 @@
-import { nativeRadius as radius, borders, type ColorTokens } from '@eveider/config-ui';
+import { type ColorTokens } from '@eveider/config-ui';
 import { Feather } from '@expo/vector-icons';
 import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -22,6 +22,7 @@ type SettingsOptionGroupProps<T extends string> = {
   placeholderNote?: string;
 };
 
+/** Nested settings choice list — same flat language as the profile drawer. */
 export function SettingsOptionGroup<T extends string>({
   title,
   subtitle,
@@ -29,7 +30,7 @@ export function SettingsOptionGroup<T extends string>({
   selected,
   onSelect,
   onBack,
-  placeholderNote = 'Cette préférence est enregistrée localement. L’application complète sera disponible prochainement.',
+  placeholderNote,
 }: SettingsOptionGroupProps<T>) {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -42,15 +43,14 @@ export function SettingsOptionGroup<T extends string>({
         <View style={styles.group}>
           {options.map((option, index) => {
             const active = option.value === selected;
+            const last = index === options.length - 1;
             return (
               <Pressable
                 key={option.value}
-                style={[
-                  styles.option,
-                  active && styles.optionActive,
-                  index < options.length - 1 && styles.optionBorder,
-                ]}
+                style={[styles.option, !last && styles.optionBorder]}
                 onPress={() => onSelect(option.value)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
               >
                 <View style={styles.optionText}>
                   <Text style={[styles.optionLabel, active && styles.optionLabelActive]}>
@@ -61,19 +61,14 @@ export function SettingsOptionGroup<T extends string>({
                   ) : null}
                 </View>
                 {active ? (
-                  <Feather name="check" size={18} color={colors.primary} strokeWidth={2.5} />
-                ) : (
-                  <View style={styles.radio} />
-                )}
+                  <Feather name="check" size={18} color={colors.primary} />
+                ) : null}
               </Pressable>
             );
           })}
         </View>
 
-        <View style={styles.note}>
-          <Feather name="info" size={14} color={colors.secondary} />
-          <Text style={styles.noteText}>{placeholderNote}</Text>
-        </View>
+        {placeholderNote ? <Text style={styles.note}>{placeholderNote}</Text> : null}
       </ScrollView>
     </ScreenScaffold>
   );
@@ -86,78 +81,57 @@ function createStyles(colors: ColorTokens) {
       backgroundColor: colors.background,
     },
     content: {
-      padding: 20,
+      paddingHorizontal: 20,
+      paddingTop: 8,
       paddingBottom: 40,
     },
     subtitle: {
-      marginBottom: 16,
-      fontSize: 13,
-      fontWeight: '500',
-      color: colors.secondary,
-      opacity: 0.75,
+      marginBottom: 12,
+      fontSize: 14,
+      fontWeight: '400',
+      color: colors.textMuted,
       lineHeight: 20,
     },
     group: {
-      borderWidth: borders.width,
-      borderColor: colors.border,
+      marginTop: 4,
     },
     option: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      backgroundColor: colors.surface,
-      padding: 14,
+      paddingVertical: 14,
+      backgroundColor: 'transparent',
     },
     optionBorder: {
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.border,
     },
-    optionActive: {
-      backgroundColor: colors.surfaceSubtle,
-    },
     optionText: {
       flex: 1,
+      minWidth: 0,
     },
     optionLabel: {
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: 16,
+      fontWeight: '500',
       color: colors.secondary,
     },
     optionLabelActive: {
-      color: colors.secondary,
+      fontWeight: '600',
     },
     optionDescription: {
-      marginTop: 4,
-      fontSize: 11,
-      fontWeight: '500',
-      color: colors.secondary,
-      opacity: 0.7,
-      lineHeight: 16,
-    },
-    radio: {
-      width: 18,
-      height: 18,
-      borderRadius: 9,
-      borderWidth: 2,
-      borderColor: colors.border,
+      marginTop: 2,
+      fontSize: 12,
+      fontWeight: '400',
+      color: colors.textMuted,
+      lineHeight: 17,
     },
     note: {
-      marginTop: 20,
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 10,
-      padding: 14,
-      backgroundColor: colors.surface,
-      borderWidth: borders.width,
-      borderColor: colors.border,
-    },
-    noteText: {
-      flex: 1,
-      fontSize: 11,
-      fontWeight: '500',
-      color: colors.secondary,
-      opacity: 0.75,
-      lineHeight: 16,
+      marginTop: 24,
+      fontSize: 12,
+      fontWeight: '400',
+      color: colors.textMuted,
+      lineHeight: 18,
+      opacity: 0.85,
     },
   });
 }

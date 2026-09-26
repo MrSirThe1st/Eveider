@@ -5,12 +5,15 @@ import {
   DELIVERY_STATUS_LABELS,
   DRIVER_DOSSIER_STATUS_LABELS,
   DRIVER_OPERATIONAL_STATUS_LABELS,
+  DRIVER_VEHICLE_TYPE_LABELS,
   deriveDriverOperationalStatus,
   type DeliveryKind,
   type DeliveryStatus,
   type DriverDossierStatus,
   type DriverOperationalStatus,
+  type DriverVehicleType,
 } from '@eveider/domain';
+import { documentViewPath } from '@eveider/api-contracts';
 import { getAdminDeliveryKindLabel, getAdminDeliveryStatusLabel } from '@/lib/admin-presentation';
 import { formatZoneCoverageLabel } from '@/lib/geography-presentation';
 
@@ -53,6 +56,13 @@ export type DriverDetail = {
   serviceAreaCode: string | null;
   serviceAreaCity: string | null;
   vehicle: string | null;
+  vehicleType: DriverVehicleType | null;
+  vehicleMakeModel: string | null;
+  vehiclePlate: string | null;
+  vehicleColor: string | null;
+  isAcceptingWork: boolean;
+  acceptingWorkLabel: string;
+  profilePhotoUrl: string | null;
   currentLocation: string | null;
   status: DriverOperationalStatus;
   statusLabel: string;
@@ -165,6 +175,15 @@ function toListItem(row: DriverRosterRecord): DriverListItem {
   };
 }
 
+function formatVehicleSummary(row: DriverRosterRecord): string | null {
+  const parts: string[] = [];
+  if (row.vehicleType) parts.push(DRIVER_VEHICLE_TYPE_LABELS[row.vehicleType]);
+  if (row.vehicleMakeModel) parts.push(row.vehicleMakeModel);
+  if (row.vehiclePlate) parts.push(row.vehiclePlate);
+  if (row.vehicleColor) parts.push(row.vehicleColor);
+  return parts.length > 0 ? parts.join(' · ') : null;
+}
+
 function toDetail(row: DriverRosterRecord): DriverDetail {
   const operational = toOperational(row);
   const organization = organizationFromRow(row);
@@ -183,7 +202,14 @@ function toDetail(row: DriverRosterRecord): DriverDetail {
     serviceArea: coverageLabel(row),
     serviceAreaCode: row.serviceAreaCode,
     serviceAreaCity: row.serviceAreaCity,
-    vehicle: null,
+    vehicle: formatVehicleSummary(row),
+    vehicleType: row.vehicleType,
+    vehicleMakeModel: row.vehicleMakeModel,
+    vehiclePlate: row.vehiclePlate,
+    vehicleColor: row.vehicleColor,
+    isAcceptingWork: row.isAcceptingWork,
+    acceptingWorkLabel: row.isAcceptingWork ? 'Disponible' : 'Indisponible',
+    profilePhotoUrl: row.profilePhotoRef ? documentViewPath(row.profilePhotoRef) : null,
     currentLocation: null,
     status: operational.status,
     statusLabel: operational.statusLabel,

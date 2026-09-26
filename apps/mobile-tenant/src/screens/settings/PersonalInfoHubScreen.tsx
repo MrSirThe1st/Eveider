@@ -55,6 +55,7 @@ function createStyles(colors: ColorTokens) {
     },
     content: {
       paddingHorizontal: 20,
+      paddingTop: 8,
       paddingBottom: 40,
     },
     intro: {

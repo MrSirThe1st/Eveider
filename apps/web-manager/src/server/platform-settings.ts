@@ -15,6 +15,7 @@ export type PlatformSettingsDto = {
   defaultEnabledFeatures: PlatformDefaultFeature[];
   supportPhone: string | null;
   dispatcherWhatsapp: string | null;
+  driverSelfAssignmentEnabled: boolean;
   updatedAt: string;
   pawapayConfigured: boolean;
 };
@@ -35,6 +36,7 @@ export async function getPlatformSettings(): Promise<PlatformSettingsDto> {
     defaultEnabledFeatures: row.defaultEnabledFeatures,
     supportPhone: row.supportPhone,
     dispatcherWhatsapp: row.dispatcherWhatsapp,
+    driverSelfAssignmentEnabled: row.driverSelfAssignmentEnabled,
     updatedAt: row.updatedAt.toISOString(),
     pawapayConfigured: Boolean(process.env.PAWAPAY_API_TOKEN?.trim()),
   };

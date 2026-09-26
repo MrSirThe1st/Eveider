@@ -3,6 +3,7 @@ export {
   LockerSelectPanel,
   getCurrentCoordinates,
   openDirections,
+  openMultiStopDirections,
   openAddressSearch,
   openStopDirections,
 } from './locker-map-shared';

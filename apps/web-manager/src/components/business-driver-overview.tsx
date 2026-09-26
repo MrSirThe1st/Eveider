@@ -73,6 +73,24 @@ export function BusinessDriverOverview({
           {showOrganization ? (
             <Field label="Organisation">{driver.organizationLabel}</Field>
           ) : null}
+          <Field label="Photo">
+            {driver.profilePhotoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={driver.profilePhotoUrl}
+                alt=""
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 8,
+                  objectFit: 'cover',
+                  border: `1px solid ${colors.border}`,
+                }}
+              />
+            ) : (
+              dash(null)
+            )}
+          </Field>
         </dl>
       </Card>
 
@@ -89,6 +107,7 @@ export function BusinessDriverOverview({
           <Field label="Statut">
             <DriverStatusBadge status={driver.status} label={driver.statusLabel} />
           </Field>
+          <Field label="Disponibilité opérationnelle">{driver.acceptingWorkLabel}</Field>
           <Field label="Pièces">{driver.dossierStatusLabel}</Field>
           <Field label="Équipe">{dash(driver.team)}</Field>
           <Field label="Zone de service">

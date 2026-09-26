@@ -87,7 +87,7 @@ describe('business attention', () => {
   });
 
   it('labels historical RTS separately from customer returns', () => {
-    expect(getBusinessDeliveryKindLabel('return')).toBe('Retour non retiré (historique)');
+    expect(getBusinessDeliveryKindLabel('return')).toBe('Retour non retiré');
     expect(getBusinessDeliveryKindLabel('customer_return')).toBe('Retour Eveider');
     expect(getBusinessDeliveryKindLabel('outbound')).toBe('Transport Eveider');
   });

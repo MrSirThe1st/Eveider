@@ -62,7 +62,7 @@ export function getBusinessDeliveryStatusLabel(status: DeliveryStatus): string {
 
 export function getBusinessDeliveryKindLabel(kind: DeliveryKind): string {
   if (kind === 'customer_return') return 'Retour Eveider';
-  if (kind === 'return') return 'Retour non retiré (historique)';
+  if (kind === 'return') return 'Retour non retiré';
   return 'Transport Eveider';
 }
 
@@ -80,10 +80,10 @@ export function getBusinessChargeLabel(kind: ParcelChargeKind): string {
   switch (kind) {
     case 'outbound_delivery':
     case 'delivery_fee':
-      return kind === 'delivery_fee' ? 'Livraison Eveider (historique)' : 'Livraison Eveider';
+      return 'Livraison Eveider';
     case 'locker_collection':
     case 'drop_off_fee':
-      return kind === 'drop_off_fee' ? 'Retrait au casier (historique)' : 'Retrait au casier';
+      return 'Retrait au casier';
     case 'return_delivery':
       return 'Retour Eveider';
     case 'return_locker':

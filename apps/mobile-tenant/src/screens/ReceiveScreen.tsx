@@ -25,7 +25,8 @@ import { ParcelTimeline } from '../components/ParcelTimeline';
 import { PhoneField } from '../components/PhoneField';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { ReportIssueForm } from '../components/ReportIssueForm';
-import { ScreenHeader, ScreenScaffold } from '../components/ScreenHeader';
+import { ScreenHeader } from '../components/ScreenHeader';
+import { NotificationBellHeader } from '../components/NotificationBellHeader';
 import { SuccessBanner } from '../components/SuccessBanner';
 import {
   cancelCustomerReturn,
@@ -341,7 +342,8 @@ export function ReceiveScreen({
 
   if (screen.name === 'list') {
     return (
-      <ScreenScaffold title={title}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <NotificationBellHeader mode="CLIENT" title={title} />
         <View style={styles.listContainer}>
           {isGuest ? (
             <ScrollView contentContainerStyle={styles.listContent}>
@@ -450,7 +452,7 @@ export function ReceiveScreen({
             </ScrollView>
           )}
         </View>
-      </ScreenScaffold>
+      </View>
     );
   }
 

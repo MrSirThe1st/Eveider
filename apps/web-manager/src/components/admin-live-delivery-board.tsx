@@ -23,6 +23,8 @@ import {
 const STATUS_OPTIONS: { value: DeliveryStatusFilter; label: string }[] = [
   { value: 'all', label: 'Toutes actives' },
   { value: 'assigned', label: getAdminDeliveryStatusLabel('assigned') },
+  { value: 'accepted', label: getAdminDeliveryStatusLabel('accepted') },
+  { value: 'started', label: getAdminDeliveryStatusLabel('started') },
   { value: 'scanned', label: getAdminDeliveryStatusLabel('scanned') },
   { value: 'drop_off_pending', label: getAdminDeliveryStatusLabel('drop_off_pending') },
 ];
@@ -33,7 +35,15 @@ function parseViewParam(raw: string | null): DeliveryBoardView {
 }
 
 function parseStatusParam(raw: string | null): DeliveryStatusFilter {
-  if (raw === 'assigned' || raw === 'scanned' || raw === 'drop_off_pending') return raw;
+  if (
+    raw === 'assigned' ||
+    raw === 'accepted' ||
+    raw === 'started' ||
+    raw === 'scanned' ||
+    raw === 'drop_off_pending'
+  ) {
+    return raw;
+  }
   return 'all';
 }
 
@@ -129,6 +139,8 @@ export function AdminLiveDeliveryBoard() {
   const summaryCards = useMemo(
     () => [
       { key: 'assigned' as const, label: getAdminDeliveryStatusLabel('assigned'), value: summary?.assigned ?? 0 },
+      { key: 'accepted' as const, label: getAdminDeliveryStatusLabel('accepted'), value: summary?.accepted ?? 0 },
+      { key: 'started' as const, label: getAdminDeliveryStatusLabel('started'), value: summary?.started ?? 0 },
       { key: 'scanned' as const, label: getAdminDeliveryStatusLabel('scanned'), value: summary?.scanned ?? 0 },
       {
         key: 'drop_off_pending' as const,

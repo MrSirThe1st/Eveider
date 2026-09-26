@@ -162,6 +162,7 @@ const DrawerBody = memo(function DrawerBody({
       onOpenNotifications={() => openSettings('Notifications')}
       onOpenPersonalInfo={() => openSettings('PersonalInfo')}
       onOpenDriverProfile={mode === 'DRIVER' ? () => openSettings('DriverProfile') : undefined}
+      onOpenDriverStats={mode === 'DRIVER' ? () => openSettings('DriverStats') : undefined}
       onContactDispatch={mode === 'DRIVER' ? () => openDispatcherWhatsApp() : undefined}
       onOpenLanguage={() => openSettings('Language')}
       onOpenAppearance={() => openSettings('Appearance')}

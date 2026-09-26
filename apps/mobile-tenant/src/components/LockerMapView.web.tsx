@@ -40,5 +40,6 @@ export {
   getCurrentCoordinates,
   openAddressSearch,
   openDirections,
+  openMultiStopDirections,
   openStopDirections,
 } from './locker-map-shared';

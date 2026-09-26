@@ -1,9 +1,26 @@
-import { borders, type ColorTokens } from '@eveider/config-ui';
-import { useMemo } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { type ColorTokens } from '@eveider/config-ui';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import {
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
 import { ScreenScaffold } from '../../components/ScreenHeader';
 import { useSettings } from '../../context/settings-context';
+import {
+  fetchPushNotificationPreference,
+  setPushNotificationPreference,
+} from '../../lib/api';
+import {
+  syncPushRegistration,
+  getNotificationOsGranted,
+  isRemotePushSupported,
+} from '../../lib/push-notifications';
 import { useColors } from '../../theme';
 
 type NotificationPreferencesScreenProps = {
@@ -11,78 +28,78 @@ type NotificationPreferencesScreenProps = {
   onBack: () => void;
 };
 
-type ToggleRowProps = {
-  label: string;
-  description: string;
-  value: boolean;
-  onValueChange: (next: boolean) => void;
-  colors: ColorTokens;
-  styles: ReturnType<typeof createStyles>;
-};
-
-function ToggleRow({ label, description, value, onValueChange, colors, styles }: ToggleRowProps) {
-  return (
-    <View style={styles.row}>
-      <View style={styles.rowText}>
-        <Text style={styles.rowLabel}>{label}</Text>
-        <Text style={styles.rowDescription}>{description}</Text>
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onValueChange}
-        trackColor={{ false: colors.border, true: colors.primary }}
-        thumbColor="#FFFFFF"
-      />
-    </View>
-  );
-}
-
 export function NotificationPreferencesScreen({ onBack }: NotificationPreferencesScreenProps) {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useTranslation();
-  const {
-    pushNotifications,
-    emailNotifications,
-    smsNotifications,
-    setPushNotifications,
-    setEmailNotifications,
-    setSmsNotifications,
-  } = useSettings();
+  const { pushNotifications, setPushNotifications } = useSettings();
+  const [osGranted, setOsGranted] = useState<boolean | null>(null);
+  const [saving, setSaving] = useState(false);
+  const remotePushSupported = isRemotePushSupported();
+
+  const refreshOsPermission = useCallback(async () => {
+    setOsGranted(await getNotificationOsGranted());
+  }, []);
+
+  useEffect(() => {
+    void refreshOsPermission();
+    void (async () => {
+      const result = await fetchPushNotificationPreference();
+      if (result.success) {
+        setPushNotifications(result.data.pushNotificationsEnabled);
+      }
+    })();
+  }, [refreshOsPermission, setPushNotifications]);
+
+  async function handleToggle(next: boolean) {
+    setPushNotifications(next);
+    setSaving(true);
+    const result = await setPushNotificationPreference(next);
+    setSaving(false);
+    if (!result.success) {
+      setPushNotifications(!next);
+      return;
+    }
+    if (next && remotePushSupported) {
+      await syncPushRegistration();
+      await refreshOsPermission();
+    }
+  }
 
   return (
     <ScreenScaffold title={t('notificationPrefs.title')} onBack={onBack}>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <Text style={styles.subtitle}>{t('notificationPrefs.subtitle')}</Text>
 
-        <View style={styles.group}>
-          <ToggleRow
-            label={t('notificationPrefs.push')}
-            description={t('notificationPrefs.pushDescription')}
+        {remotePushSupported && osGranted === false ? (
+          <View style={styles.osBanner}>
+            <Text style={styles.osBannerTitle}>{t('notificationPrefs.osDisabledTitle')}</Text>
+            <Text style={styles.osBannerBody}>{t('notificationPrefs.osDisabledBody')}</Text>
+            <Pressable
+              onPress={() => void Linking.openSettings()}
+              style={styles.osBannerButton}
+              accessibilityRole="button"
+            >
+              <Text style={styles.osBannerButtonText}>{t('notificationPrefs.openSettings')}</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        <View style={styles.row}>
+          <View style={styles.rowText}>
+            <Text style={styles.rowLabel}>{t('notificationPrefs.push')}</Text>
+            <Text style={styles.rowDescription}>{t('notificationPrefs.pushDescription')}</Text>
+          </View>
+          <Switch
             value={pushNotifications}
-            onValueChange={setPushNotifications}
-            colors={colors}
-            styles={styles}
-          />
-          <ToggleRow
-            label={t('notificationPrefs.email')}
-            description={t('notificationPrefs.emailDescription')}
-            value={emailNotifications}
-            onValueChange={setEmailNotifications}
-            colors={colors}
-            styles={styles}
-          />
-          <ToggleRow
-            label={t('notificationPrefs.sms')}
-            description={t('notificationPrefs.smsDescription')}
-            value={smsNotifications}
-            onValueChange={setSmsNotifications}
-            colors={colors}
-            styles={styles}
+            onValueChange={(next) => void handleToggle(next)}
+            disabled={saving}
+            trackColor={{ false: colors.border, true: colors.primary }}
+            thumbColor="#FFFFFF"
           />
         </View>
 
-        <Text style={styles.note}>{t('notificationPrefs.note')}</Text>
+        <Text style={styles.note}>{t('notificationPrefs.inboxNote')}</Text>
       </ScrollView>
     </ScreenScaffold>
   );
@@ -95,53 +112,76 @@ function createStyles(colors: ColorTokens) {
       backgroundColor: colors.background,
     },
     content: {
-      padding: 20,
+      paddingHorizontal: 20,
+      paddingTop: 8,
       paddingBottom: 40,
     },
     subtitle: {
-      marginBottom: 16,
-      fontSize: 13,
-      fontWeight: '500',
-      color: colors.secondary,
-      opacity: 0.75,
+      marginBottom: 12,
+      fontSize: 14,
+      fontWeight: '400',
+      color: colors.textMuted,
       lineHeight: 20,
     },
-    group: {
-      borderWidth: borders.width,
-      borderColor: colors.border,
+    osBanner: {
+      marginBottom: 16,
+      paddingVertical: 12,
+      gap: 6,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    osBannerTitle: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.secondary,
+    },
+    osBannerBody: {
+      fontSize: 13,
+      fontWeight: '400',
+      color: colors.textMuted,
+      lineHeight: 19,
+    },
+    osBannerButton: {
+      alignSelf: 'flex-start',
+      marginTop: 6,
+      paddingVertical: 8,
+    },
+    osBannerButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.primary,
     },
     row: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      backgroundColor: colors.surface,
-      padding: 14,
+      paddingVertical: 14,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.border,
     },
     rowText: {
       flex: 1,
+      minWidth: 0,
     },
     rowLabel: {
-      fontSize: 13,
-      fontWeight: '600',
+      fontSize: 16,
+      fontWeight: '500',
       color: colors.secondary,
     },
     rowDescription: {
-      marginTop: 4,
-      fontSize: 11,
-      fontWeight: '500',
-      color: colors.secondary,
-      opacity: 0.7,
-      lineHeight: 16,
+      marginTop: 2,
+      fontSize: 12,
+      fontWeight: '400',
+      color: colors.textMuted,
+      lineHeight: 17,
     },
     note: {
-      marginTop: 16,
-      fontSize: 10,
-      fontWeight: '600',
-      letterSpacing: 0.4,
-      color: colors.secondary,
-      opacity: 0.5,
+      marginTop: 24,
+      fontSize: 12,
+      fontWeight: '400',
+      color: colors.textMuted,
+      lineHeight: 18,
+      opacity: 0.85,
     },
   });
 }

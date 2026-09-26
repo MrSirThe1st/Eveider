@@ -6,15 +6,15 @@ import { getDriverDeliveryKind } from '../lib/driver-presentation';
 import { useColors } from '../theme';
 
 const ALLER_STEPS = [
-  { key: 'assigned', label: 'Récupérer' },
-  { key: 'scanned', label: 'Casier' },
+  { key: 'assigned', label: 'Collecte' },
+  { key: 'scanned', label: 'Transport' },
   { key: 'drop_off_pending', label: 'Dépôt' },
   { key: 'completed', label: 'Terminé' },
 ] as const;
 
 const RETURN_STEPS = [
-  { key: 'assigned', label: 'Casier' },
-  { key: 'scanned', label: 'Entreprise' },
+  { key: 'assigned', label: 'Collecte' },
+  { key: 'scanned', label: 'Transport' },
   { key: 'drop_off_pending', label: 'Remise' },
   { key: 'completed', label: 'Terminé' },
 ] as const;
@@ -31,6 +31,7 @@ type DeliveryStepIndicatorProps = {
   kind?: DeliveryKind | null;
 };
 
+/** Quiet horizontal progress — current step is clear; box chrome stays light. */
 export function DeliveryStepIndicator({ status, kind }: DeliveryStepIndicatorProps) {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -54,7 +55,15 @@ export function DeliveryStepIndicator({ status, kind }: DeliveryStepIndicatorPro
                 isCurrent && styles.dotCurrent,
               ]}
             />
-            <Text style={[styles.label, reached && styles.labelReached]}>{step.label}</Text>
+            <Text
+              style={[
+                styles.label,
+                reached && styles.labelReached,
+                isCurrent && styles.labelCurrent,
+              ]}
+            >
+              {step.label}
+            </Text>
           </View>
         );
       })}
@@ -67,21 +76,21 @@ function createStyles(colors: ColorTokens) {
     container: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      backgroundColor: colors.surface,
       borderWidth: borders.width,
       borderColor: colors.border,
-      paddingVertical: 14,
-      paddingHorizontal: 12,
-      marginBottom: 16,
+      backgroundColor: colors.surface,
+      paddingVertical: 12,
+      paddingHorizontal: 10,
+      marginBottom: 20,
     },
     step: {
       flex: 1,
       alignItems: 'center',
     },
     dot: {
-      width: 10,
-      height: 10,
-      borderRadius: 5,
+      width: 8,
+      height: 8,
+      borderRadius: 4,
       backgroundColor: colors.border,
       marginBottom: 6,
     },
@@ -89,6 +98,9 @@ function createStyles(colors: ColorTokens) {
       backgroundColor: colors.primary,
     },
     dotCurrent: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
       borderWidth: 2,
       borderColor: colors.secondary,
     },
@@ -99,6 +111,10 @@ function createStyles(colors: ColorTokens) {
     },
     labelReached: {
       color: colors.secondary,
+    },
+    labelCurrent: {
+      fontWeight: '700',
+      color: colors.primary,
     },
   });
 }

@@ -8,6 +8,9 @@ import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import './src/i18n';
 import { BootSplash } from './src/components/BootSplash';
+import {
+  NotificationRoutingProvider,
+} from './src/context/notification-routing-context';
 import { SettingsProvider, useSettings } from './src/context/settings-context';
 import { ThemeProvider, useAppTheme } from './src/theme';
 import { apiFetch } from './src/lib/api-fetch';
@@ -16,6 +19,7 @@ import { acceptInvite, fetchInvitePreview, parseInviteToken, type InvitePreview 
 import { getAuthApiUrl, supabase } from './src/lib/supabase';
 import { MobileTabs } from './src/navigation/MobileTabs';
 import { AuthScreen } from './src/screens/AuthScreen';
+import { DriverVisualQaScreen } from './src/screens/DriverVisualQaScreen';
 import { LocaleSetupScreen } from './src/screens/LocaleSetupScreen';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
@@ -44,7 +48,24 @@ type AppState =
       optional?: boolean;
       authMode?: 'login' | 'register';
     }
-  | { kind: 'home'; role: UserRole; guest: boolean; initialParcelId?: string };
+  | { kind: 'home'; role: UserRole; guest: boolean; initialParcelId?: string }
+  | { kind: 'driver-qa' };
+
+function wantsDriverVisualQa(url: string | null): boolean {
+  if (!__DEV__ || !url) return false;
+  return /[?&#]driverQa=1(?:&|$)/.test(url) || url.includes('driver-qa');
+}
+
+function readWebDriverVisualQaFlag(): boolean {
+  if (!__DEV__) return false;
+  try {
+    const global = globalThis as { location?: { href?: string } };
+    const href = global.location?.href ?? null;
+    return wantsDriverVisualQa(href);
+  } catch {
+    return false;
+  }
+}
 
 const MOBILE_ROLES = ['customer', 'courier', 'driver'] as const;
 
@@ -89,6 +110,16 @@ function AppContent() {
   useEffect(() => {
     void applyOtaUpdateIfAvailable();
   }, []);
+
+  // __DEV__ visual QA: allow opening before locale setup completes.
+  useEffect(() => {
+    if (!ready || !__DEV__) return;
+    void Linking.getInitialURL().then((url) => {
+      if (wantsDriverVisualQa(url) || readWebDriverVisualQaFlag()) {
+        setState({ kind: 'driver-qa' });
+      }
+    });
+  }, [ready]);
 
   useEffect(() => {
     if (showNativeSplash) return;
@@ -150,9 +181,10 @@ function AppContent() {
           }
         }
 
+        const homeRole: UserRole = role === 'courier' ? 'driver' : role;
         applyState({
           kind: 'home',
-          role: role === 'courier' ? 'driver' : role,
+          role: homeRole,
           guest: false,
           initialParcelId,
         });
@@ -245,6 +277,10 @@ function AppContent() {
     async function bootstrap() {
       try {
         const initialUrl = await Linking.getInitialURL();
+        if (wantsDriverVisualQa(initialUrl) || readWebDriverVisualQaFlag()) {
+          applyState({ kind: 'driver-qa' });
+          return;
+        }
         const recovered = await consumeAuthUrl(initialUrl);
         if (recovered === 'reset') {
           resetPasswordRef.current = true;
@@ -378,6 +414,19 @@ function AppContent() {
     return <BootSplash />;
   }
 
+  if (!ready) {
+    return <BootSplash />;
+  }
+
+  if (state.kind === 'driver-qa') {
+    return (
+      <>
+        <DriverVisualQaScreen onExit={() => setState(GUEST_HOME)} />
+        <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+      </>
+    );
+  }
+
   if (!setupComplete) {
     return (
       <>
@@ -434,12 +483,14 @@ function AppContent() {
           },
         }}
       >
-        <MobileTabs
-          role={state.role}
-          initialParcelId={state.initialParcelId}
-          isGuest={state.guest}
-          onRequestAuth={(mode) => setState({ kind: 'auth', optional: true, authMode: mode })}
-        />
+        <NotificationRoutingProvider enabled={!state.guest}>
+          <MobileTabs
+            role={state.role}
+            initialParcelId={state.initialParcelId}
+            isGuest={state.guest}
+            onRequestAuth={(mode) => setState({ kind: 'auth', optional: true, authMode: mode })}
+          />
+        </NotificationRoutingProvider>
       </NavigationContainer>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
     </>

@@ -62,6 +62,9 @@ export async function GET(request: Request) {
               fullName: courier.fullName,
               email: courier.email,
               phone: courier.phone,
+              isAcceptingWork: courier.isAcceptingWork,
+              vehicleType: courier.vehicleType,
+              vehicleMakeModel: courier.vehicleMakeModel,
             })),
             lockers: lockerItems
               .filter((locker) => locker.type === 'SMART_LOCKER')

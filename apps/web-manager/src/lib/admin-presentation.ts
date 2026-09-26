@@ -1,10 +1,12 @@
-import type {
-  DeliveryKind,
-  DeliveryStatus,
-  ParcelReturnMethod,
-  ParcelReturnStatus,
-  ParcelStatus,
-  ShipmentPickupType,
+import {
+  DRIVER_VEHICLE_TYPE_LABELS,
+  type DeliveryKind,
+  type DeliveryStatus,
+  type DriverVehicleType,
+  type ParcelReturnMethod,
+  type ParcelReturnStatus,
+  type ParcelStatus,
+  type ShipmentPickupType,
 } from '@eveider/domain';
 
 export type AdminParcelAttentionFilter =
@@ -68,7 +70,11 @@ export function getAdminParcelDisplayStatus(input: {
 export function getAdminDeliveryStatusLabel(status: DeliveryStatus): string {
   switch (status) {
     case 'assigned':
-      return 'Assignée';
+      return 'Assignée — en attente d’acceptation';
+    case 'accepted':
+      return 'Acceptée';
+    case 'started':
+      return 'En cours';
     case 'scanned':
       return 'Prise en charge';
     case 'drop_off_pending':
@@ -82,9 +88,46 @@ export function getAdminDeliveryStatusLabel(status: DeliveryStatus): string {
   }
 }
 
+/** Label when a Collecte Eveider parcel has no outbound delivery yet. */
+export function getAdminUnassignedDeliveryLabel(): string {
+  return 'Non assignée';
+}
+
+export function getDriverAvailabilityLabel(isAcceptingWork: boolean): string {
+  return isAcceptingWork ? 'Disponible' : 'Indisponible';
+}
+
+export function formatDriverVehicleSummary(input: {
+  vehicleType?: DriverVehicleType | null;
+  vehicleMakeModel?: string | null;
+}): string | null {
+  const typeLabel = input.vehicleType ? DRIVER_VEHICLE_TYPE_LABELS[input.vehicleType] : null;
+  const makeModel = input.vehicleMakeModel?.trim() || null;
+  if (typeLabel && makeModel) return `${typeLabel} · ${makeModel}`;
+  return typeLabel ?? makeModel;
+}
+
+export function formatAssignableDriverOptionLabel(input: {
+  fullName: string | null;
+  email: string | null;
+  phone: string | null;
+  id: string;
+  isAcceptingWork: boolean;
+  vehicleType?: DriverVehicleType | null;
+  vehicleMakeModel?: string | null;
+}): string {
+  const name = input.fullName ?? input.email ?? input.phone ?? input.id;
+  const availability = getDriverAvailabilityLabel(input.isAcceptingWork);
+  const vehicle = formatDriverVehicleSummary({
+    vehicleType: input.vehicleType,
+    vehicleMakeModel: input.vehicleMakeModel,
+  });
+  return vehicle ? `${name} — ${availability} · ${vehicle}` : `${name} — ${availability}`;
+}
+
 export function getAdminDeliveryKindLabel(kind: DeliveryKind): string {
   if (kind === 'customer_return') return 'Retour client';
-  if (kind === 'return') return 'Retour non retiré (historique)';
+  if (kind === 'return') return 'Retour non retiré';
   return 'Aller';
 }
 
@@ -136,7 +179,7 @@ const TIMELINE_NOISE_KEYS = new Set([
 export function summarizeAdminParcelEvent(payload: Record<string, unknown>): string | null {
   const parts: string[] = [];
   if (payload.kind === 'customer_return') parts.push('Retour client');
-  if (payload.kind === 'return') parts.push('Retour non retiré (historique)');
+  if (payload.kind === 'return') parts.push('Retour non retiré');
   if (payload.kind === 'outbound') parts.push('Aller');
   if (payload.hasProof === true) parts.push('Preuve photo enregistrée');
   if (payload.issued === true) parts.push('Code émis');

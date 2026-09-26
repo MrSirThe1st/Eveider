@@ -15,6 +15,7 @@ const STEPS: WizardStep[] = [
   { id: 'method', title: 'Méthode', description: 'Comment le colis entre dans le réseau Eveider.' },
   { id: 'recipient', title: 'Destinataire', description: 'Qui retirera le colis ?' },
   { id: 'package', title: 'Colis', description: 'Taille pour le casier, et référence si utile.' },
+  { id: 'delivery', title: 'Livraison', description: 'Collecte, échéance et instructions chauffeur.' },
   { id: 'locker', title: 'Casier', description: 'Casier Eveider de destination.' },
   { id: 'review', title: 'Revue', description: 'Vérifiez avant de créer le colis.' },
 ];
@@ -58,6 +59,24 @@ function ReviewRow({ label, children }: { label: string; children: React.ReactNo
   );
 }
 
+function fromDatetimeLocalValue(value: string): string | null {
+  if (!value.trim()) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString();
+}
+
+function formatDueAtReview(iso: string | null): string {
+  if (!iso) return '—';
+  return new Intl.DateTimeFormat('fr-CD', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(iso));
+}
+
 export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
   const router = useRouter();
   const toast = useToast();
@@ -73,6 +92,8 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
   const [senderLat, setSenderLat] = useState<number | null>(null);
   const [senderLng, setSenderLng] = useState<number | null>(null);
   const [senderInstructions, setSenderInstructions] = useState<string | null>(null);
+  const [dueAtLocal, setDueAtLocal] = useState('');
+  const [driverInstructions, setDriverInstructions] = useState('');
 
   const [reference, setReference] = useState('');
   const [recipientName, setRecipientName] = useState('');
@@ -189,7 +210,6 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
         if (!cancelled && json.success) {
           const amount = Number(json.data.deliveryFeeAmount);
           const currency = (json.data.deliveryFeeCurrency === 'USD' ? 'USD' : 'CDF') as DeliveryPricingCurrency;
-          // Format from amount + platform currency — never invent a $ display for CDF.
           setDeliveryQuoteLabel(
             Number.isFinite(amount)
               ? formatDeliveryFee(amount, currency)
@@ -208,25 +228,15 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
   }, [lockerId, packageSize, pickupType, senderAddress]);
 
   function validateMethod(): boolean {
-    if (senderName.trim().length < 2) {
-      setError('Indiquez la personne à joindre.');
-      return false;
-    }
-    if (!senderPhone.trim()) {
-      setError('Indiquez un numéro de téléphone.');
-      return false;
-    }
-    if (pickupType === 'courier_pickup' && senderAddress.trim().length < 5) {
-      setError(
-        pickupLocations.length === 0
-          ? 'Ajoutez une adresse de collecte dans Paramètres → Entreprise.'
-          : 'Adresse de collecte requise pour une Collecte Eveider.',
-      );
-      return false;
-    }
-    if (pickupType === 'courier_pickup' && pickupLocations.length > 0 && !pickupLocationId) {
-      setError('Choisissez un lieu de collecte.');
-      return false;
+    if (pickupType === 'merchant_dropoff') {
+      if (senderName.trim().length < 2) {
+        setError('Indiquez la personne à joindre.');
+        return false;
+      }
+      if (!senderPhone.trim()) {
+        setError('Indiquez un numéro de téléphone.');
+        return false;
+      }
     }
     setError(null);
     return true;
@@ -245,6 +255,37 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
     return true;
   }
 
+  function validateDelivery(): boolean {
+    if (pickupType === 'courier_pickup') {
+      if (senderName.trim().length < 2) {
+        setError('Indiquez la personne à joindre pour la collecte.');
+        return false;
+      }
+      if (!senderPhone.trim()) {
+        setError('Indiquez un numéro de téléphone pour la collecte.');
+        return false;
+      }
+      if (senderAddress.trim().length < 5) {
+        setError(
+          pickupLocations.length === 0
+            ? 'Ajoutez une adresse de collecte dans Paramètres → Entreprise.'
+            : 'Adresse de collecte requise pour une Collecte Eveider.',
+        );
+        return false;
+      }
+      if (pickupLocations.length > 0 && !pickupLocationId) {
+        setError('Choisissez un lieu de collecte.');
+        return false;
+      }
+    }
+    if (dueAtLocal.trim() && !fromDatetimeLocalValue(dueAtLocal)) {
+      setError('Échéance invalide.');
+      return false;
+    }
+    setError(null);
+    return true;
+  }
+
   function validateLocker(): boolean {
     if (!lockerId) {
       setError('Sélectionnez un casier Eveider.');
@@ -257,15 +298,18 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
   function handleNext() {
     if (stepIndex === 0 && !validateMethod()) return;
     if (stepIndex === 1 && !validateRecipient()) return;
-    if (stepIndex === 3 && !validateLocker()) return;
+    if (stepIndex === 3 && !validateDelivery()) return;
+    if (stepIndex === 4 && !validateLocker()) return;
     setStepIndex((current) => Math.min(current + 1, STEPS.length - 1));
   }
 
   async function handleSubmit() {
-    if (!validateMethod() || !validateRecipient() || !validateLocker()) return;
+    if (!validateMethod() || !validateRecipient() || !validateDelivery() || !validateLocker()) return;
 
     setLoading(true);
     setError(null);
+
+    const dueAt = fromDatetimeLocalValue(dueAtLocal);
 
     try {
       const response = await fetch('/api/organisation/parcels', {
@@ -291,6 +335,8 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
           lockerId,
           packageSize,
           packageCategory: 'other',
+          dueAt: dueAt ?? undefined,
+          driverInstructions: driverInstructions.trim() || undefined,
         }),
       });
 
@@ -327,6 +373,7 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
   const isDropoff = pickupType === 'merchant_dropoff';
   const chargeTitle = isDropoff ? 'Frais de retrait' : 'Frais de livraison';
   const lockerTitle = selectedLocker?.networkLabel ?? selectedLocker?.name ?? '—';
+  const dueAtIso = fromDatetimeLocalValue(dueAtLocal);
   const nextAction = isDropoff
     ? {
         title: 'Prochaine étape',
@@ -392,93 +439,9 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
           </div>
 
           {pickupType === 'courier_pickup' ? (
-            <>
-              <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>
-                Eveider organisera la prise en charge. Vous ne choisissez pas le chauffeur.
-              </p>
-              {pickupLocations.length === 0 ? (
-                <a
-                  href={WEB_ROUTES.businessSettingsOrganisation}
-                  style={{ fontSize: '0.875rem', fontWeight: 600, color: colors.primary }}
-                >
-                  + Ajouter une adresse
-                </a>
-              ) : (
-                <>
-                  <label className="ops-field">
-                    <span className="ops-field-label">Lieu de collecte</span>
-                    <select
-                      value={pickupLocationId}
-                      disabled={loading}
-                      onChange={(e) => {
-                        const next = pickupLocations.find((location) => location.id === e.target.value);
-                        if (next) applyPickupLocation(next, { overrideContact: true });
-                      }}
-                      style={{
-                        width: '100%',
-                        height: 44,
-                        borderRadius: 8,
-                        border: borderSubtle(),
-                        padding: '0 0.75rem',
-                        background: colors.surface,
-                        color: colors.secondary,
-                      }}
-                    >
-                      {pickupLocations.map((location) => (
-                        <option key={location.id} value={location.id}>
-                          {location.name}
-                          {location.isDefault ? ' (par défaut)' : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  {selectedPickupLocation ? (
-                    <div
-                      style={{
-                        display: 'grid',
-                        gap: '0.35rem',
-                        padding: '0.85rem 1rem',
-                        borderRadius: 8,
-                        border: borderSubtle(),
-                        background: colors.surface,
-                        fontSize: '0.8125rem',
-                        color: colors.textMuted,
-                      }}
-                    >
-                      <span>{selectedPickupLocation.street}</span>
-                      {selectedPickupLocation.instructions ? (
-                        <span>Instructions · {selectedPickupLocation.instructions}</span>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  <a
-                    href="/organisation/tableau-de-bord/parametres/organisation"
-                    style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.primary }}
-                  >
-                    + Ajouter une adresse
-                  </a>
-                  <TextField
-                    label="Personne à joindre"
-                    name="senderName"
-                    value={senderName}
-                    onChange={(e) => setSenderName(e.target.value)}
-                    disabled={loading}
-                    required
-                    hint="Quelqu’un présent à cette adresse, que le chauffeur Eveider pourra appeler."
-                    placeholder="Jean Mukendi"
-                  />
-                  <PhoneField
-                    label="Téléphone"
-                    name="senderPhone"
-                    value={senderPhone}
-                    onChange={setSenderPhone}
-                    disabled={loading}
-                    required
-                    hint="Numéro joignable au moment de la prise en charge."
-                  />
-                </>
-              )}
-            </>
+            <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>
+              Eveider organisera la prise en charge. Adresse et contact de collecte à l’étape Livraison.
+            </p>
           ) : (
             <>
               <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>
@@ -568,6 +531,133 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
 
       {stepIndex === 3 ? (
         <section style={{ display: 'grid', gap: '1rem' }}>
+          {pickupType === 'courier_pickup' ? (
+            <>
+              <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>
+                Où le chauffeur Eveider récupère le colis, et à qui s’adresser.
+              </p>
+              {pickupLocations.length === 0 ? (
+                <a
+                  href={WEB_ROUTES.businessSettingsOrganisation}
+                  style={{ fontSize: '0.875rem', fontWeight: 600, color: colors.primary }}
+                >
+                  + Ajouter une adresse
+                </a>
+              ) : (
+                <>
+                  <label className="ops-field">
+                    <span className="ops-field-label">Lieu de collecte</span>
+                    <select
+                      value={pickupLocationId}
+                      disabled={loading}
+                      onChange={(e) => {
+                        const next = pickupLocations.find((location) => location.id === e.target.value);
+                        if (next) applyPickupLocation(next, { overrideContact: true });
+                      }}
+                      style={{
+                        width: '100%',
+                        height: 44,
+                        borderRadius: 8,
+                        border: borderSubtle(),
+                        padding: '0 0.75rem',
+                        background: colors.surface,
+                        color: colors.secondary,
+                      }}
+                    >
+                      {pickupLocations.map((location) => (
+                        <option key={location.id} value={location.id}>
+                          {location.name}
+                          {location.isDefault ? ' (par défaut)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {selectedPickupLocation ? (
+                    <div
+                      style={{
+                        display: 'grid',
+                        gap: '0.35rem',
+                        padding: '0.85rem 1rem',
+                        borderRadius: 8,
+                        border: borderSubtle(),
+                        background: colors.surface,
+                        fontSize: '0.8125rem',
+                        color: colors.textMuted,
+                      }}
+                    >
+                      <span>{selectedPickupLocation.street}</span>
+                      {selectedPickupLocation.instructions ? (
+                        <span>Instructions · {selectedPickupLocation.instructions}</span>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  <a
+                    href="/organisation/tableau-de-bord/parametres/organisation"
+                    style={{ fontSize: '0.8125rem', fontWeight: 600, color: colors.primary }}
+                  >
+                    + Ajouter une adresse
+                  </a>
+                </>
+              )}
+              <TextField
+                label="Personne à joindre"
+                name="senderName"
+                value={senderName}
+                onChange={(e) => setSenderName(e.target.value)}
+                disabled={loading}
+                required
+                hint="Quelqu’un présent à cette adresse, que le chauffeur Eveider pourra appeler."
+                placeholder="Jean Mukendi"
+              />
+              <PhoneField
+                label="Téléphone"
+                name="senderPhone"
+                value={senderPhone}
+                onChange={setSenderPhone}
+                disabled={loading}
+                required
+                hint="Numéro joignable au moment de la prise en charge."
+              />
+            </>
+          ) : (
+            <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>
+              Pas de collecte Eveider — vous déposez au casier. Vous pouvez tout de même indiquer une
+              échéance ou des instructions utiles.
+            </p>
+          )}
+
+          <label style={{ display: 'grid', gap: '0.35rem' }}>
+            <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Livrer avant (facultatif)</span>
+            <input
+              type="datetime-local"
+              name="dueAt"
+              value={dueAtLocal}
+              disabled={loading}
+              onChange={(e) => setDueAtLocal(e.target.value)}
+              style={{
+                width: '100%',
+                height: 44,
+                borderRadius: 8,
+                border: borderSubtle(),
+                padding: '0 0.75rem',
+                background: colors.surface,
+                color: colors.secondary,
+              }}
+            />
+          </label>
+          <TextField
+            label="Instructions pour le chauffeur (facultatif)"
+            name="driverInstructions"
+            value={driverInstructions}
+            onChange={(e) => setDriverInstructions(e.target.value)}
+            disabled={loading}
+            placeholder="Sonner à la porte bleue, code portail…"
+          />
+        </section>
+      ) : null}
+
+      {stepIndex === 4 ? (
+        <section style={{ display: 'grid', gap: '1rem' }}>
           <p style={{ margin: 0, fontWeight: 700, fontSize: '0.8125rem' }}>Casier de destination</p>
           {isDropoff ? (
             <p style={{ margin: 0, fontSize: '0.8125rem', color: colors.textMuted }}>
@@ -595,7 +685,7 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
         </section>
       ) : null}
 
-      {stepIndex === 4 ? (
+      {stepIndex === 5 ? (
         <section style={{ display: 'grid', gap: '1.25rem' }}>
           <dl
             style={{
@@ -622,6 +712,17 @@ export function CreateParcelForm({ initialLockerId }: CreateParcelFormProps) {
                 </span>
               </ReviewRow>
             ) : null}
+
+            <ReviewRow label="Livraison">
+              <span style={{ display: 'block' }}>
+                Livrer avant · {formatDueAtReview(dueAtIso)}
+              </span>
+              {driverInstructions.trim() ? (
+                <span style={{ display: 'block', marginTop: 2, fontWeight: 500, color: colors.textMuted }}>
+                  {driverInstructions.trim()}
+                </span>
+              ) : null}
+            </ReviewRow>
 
             <ReviewRow label="Destinataire">
               <span style={{ display: 'block' }}>{recipientName.trim() || '—'}</span>

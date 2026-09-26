@@ -94,7 +94,6 @@ export type BusinessParcelDetailView = ParcelDto & {
   recipientCharges: ParcelChargeView[];
   businessCharges: ParcelChargeView[];
   activeDelivery: BusinessActiveDeliveryView | null;
-  historicalRts: boolean;
   customerReturn: ParcelReturnView | null;
   returnLockerOptions: Array<{ id: string; name: string; address: string }>;
 };
@@ -236,7 +235,6 @@ export async function loadBusinessParcelDetail(
     recipientCharges: chargeViews.filter((charge) => charge.payer === 'recipient'),
     businessCharges: chargeViews.filter((charge) => isBusinessOwedCharge(charge.kind, charge.payer)),
     activeDelivery: activeDelivery ? toActiveDeliveryView(activeDelivery) : null,
-    historicalRts: parcel.latestDeliveryKind === 'return',
     customerReturn: returnView,
     returnLockerOptions,
   };

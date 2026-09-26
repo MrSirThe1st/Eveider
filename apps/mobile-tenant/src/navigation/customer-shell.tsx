@@ -9,6 +9,7 @@ export type CustomerSettingsScreen =
   | 'EditPersonalInfo'
   | 'ChangePassword'
   | 'DriverProfile'
+  | 'DriverStats'
   | 'Language'
   | 'Country'
   | 'Appearance'

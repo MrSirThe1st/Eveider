@@ -4,16 +4,18 @@ import type { BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { createContext, memo, useContext, useMemo, useRef, useState, type MutableRefObject } from 'react';
+import { createContext, memo, useContext, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ProfileDrawer } from '../components/ProfileDrawer';
+import { useNotificationRoutingOptional } from '../context/notification-routing-context';
 import { DRIVER_PRIMARY_TABS } from '../lib/driver-nav';
 import { callEveiderSupport } from '../lib/support';
 import { CourierHistoryScreen } from '../screens/CourierHistoryScreen';
 import { CourierHome } from '../screens/CourierHome';
 import { CourierRouteScreen } from '../screens/CourierRouteScreen';
+import { CourierStatsScreen } from '../screens/CourierStatsScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { AppearanceSettingsScreen } from '../screens/settings/AppearanceSettingsScreen';
 import { ChangePasswordScreen } from '../screens/settings/ChangePasswordScreen';
@@ -111,6 +113,7 @@ const CourierStack = memo(function CourierStack() {
       <Stack.Screen name="EditPersonalInfo" component={EditPersonalInfoRoute} />
       <Stack.Screen name="ChangePassword" component={ChangePasswordRoute} />
       <Stack.Screen name="DriverProfile" component={DriverProfileRoute} />
+      <Stack.Screen name="DriverStats" component={DriverStatsRoute} />
       <Stack.Screen name="Language" component={LanguageRoute} />
       <Stack.Screen name="Country" component={CountryRoute} />
       <Stack.Screen name="Appearance" component={AppearanceRoute} />
@@ -127,6 +130,7 @@ function CourierTabs() {
   const navigation = useNavigation<NativeStackNavigationProp<CourierStackParamList>>();
   const stackNavRef = useContext(StackNavRefContext);
   stackNavRef.current = navigation;
+  useDriverNotificationDeepLinks(navigation);
 
   return (
     <View style={styles.fill}>
@@ -134,6 +138,24 @@ function CourierTabs() {
       <DrawerHost />
     </View>
   );
+}
+
+function useDriverNotificationDeepLinks(
+  navigation: NativeStackNavigationProp<CourierStackParamList>,
+) {
+  const routing = useNotificationRoutingOptional();
+  useEffect(() => {
+    if (!routing?.pendingRoute) return;
+    const route = routing.consumePendingRoute();
+    if (!route) return;
+    const deliveryId =
+      route.deliveryId ?? (route.entityType === 'delivery' ? route.entityId : null);
+    if (!deliveryId) return;
+    navigation.navigate('Tabs', {
+      screen: 'Home',
+      params: { deliveryId, focusNonce: Date.now() },
+    });
+  }, [routing?.pendingRoute, routing, navigation]);
 }
 
 function DrawerHost() {
@@ -196,7 +218,12 @@ function NotificationsRoute() {
       mode="DRIVER"
       onBack={() => navigation.goBack()}
       onOpenPreferences={() => navigation.navigate('NotificationPreferences')}
-      onOpenParcel={() => navigation.navigate('Tabs', { screen: 'Home' })}
+      onOpenDelivery={(deliveryId) => {
+        navigation.navigate('Tabs', {
+          screen: 'Home',
+          params: { deliveryId, focusNonce: Date.now() },
+        });
+      }}
     />
   );
 }
@@ -246,6 +273,11 @@ function ChangePasswordRoute() {
 function DriverProfileRoute() {
   const navigation = useNavigation<NativeStackNavigationProp<CourierStackParamList>>();
   return <DriverProfileScreen onBack={() => navigation.goBack()} />;
+}
+
+function DriverStatsRoute() {
+  const navigation = useNavigation<NativeStackNavigationProp<CourierStackParamList>>();
+  return <CourierStatsScreen onBack={() => navigation.goBack()} />;
 }
 
 function HelpRoute() {

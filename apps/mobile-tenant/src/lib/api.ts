@@ -1,6 +1,6 @@
 import { type DeliveryKind, type DeliveryStatus, type IssueStatus, type IssueType, type ParcelReturnMethod, type ParcelReturnStatus, type ParcelStatus, type ShipmentPickupType, type UserRole } from '@eveider/domain';
 import { apiFetch } from './api-fetch';
-import { supabase } from './supabase';
+import { authApiUrl, supabase } from './supabase';
 
 export type PickupPaymentStatus = 'none' | 'pending' | 'processing' | 'completed' | 'failed';
 
@@ -74,6 +74,8 @@ export type CourierDelivery = {
   createdAt: string;
   updatedAt: string;
   hasDropOffPhoto: boolean;
+  dueAt?: string | null;
+  driverInstructions?: string | null;
   parcel: {
     id: string;
     trackingNumber: string;
@@ -447,19 +449,150 @@ export type CourierDriverProfile = {
     isPlatformOrg: boolean;
   } | null;
   contractorType: string;
+  isAcceptingWork: boolean;
+  selfAssignmentEnabled?: boolean;
+  profilePhotoUrl?: string | null;
+  vehicle?: {
+    type: string | null;
+    makeModel: string | null;
+    plate: string | null;
+    color: string | null;
+  } | null;
   documents: Array<{
     key: 'identity';
     status: CourierDriverDocumentStatus;
   }>;
 };
 
+export type CourierClaimableParcel = {
+  parcelId: string;
+  kind: DeliveryKind;
+  trackingNumber: string;
+  reference: string | null;
+  businessName: string;
+  senderAddress: string | null;
+  lockerName: string | null;
+  lockerAddress: string | null;
+  dueAt: string | null;
+  driverInstructions: string | null;
+};
+
 export async function fetchCourierDriverProfile() {
   return courierFetch<CourierDriverProfile>('/api/driver/profile');
+}
+
+export async function updateCourierDriverProfile(input: {
+  vehicleType?: string | null;
+  vehicleMakeModel?: string | null;
+  vehiclePlate?: string | null;
+  vehicleColor?: string | null;
+}) {
+  return courierFetch<{
+    vehicle: {
+      type: string | null;
+      makeModel: string | null;
+      plate: string | null;
+      color: string | null;
+    };
+  }>('/api/driver/profile', {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function uploadCourierDriverPhoto(photoBase64: string) {
+  return courierFetch<{ hasProfilePhoto: boolean }>('/api/driver/profile/photo', {
+    method: 'POST',
+    body: JSON.stringify({ photoBase64 }),
+    timeoutMs: 60_000,
+  });
+}
+
+export async function deleteCourierDriverPhoto() {
+  return courierFetch<{ hasProfilePhoto: boolean }>('/api/driver/profile/photo', {
+    method: 'DELETE',
+  });
+}
+
+/** Fetch profile photo bytes as a data URL (auth required). */
+export async function fetchCourierDriverPhotoDataUrl(): Promise<ApiResult<string>> {
+  const token = await getAccessToken();
+  if (!token) return { success: false, error: 'Non authentifié' };
+  try {
+    const res = await fetch(`${authApiUrl}/api/driver/profile/photo`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      return { success: false, error: 'Photo introuvable' };
+    }
+    const blob = await res.blob();
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(String(reader.result ?? ''));
+      reader.onerror = () => reject(new Error('Lecture photo impossible'));
+      reader.readAsDataURL(blob);
+    });
+    if (!dataUrl) return { success: false, error: 'Photo introuvable' };
+    return { success: true, data: dataUrl };
+  } catch {
+    return { success: false, error: 'Photo introuvable' };
+  }
+}
+
+export async function updateCourierAvailability(isAcceptingWork: boolean) {
+  return courierFetch<{ isAcceptingWork: boolean }>('/api/driver/availability', {
+    method: 'PATCH',
+    body: JSON.stringify({ isAcceptingWork }),
+  });
 }
 
 export async function fetchCourierDeliveries() {
   return courierFetch<{ deliveries: CourierDelivery[]; summary: CourierHistorySummary }>(
     '/api/driver/deliveries',
+  );
+}
+
+export async function fetchCourierAvailableDeliveries() {
+  return courierFetch<{
+    selfAssignmentEnabled: boolean;
+    parcels: CourierClaimableParcel[];
+  }>('/api/driver/deliveries/available');
+}
+
+export async function claimCourierDelivery(input: {
+  parcelId: string;
+  kind?: DeliveryKind;
+}) {
+  return courierFetch<{ delivery: CourierDelivery }>('/api/driver/deliveries/claim', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function acceptCourierDelivery(id: string) {
+  return courierFetch<{ delivery: CourierDelivery }>(`/api/driver/deliveries/${id}/accept`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+export async function startCourierDelivery(id: string) {
+  return courierFetch<{ delivery: CourierDelivery }>(`/api/driver/deliveries/${id}/start`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+export async function confirmCourierPickup(
+  id: string,
+  input: { mode: 'scan'; reference: string } | { mode: 'manual' },
+) {
+  return courierFetch<{ delivery: CourierDelivery }>(
+    `/api/driver/deliveries/${id}/confirm-pickup`,
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    },
   );
 }
 
@@ -551,10 +684,16 @@ export async function fetchCourierIssues() {
 
 export type CustomerNotification = {
   id: string;
+  type: string | null;
+  title: string | null;
   message: string;
   read: boolean;
   parcelId: string | null;
   parcelReference: string | null;
+  parcelTrackingNumber: string | null;
+  entityType: string | null;
+  entityId: string | null;
+  deliveryId: string | null;
   createdAt: string;
 };
 
@@ -571,6 +710,12 @@ export async function markCustomerNotificationRead(id: string) {
   );
 }
 
+export async function markCustomerNotificationsReadAll() {
+  return customerFetch<{ updated: number }>('/api/customer/notifications/read-all', {
+    method: 'PATCH',
+  });
+}
+
 export async function fetchCourierNotifications() {
   return courierFetch<{ notifications: CustomerNotification[]; unreadCount: number }>(
     '/api/driver/notifications',
@@ -581,6 +726,51 @@ export async function markCourierNotificationRead(id: string) {
   return courierFetch<{ notification: CustomerNotification }>(
     `/api/driver/notifications/${id}/read`,
     { method: 'PATCH' },
+  );
+}
+
+export async function markCourierNotificationsReadAll() {
+  return courierFetch<{ updated: number }>('/api/driver/notifications/read-all', {
+    method: 'PATCH',
+  });
+}
+
+export async function registerPushDevice(input: {
+  expoPushToken: string;
+  platform: 'ios' | 'android';
+  deviceId?: string | null;
+}) {
+  return customerFetch<{
+    device: { id: string; platform: string; enabled: boolean; lastSeenAt: string };
+  }>('/api/mobile/push-devices', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function unregisterPushDevice(input?: {
+  expoPushToken?: string | null;
+  deviceId?: string | null;
+}) {
+  return customerFetch<{ updated: number }>('/api/mobile/push-devices', {
+    method: 'DELETE',
+    body: JSON.stringify(input ?? {}),
+  });
+}
+
+export async function fetchPushNotificationPreference() {
+  return customerFetch<{ pushNotificationsEnabled: boolean }>(
+    '/api/mobile/notification-preferences',
+  );
+}
+
+export async function setPushNotificationPreference(enabled: boolean) {
+  return customerFetch<{ pushNotificationsEnabled: boolean }>(
+    '/api/mobile/notification-preferences',
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ pushNotificationsEnabled: enabled }),
+    },
   );
 }
 

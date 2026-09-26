@@ -45,6 +45,8 @@ export type AdminParcelDto = {
   business: BusinessSummaryDto;
   pickupType: ShipmentPickupType;
   pickupTypeLabel: string;
+  dueAt: string | null;
+  driverInstructions: string | null;
   deliveryFeeAmount: number | null;
   deliveryFeeCurrency: DeliveryPricingCurrency;
   deliveryFeeLabel: string | null;
@@ -64,6 +66,8 @@ export function toAdminParcelDto(parcel: {
   recipientPhone: string;
   lockerId: string | null;
   pickupType?: ShipmentPickupType;
+  dueAt?: Date | null;
+  driverInstructions?: string | null;
   createdAt: Date;
   updatedAt: Date;
   locker?: { id: string; name: string; address: string } | null;
@@ -93,6 +97,8 @@ export function toAdminParcelDto(parcel: {
     business: { id: parcel.business.id, name: parcel.business.name },
     pickupType,
     pickupTypeLabel: getFulfillmentMethodLabel(pickupType),
+    dueAt: parcel.dueAt ? parcel.dueAt.toISOString() : null,
+    driverInstructions: parcel.driverInstructions ?? null,
     deliveryFeeAmount: parcel.deliveryFeeAmount ?? null,
     deliveryFeeCurrency: currency,
     deliveryFeeLabel:
@@ -175,7 +181,6 @@ export type AdminParcelChargeDto = {
   payer: ChargePayer;
   payerLabel: string;
   amountLabel: string;
-  historical: boolean;
 };
 
 export function toAdminParcelChargeDto(charge: {
@@ -192,6 +197,5 @@ export function toAdminParcelChargeDto(charge: {
     payer: charge.payer,
     payerLabel: CHARGE_PAYER_LABELS[charge.payer],
     amountLabel: formatDeliveryFee(charge.amount, charge.currency),
-    historical: charge.kind === 'delivery_fee' || charge.kind === 'drop_off_fee',
   };
 }

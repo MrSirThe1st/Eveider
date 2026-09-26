@@ -24,6 +24,9 @@ export async function GET() {
           fullName: courier.fullName,
           email: courier.email,
           phone: courier.phone,
+          isAcceptingWork: courier.isAcceptingWork,
+          vehicleType: courier.vehicleType,
+          vehicleMakeModel: courier.vehicleMakeModel,
         })),
       }),
     );

@@ -86,7 +86,7 @@ export async function requireAccountSession(request: Request) {
 export function withMobileCors(response: Response): Response {
   const headers = new Headers(response.headers);
   headers.set('Access-Control-Allow-Origin', '*');
-  headers.set('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
+  headers.set('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
   headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   return new Response(response.body, {
     status: response.status,

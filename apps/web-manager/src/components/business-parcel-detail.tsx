@@ -299,15 +299,6 @@ export function BusinessParcelDetail({
         </section>
       ) : null}
 
-      {parcel.historicalRts ? (
-        <section className={styles.card} style={webCardStyle}>
-          <h3 className={styles.sectionTitle}>Retour non retiré (historique)</h3>
-          <p className={styles.mutedNote} style={{ marginTop: 0 }}>
-            Ancien retour de colis non retiré. Ce n’est pas un retour client.
-          </p>
-        </section>
-      ) : null}
-
       {parcel.customerReturn ? (
         <section className={styles.card} style={webCardStyle}>
           <h3 className={styles.sectionTitle}>Retour client</h3>

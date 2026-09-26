@@ -5,20 +5,25 @@ import {
   adminAdvanceableParcelStatuses,
   type DeliveryKind,
   type DeliveryStatus,
+  type DriverVehicleType,
   type ParcelStatus,
 } from '@eveider/domain';
 import { CardListSkeleton } from '@eveider/ui';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { DeliveryStatusBadge } from '@/components/delivery-status-badge';
 import { FlashBanner } from '@/components/flash-banner';
 import { ParcelEventTimeline } from '@/components/parcel-event-timeline';
 import { ParcelStatusBadge } from '@/components/parcel-status-badge';
 import {
+  formatAssignableDriverOptionLabel,
+  formatDriverVehicleSummary,
   getAdminDeliveryStatusLabel,
   getAdminParcelDisplayStatus,
   getAdminReturnMethodLabel,
   getAdminReturnProcessLabel,
+  getAdminUnassignedDeliveryLabel,
+  getDriverAvailabilityLabel,
   getFulfillmentMethodLabel,
   isEveiderOutboundTransport,
 } from '@/lib/admin-presentation';
@@ -38,6 +43,9 @@ type CourierOption = {
   fullName: string | null;
   email: string | null;
   phone: string | null;
+  isAcceptingWork: boolean;
+  vehicleType: DriverVehicleType | null;
+  vehicleMakeModel: string | null;
 };
 
 type ParcelDetailData = {
@@ -52,6 +60,7 @@ type ParcelDetailData = {
   locker: { id: string; name: string; address: string } | null;
   pickupType: 'courier_pickup' | 'merchant_dropoff';
   pickupTypeLabel: string;
+  dueAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -64,6 +73,21 @@ function formatDateTime(iso: string) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(iso));
+}
+
+function toDatetimeLocalValue(iso: string | null): string {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function fromDatetimeLocalValue(value: string): string | null {
+  if (!value.trim()) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString();
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -92,40 +116,69 @@ function DriverAssignRow({
   onAssign: () => void;
   label: string;
 }) {
+  const selected = useMemo(
+    () => couriers.find((courier) => courier.id === selectedCourierId) ?? null,
+    [couriers, selectedCourierId],
+  );
+  const vehicleSummary = selected
+    ? formatDriverVehicleSummary({
+        vehicleType: selected.vehicleType,
+        vehicleMakeModel: selected.vehicleMakeModel,
+      })
+    : null;
+
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
-      <select
-        value={selectedCourierId}
-        onChange={(event) => onSelect(event.target.value)}
-        aria-label="Chauffeur Eveider"
-        style={{
-          ...webInputStyle,
-          minWidth: 220,
-          height: spacing.buttonHeight,
-          padding: '0 0.75rem',
-        }}
-      >
-        <option value="">Sélectionner un chauffeur Eveider</option>
-        {couriers.map((courier) => (
-          <option key={courier.id} value={courier.id}>
-            {courier.fullName ?? courier.email ?? courier.phone ?? courier.id}
-          </option>
-        ))}
-      </select>
-      <button
-        type="button"
-        disabled={assigning || !selectedCourierId}
-        onClick={onAssign}
-        style={{
-          ...webSecondaryButtonStyle,
-          height: spacing.buttonHeight,
-          padding: '0 1.25rem',
-          fontSize: '0.75rem',
-          cursor: assigning || !selectedCourierId ? 'not-allowed' : 'pointer',
-        }}
-      >
-        {label}
-      </button>
+    <div style={{ display: 'grid', gap: '0.65rem' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+        <select
+          value={selectedCourierId}
+          onChange={(event) => onSelect(event.target.value)}
+          aria-label="Chauffeur Eveider"
+          style={{
+            ...webInputStyle,
+            minWidth: 280,
+            height: spacing.buttonHeight,
+            padding: '0 0.75rem',
+          }}
+        >
+          <option value="">Sélectionner un chauffeur Eveider</option>
+          {couriers.map((courier) => (
+            <option key={courier.id} value={courier.id}>
+              {formatAssignableDriverOptionLabel(courier)}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          disabled={assigning || !selectedCourierId}
+          onClick={onAssign}
+          style={{
+            ...webSecondaryButtonStyle,
+            height: spacing.buttonHeight,
+            padding: '0 1.25rem',
+            fontSize: '0.75rem',
+            cursor: assigning || !selectedCourierId ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {label}
+        </button>
+      </div>
+      {selected ? (
+        <p
+          style={{
+            margin: 0,
+            fontSize: '0.8125rem',
+            color: selected.isAcceptingWork ? colors.textMuted : colors.warningFg,
+            fontWeight: selected.isAcceptingWork ? 500 : 600,
+          }}
+        >
+          {getDriverAvailabilityLabel(selected.isAcceptingWork)}
+          {vehicleSummary ? ` · ${vehicleSummary}` : ''}
+          {!selected.isAcceptingWork
+            ? ' — ce chauffeur a indiqué qu’il n’accepte pas de nouvelles courses (vous pouvez outrepasser).'
+            : ''}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -142,18 +195,30 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
   const [events, setEvents] = useState<AdminParcelEventDto[]>([]);
   const [couriers, setCouriers] = useState<CourierOption[]>([]);
   const [selectedCourierId, setSelectedCourierId] = useState('');
+  const [dueAtDraft, setDueAtDraft] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [assigning, setAssigning] = useState(false);
+  const [savingDueAt, setSavingDueAt] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   async function loadCouriers() {
     const response = await fetch('/api/couriers', { cache: 'no-store' });
     const result = await response.json();
     if (result.success) {
-      setCouriers(result.data.couriers);
+      setCouriers(
+        (result.data.couriers as Array<Partial<CourierOption> & { id: string }>).map((courier) => ({
+          id: courier.id,
+          fullName: courier.fullName ?? null,
+          email: courier.email ?? null,
+          phone: courier.phone ?? null,
+          isAcceptingWork: courier.isAcceptingWork !== false,
+          vehicleType: (courier.vehicleType as DriverVehicleType | null) ?? null,
+          vehicleMakeModel: courier.vehicleMakeModel ?? null,
+        })),
+      );
     }
   }
 
@@ -171,7 +236,9 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
         return;
       }
 
-      setParcel(result.data.parcel);
+      const nextParcel = result.data.parcel as ParcelDetailData;
+      setParcel(nextParcel);
+      setDueAtDraft(toDatetimeLocalValue(nextParcel.dueAt ?? null));
       setActiveDelivery(result.data.activeDelivery ?? null);
       setCustomerReturn(result.data.customerReturn ?? null);
       setCharges(Array.isArray(result.data.charges) ? result.data.charges : []);
@@ -192,6 +259,14 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
 
   async function assignCourier(kind: 'outbound' | 'customer_return' = 'outbound') {
     if (!selectedCourierId) return;
+
+    const selected = couriers.find((courier) => courier.id === selectedCourierId);
+    if (selected && !selected.isAcceptingWork) {
+      const confirmed = window.confirm(
+        `${selected.fullName ?? selected.email ?? 'Ce chauffeur'} est marqué Indisponible (n’accepte pas de nouvelles courses).\n\nAssigner quand même ?`,
+      );
+      if (!confirmed) return;
+    }
 
     setAssigning(true);
     setActionError(null);
@@ -221,6 +296,39 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
       setActionError('Impossible d’assigner le chauffeur Eveider.');
     } finally {
       setAssigning(false);
+    }
+  }
+
+  async function saveDueAt() {
+    if (!parcel) return;
+
+    const nextIso = fromDatetimeLocalValue(dueAtDraft);
+    const currentIso = parcel.dueAt;
+    if ((nextIso ?? null) === (currentIso ?? null)) return;
+
+    setSavingDueAt(true);
+    setActionError(null);
+    setSuccessMessage(null);
+
+    try {
+      const response = await fetch(`/api/parcels/${parcelId}/due-at`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dueAt: nextIso }),
+      });
+      const result = await response.json();
+      if (!result.success) {
+        setActionError(result.error ?? 'Mise à jour de l’échéance échouée');
+        return;
+      }
+      const updated = result.data.parcel as ParcelDetailData;
+      setParcel((current) => (current ? { ...current, dueAt: updated.dueAt } : current));
+      setDueAtDraft(toDatetimeLocalValue(updated.dueAt ?? null));
+      setSuccessMessage(updated.dueAt ? 'Échéance mise à jour' : 'Échéance effacée');
+    } catch {
+      setActionError('Impossible de mettre à jour l’échéance.');
+    } finally {
+      setSavingDueAt(false);
     }
   }
 
@@ -292,6 +400,8 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
     Boolean(customerReturn?.canAssignDriver) &&
     (!activeDelivery || activeDelivery.kind !== 'customer_return');
   const isBusinessPickupReturn = customerReturn?.method === 'business_pickup';
+  const dueAtDirty =
+    (fromDatetimeLocalValue(dueAtDraft) ?? null) !== (parcel.dueAt ?? null);
 
   return (
     <div style={{ width: '100%' }}>
@@ -362,6 +472,64 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
           </p>
         </Section>
 
+        <Section title="Échéance">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+            <label style={{ display: 'grid', gap: '0.35rem', fontSize: '0.8125rem' }}>
+              <span style={{ fontWeight: 600, color: colors.textMuted }}>Livrer avant (facultatif)</span>
+              <input
+                type="datetime-local"
+                value={dueAtDraft}
+                onChange={(event) => setDueAtDraft(event.target.value)}
+                style={{
+                  ...webInputStyle,
+                  height: spacing.buttonHeight,
+                  padding: '0 0.75rem',
+                  minWidth: 220,
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              disabled={savingDueAt || !dueAtDirty}
+              onClick={() => void saveDueAt()}
+              style={{
+                ...webSecondaryButtonStyle,
+                height: spacing.buttonHeight,
+                padding: '0 1.25rem',
+                fontSize: '0.75rem',
+                marginTop: '1.1rem',
+                cursor: savingDueAt || !dueAtDirty ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {savingDueAt ? 'Enregistrement…' : 'Enregistrer'}
+            </button>
+            {parcel.dueAt ? (
+              <button
+                type="button"
+                disabled={savingDueAt}
+                onClick={() => {
+                  setDueAtDraft('');
+                }}
+                style={{
+                  ...webSecondaryButtonStyle,
+                  height: spacing.buttonHeight,
+                  padding: '0 1rem',
+                  fontSize: '0.75rem',
+                  marginTop: '1.1rem',
+                  cursor: savingDueAt ? 'wait' : 'pointer',
+                }}
+              >
+                Effacer
+              </button>
+            ) : null}
+          </div>
+          {parcel.dueAt ? (
+            <p style={{ margin: '0.5rem 0 0', fontSize: '0.8125rem', color: colors.textMuted }}>
+              Actuelle : {formatDateTime(parcel.dueAt)}
+            </p>
+          ) : null}
+        </Section>
+
         <Section title="État du colis">
           <p style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>{displayStatus}</p>
         </Section>
@@ -386,14 +554,17 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
               </div>
             </div>
           ) : showOutboundAssign ? (
-            <DriverAssignRow
-              couriers={couriers}
-              selectedCourierId={selectedCourierId}
-              assigning={assigning}
-              onSelect={setSelectedCourierId}
-              onAssign={() => void assignCourier('outbound')}
-              label="Assigner l’aller"
-            />
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
+              <p style={{ margin: 0, fontWeight: 600 }}>{getAdminUnassignedDeliveryLabel()}</p>
+              <DriverAssignRow
+                couriers={couriers}
+                selectedCourierId={selectedCourierId}
+                assigning={assigning}
+                onSelect={setSelectedCourierId}
+                onAssign={() => void assignCourier('outbound')}
+                label="Assigner l’aller"
+              />
+            </div>
           ) : isFlow2 ? (
             <p style={{ margin: 0, fontWeight: 500, fontSize: '0.875rem' }}>
               Aucun transport Eveider — dépôt effectué par l’entreprise.
@@ -404,7 +575,9 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
             </p>
           ) : (
             <p style={{ margin: 0, fontWeight: 500, fontSize: '0.875rem' }}>
-              Aucune livraison Eveider en cours.
+              {isEveiderOutboundTransport(parcel.pickupType)
+                ? getAdminUnassignedDeliveryLabel()
+                : 'Aucune livraison Eveider en cours.'}
             </p>
           )}
         </Section>
@@ -470,9 +643,6 @@ export function AdminParcelDetail({ parcelId }: AdminParcelDetailProps) {
                   {charge.amountLabel}
                   {' · Payé par '}
                   {charge.payerLabel}
-                  {charge.historical ? (
-                    <span style={{ color: colors.textMuted }}> · historique</span>
-                  ) : null}
                 </li>
               ))}
             </ul>
