@@ -26,9 +26,10 @@ describe('NotificationRepository', () => {
     vi.clearAllMocks();
     delete process.env.WHATSAPP_ACCESS_TOKEN;
     delete process.env.WHATSAPP_PHONE_NUMBER_ID;
+    delete process.env.EXPO_ACCESS_TOKEN;
   });
 
-  it('creates in-app notification on ready_for_pickup', async () => {
+  it('creates typed in-app notification on ready_for_pickup', async () => {
     const inserts: unknown[][] = [];
 
     setup((sql, values) => {
@@ -42,24 +43,25 @@ describe('NotificationRepository', () => {
           locker_name: 'GOMBE',
         };
       }
-      if (sqlIncludes(sql, 'FROM notifications') && sqlIncludes(sql, 'channel = \'in_app\'')) {
+      if (sqlIncludes(sql, 'FROM notifications') && sqlIncludes(sql, 'dedupe_key')) {
         return null;
       }
       if (sqlIncludes(sql, 'INSERT INTO notifications')) {
         inserts.push(values ?? []);
-        return null;
+        return { id: 'notif-1' };
       }
-      throw new Error(`Unexpected SQL: ${sql}`);
+      if (sqlIncludes(sql, 'push_notifications_enabled')) {
+        return { push_notifications_enabled: false };
+      }
+      return null;
     });
 
     await repo.notifyParcelStatusChange('parcel-1', 'ready_for_pickup');
 
     expect(inserts).toHaveLength(1);
-    expect(inserts[0]).toEqual([
-      'user-1',
-      'parcel-1',
-      'Colis EVD26TEST0001A — PRÊT AU RETRAIT · GOMBE',
-    ]);
+    expect(inserts[0]?.[3]).toBe('parcel.ready_for_pickup');
+    expect(inserts[0]?.[4]).toBe('Votre colis est disponible');
+    expect(String(inserts[0]?.[5])).toContain('prêt au retrait à GOMBE');
   });
 
   it('does not notify the recipient at AT_POINT', async () => {
@@ -85,14 +87,14 @@ describe('NotificationRepository', () => {
           locker_name: null,
         };
       }
-      if (sqlIncludes(sql, 'FROM notifications') && sqlIncludes(sql, 'channel = \'in_app\'')) {
+      if (sqlIncludes(sql, 'FROM notifications') && sqlIncludes(sql, 'dedupe_key')) {
         return { id: 'existing' };
       }
       if (sqlIncludes(sql, 'INSERT INTO notifications')) {
         inserts.push(values ?? []);
-        return null;
+        return { id: 'notif-new' };
       }
-      throw new Error(`Unexpected SQL: ${sql}`);
+      return null;
     });
 
     await repo.notifyParcelStatusChange('parcel-1', 'in_transit');
@@ -108,7 +110,7 @@ describe('NotificationRepository', () => {
         expect(values).toEqual(['user-1']);
         return [
           {
-            ...notificationRow({ message: 'Test' }),
+            ...notificationRow({ message: 'Test', title: 'Titre', type: 'parcel.ready_for_pickup' }),
             parcel_id_relation: 'parcel-1',
             parcel_tracking_number: 'EVD26TEST0001A',
             parcel_reference: 'PK-001',
@@ -122,48 +124,67 @@ describe('NotificationRepository', () => {
 
     expect(items).toHaveLength(1);
     expect(items[0]?.message).toBe('Test');
+    expect(items[0]?.title).toBe('Titre');
   });
 
   it('marks notification as read', async () => {
     const ctx = createDataAccessContext('customer', { userId: 'user-1' });
-    const sentAt = new Date('2026-01-15T13:00:00.000Z');
+    const readAt = new Date('2026-01-15T13:00:00.000Z');
 
     setup((sql) => {
-      if (sqlIncludes(sql, 'SELECT * FROM notifications')) {
-        return notificationRow({ sent_at: null });
+      if (sqlIncludes(sql, 'FROM notifications WHERE id = $1 AND user_id')) {
+        return { id: 'notif-1' };
       }
-      if (sqlIncludes(sql, 'UPDATE notifications SET sent_at')) {
-        return notificationRow({ sent_at: sentAt });
+      if (sqlIncludes(sql, 'UPDATE notifications') && sqlIncludes(sql, 'read_at')) {
+        return null;
       }
-      if (sqlIncludes(sql, 'SELECT id, tracking_number, reference FROM parcels')) {
-        return { id: 'parcel-1', tracking_number: 'EVD26TEST0001A', reference: 'PK-001' };
+      if (sqlIncludes(sql, 'FROM notifications n') && sqlIncludes(sql, 'WHERE n.id')) {
+        return {
+          ...notificationRow({ read_at: readAt }),
+          parcel_id_relation: 'parcel-1',
+          parcel_tracking_number: 'EVD26TEST0001A',
+          parcel_reference: 'PK-001',
+        };
       }
       throw new Error(`Unexpected SQL: ${sql}`);
     });
 
     const result = await repo.markRead(ctx, 'notif-1');
-    expect(result.sentAt).toBeTruthy();
+    expect(result.readAt).toBeTruthy();
   });
 
   it('creates an assignment notification for the courier', async () => {
     const inserts: unknown[][] = [];
 
     setup((sql, values) => {
-      if (sqlIncludes(sql, 'FROM notifications') && sqlIncludes(sql, "channel = 'in_app'")) {
+      if (sqlIncludes(sql, 'FROM notifications') && sqlIncludes(sql, 'dedupe_key')) {
         return null;
       }
       if (sqlIncludes(sql, 'INSERT INTO notifications')) {
         inserts.push(values ?? []);
-        return null;
+        return { id: 'notif-1' };
       }
-      throw new Error(`Unexpected SQL: ${sql}`);
+      if (sqlIncludes(sql, 'push_notifications_enabled')) {
+        return { push_notifications_enabled: false };
+      }
+      return null;
     });
 
-    await repo.notifyCourierAssigned('courier-1', 'parcel-1', 'EVD26TEST0001A', 'GOMBE');
+    await repo.notifyCourierAssigned({
+      courierId: 'courier-1',
+      deliveryId: 'delivery-1',
+      parcelId: 'parcel-1',
+      trackingNumber: 'EVD26TEST0001A',
+      businessName: 'Mulikap',
+      lockerName: 'GOMBE',
+      kind: 'outbound',
+    });
 
-    expect(inserts).toEqual([
-      ['courier-1', 'parcel-1', 'Nouvelle assignation — EVD26TEST0001A · GOMBE'],
-    ]);
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0]?.[3]).toBe('delivery.assigned');
+    expect(inserts[0]?.[4]).toBe('Nouvelle collecte');
+    expect(String(inserts[0]?.[5])).toContain('Mulikap → Eveider GOMBE');
+    expect(String(inserts[0]?.[5])).toContain('1 colis à récupérer');
   });
 
   it('lists notifications for a courier', async () => {
@@ -174,13 +195,17 @@ describe('NotificationRepository', () => {
         expect(values).toEqual(['courier-1']);
         return notificationRow({
           user_id: 'courier-1',
-          message: 'Nouvelle assignation — EVD26TEST0001A · GOMBE',
+          type: 'delivery.assigned',
+          title: 'Nouvelle collecte',
+          message: 'Mulikap → Eveider GOMBE\n1 colis à récupérer',
+          entity_type: 'delivery',
+          entity_id: 'delivery-1',
         });
       }
       throw new Error(`Unexpected SQL: ${sql}`);
     });
 
     const items = await repo.listForCustomer(ctx);
-    expect(items[0]?.message).toContain('Nouvelle assignation');
+    expect(items[0]?.message).toContain('Mulikap → Eveider GOMBE');
   });
 });

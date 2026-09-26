@@ -94,6 +94,13 @@ export const createParcelSchema = z
     paymentResponsibility: paymentResponsibilitySchema.optional().default('receiver_pays'),
     codAmountCdf: optionalPositiveNumber,
     codAmountUsd: optionalPositiveNumber,
+    dueAt: z.string().datetime({ message: 'Échéance invalide' }).optional().nullable(),
+    driverInstructions: z
+      .string()
+      .trim()
+      .max(1000)
+      .optional()
+      .transform((value) => (value && value.length > 0 ? value : undefined)),
   })
   .superRefine((data, ctx) => {
     if (data.pickupType === 'courier_pickup' && !data.senderAddress) {
@@ -131,6 +138,11 @@ export const updateParcelStatusSchema = z.object({
   status: parcelStatusSchema,
 });
 
+export const updateParcelDueAtSchema = z.object({
+  dueAt: z.string().datetime({ message: 'Échéance invalide' }).nullable(),
+});
+
 export type ListParcelsQuery = z.infer<typeof listParcelsQuerySchema>;
 export type CreateParcelInput = z.infer<typeof createParcelSchema>;
 export type UpdateParcelStatusInput = z.infer<typeof updateParcelStatusSchema>;
+export type UpdateParcelDueAtInput = z.infer<typeof updateParcelDueAtSchema>;

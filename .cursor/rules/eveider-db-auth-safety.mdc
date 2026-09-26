@@ -1,0 +1,33 @@
+---
+description: Never wipe, seed, or reset the database/Auth without an explicit user request
+alwaysApply: true
+---
+
+# Database and Auth safety
+
+## Hard rule
+
+Do **not** run any of the following unless the user **explicitly** asks in the current message:
+
+- `pnpm db:seed` / `db:seed:*`
+- `pnpm db:reset` / `db:reset:clean` / `EVEIDER_ALLOW_CLEAN_RESET=1 …`
+- Truncating app tables, deleting Auth users, or recreating seed accounts
+- Any script that wipes `auth.users` or local login credentials
+
+“Needed for QA”, “seed accounts missing”, “easier for e2e”, or “local only” do **not** authorize a wipe. Ask first and wait for a clear yes.
+
+## Why
+
+Local Auth users and org accounts (including personal `+test*` Gmail logins) are real working credentials. Seeding deletes them.
+
+## Allowed without asking
+
+- Read-only DB queries for debugging
+- Applying migrations (`pnpm db:migrate`) when the task requires schema changes
+- Creating **new** non-destructive data (e.g. a single test parcel) that does not delete users
+
+## If seed/reset is required
+
+1. Tell the user it will wipe Auth users and app data.
+2. List what will be lost.
+3. Proceed only after they explicitly approve.

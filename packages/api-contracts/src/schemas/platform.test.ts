@@ -8,6 +8,7 @@ describe('updatePlatformSettingsSchema', () => {
     platformCurrency: 'USD' as const,
     requireOrgApproval: false,
     defaultEnabledFeatures: ['CREATE_SHIPMENT'] as const,
+    driverSelfAssignmentEnabled: false,
   };
 
   it('accepts numeric defaults', () => {
@@ -44,11 +45,13 @@ describe('updatePlatformSettingsSchema', () => {
       defaultMaxPackageValueUsd: 500,
       defaultCodDailyLimitUsd: 200,
       defaultEnabledFeatures: ['CREATE_SHIPMENT'],
+      driverSelfAssignmentEnabled: true,
     });
     expect(parsed.success).toBe(true);
     if (parsed.success) {
       expect(parsed.data.platformCurrency).toBe('USD');
       expect(parsed.data.pickupFeeCurrency).toBe('USD');
+      expect(parsed.data.driverSelfAssignmentEnabled).toBe(true);
     }
   });
 
@@ -63,6 +66,7 @@ describe('updatePlatformSettingsSchema', () => {
         defaultMaxPackageValueUsd: 500,
         defaultCodDailyLimitUsd: 200,
         defaultEnabledFeatures: ['CREATE_SHIPMENT'],
+        driverSelfAssignmentEnabled: false,
       }).success,
     ).toBe(false);
   });

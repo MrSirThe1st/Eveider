@@ -6,6 +6,8 @@ import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 export type FilterMenuOption = {
   value: string;
   label: string;
+  /** Optional actionable queue count shown beside the label. */
+  count?: number;
 };
 
 export type FilterDimension = {
@@ -36,7 +38,12 @@ function isActive(filter: FilterDimension): boolean {
 }
 
 function optionLabel(filter: FilterDimension): string {
-  return filter.options.find((o) => o.value === filter.value)?.label ?? filter.value;
+  const option = filter.options.find((o) => o.value === filter.value);
+  if (!option) return filter.value;
+  if (typeof option.count === 'number' && option.count > 0) {
+    return `${option.label} (${option.count})`;
+  }
+  return option.label;
 }
 
 /**
@@ -253,6 +260,25 @@ function FilterChip({ filter }: { filter: FilterDimension }) {
                     }}
                   />
                   {option.label}
+                  {typeof option.count === 'number' && option.count > 0 ? (
+                    <span
+                      style={{
+                        marginLeft: 'auto',
+                        minWidth: 18,
+                        height: 18,
+                        padding: '0 5px',
+                        borderRadius: 999,
+                        background: colors.surfaceSubtle,
+                        fontSize: 11,
+                        fontWeight: typography.weights.semibold,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {option.count > 99 ? '99+' : option.count}
+                    </span>
+                  ) : null}
                 </button>
               </li>
             );

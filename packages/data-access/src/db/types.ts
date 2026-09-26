@@ -122,6 +122,10 @@ export type User = {
   isBlocked: boolean;
   deactivatedAt: Date | null;
   deletedAt: Date | null;
+  /** When false, operational notification emails are skipped (auth/invites unaffected). */
+  emailNotificationsEnabled: boolean;
+  /** When false, Expo push delivery is skipped; in-app inbox remains active. */
+  pushNotificationsEnabled: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -259,6 +263,8 @@ export type Parcel = {
   senderLat: number | null;
   senderLng: number | null;
   senderInstructions: string | null;
+  driverInstructions: string | null;
+  dueAt: Date | null;
   packageSize: PackageSize;
   packageLengthCm: number | null;
   packageWidthCm: number | null;
@@ -346,6 +352,8 @@ export type Delivery = {
   courierId: string;
   kind: DeliveryKind;
   status: DeliveryStatus;
+  acceptedAt: Date | null;
+  startedAt: Date | null;
   scannedAt: Date | null;
   completedAt: Date | null;
   createdAt: Date;
@@ -419,8 +427,17 @@ export type Notification = {
   id: string;
   userId: string | null;
   parcelId: string | null;
+  businessId: string | null;
   channel: NotificationChannel;
+  type: string | null;
+  title: string | null;
   message: string;
+  entityType: string | null;
+  entityId: string | null;
+  dedupeKey: string | null;
+  /** In-app read marker. Independent from sentAt (channel delivery). */
+  readAt: Date | null;
+  /** Channel delivery timestamp (e.g. WhatsApp/email). Not used as read state. */
   sentAt: Date | null;
   createdAt: Date;
 };
@@ -652,6 +669,13 @@ export type DriverDossier = {
   reviewNotes: string | null;
   status: DriverDossierStatus;
   serviceAreaId: string | null;
+  /** Driver-controlled: whether they accept new assignments / self-claims. */
+  isAcceptingWork: boolean;
+  profilePhotoRef: string | null;
+  vehicleType: import('@eveider/domain').DriverVehicleType | null;
+  vehicleMakeModel: string | null;
+  vehiclePlate: string | null;
+  vehicleColor: string | null;
   createdByUserId: string | null;
   reviewedByUserId: string | null;
   reviewedAt: Date | null;

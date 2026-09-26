@@ -126,9 +126,13 @@ export function canCancelLockerActionSession(status: LockerActionSessionStatus):
   return status === 'authorized';
 }
 
-/** Outbound Eveider Livraison may complete from any non-terminal drop-off stage. */
+/** Outbound Eveider Livraison may complete from any non-terminal physical stage. */
 export function canCompleteOutboundDeliveryFromLocker(status: DeliveryStatus): boolean {
-  return status === 'assigned' || status === 'scanned' || status === 'drop_off_pending';
+  return (
+    status === 'started' ||
+    status === 'scanned' ||
+    status === 'drop_off_pending'
+  );
 }
 
 export function completeOutboundDeliveryFromLocker(status: DeliveryStatus): DeliveryStatus {
@@ -140,14 +144,27 @@ export function completeOutboundDeliveryFromLocker(status: DeliveryStatus): Deli
 }
 
 export function isActiveOutboundDelivery(kind: DeliveryKind, status: DeliveryStatus): boolean {
-  return kind === 'outbound' && (status === 'assigned' || status === 'scanned' || status === 'drop_off_pending');
+  return (
+    kind === 'outbound' &&
+    (status === 'assigned' ||
+      status === 'accepted' ||
+      status === 'started' ||
+      status === 'scanned' ||
+      status === 'drop_off_pending')
+  );
 }
 
 export function isActiveCustomerReturnDelivery(
   kind: DeliveryKind,
   status: DeliveryStatus,
 ): boolean {
-  return kind === 'customer_return' && (status === 'assigned' || status === 'scanned');
+  return (
+    kind === 'customer_return' &&
+    (status === 'assigned' ||
+      status === 'accepted' ||
+      status === 'started' ||
+      status === 'scanned')
+  );
 }
 
 export function depositRequiresReservation(action: LockerAction): boolean {

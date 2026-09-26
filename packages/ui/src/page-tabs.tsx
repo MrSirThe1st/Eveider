@@ -9,6 +9,8 @@ export type PageTab = {
   href: string;
   label: string;
   icon?: ReactNode;
+  /** Actionable queue count — omit for non-action tabs. */
+  badge?: number;
   isActive?: (pathname: string, search: string) => boolean;
 };
 
@@ -98,6 +100,27 @@ function PageTabsNav({ tabs, 'aria-label': ariaLabel = 'Vues' }: PageTabsProps) 
           >
             {tab.icon}
             {tab.label}
+            {typeof tab.badge === 'number' && tab.badge > 0 ? (
+              <span
+                aria-label={`${tab.badge} en attente`}
+                style={{
+                  minWidth: 18,
+                  height: 18,
+                  padding: '0 5px',
+                  borderRadius: 999,
+                  background: active ? colors.secondary : colors.surfaceSubtle,
+                  color: active ? colors.surface : colors.secondary,
+                  fontSize: 11,
+                  fontWeight: typography.weights.semibold,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1,
+                }}
+              >
+                {tab.badge > 99 ? '99+' : tab.badge}
+              </span>
+            ) : null}
           </Link>
         );
       })}

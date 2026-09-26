@@ -1,6 +1,12 @@
 import { assertAdmin, assertBusinessScope, type DataAccessContext } from '../context.js';
 import type { Queryable } from '../db/index.js';
-import { ISSUE_TYPES, PARCEL_STATUSES, type IssueType, type ParcelStatus } from '@eveider/domain';
+import {
+  ACTIVE_DELIVERY_STATUSES,
+  ISSUE_TYPES,
+  PARCEL_STATUSES,
+  type IssueType,
+  type ParcelStatus,
+} from '@eveider/domain';
 
 export type DashboardStats = {
   parcelsToday: number;
@@ -213,7 +219,7 @@ export class StatsRepository {
          (SELECT COUNT(*)::int FROM compartments WHERE status = 'reserved') AS reserved,
          (SELECT COUNT(*)::int FROM compartments WHERE status = 'available') AS available,
          (SELECT COUNT(*)::int FROM compartments) AS total`,
-      [today, ['assigned', 'scanned', 'drop_off_pending'], ['open', 'in_progress']],
+      [today, ACTIVE_DELIVERY_STATUSES, ['open', 'in_progress']],
     );
 
     const row = result.rows[0] ?? {};

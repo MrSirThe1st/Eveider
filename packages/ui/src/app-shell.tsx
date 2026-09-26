@@ -23,6 +23,8 @@ export type NavModule = {
   icon?: ReactNode;
   /** Optional section heading. Consecutive items with the same section are grouped. */
   section?: string;
+  /** Operational queue count (not unread notifications). */
+  badge?: number;
 };
 
 export type AppShellProps = {
@@ -295,6 +297,28 @@ export function AppShell({
                         </span>
                       ) : null}
                       <span className="nb-side-nav__label">{mod.label}</span>
+                      {typeof mod.badge === 'number' && mod.badge > 0 ? (
+                        <span
+                          className="nb-side-nav__badge"
+                          style={{
+                            marginLeft: 'auto',
+                            minWidth: 20,
+                            height: 20,
+                            padding: '0 6px',
+                            borderRadius: 999,
+                            background: colors.secondary,
+                            color: colors.surface,
+                            fontSize: 11,
+                            fontWeight: typography.weights.semibold,
+                            display: collapsed ? 'none' : 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            lineHeight: 1,
+                          }}
+                        >
+                          {mod.badge > 99 ? '99+' : mod.badge}
+                        </span>
+                      ) : null}
                     </Link>
                   );
                 })}
@@ -410,8 +434,10 @@ export function AppShell({
             minWidth: 0,
             width: '100%',
             overflowY: 'auto',
-            padding: `${spacing[6]}px ${spacing[8]}px var(--support-widget-clearance, 96px)`,
-            scrollPaddingBottom: 'var(--support-widget-clearance, 96px)',
+            padding: `${spacing[6]}px ${spacing[8]}px max(var(--page-end-padding, ${spacing[8]}px), var(--support-widget-clearance, 96px))`,
+            scrollPaddingBottom:
+              'max(var(--page-end-padding, 32px), var(--support-widget-clearance, 96px))',
+
             boxSizing: 'border-box',
           }}
         >

@@ -16,6 +16,7 @@ import {
   appendParcelEvent,
   resolveEventActor,
 } from './parcel-event.repository.js';
+import { NotificationRepository } from './notification.repository.js';
 
 const CUSTOMER_ISSUE_TYPES: IssueType[] = [
   'parcel_problem',
@@ -51,7 +52,10 @@ export type CreateIssueInput = {
 };
 
 export class IssueRepository {
-  constructor(private readonly db: Queryable) {}
+  constructor(
+    private readonly db: Queryable,
+    private readonly notifications: NotificationRepository = new NotificationRepository(db),
+  ) {}
 
   private async loadWithRelations(where: string, values: unknown[]): Promise<IssueWithRelations[]> {
     const result = await this.db.query(
@@ -75,16 +79,18 @@ export class IssueRepository {
   }
 
   async create(ctx: DataAccessContext, input: CreateIssueInput): Promise<IssueWithRelations> {
+    let created: IssueWithRelations;
     if (ctx.role === 'customer') {
-      return this.createForCustomer(ctx, input);
+      created = await this.createForCustomer(ctx, input);
+    } else if (ctx.role === 'courier') {
+      created = await this.createForCourier(ctx, input);
+    } else if (ctx.role === 'business') {
+      created = await this.createForBusiness(ctx, input);
+    } else {
+      throw new AccessDeniedError('Customer, courier or business role required');
     }
-    if (ctx.role === 'courier') {
-      return this.createForCourier(ctx, input);
-    }
-    if (ctx.role === 'business') {
-      return this.createForBusiness(ctx, input);
-    }
-    throw new AccessDeniedError('Customer, courier or business role required');
+    await this.emitIncidentOpened(created);
+    return created;
   }
 
   async listForReporter(ctx: DataAccessContext): Promise<IssueWithRelations[]> {
@@ -311,6 +317,52 @@ export class IssueRepository {
   private assertAllowedType(type: IssueType, allowed: IssueType[]): void {
     if (!allowed.includes(type)) {
       throw new Error('Type d\'incident non autorisé pour ce rôle');
+    }
+  }
+
+  private async emitIncidentOpened(issue: IssueWithRelations): Promise<void> {
+    try {
+      let businessId: string | null = null;
+      let trackingNumber: string | null = null;
+      if (issue.parcelId) {
+        const parcel = await this.db.query(
+          `SELECT business_id, tracking_number FROM parcels WHERE id = $1 LIMIT 1`,
+          [issue.parcelId],
+        );
+        if (parcel.rows[0]) {
+          businessId = String(parcel.rows[0].business_id);
+          trackingNumber = String(parcel.rows[0].tracking_number);
+        }
+      }
+
+      const ref = trackingNumber ?? issue.id;
+      await this.notifications.web.emit({
+        type: 'incident.opened',
+        audience: 'admin_ops',
+        businessId,
+        title: 'Incident signalé',
+        message: trackingNumber ? `Incident sur ${trackingNumber}.` : 'Un incident a été signalé.',
+        entityType: 'issue',
+        entityId: issue.id,
+        parcelId: issue.parcelId,
+        dedupeKey: `incident.opened:${issue.id}`,
+      });
+
+      if (businessId) {
+        await this.notifications.web.emit({
+          type: 'incident.opened',
+          audience: 'business_web',
+          businessId,
+          title: 'Incident signalé',
+          message: `Un incident concerne ${ref}.`,
+          entityType: 'issue',
+          entityId: issue.id,
+          parcelId: issue.parcelId,
+          dedupeKey: `incident.opened.business:${issue.id}`,
+        });
+      }
+    } catch (error) {
+      console.error('[eveider:web-notify] incident.opened failed', error);
     }
   }
 }

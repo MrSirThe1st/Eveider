@@ -1,5 +1,24 @@
 export type DriverContractorKind = 'eveider' | 'organization';
 
+/** Optional operational vehicle for Eveider drivers (profile, not KYC). */
+export type DriverVehicleType = 'on_foot' | 'bicycle' | 'motorcycle' | 'car' | 'van';
+
+export const DRIVER_VEHICLE_TYPES: readonly DriverVehicleType[] = [
+  'on_foot',
+  'bicycle',
+  'motorcycle',
+  'car',
+  'van',
+] as const;
+
+export const DRIVER_VEHICLE_TYPE_LABELS: Record<DriverVehicleType, string> = {
+  on_foot: 'À pied',
+  bicycle: 'Vélo',
+  motorcycle: 'Moto',
+  car: 'Voiture',
+  van: 'Camionnette / utilitaire',
+};
+
 export type DriverDossierStatus =
   | 'pending_review'
   | 'needs_correction'

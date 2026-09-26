@@ -178,9 +178,10 @@ describe('compartment pick and delivery complete', () => {
     expect(picked?.id).toBe('medium');
   });
 
-  it('completes outbound Livraison from assigned without requiring drop_off_pending', () => {
-    expect(canCompleteOutboundDeliveryFromLocker('assigned')).toBe(true);
-    expect(completeOutboundDeliveryFromLocker('assigned')).toBe('completed');
+  it('completes outbound Livraison from started without requiring drop_off_pending', () => {
+    expect(canCompleteOutboundDeliveryFromLocker('started')).toBe(true);
+    expect(canCompleteOutboundDeliveryFromLocker('assigned')).toBe(false);
+    expect(completeOutboundDeliveryFromLocker('started')).toBe('completed');
     expect(completeOutboundDeliveryFromLocker('completed')).toBe('completed');
     expect(() => completeOutboundDeliveryFromLocker('failed')).toThrow(/locker deposit/);
   });

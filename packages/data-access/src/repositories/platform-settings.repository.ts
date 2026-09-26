@@ -24,6 +24,7 @@ export type PlatformSettingsRow = {
   defaultEnabledFeatures: PlatformDefaultFeature[];
   supportPhone: string | null;
   dispatcherWhatsapp: string | null;
+  driverSelfAssignmentEnabled: boolean;
   updatedAt: Date;
   updatedBy: string | null;
 };
@@ -40,6 +41,7 @@ export type UpdatePlatformSettingsInput = {
   defaultEnabledFeatures: PlatformDefaultFeature[];
   supportPhone?: string | null;
   dispatcherWhatsapp?: string | null;
+  driverSelfAssignmentEnabled: boolean;
 };
 
 function parseFeatures(raw: unknown): PlatformDefaultFeature[] {
@@ -83,6 +85,7 @@ function mapRow(row: Record<string, unknown>): PlatformSettingsRow {
     supportPhone: row.support_phone == null ? null : String(row.support_phone),
     dispatcherWhatsapp:
       row.dispatcher_whatsapp == null ? null : String(row.dispatcher_whatsapp),
+    driverSelfAssignmentEnabled: Boolean(row.driver_self_assignment_enabled),
     updatedAt: new Date(String(row.updated_at)),
     updatedBy: row.updated_by == null ? null : String(row.updated_by),
   };
@@ -124,9 +127,10 @@ export class PlatformSettingsRepository {
            default_enabled_features = $8::jsonb,
            support_phone = $9,
            dispatcher_whatsapp = $10,
+           driver_self_assignment_enabled = $11,
            updated_at = NOW(),
-           updated_by = $11
-       WHERE id = $12
+           updated_by = $12
+       WHERE id = $13
        RETURNING *`,
       [
         input.pickupFeeAmount,
@@ -139,6 +143,7 @@ export class PlatformSettingsRepository {
         JSON.stringify(input.defaultEnabledFeatures),
         input.supportPhone?.trim() || null,
         input.dispatcherWhatsapp?.trim() || null,
+        input.driverSelfAssignmentEnabled,
         ctx.userId ?? null,
         current.id,
       ],

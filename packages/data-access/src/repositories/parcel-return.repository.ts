@@ -1,4 +1,5 @@
 import {
+  ACTIVE_DELIVERY_STATUSES,
   ACTIVE_PARCEL_RETURN_STATUSES,
   canAcceptDropOff,
   canAssignCustomerReturnDelivery,
@@ -42,6 +43,7 @@ import {
   resolveEventActor,
 } from './parcel-event.repository.js';
 import { CommercialRepository } from './commercial.repository.js';
+import { NotificationRepository } from './notification.repository.js';
 
 export type ParcelReturnRecord = ParcelReturn & {
   returnLocker: { id: string; name: string; address: string } | null;
@@ -93,7 +95,10 @@ async function allocateReturnCode(db: Queryable): Promise<string> {
 }
 
 export class ParcelReturnRepository {
-  constructor(private readonly db: Queryable) {}
+  constructor(
+    private readonly db: Queryable,
+    private readonly notifications: NotificationRepository = new NotificationRepository(db),
+  ) {}
 
   async findById(id: string): Promise<ParcelReturnRecord | null> {
     return this.loadById(id);
@@ -190,6 +195,30 @@ export class ParcelReturnRepository {
       });
       const loaded = await this.loadById(created.id);
       if (!loaded) throw new Error('Retour introuvable');
+
+      try {
+        const tracking = await this.db.query(
+          `SELECT tracking_number FROM parcels WHERE id = $1 LIMIT 1`,
+          [parcel.id],
+        );
+        const trackingNumber = tracking.rows[0]
+          ? String(tracking.rows[0].tracking_number)
+          : parcel.id;
+        await this.notifications.web.emit({
+          type: 'return.requested',
+          audience: 'business_web',
+          businessId: parcel.businessId,
+          title: 'Retour demandé',
+          message: `Le destinataire a demandé un retour pour ${trackingNumber}.`,
+          entityType: 'parcel',
+          entityId: parcel.id,
+          parcelId: parcel.id,
+          dedupeKey: `return.requested:${loaded.id}`,
+        });
+      } catch (error) {
+        console.error('[eveider:web-notify] return.requested failed', error);
+      }
+
       return loaded;
     } catch (err) {
       if (isUniqueViolation(err)) {
@@ -255,7 +284,20 @@ export class ParcelReturnRepository {
       });
     });
 
-    return this.requireById(returnId);
+    const updated = await this.requireById(returnId);
+    const parcel = await this.loadParcel(updated.parcelId);
+    if (parcel) {
+      const userId = await this.notifications.resolveCustomerUserId(parcel);
+      if (userId) {
+        await this.notifications.notifyCustomerReturnAuthorized({
+          userId,
+          parcelId: parcel.id,
+          returnId: updated.id,
+          businessId: updated.businessId,
+        });
+      }
+    }
+    return updated;
   }
 
   async reject(ctx: DataAccessContext, returnId: string): Promise<ParcelReturnRecord> {
@@ -455,7 +497,46 @@ export class ParcelReturnRepository {
       });
     });
 
-    return this.requireById(current.id);
+    const updated = await this.requireById(current.id);
+    if (updated.method === 'eveider_return') {
+      try {
+        const tracking = await this.db.query(
+          `SELECT tracking_number FROM parcels WHERE id = $1 LIMIT 1`,
+          [parcel.id],
+        );
+        const trackingNumber = tracking.rows[0]
+          ? String(tracking.rows[0].tracking_number)
+          : parcel.id;
+        await this.notifications.web.emit({
+          type: 'return.awaiting_assignment',
+          audience: 'admin_ops',
+          businessId: updated.businessId,
+          title: 'Retour à assigner',
+          message: `${trackingNumber} attend un chauffeur Eveider.`,
+          entityType: 'parcel',
+          entityId: parcel.id,
+          parcelId: parcel.id,
+          dedupeKey: `return.awaiting_assignment:${updated.id}`,
+        });
+      } catch (error) {
+        console.error('[eveider:web-notify] return.awaiting_assignment failed', error);
+      }
+    }
+
+    const fullParcel = await this.loadParcel(parcel.id);
+    if (fullParcel) {
+      const customerUserId = await this.notifications.resolveCustomerUserId(fullParcel);
+      if (customerUserId) {
+        await this.notifications.notifyCustomerReturnDeposited({
+          userId: customerUserId,
+          parcelId: fullParcel.id,
+          returnId: updated.id,
+          businessId: updated.businessId,
+        });
+      }
+    }
+
+    return updated;
   }
 
   /**
@@ -496,7 +577,7 @@ export class ParcelReturnRepository {
       `SELECT id FROM deliveries
        WHERE parcel_id = $1 AND kind = 'customer_return' AND status = ANY($2)
        LIMIT 1`,
-      [parcelId, ['assigned', 'scanned', 'drop_off_pending']],
+      [parcelId, ACTIVE_DELIVERY_STATUSES],
     );
     if (activeDelivery.rows[0]) {
       throw new Error('Un retrait marchand ne peut pas avoir de livraison Eveider');
@@ -550,6 +631,7 @@ export class ParcelReturnRepository {
       });
     });
 
+    await this.emitReturnCompleted(current.businessId, parcel.id, current.id);
     return this.requireById(current.id);
   }
 
@@ -570,8 +652,8 @@ export class ParcelReturnRepository {
     ) {
       return;
     }
-    if (delivery.status !== 'assigned') {
-      throw new Error('La livraison n’est pas en attente de scan');
+    if (delivery.status !== 'started') {
+      throw new Error('La livraison n’est pas prête pour la collecte');
     }
 
     const current = await this.findActiveForParcel(delivery.parcelId);
@@ -652,7 +734,7 @@ export class ParcelReturnRepository {
     }
     if (delivery.status === 'completed') return;
     if (delivery.status !== 'scanned') {
-      throw new Error('Scan requis avant la remise au marchand');
+      throw new Error('Confirmez la prise en charge avant la remise au marchand');
     }
 
     const current = await this.findActiveForParcel(delivery.parcelId);
@@ -716,6 +798,52 @@ export class ParcelReturnRepository {
         payload: { parcelReturnId: current.id, method: 'eveider_return' },
       });
     });
+
+    await this.emitReturnCompleted(current.businessId, delivery.parcelId, current.id);
+  }
+
+  private async emitReturnCompleted(
+    businessId: string,
+    parcelId: string,
+    returnId: string,
+  ): Promise<void> {
+    try {
+      const tracking = await this.db.query(
+        `SELECT tracking_number FROM parcels WHERE id = $1 LIMIT 1`,
+        [parcelId],
+      );
+      const trackingNumber = tracking.rows[0]
+        ? String(tracking.rows[0].tracking_number)
+        : parcelId;
+      await this.notifications.web.emit({
+        type: 'return.completed',
+        audience: 'business_web',
+        businessId,
+        title: 'Retour terminé',
+        message: `Le retour de ${trackingNumber} est terminé.`,
+        entityType: 'parcel',
+        entityId: parcelId,
+        parcelId,
+        dedupeKey: `return.completed:${returnId}`,
+      });
+    } catch (error) {
+      console.error('[eveider:web-notify] return.completed failed', error);
+    }
+
+    try {
+      const parcel = await this.loadParcel(parcelId);
+      if (!parcel) return;
+      const userId = await this.notifications.resolveCustomerUserId(parcel);
+      if (!userId) return;
+      await this.notifications.notifyCustomerReturnCompleted({
+        userId,
+        parcelId,
+        returnId,
+        businessId,
+      });
+    } catch (error) {
+      console.error('[eveider:notify] return.completed (customer) failed', error);
+    }
   }
 
   async assertAssignableCustomerReturn(

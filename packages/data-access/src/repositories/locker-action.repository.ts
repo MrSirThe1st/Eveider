@@ -1,5 +1,6 @@
 import type { LockerActionAuthorizeInput, LockerActionConfirmInput } from '@eveider/api-contracts';
 import {
+  ACTIVE_DELIVERY_STATUSES,
   canAcceptDropOff,
   canCancelLockerActionSession,
   DEFAULT_LOCKER_ACTION_TTL_SECONDS,
@@ -40,8 +41,6 @@ import { logLockerEvent } from '../locker-api/log.js';
 import { LockerAuthorizationError } from '../locker-api/errors.js';
 
 export { LockerAuthorizationError };
-
-const ACTIVE_DELIVERY_STATUSES = ['assigned', 'scanned', 'drop_off_pending'] as const;
 
 export type LockerAuthorizeResult = {
   authorized: true;
@@ -790,7 +789,7 @@ export class LockerActionRepository {
   private async findActiveDelivery(
     parcelId: string,
     kind: 'outbound' | 'customer_return' | 'return',
-  ): Promise<{ id: string; driverId: string; status: 'assigned' | 'scanned' | 'drop_off_pending' } | null> {
+  ): Promise<{ id: string; driverId: string; status: 'assigned' | 'accepted' | 'started' | 'scanned' | 'drop_off_pending' } | null> {
     const result = await this.db.query(
       `SELECT id, driver_id, status FROM deliveries
        WHERE parcel_id = $1 AND kind = $2 AND status = ANY($3)
@@ -803,7 +802,7 @@ export class LockerActionRepository {
     return {
       id: String(row.id),
       driverId: String(row.driver_id),
-      status: row.status as 'assigned' | 'scanned' | 'drop_off_pending',
+      status: row.status as 'assigned' | 'accepted' | 'started' | 'scanned' | 'drop_off_pending',
     };
   }
 

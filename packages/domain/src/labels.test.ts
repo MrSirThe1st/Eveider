@@ -48,7 +48,7 @@ describe('French UI labels', () => {
     expect(PARCEL_CHARGE_KIND_LABELS.return_delivery).toBe('Retour Eveider');
     expect(PARCEL_CHARGE_KIND_LABELS.return_locker).toBe('Retrait du retour par l’entreprise');
     expect(PARCEL_CHARGE_KIND_LABELS.locker_rental).toBe('Stockage');
-    expect(PARCEL_CHARGE_KIND_LABELS.delivery_fee).toContain('historique');
-    expect(PARCEL_CHARGE_KIND_LABELS.drop_off_fee).toContain('historique');
+    expect(PARCEL_CHARGE_KIND_LABELS.delivery_fee).toBe('Livraison Eveider');
+    expect(PARCEL_CHARGE_KIND_LABELS.drop_off_fee).toBe('Dépôt marchand');
   });
 });

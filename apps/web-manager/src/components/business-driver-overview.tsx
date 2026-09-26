@@ -75,7 +75,6 @@ export function BusinessDriverOverview({
           ) : null}
           <Field label="Photo">
             {driver.profilePhotoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={driver.profilePhotoUrl}
                 alt=""

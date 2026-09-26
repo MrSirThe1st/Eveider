@@ -41,6 +41,9 @@ pnpm db:migrate
 | `044_20260925120000_driver_dossier_deleted.sql` | `deleted` terminal status on `DriverDossierStatus` for admin driver removal |
 | `045_20260925120100_driver_dossier_deleted_email_index.sql` | Unique email index excludes `deleted` dossiers |
 | `046_20260925130000_driver_invites.sql` | Password-signup driver invites (`driver_invites`) |
+| `047_20260925140000_organization_pickup_locations.sql` | Named business pickup locations + parcel pickup snapshot |
+| `048_20260926090000_web_notifications.sql` | Web inbox fields on `notifications`, `read_at`, user email preference |
+| `049_20260926140000_mobile_push_devices.sql` | `user_push_devices` + `users.push_notifications_enabled` for Expo push |
 
 Hardware locker clients authenticate with `EVEIDER_LOCKER_API_TOKENS` (JSON map of locker UUID → secret) via `Authorization: Bearer <secret>`. The token identifies the locker; the client cannot claim another `locker_id`. Keep secrets out of git. Default authorization TTL is 180 seconds (`EVEIDER_LOCKER_ACTION_TTL_SECONDS`).
 
@@ -64,6 +67,8 @@ Seed demo lockers:
 ```bash
 pnpm db:seed
 ```
+
+**Agents / automation:** never run `db:seed`, `db:reset:clean`, or any Auth/user wipe unless the human explicitly asks in that turn. `db:seed` deletes **all** Auth users (including personal `+test*` logins) and recreates only demo accounts. Ask first.
 
 Wipe operational data for a from-scratch Admin UI test (keeps schema, migrations, and existing Admin logins; does **not** re-seed demo data):
 

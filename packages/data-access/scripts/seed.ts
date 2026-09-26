@@ -321,7 +321,107 @@ async function uniquePin(db: Queryable): Promise<string> {
   throw new Error('Could not generate a unique pickup PIN');
 }
 
+/** Ensure LSH / KWZ operating cities + holding zones exist (seed wipe does not touch geography). */
+async function ensureSeedGeography(db: Queryable) {
+  for (const city of [
+    { code: 'LSH', name: 'Lubumbashi' },
+    { code: 'KWZ', name: 'Kolwezi' },
+  ] as const) {
+    const byCode = await db.query<{ id: string }>(
+      `SELECT id FROM cities WHERE lower(code) = lower($1) LIMIT 1`,
+      [city.code],
+    );
+    if (byCode.rows[0]) {
+      await db.query(
+        `UPDATE cities SET name = $2, status = 'active', updated_at = NOW() WHERE id = $1`,
+        [byCode.rows[0].id, city.name],
+      );
+      continue;
+    }
+    const byName = await db.query<{ id: string }>(
+      `SELECT id FROM cities WHERE lower(name) = lower($1) LIMIT 1`,
+      [city.name],
+    );
+    if (byName.rows[0]) {
+      await db.query(
+        `UPDATE cities SET code = $2, status = 'active', updated_at = NOW() WHERE id = $1`,
+        [byName.rows[0].id, city.code],
+      );
+    } else {
+      await db.query(`INSERT INTO cities (code, name, status) VALUES ($1, $2, 'active')`, [
+        city.code,
+        city.name,
+      ]);
+    }
+  }
+
+  for (const area of [
+    { code: 'LSH', name: 'Lubumbashi', city: 'Lubumbashi' },
+    { code: 'KWZ', name: 'Kolwezi', city: 'Kolwezi' },
+  ] as const) {
+    const cityRow = await db.query<{ id: string }>(
+      `SELECT id FROM cities WHERE lower(code) = lower($1) LIMIT 1`,
+      [area.code],
+    );
+    const cityId = cityRow.rows[0]?.id;
+    if (!cityId) throw new Error(`Missing city for service area ${area.code}`);
+
+    const byCode = await db.query<{ id: string }>(
+      `SELECT id FROM service_areas WHERE lower(code) = lower($1) LIMIT 1`,
+      [area.code],
+    );
+    if (byCode.rows[0]) {
+      await db.query(
+        `UPDATE service_areas
+         SET name = $2, city = $3, city_id = $4, status = 'active', is_holding = true,
+             outbound_delivery_amount = 1500, return_delivery_amount = 1500, updated_at = NOW()
+         WHERE id = $1`,
+        [byCode.rows[0].id, area.name, area.city, cityId],
+      );
+      continue;
+    }
+
+    const holding = await db.query<{ id: string }>(
+      `SELECT id FROM service_areas
+       WHERE city_id = $1 AND is_holding = true
+       ORDER BY created_at ASC
+       LIMIT 1`,
+      [cityId],
+    );
+    if (holding.rows[0]) {
+      await db.query(
+        `UPDATE service_areas
+         SET code = $2, name = $3, city = $4, status = 'active', is_holding = true,
+             outbound_delivery_amount = 1500, return_delivery_amount = 1500, updated_at = NOW()
+         WHERE id = $1`,
+        [holding.rows[0].id, area.code, area.name, area.city],
+      );
+    } else {
+      await db.query(
+        `INSERT INTO service_areas (
+           code, name, city, city_id, status, is_holding, outbound_delivery_amount, return_delivery_amount
+         ) VALUES ($1, $2, $3, $4, 'active', true, 1500, 1500)`,
+        [area.code, area.name, area.city, cityId],
+      );
+    }
+  }
+
+  await db.query(
+    `INSERT INTO zone_pricing (zone_id, outbound_delivery_amount, return_delivery_amount, updated_at)
+     SELECT id, 1500, 1500, NOW()
+     FROM service_areas
+     WHERE code = ANY($1)
+     ON CONFLICT (zone_id) DO UPDATE SET
+       outbound_delivery_amount = EXCLUDED.outbound_delivery_amount,
+       return_delivery_amount = EXCLUDED.return_delivery_amount,
+       updated_at = NOW()`,
+    [['LSH', 'KWZ']],
+  );
+}
+
 async function seed(db: Queryable, authIds: Map<string, string>) {
+  await ensureSeedGeography(db);
+
   const eveiderOrgId = await insertReturningId(
     db,
     `INSERT INTO businesses (name, status, is_platform_org, contact_email, is_phone_verified)
@@ -589,6 +689,7 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
     longitude: number;
     rows: number;
     columns: number;
+    areaCode: 'LSH' | 'KWZ';
   };
 
   const smartLockers: SmartLockerSeed[] = [
@@ -600,6 +701,7 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
       longitude: 27.452,
       rows: 3,
       columns: 3,
+      areaCode: 'LSH',
     },
     {
       key: 'kampemba',
@@ -609,6 +711,7 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
       longitude: 27.512,
       rows: 4,
       columns: 4,
+      areaCode: 'LSH',
     },
     {
       key: 'katuba',
@@ -618,6 +721,7 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
       longitude: 27.428,
       rows: 3,
       columns: 3,
+      areaCode: 'LSH',
     },
     {
       key: 'dilala',
@@ -627,6 +731,7 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
       longitude: 25.468,
       rows: 3,
       columns: 3,
+      areaCode: 'KWZ',
     },
     {
       key: 'kolwezi-centre',
@@ -636,8 +741,22 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
       longitude: 25.508,
       rows: 3,
       columns: 4,
+      areaCode: 'KWZ',
     },
   ];
+
+  const serviceAreaIdsEarly = await db.query(
+    `SELECT code, id FROM service_areas WHERE code = ANY($1)`,
+    [['LSH', 'KWZ']],
+  );
+  const areaByCodeEarly = new Map(
+    serviceAreaIdsEarly.rows.map((row) => [String(row.code), String(row.id)]),
+  );
+  const lubumAreaIdEarly = areaByCodeEarly.get('LSH');
+  const kolweziAreaIdEarly = areaByCodeEarly.get('KWZ');
+  if (!lubumAreaIdEarly || !kolweziAreaIdEarly) {
+    throw new Error('Seed requires active LSH and KWZ service areas');
+  }
 
   const lockerIds = new Map<string, string>();
   const compartmentsByLocker = new Map<string, Array<{ id: string; label: string }>>();
@@ -647,10 +766,11 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
     layout.cells[0]!.size = 'small';
     layout.cells[layout.cells.length - 1]!.size = 'large';
 
+    const serviceAreaId = locker.areaCode === 'LSH' ? lubumAreaIdEarly : kolweziAreaIdEarly;
     const lockerId = await insertReturningId(
       db,
-      `INSERT INTO lockers (code, name, address, city, latitude, longitude, rows, columns, status, type)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active', 'SMART_LOCKER')
+      `INSERT INTO lockers (code, name, address, city, latitude, longitude, rows, columns, status, type, service_area_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active', 'SMART_LOCKER', $9)
        RETURNING id`,
       [
         await uniquePointCode(db),
@@ -661,6 +781,7 @@ async function seed(db: Queryable, authIds: Map<string, string>) {
         locker.longitude,
         locker.rows,
         locker.columns,
+        serviceAreaId,
       ],
     );
     lockerIds.set(locker.key, lockerId);

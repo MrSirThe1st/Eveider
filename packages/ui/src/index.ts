@@ -125,6 +125,7 @@ export {
   IconCheck,
   IconPencil,
   IconInbox,
+  IconBell,
 } from './icons.js';
 export { PasswordInput, type PasswordInputProps } from './password-input.js';
 export { PhoneField, type PhoneFieldProps } from './phone-field.js';

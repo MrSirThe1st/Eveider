@@ -1,5 +1,6 @@
 import { MAX_DRIVER_VEHICLE_DOCUMENTS } from '@eveider/api-contracts';
 import {
+  ACTIVE_DELIVERY_STATUSES,
   assertCourierDossierTransition,
   type CourierContractorKind,
   type CourierDossierStatus,
@@ -10,11 +11,13 @@ import {
   assertAdmin,
   assertBusinessRole,
   assertCompanyPermission,
+  assertCourierRole,
   type DataAccessContext,
 } from '../context.js';
 import type { Queryable } from '../db/index.js';
 import { mapCourierDossier, mapDriverVehicleDocument } from '../db/mappers.js';
 import type { CourierDossier, DriverVehicleDocument } from '../db/types.js';
+import { NotificationRepository } from './notification.repository.js';
 
 export type CreateCourierDossierInput = {
   contractorType: CourierContractorKind;
@@ -31,8 +34,6 @@ export type ReviewCourierDossierInput = {
   status: Extract<CourierDossierStatus, 'approved' | 'needs_correction' | 'rejected'>;
   reviewNotes?: string | null;
 };
-
-const ACTIVE_DELIVERY_STATUSES = ['assigned', 'scanned', 'drop_off_pending'] as const;
 
 export type DriverRosterRecord = {
   id: string;
@@ -59,6 +60,12 @@ export type DriverRosterRecord = {
   currentTrackingNumber: string | null;
   currentLockerName: string | null;
   deliveriesToday: number;
+  isAcceptingWork: boolean;
+  profilePhotoRef: string | null;
+  vehicleType: import('@eveider/domain').DriverVehicleType | null;
+  vehicleMakeModel: string | null;
+  vehiclePlate: string | null;
+  vehicleColor: string | null;
 };
 
 const ROSTER_SELECT = `
@@ -82,6 +89,12 @@ const ROSTER_SELECT = `
     d.review_notes,
     d.invited_at,
     d.created_at,
+    d.is_accepting_work,
+    d.profile_photo_ref,
+    d.vehicle_type,
+    d.vehicle_make_model,
+    d.vehicle_plate,
+    d.vehicle_color,
     COALESCE(u.is_blocked, false) AS is_blocked,
     u.deactivated_at,
     cur.tracking_number AS current_tracking_number,
@@ -141,6 +154,27 @@ function mapRosterRow(row: Record<string, unknown>): DriverRosterRecord {
       row.current_tracking_number == null ? null : String(row.current_tracking_number),
     currentLockerName: row.current_locker_name == null ? null : String(row.current_locker_name),
     deliveriesToday: Number(row.deliveries_today ?? 0),
+    isAcceptingWork: row.is_accepting_work == null ? true : Boolean(row.is_accepting_work),
+    profilePhotoRef:
+      row.profile_photo_ref == null || row.profile_photo_ref === ''
+        ? null
+        : String(row.profile_photo_ref),
+    vehicleType:
+      row.vehicle_type == null || row.vehicle_type === ''
+        ? null
+        : (String(row.vehicle_type) as DriverRosterRecord['vehicleType']),
+    vehicleMakeModel:
+      row.vehicle_make_model == null || row.vehicle_make_model === ''
+        ? null
+        : String(row.vehicle_make_model),
+    vehiclePlate:
+      row.vehicle_plate == null || row.vehicle_plate === ''
+        ? null
+        : String(row.vehicle_plate),
+    vehicleColor:
+      row.vehicle_color == null || row.vehicle_color === ''
+        ? null
+        : String(row.vehicle_color),
   };
 }
 
@@ -149,7 +183,10 @@ function normalizeEmail(email: string): string {
 }
 
 export class CourierDossierRepository {
-  constructor(private readonly db: Queryable) {}
+  constructor(
+    private readonly db: Queryable,
+    private readonly notifications: NotificationRepository = new NotificationRepository(db),
+  ) {}
 
   async findById(id: string): Promise<CourierDossier | null> {
     const result = await this.db.query(`SELECT * FROM driver_dossiers WHERE id = $1 LIMIT 1`, [id]);
@@ -164,6 +201,94 @@ export class CourierDossierRepository {
     );
     const row = result.rows[0];
     return row ? mapCourierDossier(row) : null;
+  }
+
+  /** Driver updates own accepting-work flag from the mobile app. */
+  async updateAcceptingWork(
+    ctx: DataAccessContext,
+    isAcceptingWork: boolean,
+  ): Promise<CourierDossier> {
+    assertCourierRole(ctx);
+    const result = await this.db.query(
+      `UPDATE driver_dossiers
+       SET is_accepting_work = $1, updated_at = NOW()
+       WHERE id = (
+         SELECT id FROM driver_dossiers
+         WHERE user_id = $2 AND status <> 'rejected' AND status <> 'deleted'
+         ORDER BY created_at DESC
+         LIMIT 1
+       )
+       RETURNING *`,
+      [isAcceptingWork, ctx.userId!],
+    );
+    const row = result.rows[0];
+    if (!row) throw new Error('Dossier chauffeur introuvable');
+    return mapCourierDossier(row);
+  }
+
+  /** Driver updates own vehicle fields from the mobile app. */
+  async updateVehicleProfile(
+    ctx: DataAccessContext,
+    input: {
+      vehicleType?: import('@eveider/domain').DriverVehicleType | null;
+      vehicleMakeModel?: string | null;
+      vehiclePlate?: string | null;
+      vehicleColor?: string | null;
+    },
+  ): Promise<CourierDossier> {
+    assertCourierRole(ctx);
+    const current = await this.findByUserId(ctx.userId!);
+    if (!current) throw new Error('Dossier chauffeur introuvable');
+
+    const vehicleType =
+      input.vehicleType !== undefined ? input.vehicleType : current.vehicleType;
+    const vehicleMakeModel =
+      input.vehicleMakeModel !== undefined
+        ? input.vehicleMakeModel?.trim() || null
+        : current.vehicleMakeModel;
+    const vehiclePlate =
+      input.vehiclePlate !== undefined
+        ? input.vehiclePlate?.trim() || null
+        : current.vehiclePlate;
+    const vehicleColor =
+      input.vehicleColor !== undefined
+        ? input.vehicleColor?.trim() || null
+        : current.vehicleColor;
+
+    const result = await this.db.query(
+      `UPDATE driver_dossiers
+       SET vehicle_type = $1,
+           vehicle_make_model = $2,
+           vehicle_plate = $3,
+           vehicle_color = $4,
+           updated_at = NOW()
+       WHERE id = $5
+       RETURNING *`,
+      [vehicleType, vehicleMakeModel, vehiclePlate, vehicleColor, current.id],
+    );
+    const row = result.rows[0];
+    if (!row) throw new Error('Dossier chauffeur introuvable');
+    return mapCourierDossier(row);
+  }
+
+  async updateProfilePhoto(
+    ctx: DataAccessContext,
+    profilePhotoRef: string | null,
+  ): Promise<CourierDossier> {
+    assertCourierRole(ctx);
+    const current = await this.findByUserId(ctx.userId!);
+    if (!current) throw new Error('Dossier chauffeur introuvable');
+
+    const result = await this.db.query(
+      `UPDATE driver_dossiers
+       SET profile_photo_ref = $1, updated_at = NOW()
+       WHERE id = $2
+       RETURNING *`,
+      [profilePhotoRef, current.id],
+    );
+    const row = result.rows[0];
+    if (!row) throw new Error('Dossier chauffeur introuvable');
+    return mapCourierDossier(row);
   }
 
   async findOpenByEmail(email: string): Promise<CourierDossier | null> {
@@ -316,7 +441,27 @@ export class CourierDossierRepository {
         initialStatus,
       ],
     );
-    return mapCourierDossier(result.rows[0]!);
+    const created = mapCourierDossier(result.rows[0]!);
+    await this.emitDriverVerificationPending(created);
+    return created;
+  }
+
+  private async emitDriverVerificationPending(dossier: CourierDossier): Promise<void> {
+    if (dossier.status !== 'pending_review') return;
+    try {
+      await this.notifications.web.emit({
+        type: 'driver.verification_pending',
+        audience: 'platform_admins',
+        businessId: dossier.businessId,
+        title: 'Vérification chauffeur',
+        message: `${dossier.fullName} attend une revue.`,
+        entityType: 'driver_dossier',
+        entityId: dossier.id,
+        dedupeKey: `driver.verification_pending:${dossier.id}`,
+      });
+    } catch (error) {
+      console.error('[eveider:web-notify] driver.verification_pending failed', error);
+    }
   }
 
   async updateServiceArea(
@@ -375,7 +520,11 @@ export class CourierDossierRepository {
         nextStatus,
       ],
     );
-    return mapCourierDossier(result.rows[0]!);
+    const updated = mapCourierDossier(result.rows[0]!);
+    if (current.status === 'needs_correction' && nextStatus === 'pending_review') {
+      await this.emitDriverVerificationPending(updated);
+    }
+    return updated;
   }
 
   async review(

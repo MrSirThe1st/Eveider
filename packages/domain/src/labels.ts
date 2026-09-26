@@ -134,8 +134,10 @@ export const COMPARTMENT_STATUS_LABELS: Record<CompartmentStatus, string> = {
 };
 
 export const DELIVERY_STATUS_LABELS: Record<DeliveryStatus, string> = {
-  assigned: 'ASSIGNÉ',
-  scanned: 'SCANNÉ',
+  assigned: 'À ACCEPTER',
+  accepted: 'ACCEPTÉE',
+  started: 'COMMENCÉE',
+  scanned: 'PRISE EN CHARGE',
   drop_off_pending: 'DÉPÔT EN ATTENTE',
   completed: 'TERMINÉ',
   failed: 'ÉCHOUÉ',
@@ -164,7 +166,10 @@ export const PARCEL_EVENT_TYPE_LABELS: Record<ParcelEventType, string> = {
   'parcel.created': 'COLIS CRÉÉ',
   'parcel.status_changed': 'STATUT COLIS MODIFIÉ',
   'delivery.assigned': 'LIVRAISON ASSIGNÉE',
-  'delivery.scanned': 'COLIS SCANNÉ',
+  'delivery.accepted': 'LIVRAISON ACCEPTÉE',
+  'delivery.started': 'LIVRAISON COMMENCÉE',
+  'delivery.claimed': 'LIVRAISON PRISE',
+  'delivery.scanned': 'PRISE EN CHARGE',
   'delivery.drop_off_pending': 'DÉPÔT EN ATTENTE',
   'delivery.completed': 'DÉPÔT TERMINÉ',
   'delivery.failed': 'LIVRAISON ÉCHOUÉE',
@@ -197,8 +202,8 @@ export const SERVICE_AREA_STATUS_LABELS: Record<ServiceAreaStatus, string> = {
 export const CITY_STATUS_LABELS: Record<CityStatus, string> = SERVICE_AREA_STATUS_LABELS;
 
 export const PARCEL_CHARGE_KIND_LABELS: Record<ParcelChargeKind, string> = {
-  delivery_fee: 'Livraison Eveider (historique)',
-  drop_off_fee: 'Dépôt marchand (historique)',
+  delivery_fee: 'Livraison Eveider',
+  drop_off_fee: 'Dépôt marchand',
   locker_rental: 'Stockage',
   outbound_delivery: 'Livraison Eveider',
   locker_collection: 'Retrait au casier',

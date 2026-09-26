@@ -23,6 +23,7 @@ import {
 } from '../db/mappers.js';
 import type { BillingAccount, Business, BusinessLocation, SettlementAccount, VerificationStatus } from '../db/types.js';
 import { withTransaction } from '../db/pool.js';
+import { NotificationRepository } from './notification.repository.js';
 
 export type BusinessSettingsSnapshot = {
   name: string;
@@ -184,7 +185,10 @@ async function loadSummary(db: Queryable, businessId: string) {
 }
 
 export class BusinessOnboardingRepository {
-  constructor(private readonly db: Queryable) {}
+  constructor(
+    private readonly db: Queryable,
+    private readonly notifications: NotificationRepository = new NotificationRepository(db),
+  ) {}
 
   async saveBusinessInfo(businessId: string, input: BusinessInfoStepInput) {
     return withTransaction(async (tx) => {
@@ -666,7 +670,7 @@ export class BusinessOnboardingRepository {
   }
 
   async submitApplication(businessId: string) {
-    return withTransaction(async (tx) => {
+    const result = await withTransaction(async (tx) => {
       const businessResult = await tx.query(
         `SELECT * FROM businesses WHERE id = $1 LIMIT 1 FOR UPDATE`,
         [businessId],
@@ -722,6 +726,23 @@ export class BusinessOnboardingRepository {
         verification: { ...verification, checks: checkResult.rows.map(mapVerificationCheck) },
       };
     });
+
+    try {
+      await this.notifications.web.emit({
+        type: 'org.verification_pending',
+        audience: 'platform_admins',
+        businessId,
+        title: 'Vérification organisation',
+        message: `${result.business.name} attend une revue.`,
+        entityType: 'business',
+        entityId: businessId,
+        dedupeKey: `org.verification_pending:${result.verification.id}`,
+      });
+    } catch (error) {
+      console.error('[eveider:web-notify] org.verification_pending failed', error);
+    }
+
+    return result;
   }
 
   async getOnboardingSummary(businessId: string) {

@@ -5,6 +5,7 @@ export const STORED_DOCUMENT_SCHEME = 'eveider://';
 
 export const IDENTITY_DOCUMENT_KINDS = [
   'driver_id',
+  'driver_profile',
   'legal_rep_id',
   'national_id',
   'rccm_certificate',

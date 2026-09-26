@@ -64,6 +64,8 @@ export function mapUser(row: Record<string, unknown>): User {
     isBlocked: Boolean(row.is_blocked),
     deactivatedAt: asDateOrNull(row.deactivated_at),
     deletedAt: asDateOrNull(row.deleted_at),
+    emailNotificationsEnabled: row.email_notifications_enabled !== false,
+    pushNotificationsEnabled: row.push_notifications_enabled !== false,
     createdAt: asDate(row.created_at),
     updatedAt: asDate(row.updated_at),
   };
@@ -207,6 +209,11 @@ export function mapParcel(row: Record<string, unknown>): Parcel {
       row.sender_instructions == null || row.sender_instructions === ''
         ? null
         : String(row.sender_instructions),
+    driverInstructions:
+      row.driver_instructions == null || row.driver_instructions === ''
+        ? null
+        : String(row.driver_instructions),
+    dueAt: asDateOrNull(row.due_at),
     packageSize: (row.package_size as Parcel['packageSize']) ?? 'medium',
     packageLengthCm: asNumberOrNull(row.package_length_cm),
     packageWidthCm: asNumberOrNull(row.package_width_cm),
@@ -242,6 +249,8 @@ export function mapDelivery(row: Record<string, unknown>): Delivery {
         ? kind
         : 'outbound',
     status: row.status as Delivery['status'],
+    acceptedAt: asDateOrNull(row.accepted_at),
+    startedAt: asDateOrNull(row.started_at),
     scannedAt: asDateOrNull(row.scanned_at),
     completedAt: asDateOrNull(row.completed_at),
     createdAt: asDate(row.created_at),
@@ -325,8 +334,15 @@ export function mapNotification(row: Record<string, unknown>): Notification {
     id: String(row.id),
     userId: row.user_id == null ? null : String(row.user_id),
     parcelId: row.parcel_id == null ? null : String(row.parcel_id),
+    businessId: row.business_id == null ? null : String(row.business_id),
     channel: row.channel as Notification['channel'],
+    type: row.type == null || row.type === '' ? null : String(row.type),
+    title: row.title == null || row.title === '' ? null : String(row.title),
     message: String(row.message),
+    entityType: row.entity_type == null || row.entity_type === '' ? null : String(row.entity_type),
+    entityId: row.entity_id == null ? null : String(row.entity_id),
+    dedupeKey: row.dedupe_key == null || row.dedupe_key === '' ? null : String(row.dedupe_key),
+    readAt: asDateOrNull(row.read_at),
     sentAt: asDateOrNull(row.sent_at),
     createdAt: asDate(row.created_at),
   };
@@ -565,6 +581,27 @@ export function mapCourierDossier(row: Record<string, unknown>): CourierDossier 
     reviewNotes: row.review_notes == null ? null : String(row.review_notes),
     status: row.status as CourierDossier['status'],
     serviceAreaId: row.service_area_id == null ? null : String(row.service_area_id),
+    isAcceptingWork: row.is_accepting_work == null ? true : Boolean(row.is_accepting_work),
+    profilePhotoRef:
+      row.profile_photo_ref == null || row.profile_photo_ref === ''
+        ? null
+        : String(row.profile_photo_ref),
+    vehicleType:
+      row.vehicle_type == null || row.vehicle_type === ''
+        ? null
+        : (String(row.vehicle_type) as CourierDossier['vehicleType']),
+    vehicleMakeModel:
+      row.vehicle_make_model == null || row.vehicle_make_model === ''
+        ? null
+        : String(row.vehicle_make_model),
+    vehiclePlate:
+      row.vehicle_plate == null || row.vehicle_plate === ''
+        ? null
+        : String(row.vehicle_plate),
+    vehicleColor:
+      row.vehicle_color == null || row.vehicle_color === ''
+        ? null
+        : String(row.vehicle_color),
     createdByUserId: row.created_by_user_id == null ? null : String(row.created_by_user_id),
     reviewedByUserId: row.reviewed_by_user_id == null ? null : String(row.reviewed_by_user_id),
     reviewedAt: asDateOrNull(row.reviewed_at),

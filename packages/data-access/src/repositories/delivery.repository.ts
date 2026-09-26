@@ -1,4 +1,5 @@
 import {
+  ACTIVE_DELIVERY_STATUSES,
   canAcceptDropOff,
   completeOutboundDeliveryFromLocker,
   COURIER_HISTORY_DAYS,
@@ -85,9 +86,24 @@ export type AdminDeliveryListItem = Delivery & {
 
 export type ActiveDeliverySummary = {
   assigned: number;
+  accepted: number;
+  started: number;
   scanned: number;
   drop_off_pending: number;
   total: number;
+};
+
+export type ClaimableParcel = {
+  parcelId: string;
+  kind: DeliveryKind;
+  trackingNumber: string;
+  reference: string | null;
+  businessName: string;
+  senderAddress: string | null;
+  lockerName: string | null;
+  lockerAddress: string | null;
+  dueAt: Date | null;
+  driverInstructions: string | null;
 };
 
 export type CourierAdminDetail = {
@@ -113,14 +129,29 @@ export type CourierAdminDetail = {
   }>;
 };
 
-const ACTIVE_DELIVERY_STATUSES: DeliveryStatus[] = [
-  'assigned',
-  'scanned',
-  'drop_off_pending',
-];
-
 function normalizeScanCode(value: string): string {
   return normalizeTrackingNumber(value);
+}
+
+function mapClaimableRow(
+  row: Record<string, unknown>,
+  kind: DeliveryKind,
+): ClaimableParcel {
+  return {
+    parcelId: String(row.parcel_id),
+    kind,
+    trackingNumber: String(row.tracking_number),
+    reference: row.reference == null ? null : String(row.reference),
+    businessName: String(row.business_name),
+    senderAddress: row.sender_address == null ? null : String(row.sender_address),
+    lockerName: row.locker_name == null ? null : String(row.locker_name),
+    lockerAddress: row.locker_address == null ? null : String(row.locker_address),
+    dueAt: row.due_at == null ? null : new Date(String(row.due_at)),
+    driverInstructions:
+      row.driver_instructions == null || row.driver_instructions === ''
+        ? null
+        : String(row.driver_instructions),
+  };
 }
 
 export class DeliveryRepository {
@@ -252,14 +283,39 @@ export class DeliveryRepository {
         ]);
         lockerName = locker.rows[0] ? String(locker.rows[0].name) : null;
       }
-      await this.notifications.notifyCourierAssigned(
+      const business = await this.db.query(`SELECT name FROM businesses WHERE id = $1 LIMIT 1`, [
+        parcel.businessId,
+      ]);
+      const businessName = business.rows[0] ? String(business.rows[0].name) : null;
+      await this.notifications.notifyCourierAssigned({
         courierId,
-        parcel.id,
-        parcel.trackingNumber,
+        deliveryId: delivery.id,
+        parcelId: parcel.id,
+        trackingNumber: parcel.trackingNumber,
+        businessName,
         lockerName,
-      );
+        kind: 'outbound',
+      });
     } catch (error) {
       console.error('[eveider:notify] courier assignment failed', { parcelId, courierId, error });
+    }
+
+    if (kind === 'outbound') {
+      try {
+        await this.notifications.web.emit({
+          type: 'delivery.driver_assigned',
+          audience: 'business_web',
+          businessId: parcel.businessId,
+          title: 'Chauffeur assigné',
+          message: `Un chauffeur a été assigné à ${parcel.trackingNumber}.`,
+          entityType: 'parcel',
+          entityId: parcel.id,
+          parcelId: parcel.id,
+          dedupeKey: `delivery.driver_assigned:${parcel.id}`,
+        });
+      } catch (error) {
+        console.error('[eveider:web-notify] delivery.driver_assigned failed', error);
+      }
     }
 
     return delivery;
@@ -270,7 +326,7 @@ export class DeliveryRepository {
     parcelId: string,
     courierId: string,
   ): Promise<Delivery> {
-    await this.parcelReturns.assertAssignableCustomerReturn(parcelId);
+    const returnMeta = await this.parcelReturns.assertAssignableCustomerReturn(parcelId);
 
     const existing = await this.db.query(
       `SELECT id FROM deliveries
@@ -330,6 +386,33 @@ export class DeliveryRepository {
       newDeliveryStatus: 'assigned',
       payload: { driverId: courierId, kind: 'customer_return' },
     });
+
+    try {
+      let lockerName: string | null = null;
+      if (returnMeta.lockerId) {
+        const locker = await this.db.query(`SELECT name FROM lockers WHERE id = $1 LIMIT 1`, [
+          returnMeta.lockerId,
+        ]);
+        lockerName = locker.rows[0] ? String(locker.rows[0].name) : null;
+      }
+      const parcelRow = await this.db.query(
+        `SELECT tracking_number FROM parcels WHERE id = $1 LIMIT 1`,
+        [parcelId],
+      );
+      const trackingNumber = parcelRow.rows[0]
+        ? String(parcelRow.rows[0].tracking_number)
+        : parcelId;
+      await this.notifications.notifyCourierAssigned({
+        courierId,
+        deliveryId: delivery.id,
+        parcelId,
+        trackingNumber,
+        lockerName,
+        kind: 'customer_return',
+      });
+    } catch (error) {
+      console.error('[eveider:notify] return assignment failed', { parcelId, courierId, error });
+    }
 
     return delivery;
   }
@@ -444,7 +527,8 @@ export class DeliveryRepository {
     }
 
     const result = await this.db.query(
-      `SELECT d.id, d.parcel_id, d.driver_id, d.status, d.kind, d.scanned_at, d.completed_at,
+      `SELECT d.id, d.parcel_id, d.driver_id, d.status, d.kind,
+              d.accepted_at, d.started_at, d.scanned_at, d.completed_at,
               d.created_at, d.updated_at,
               u.id AS courier_relation_id, u.full_name AS courier_full_name,
               u.email AS courier_email, u.phone AS courier_phone,
@@ -520,6 +604,8 @@ export class DeliveryRepository {
 
     const counts = {
       assigned: 0,
+      accepted: 0,
+      started: 0,
       scanned: 0,
       drop_off_pending: 0,
     };
@@ -533,7 +619,12 @@ export class DeliveryRepository {
 
     return {
       ...counts,
-      total: counts.assigned + counts.scanned + counts.drop_off_pending,
+      total:
+        counts.assigned +
+        counts.accepted +
+        counts.started +
+        counts.scanned +
+        counts.drop_off_pending,
     };
   }
 
@@ -566,19 +657,80 @@ export class DeliveryRepository {
     return delivery;
   }
 
-  async scan(ctx: DataAccessContext, id: string, scanCode: string): Promise<CourierDelivery> {
+  async accept(ctx: DataAccessContext, id: string): Promise<CourierDelivery> {
     const delivery = await this.requireCourierDelivery(ctx, id);
     if (delivery.status !== 'assigned') {
-      throw new Error('La livraison n’est pas en attente de scan');
+      throw new Error('Cette livraison n’est pas en attente d’acceptation');
+    }
+    const status = transitionDelivery(delivery.status, 'accepted', delivery.kind);
+    const actor = resolveEventActor(ctx);
+    await this.db.query(
+      `UPDATE deliveries
+       SET status = $1, accepted_at = NOW(), updated_at = NOW()
+       WHERE id = $2`,
+      [status, id],
+    );
+    await appendParcelEvent(this.db, {
+      parcelId: delivery.parcelId,
+      deliveryId: id,
+      eventType: 'delivery.accepted',
+      actor,
+      previousDeliveryStatus: delivery.status,
+      newDeliveryStatus: status,
+    });
+    return this.findByIdForCourier(ctx, id) as Promise<CourierDelivery>;
+  }
+
+  async start(ctx: DataAccessContext, id: string): Promise<CourierDelivery> {
+    const delivery = await this.requireCourierDelivery(ctx, id);
+    if (delivery.status !== 'accepted') {
+      throw new Error('Cette livraison n’est pas prête à commencer');
+    }
+    const status = transitionDelivery(delivery.status, 'started', delivery.kind);
+    const actor = resolveEventActor(ctx);
+    await this.db.query(
+      `UPDATE deliveries
+       SET status = $1, started_at = NOW(), updated_at = NOW()
+       WHERE id = $2`,
+      [status, id],
+    );
+    await appendParcelEvent(this.db, {
+      parcelId: delivery.parcelId,
+      deliveryId: id,
+      eventType: 'delivery.started',
+      actor,
+      previousDeliveryStatus: delivery.status,
+      newDeliveryStatus: status,
+    });
+    return this.findByIdForCourier(ctx, id) as Promise<CourierDelivery>;
+  }
+
+  /**
+   * Confirm the driver is handling the correct parcel (barcode scan OR manual selection).
+   * Transitions started → scanned ("prise en charge"). Scan is optional verification.
+   */
+  async confirmPickup(
+    ctx: DataAccessContext,
+    id: string,
+    input: { mode: 'scan'; code: string } | { mode: 'manual' },
+  ): Promise<CourierDelivery> {
+    const delivery = await this.requireCourierDelivery(ctx, id);
+    if (delivery.status !== 'started') {
+      if (delivery.status === 'scanned') {
+        return delivery;
+      }
+      throw new Error('Confirmez d’abord le démarrage de la livraison');
     }
 
-    const provided = normalizeScanCode(scanCode);
-    const expectedTracking = normalizeScanCode(delivery.parcel.trackingNumber);
-    const expectedReference = delivery.parcel.reference
-      ? normalizeScanCode(delivery.parcel.reference)
-      : null;
-    if (provided !== expectedTracking && provided !== expectedReference) {
-      throw new Error('Numéro de suivi / référence incorrecte');
+    if (input.mode === 'scan') {
+      const provided = normalizeScanCode(input.code);
+      const expectedTracking = normalizeScanCode(delivery.parcel.trackingNumber);
+      const expectedReference = delivery.parcel.reference
+        ? normalizeScanCode(delivery.parcel.reference)
+        : null;
+      if (provided !== expectedTracking && provided !== expectedReference) {
+        throw new Error('Numéro de suivi / référence incorrecte');
+      }
     }
 
     if (isCustomerReturnDeliveryKind(delivery.kind)) {
@@ -586,7 +738,7 @@ export class DeliveryRepository {
       return this.findByIdForCourier(ctx, id) as Promise<CourierDelivery>;
     }
 
-    const status = transitionDelivery(delivery.status, 'scanned');
+    const status = transitionDelivery(delivery.status, 'scanned', delivery.kind);
     const actor = resolveEventActor(ctx);
     await this.db.query(
       `UPDATE deliveries SET status = $1, scanned_at = NOW(), updated_at = NOW()
@@ -600,6 +752,7 @@ export class DeliveryRepository {
       actor,
       previousDeliveryStatus: delivery.status,
       newDeliveryStatus: status,
+      payload: { confirmationMode: input.mode },
     });
 
     if (delivery.parcel.status === 'created' && delivery.parcel.pickupType !== 'merchant_dropoff') {
@@ -607,6 +760,248 @@ export class DeliveryRepository {
     }
 
     return this.findByIdForCourier(ctx, id) as Promise<CourierDelivery>;
+  }
+
+  /** @deprecated Prefer confirmPickup — kept for API compatibility (scan mode). */
+  async scan(ctx: DataAccessContext, id: string, scanCode: string): Promise<CourierDelivery> {
+    return this.confirmPickup(ctx, id, { mode: 'scan', code: scanCode });
+  }
+
+  /**
+   * Atomic self-claim: creates a delivery in ACCEPTED for eligible unassigned work.
+   * Protected by deliveries_one_active_per_parcel_idx + parcel row lock.
+   */
+  async claim(
+    ctx: DataAccessContext,
+    parcelId: string,
+    kind: DeliveryKind = 'outbound',
+  ): Promise<CourierDelivery> {
+    assertCourierRole(ctx);
+    const driverId = ctx.userId!;
+
+    if (kind === 'return') {
+      throw new Error(PRODUCT_LOCKS.legacyReturn);
+    }
+
+    const settings = await this.db.query(
+      `SELECT driver_self_assignment_enabled FROM platform_settings
+       ORDER BY updated_at DESC LIMIT 1`,
+    );
+    if (!settings.rows[0]?.driver_self_assignment_enabled) {
+      throw new Error('L’auto-attribution n’est pas activée');
+    }
+
+    const dossierResult = await this.db.query(
+      `SELECT status, contractor_type, is_accepting_work FROM driver_dossiers
+       WHERE user_id = $1 AND status <> 'rejected' AND status <> 'deleted'
+       ORDER BY created_at DESC LIMIT 1`,
+      [driverId],
+    );
+    const dossier = dossierResult.rows[0];
+    if (!dossier) throw new Error('Dossier chauffeur introuvable');
+    if (dossier.is_accepting_work === false) {
+      throw new Error('Passez en Disponible pour prendre de nouvelles livraisons');
+    }
+    const contractorType = dossier.contractor_type === 'business' ? 'business' : 'eveider';
+    if (contractorType !== 'eveider') {
+      throw new Error(PRODUCT_LOCKS.eveiderDriversOnly);
+    }
+    if (!isAssignableDriverDossier(dossier.status as DriverDossierStatus, contractorType)) {
+      throw new Error('Ce chauffeur n’est pas encore approuvé');
+    }
+
+    try {
+      const deliveryId = await withTransaction(async (tx) => {
+        const parcelResult = await tx.query(
+          `SELECT * FROM parcels WHERE id = $1 FOR UPDATE`,
+          [parcelId],
+        );
+        const parcelRow = parcelResult.rows[0];
+        if (!parcelRow) throw new Error('Colis introuvable');
+        const parcel = mapParcel(parcelRow);
+
+        if (isCustomerReturnDeliveryKind(kind)) {
+          const returnCheck = await tx.query(
+            `SELECT pr.id, pr.status, pr.method, p.status AS parcel_status,
+                    COALESCE(pr.return_locker_id, p.locker_id) AS locker_id
+             FROM parcel_returns pr
+             JOIN parcels p ON p.id = pr.parcel_id
+             WHERE pr.parcel_id = $1
+               AND pr.status = 'awaiting_pickup'
+               AND pr.method = 'eveider_return'
+               AND p.status = 'return_at_point'
+             LIMIT 1
+             FOR UPDATE OF pr`,
+            [parcelId],
+          );
+          const returnRow = returnCheck.rows[0];
+          if (!returnRow) {
+            throw new Error('Aucun retour client assignable pour ce colis');
+          }
+          if (!returnRow.locker_id) {
+            throw new Error('Le colis doit avoir un casier de destination');
+          }
+        } else {
+          if (!parcel.lockerId) {
+            throw new Error('Le colis doit avoir un casier de destination');
+          }
+          if (parcel.pickupType === 'merchant_dropoff') {
+            throw new Error('Auto-attribution indisponible pour un dépôt marchand');
+          }
+          if (parcel.status !== 'created' && parcel.status !== 'in_transit') {
+            throw new Error('Le colis ne peut pas recevoir de livraison à ce stade');
+          }
+        }
+
+        const existing = await tx.query(
+          `SELECT id FROM deliveries
+           WHERE parcel_id = $1 AND status = ANY($2)
+           LIMIT 1`,
+          [parcelId, ACTIVE_DELIVERY_STATUSES],
+        );
+        if (existing.rows[0]) {
+          throw new Error('Cette livraison n’est plus disponible');
+        }
+
+        const created = await tx.query(
+          `INSERT INTO deliveries (parcel_id, driver_id, status, kind, accepted_at)
+           VALUES ($1, $2, 'accepted', $3, NOW())
+           RETURNING id`,
+          [parcelId, driverId, kind],
+        );
+        const id = String(created.rows[0]!.id);
+        const actor = resolveEventActor(ctx);
+        await appendParcelEvent(tx, {
+          parcelId,
+          deliveryId: id,
+          eventType: 'delivery.claimed',
+          actor,
+          newDeliveryStatus: 'accepted',
+          payload: { driverId, kind },
+        });
+        return id;
+      });
+
+      const claimed = await this.findByIdForCourier(ctx, deliveryId);
+      if (!claimed) throw new Error('Livraison introuvable après attribution');
+      return claimed;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (
+        message.includes('deliveries_one_active_per_parcel_idx') ||
+        message.includes('unique') ||
+        message.includes('duplicate')
+      ) {
+        throw new Error('Cette livraison n’est plus disponible');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Parcels a driver can self-claim when platform self-assignment is on
+   * and the driver is accepting work. Empty when gated off.
+   */
+  async listAvailableForClaim(ctx: DataAccessContext): Promise<ClaimableParcel[]> {
+    assertCourierRole(ctx);
+
+    const settings = await this.db.query(
+      `SELECT driver_self_assignment_enabled FROM platform_settings
+       ORDER BY updated_at DESC LIMIT 1`,
+    );
+    if (!settings.rows[0]?.driver_self_assignment_enabled) {
+      return [];
+    }
+
+    const dossierResult = await this.db.query(
+      `SELECT status, contractor_type, is_accepting_work FROM driver_dossiers
+       WHERE user_id = $1 AND status <> 'rejected' AND status <> 'deleted'
+       ORDER BY created_at DESC LIMIT 1`,
+      [ctx.userId!],
+    );
+    const dossier = dossierResult.rows[0];
+    if (!dossier || dossier.is_accepting_work === false) {
+      return [];
+    }
+    const contractorType = dossier.contractor_type === 'business' ? 'business' : 'eveider';
+    if (contractorType !== 'eveider') {
+      return [];
+    }
+    if (!isAssignableDriverDossier(dossier.status as DriverDossierStatus, contractorType)) {
+      return [];
+    }
+
+    const outbound = await this.db.query(
+      `SELECT
+         p.id AS parcel_id,
+         'outbound'::text AS kind,
+         p.tracking_number,
+         p.reference,
+         b.name AS business_name,
+         p.sender_address,
+         l.name AS locker_name,
+         l.address AS locker_address,
+         p.due_at,
+         p.driver_instructions
+       FROM parcels p
+       JOIN businesses b ON b.id = p.business_id
+       LEFT JOIN lockers l ON l.id = p.locker_id
+       WHERE p.pickup_type = 'courier_pickup'
+         AND p.status IN ('created', 'in_transit')
+         AND p.locker_id IS NOT NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM deliveries d
+           WHERE d.parcel_id = p.id AND d.status = ANY($1)
+         )
+       ORDER BY p.due_at ASC NULLS LAST, p.created_at ASC
+       LIMIT 50`,
+      [ACTIVE_DELIVERY_STATUSES],
+    );
+
+    // Eligible Eveider customer-return pickups (same rules as admin assign).
+    const returns = await this.db.query(
+      `SELECT
+         p.id AS parcel_id,
+         'customer_return'::text AS kind,
+         p.tracking_number,
+         p.reference,
+         b.name AS business_name,
+         p.sender_address,
+         COALESCE(rl.name, l.name) AS locker_name,
+         COALESCE(rl.address, l.address) AS locker_address,
+         p.due_at,
+         p.driver_instructions
+       FROM parcel_returns pr
+       JOIN parcels p ON p.id = pr.parcel_id
+       JOIN businesses b ON b.id = p.business_id
+       LEFT JOIN lockers rl ON rl.id = pr.return_locker_id
+       LEFT JOIN lockers l ON l.id = p.locker_id
+       WHERE pr.status = 'awaiting_pickup'
+         AND pr.method = 'eveider_return'
+         AND p.status = 'return_at_point'
+         AND COALESCE(pr.return_locker_id, p.locker_id) IS NOT NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM deliveries d
+           WHERE d.parcel_id = p.id AND d.status = ANY($1)
+         )
+       ORDER BY p.due_at ASC NULLS LAST, pr.updated_at ASC
+       LIMIT 50`,
+      [ACTIVE_DELIVERY_STATUSES],
+    );
+
+    const mapped: ClaimableParcel[] = [
+      ...outbound.rows.map((row) => mapClaimableRow(row, 'outbound')),
+      ...returns.rows.map((row) => mapClaimableRow(row, 'customer_return')),
+    ];
+
+    mapped.sort((a, b) => {
+      if (a.dueAt && b.dueAt) return a.dueAt.getTime() - b.dueAt.getTime();
+      if (a.dueAt) return -1;
+      if (b.dueAt) return 1;
+      return 0;
+    });
+
+    return mapped.slice(0, 50);
   }
 
   async markDropOffPending(ctx: DataAccessContext, id: string): Promise<CourierDelivery> {
@@ -617,8 +1012,8 @@ export class DeliveryRepository {
     if (delivery.status !== 'scanned') {
       throw new Error(
         delivery.kind === 'return'
-          ? 'Scan requis avant la remise au marchand'
-          : 'Scan requis avant le dépôt au casier',
+          ? 'Confirmez la prise en charge avant la remise au marchand'
+          : 'Confirmez la prise en charge avant le dépôt au casier',
       );
     }
 
@@ -748,6 +1143,12 @@ export class DeliveryRepository {
       }
     });
 
+    try {
+      await this.emitBusinessDepositedAtLocker(parcel);
+    } catch (error) {
+      console.error('[eveider:web-notify] parcel.deposited_at_locker failed', error);
+    }
+
     return this.findByIdForCourier(ctx, id) as Promise<CourierDelivery>;
   }
 
@@ -842,6 +1243,30 @@ export class DeliveryRepository {
         });
       }
     });
+
+    if (previousParcelStatus !== parcelStatus && parcelStatus === 'delivered_to_locker') {
+      await this.emitBusinessDepositedAtLocker(parcel);
+    }
+  }
+
+  private async emitBusinessDepositedAtLocker(
+    parcel: Pick<Parcel, 'id' | 'businessId' | 'trackingNumber'>,
+  ): Promise<void> {
+    try {
+      await this.notifications.web.emit({
+        type: 'parcel.deposited_at_locker',
+        audience: 'business_web',
+        businessId: parcel.businessId,
+        title: 'Colis déposé au casier',
+        message: `${parcel.trackingNumber} est arrivé au point Eveider.`,
+        entityType: 'parcel',
+        entityId: parcel.id,
+        parcelId: parcel.id,
+        dedupeKey: `parcel.deposited_at_locker:${parcel.id}`,
+      });
+    } catch (error) {
+      console.error('[eveider:web-notify] parcel.deposited_at_locker failed', error);
+    }
   }
 
   /**
@@ -1012,7 +1437,8 @@ export class DeliveryRepository {
 
   private async loadCourierDelivery(id: string): Promise<CourierDelivery | null> {
     const result = await this.db.query(
-      `SELECT d.id, d.parcel_id, d.driver_id, d.status, d.kind, d.scanned_at, d.completed_at,
+      `SELECT d.id, d.parcel_id, d.driver_id, d.status, d.kind,
+              d.accepted_at, d.started_at, d.scanned_at, d.completed_at,
               d.created_at, d.updated_at,
               (d.drop_off_photo IS NOT NULL AND d.drop_off_photo <> '') AS has_drop_off_photo,
               CASE WHEN l.id IS NULL THEN NULL ELSE row_to_json(l.*) END AS locker_row,

@@ -20,6 +20,10 @@ build/
 ios/
 android/
 
+# Firebase private keys (never commit). Client google-services.json may be present for EAS.
+**/*firebase-adminsdk*.json
+**/*-firebase-adminsdk-*.json
+
 # IDE
 .idea/
 .vscode/*

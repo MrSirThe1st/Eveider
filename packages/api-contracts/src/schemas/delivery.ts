@@ -9,6 +9,39 @@ export const scanDeliverySchema = z.object({
   reference: z.string().min(1, 'Référence requise').max(64),
 });
 
+export const acceptDeliverySchema = z.object({}).strict();
+
+export const startDeliverySchema = z.object({}).strict();
+
+export const confirmPickupSchema = z.discriminatedUnion('mode', [
+  z.object({
+    mode: z.literal('scan'),
+    reference: z.string().min(1, 'Référence requise').max(64),
+  }),
+  z.object({
+    mode: z.literal('manual'),
+  }),
+]);
+
+export const claimDeliverySchema = z.object({
+  parcelId: z.string().uuid('Colis invalide'),
+  kind: z.enum(['outbound', 'return', 'customer_return']).optional().default('outbound'),
+});
+
+export const updateDriverAvailabilitySchema = z.object({
+  isAcceptingWork: z.boolean(),
+});
+
+export const updateDriverProfileSchema = z.object({
+  vehicleType: z
+    .enum(['on_foot', 'bicycle', 'motorcycle', 'car', 'van'])
+    .nullable()
+    .optional(),
+  vehicleMakeModel: z.string().trim().max(120).nullable().optional(),
+  vehiclePlate: z.string().trim().max(32).nullable().optional(),
+  vehicleColor: z.string().trim().max(64).nullable().optional(),
+});
+
 export const completeDropOffSchema = z.object({
   compartmentId: z.string().uuid('Compartiment invalide').optional(),
   photoBase64: z
@@ -29,7 +62,17 @@ export const completeCustomerReturnToBusinessSchema = z.object({
 
 export const listDeliveriesQuerySchema = z.object({
   view: z.enum(['active', 'all']).optional(),
-  status: z.enum(['assigned', 'scanned', 'drop_off_pending', 'completed', 'failed']).optional(),
+  status: z
+    .enum([
+      'assigned',
+      'accepted',
+      'started',
+      'scanned',
+      'drop_off_pending',
+      'completed',
+      'failed',
+    ])
+    .optional(),
   courierId: z.string().uuid('Chauffeur invalide').optional(),
   lockerId: z.string().uuid('Casier invalide').optional(),
   businessId: z.string().uuid('Entreprise invalide').optional(),
@@ -47,6 +90,12 @@ export const listDeliveriesQuerySchema = z.object({
 
 export type AssignCourierInput = z.infer<typeof assignCourierSchema>;
 export type ScanDeliveryInput = z.infer<typeof scanDeliverySchema>;
+export type AcceptDeliveryInput = z.infer<typeof acceptDeliverySchema>;
+export type StartDeliveryInput = z.infer<typeof startDeliverySchema>;
+export type ConfirmPickupInput = z.infer<typeof confirmPickupSchema>;
+export type ClaimDeliveryInput = z.infer<typeof claimDeliverySchema>;
+export type UpdateDriverAvailabilityInput = z.infer<typeof updateDriverAvailabilitySchema>;
+export type UpdateDriverProfileInput = z.infer<typeof updateDriverProfileSchema>;
 export type CompleteDropOffInput = z.infer<typeof completeDropOffSchema>;
 export type ListDeliveriesQuery = z.infer<typeof listDeliveriesQuerySchema>;
 

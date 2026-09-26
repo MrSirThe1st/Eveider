@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createParcelSchema, listParcelsQuerySchema, updateParcelStatusSchema } from './parcel.js';
+import { createParcelSchema, listParcelsQuerySchema, updateParcelDueAtSchema, updateParcelStatusSchema } from './parcel.js';
 
 const baseShipment = {
   pickupType: 'merchant_dropoff' as const,
@@ -33,6 +33,14 @@ describe('createParcelSchema', () => {
     expect(updateParcelStatusSchema.safeParse({ status: 'in_transit' }).success).toBe(true);
   });
 
+  it('accepts nullable dueAt updates', () => {
+    expect(updateParcelDueAtSchema.safeParse({ dueAt: '2026-09-27T10:00:00.000Z' }).success).toBe(
+      true,
+    );
+    expect(updateParcelDueAtSchema.safeParse({ dueAt: null }).success).toBe(true);
+    expect(updateParcelDueAtSchema.safeParse({ dueAt: 'not-a-date' }).success).toBe(false);
+  });
+
   it('requires sender address for courier pickup', () => {
     const result = createParcelSchema.safeParse({
       ...baseShipment,
@@ -48,6 +56,19 @@ describe('createParcelSchema', () => {
       senderAddress: 'Avenue du Commerce, Gombe',
     });
     expect(result.success).toBe(true);
+  });
+
+  it('accepts optional dueAt and driverInstructions', () => {
+    const result = createParcelSchema.safeParse({
+      ...baseShipment,
+      dueAt: '2026-09-27T10:00:00.000Z',
+      driverInstructions: 'Sonner à la porte bleue',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.dueAt).toBe('2026-09-27T10:00:00.000Z');
+      expect(result.data.driverInstructions).toBe('Sonner à la porte bleue');
+    }
   });
 
   it('requires COD amount when payment is COD', () => {

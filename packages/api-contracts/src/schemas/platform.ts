@@ -29,6 +29,7 @@ export const updatePlatformSettingsSchema = z
     defaultEnabledFeatures: z.array(platformDefaultFeatureSchema).min(1, 'Au moins une fonction'),
     supportPhone: z.string().trim().max(32).optional(),
     dispatcherWhatsapp: z.string().trim().max(32).optional(),
+    driverSelfAssignmentEnabled: z.boolean(),
   })
   .transform((value) => {
     const platformCurrency = value.platformCurrency ?? value.pickupFeeCurrency ?? 'CDF';

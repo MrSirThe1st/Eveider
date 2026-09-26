@@ -20,6 +20,7 @@ function settingsRow(overrides: Record<string, unknown> = {}) {
     default_enabled_features: ['CREATE_SHIPMENT'],
     support_phone: null,
     dispatcher_whatsapp: null,
+    driver_self_assignment_enabled: false,
     updated_at: new Date('2026-01-15T12:00:00.000Z'),
     updated_by: null,
     ...overrides,
@@ -52,10 +53,15 @@ describe('PlatformSettingsRepository', () => {
     const row = await new PlatformSettingsRepository(db).getSettings();
     expect(row.platformCurrency).toBe('CDF');
     expect(row.pickupFeeCurrency).toBe('CDF');
+    expect(row.driverSelfAssignmentEnabled).toBe(false);
   });
 
   it('persists the platform currency and syncs delivery_pricing_rules', async () => {
-    const updated = settingsRow({ platform_currency: 'USD', pickup_fee_currency: 'USD' });
+    const updated = settingsRow({
+      platform_currency: 'USD',
+      pickup_fee_currency: 'USD',
+      driver_self_assignment_enabled: true,
+    });
     const db = createQueryMock([
       () => settingsRow(),
       () => updated,
@@ -76,13 +82,19 @@ describe('PlatformSettingsRepository', () => {
       defaultMaxPackageValueUsd: 500,
       defaultCodDailyLimitUsd: 200,
       defaultEnabledFeatures: ['CREATE_SHIPMENT'],
+      driverSelfAssignmentEnabled: true,
     });
 
     expect(row.platformCurrency).toBe('USD');
     expect(row.pickupFeeCurrency).toBe('USD');
+    expect(row.driverSelfAssignmentEnabled).toBe(true);
     expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('platform_currency = $2'),
-      expect.arrayContaining(['USD']),
+      expect.arrayContaining(['USD', true]),
+    );
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining('driver_self_assignment_enabled = $11'),
+      expect.arrayContaining([true]),
     );
     expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('UPDATE delivery_pricing_rules'),

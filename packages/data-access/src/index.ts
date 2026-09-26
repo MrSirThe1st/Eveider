@@ -22,12 +22,29 @@ export {
   type BusinessBillingSnapshot,
   type LatestVerificationSnapshot,
 } from './repositories/business-onboarding.repository.js';
-export { DeliveryRepository, type CourierAdminDetail, type CourierHistorySummary, type ParcelDeliverySummary } from './repositories/delivery.repository.js';
+export { DeliveryRepository, type ClaimableParcel, type CourierAdminDetail, type CourierHistorySummary, type ParcelDeliverySummary } from './repositories/delivery.repository.js';
 export { ParcelRepository } from './repositories/parcel.repository.js';
 export { ParcelReturnRepository } from './repositories/parcel-return.repository.js';
-export { UserRepository } from './repositories/user.repository.js';
+export { UserRepository, type AssignableDriver } from './repositories/user.repository.js';
 export { IssueRepository, type IssueWithRelations } from './repositories/issue.repository.js';
 export { NotificationRepository, type CustomerNotification } from './repositories/notification.repository.js';
+export {
+  NotificationService,
+  ExpoPushProvider,
+  EMAIL_ELIGIBLE_NOTIFICATION_TYPES,
+  HIGH_PRIORITY_MOBILE_TYPES,
+  isValidExpoPushToken,
+  type AdminOperationalBadges,
+  type BusinessOperationalBadges,
+  type EmitUserNotificationInput,
+  type EmitWebNotificationInput,
+  type MobileNotificationType,
+  type NotificationType,
+  type PushDevicePlatform,
+  type UserPushDevice,
+  type WebInboxItem,
+  type WebNotificationType,
+} from './notifications/index.js';
 export {
   StatsRepository,
   type DashboardStats,
@@ -144,11 +161,11 @@ export function createRepositories() {
   const users = new UserRepository(db);
   const businesses = new BusinessRepository(db);
   const memberships = new OrganizationMembershipRepository(db);
-  const businessOnboarding = new BusinessOnboardingRepository(db);
   const notifications = new NotificationRepository(db);
+  const businessOnboarding = new BusinessOnboardingRepository(db, notifications);
   const invites = new ParcelInviteRepository(db);
   const teamInvites = new TeamInviteRepository(db, users, memberships);
-  const courierDossiers = new CourierDossierRepository(db);
+  const courierDossiers = new CourierDossierRepository(db, notifications);
   const driverInvites = new DriverInviteRepository(db);
   const payments = new PaymentRepository(db);
   const pricing = new PricingRepository(db);
@@ -159,7 +176,7 @@ export function createRepositories() {
   const platformStaff = new PlatformStaffRepository(db, users);
   const deliveries = new DeliveryRepository(db, notifications);
   const parcelEvents = new ParcelEventRepository(db);
-  const parcelReturns = new ParcelReturnRepository(db);
+  const parcelReturns = new ParcelReturnRepository(db, notifications);
   const organizationApi = new OrganizationApiRepository(db);
   const serviceAreas = new ServiceAreaRepository(db);
   const cities = new CityRepository(db);
@@ -182,7 +199,7 @@ export function createRepositories() {
     lockerSettings,
     platformSettings,
     platformStaff,
-    issues: new IssueRepository(db),
+    issues: new IssueRepository(db, notifications),
     notifications,
     invites,
     teamInvites,

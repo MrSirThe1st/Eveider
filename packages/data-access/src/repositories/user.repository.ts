@@ -1,7 +1,29 @@
-import type { OrganizationRole, PlatformRole } from '@eveider/domain';
+import type { DriverVehicleType, OrganizationRole, PlatformRole } from '@eveider/domain';
 import type { Queryable } from '../db/index.js';
 import { mapBusiness, mapUser } from '../db/mappers.js';
 import type { Business, OrganizationMembership, User } from '../db/types.js';
+
+export type AssignableDriver = User & {
+  isAcceptingWork: boolean;
+  vehicleType: DriverVehicleType | null;
+  vehicleMakeModel: string | null;
+};
+
+function mapAssignableDriver(row: Record<string, unknown>): AssignableDriver {
+  const vehicleTypeRaw = row.vehicle_type;
+  return {
+    ...mapUser(row),
+    isAcceptingWork: row.is_accepting_work == null ? true : Boolean(row.is_accepting_work),
+    vehicleType:
+      vehicleTypeRaw == null || vehicleTypeRaw === ''
+        ? null
+        : (String(vehicleTypeRaw) as DriverVehicleType),
+    vehicleMakeModel:
+      row.vehicle_make_model == null || row.vehicle_make_model === ''
+        ? null
+        : String(row.vehicle_make_model),
+  };
+}
 
 export type CreateUserProfileInput = {
   authId: string;
@@ -120,44 +142,63 @@ export class UserRepository {
     return result.rows.map(mapUser);
   }
 
-  async listAssignableDriversByBusiness(businessId: string): Promise<User[]> {
+  async listAssignableDriversByBusiness(businessId: string): Promise<AssignableDriver[]> {
     const result = await this.db.query(
-      `SELECT DISTINCT u.* FROM users u
+      `SELECT u.*,
+              d.is_accepting_work,
+              d.vehicle_type,
+              d.vehicle_make_model
+       FROM users u
        JOIN organization_memberships m
          ON m.user_id = u.id AND m.business_id = $1 AND m.role = 'driver'
-       JOIN driver_dossiers d
-         ON d.user_id = u.id AND d.business_id = $1
-        AND d.contractor_type = 'business'
-        AND d.status IN (
-          'pending_review', 'needs_correction', 'approved', 'invited', 'active'
-        )
+       JOIN LATERAL (
+         SELECT is_accepting_work, vehicle_type, vehicle_make_model
+         FROM driver_dossiers
+         WHERE user_id = u.id
+           AND business_id = $1
+           AND contractor_type = 'business'
+           AND status IN (
+             'pending_review', 'needs_correction', 'approved', 'invited', 'active'
+           )
+         ORDER BY created_at DESC
+         LIMIT 1
+       ) d ON true
        WHERE u.is_blocked = false
          AND u.deactivated_at IS NULL
          AND u.deleted_at IS NULL
        ORDER BY u.full_name ASC NULLS LAST`,
       [businessId],
     );
-    return result.rows.map(mapUser);
+    return result.rows.map(mapAssignableDriver);
   }
 
-  async listAssignableCouriers(): Promise<User[]> {
+  async listAssignableCouriers(): Promise<AssignableDriver[]> {
     return this.listAssignableDrivers();
   }
 
-  async listAssignableDrivers(): Promise<User[]> {
+  async listAssignableDrivers(): Promise<AssignableDriver[]> {
     const result = await this.db.query(
-      `SELECT DISTINCT u.* FROM users u
-       JOIN organization_memberships m ON m.user_id = u.id
-       JOIN driver_dossiers d ON d.user_id = u.id
-        AND d.contractor_type = 'eveider'
-        AND d.status IN ('approved', 'invited', 'active')
-       WHERE m.role = 'driver'
-         AND u.is_blocked = false
+      `SELECT u.*,
+              d.is_accepting_work,
+              d.vehicle_type,
+              d.vehicle_make_model
+       FROM users u
+       JOIN organization_memberships m ON m.user_id = u.id AND m.role = 'driver'
+       JOIN LATERAL (
+         SELECT is_accepting_work, vehicle_type, vehicle_make_model
+         FROM driver_dossiers
+         WHERE user_id = u.id
+           AND contractor_type = 'eveider'
+           AND status IN ('approved', 'invited', 'active')
+         ORDER BY created_at DESC
+         LIMIT 1
+       ) d ON true
+       WHERE u.is_blocked = false
          AND u.deactivated_at IS NULL
          AND u.deleted_at IS NULL
        ORDER BY u.full_name ASC NULLS LAST`,
     );
-    return result.rows.map(mapUser);
+    return result.rows.map(mapAssignableDriver);
   }
 
   async listPlatformStaff(): Promise<User[]> {

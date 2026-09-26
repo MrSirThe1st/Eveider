@@ -1,4 +1,5 @@
 import {
+  ACTIVE_DELIVERY_STATUSES,
   canAcceptDropOff,
   DELIVERY_KINDS,
   DELIVERY_STATUSES,
@@ -202,6 +203,10 @@ export type CreateParcelInput = {
   senderLat?: number | null;
   senderLng?: number | null;
   senderInstructions?: string | null;
+  /** Optional driver-facing notes shown in the courier app. */
+  driverInstructions?: string | null;
+  /** Optional delivery deadline. */
+  dueAt?: Date | string | null;
   recipientPhone: string;
   recipientName: string;
   recipientEmail?: string;
@@ -293,6 +298,16 @@ export class ParcelRepository {
     const senderInstructions = isCourierPickup
       ? (input.senderInstructions?.trim() || null)
       : null;
+    const driverInstructions = input.driverInstructions?.trim() || null;
+    const dueAt =
+      input.dueAt == null || input.dueAt === ''
+        ? null
+        : input.dueAt instanceof Date
+          ? input.dueAt
+          : new Date(String(input.dueAt));
+    if (dueAt != null && Number.isNaN(dueAt.getTime())) {
+      throw new Error('Échéance invalide');
+    }
 
     if (pickupLocationId) {
       const locationCheck = await this.db.query(
@@ -323,6 +338,8 @@ export class ParcelRepository {
       senderLat,
       senderLng,
       senderInstructions,
+      driverInstructions,
+      dueAt,
       input.packageSize,
       input.packageLengthCm ?? null,
       input.packageWidthCm ?? null,
@@ -344,6 +361,7 @@ export class ParcelRepository {
       business_id, tracking_number, reference, recipient_phone, recipient_name,
       customer_id, locker_id, pickup_type, sender_name, sender_phone, sender_address,
       pickup_location_id, sender_location_name, sender_lat, sender_lng, sender_instructions,
+      driver_instructions, due_at,
       package_size, package_length_cm, package_width_cm, package_height_cm, package_weight_kg,
       package_category, declared_value_cdf, declared_value_usd,
       payment_responsibility, cod_amount_cdf, cod_amount_usd,
@@ -380,7 +398,7 @@ export class ParcelRepository {
            ) VALUES (
              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
              $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31,
-             'canonical', 'created', $32
+             $32, $33, 'canonical', 'created', $34
            )
            RETURNING *`,
           [...shipmentValues, compartment.id],
@@ -420,7 +438,7 @@ export class ParcelRepository {
          ) VALUES (
            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
            $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31,
-           'canonical', 'created'
+           $32, $33, 'canonical', 'created'
          )
          RETURNING *`,
         shipmentValues,
@@ -495,6 +513,8 @@ export class ParcelRepository {
         businessName,
       );
 
+      await this.emitNewPickupIfNeeded(parcel, businessName);
+
       return {
         parcel: { ...parcel, customerId: existingCustomer.id },
         recipientStatus: 'existing_user',
@@ -509,6 +529,8 @@ export class ParcelRepository {
       parcel.trackingNumber,
     );
 
+    await this.emitNewPickupIfNeeded(parcel, businessName);
+
     return {
       parcel,
       recipientStatus: 'invited',
@@ -518,6 +540,25 @@ export class ParcelRepository {
         expiresAt: invite.expiresAt,
       },
     };
+  }
+
+  private async emitNewPickupIfNeeded(parcel: Parcel, businessName: string): Promise<void> {
+    if (parcel.pickupType !== 'courier_pickup') return;
+    try {
+      await this.notifications.web.emit({
+        type: 'pickup.awaiting_assignment',
+        audience: 'admin_ops',
+        title: 'Nouvelle demande de collecte',
+        message: `${businessName} · ${parcel.trackingNumber}`,
+        entityType: 'parcel',
+        entityId: parcel.id,
+        parcelId: parcel.id,
+        businessId: parcel.businessId,
+        dedupeKey: `pickup.awaiting_assignment:${parcel.id}`,
+      });
+    } catch (error) {
+      console.error('[eveider:web-notify] pickup.awaiting_assignment failed', error);
+    }
   }
 
   async findById(ctx: DataAccessContext, id: string): Promise<ParcelWithLocker | null> {
@@ -805,7 +846,7 @@ export class ParcelRepository {
 
     if (options?.attention === 'awaiting_assignment') {
       conditions.push(`p.status = 'created' AND p.pickup_type = 'courier_pickup'`);
-      params.push(['assigned', 'scanned', 'drop_off_pending']);
+      params.push(ACTIVE_DELIVERY_STATUSES);
       conditions.push(`NOT EXISTS (
         SELECT 1 FROM deliveries d
         WHERE d.parcel_id = p.id
@@ -868,6 +909,34 @@ export class ParcelRepository {
     sql += ` ORDER BY created_at DESC LIMIT $${params.length}`;
     const ids = await this.db.query(sql, params);
     return this.loadParcelsWithRelations(ids.rows.map((r) => String(r.id)));
+  }
+
+  async updateDueAt(
+    ctx: DataAccessContext,
+    id: string,
+    dueAt: Date | null,
+  ): Promise<ParcelWithLocker> {
+    const existing = await this.db.query(`SELECT * FROM parcels WHERE id = $1 LIMIT 1`, [id]);
+    const row = existing.rows[0];
+    if (!row) throw new Error(`Parcel ${id} not found`);
+    const parcel = mapParcel(row);
+    this.assertWriteAccess(ctx, parcel);
+
+    if (dueAt != null && Number.isNaN(dueAt.getTime())) {
+      throw new Error('Échéance invalide');
+    }
+
+    await this.db.query(
+      `UPDATE parcels
+       SET due_at = $1,
+           updated_at = NOW()
+       WHERE id = $2`,
+      [dueAt, id],
+    );
+
+    const full = await this.findById(ctx, id);
+    if (!full) throw new Error(`Parcel ${id} not found`);
+    return full;
   }
 
   async updateStatus(
@@ -1170,6 +1239,7 @@ export class ParcelRepository {
       id: string;
       status: ParcelStatus;
       businessId: string;
+      trackingNumber: string;
       readyForPickupAt: Date | null;
       compartmentId: string | null;
       locker?: { type?: string } | null;
@@ -1226,6 +1296,22 @@ export class ParcelRepository {
     });
 
     await this.notifications.notifyParcelStatusChange(parcel.id, status);
+
+    try {
+      await this.notifications.web.emit({
+        type: 'parcel.collected',
+        audience: 'business_web',
+        businessId: parcel.businessId,
+        title: 'Colis retiré',
+        message: `Le destinataire a retiré ${parcel.trackingNumber}.`,
+        entityType: 'parcel',
+        entityId: parcel.id,
+        parcelId: parcel.id,
+        dedupeKey: `parcel.collected:${parcel.id}`,
+      });
+    } catch (error) {
+      console.error('[eveider:web-notify] parcel.collected failed', error);
+    }
   }
 
   private async reconcileCollectionCredential(parcelId: string): Promise<void> {

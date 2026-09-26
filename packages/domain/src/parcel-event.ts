@@ -9,6 +9,9 @@ export type ParcelEventType =
   | 'parcel.created'
   | 'parcel.status_changed'
   | 'delivery.assigned'
+  | 'delivery.accepted'
+  | 'delivery.started'
+  | 'delivery.claimed'
   | 'delivery.scanned'
   | 'delivery.drop_off_pending'
   | 'delivery.completed'
@@ -37,6 +40,9 @@ export const PARCEL_EVENT_TYPES: readonly ParcelEventType[] = [
   'parcel.created',
   'parcel.status_changed',
   'delivery.assigned',
+  'delivery.accepted',
+  'delivery.started',
+  'delivery.claimed',
   'delivery.scanned',
   'delivery.drop_off_pending',
   'delivery.completed',
