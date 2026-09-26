@@ -216,6 +216,7 @@ export function AdminLockerManager({
           onSelectLocker={(lockerId) => selectLocker(lockerId, 'map')}
           onHoverLocker={setHoveredLockerId}
           mapFocus={mapFocus}
+          pinStyle="network"
           height="100%"
         />
       </div>

@@ -15,6 +15,10 @@ import {
 import { APIProvider, Map, Marker, useApiIsLoaded, useMap } from '@vis.gl/react-google-maps';
 import { useEffect, useMemo } from 'react';
 
+/** Classic teardrop pin (viewBox 0 0 24 24), tip at (12, 22). */
+const MAP_PIN_PATH =
+  'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z';
+
 export type BusinessLocationMapMarker = {
   id: string;
   name: string;
@@ -112,8 +116,29 @@ function LockerMapPin({
     pinStyle === 'network'
       ? NETWORK_LOCKER_PIN
       : lockerPinColor(locker.availableCompartments, locker.status);
+  const strokeColor = selected || hovered ? LOCKER_PIN_COLORS.selected : '#ffffff';
 
   if (!ready) return null;
+
+  const icon =
+    pinStyle === 'network'
+      ? {
+          path: MAP_PIN_PATH,
+          fillColor,
+          fillOpacity: 1,
+          strokeColor,
+          strokeWeight: selected ? 2.5 : hovered ? 2 : 1.5,
+          scale: selected ? 1.7 : hovered ? 1.5 : 1.35,
+          anchor: new google.maps.Point(12, 22),
+        }
+      : {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: selected ? 11 : hovered ? 9 : 7,
+          fillColor,
+          fillOpacity: 1,
+          strokeColor,
+          strokeWeight: selected ? 3 : hovered ? 2.5 : 2,
+        };
 
   return (
     <Marker
@@ -121,14 +146,7 @@ function LockerMapPin({
       title={`${locker.name} · ${locker.availableSlots} dispo.`}
       clickable={interactive}
       zIndex={selected ? 4 : hovered ? 3 : 1}
-      icon={{
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: selected ? 11 : hovered ? 9 : 7,
-        fillColor,
-        fillOpacity: 1,
-        strokeColor: selected || hovered ? LOCKER_PIN_COLORS.selected : '#ffffff',
-        strokeWeight: selected ? 3 : hovered ? 2.5 : 2,
-      }}
+      icon={icon}
       onClick={() => {
         if (interactive) onSelect?.(locker.id);
       }}
@@ -159,7 +177,7 @@ function BusinessLocationPin({
       clickable={false}
       zIndex={selected ? 5 : 2}
       icon={{
-        path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z',
+        path: MAP_PIN_PATH,
         fillColor: BUSINESS_LOCATION_PIN,
         fillOpacity: 1,
         strokeColor: '#ffffff',

@@ -20,6 +20,7 @@
     "eas:preview:android": "EXPO_NO_CAPABILITY_SYNC=1 eas build --profile preview --platform android",
     "eas:preview:ios": "EXPO_NO_CAPABILITY_SYNC=1 eas build --profile preview --platform ios",
     "eas:production:ios": "EXPO_NO_CAPABILITY_SYNC=1 eas build --profile production --platform ios",
+    "eas:update": "eas update --channel production --environment production",
     "eas-build-post-install": "cd ../.. && pnpm --filter @eveider/config-ui --filter @eveider/domain run build && test -f packages/config-ui/dist/index.js && test -f packages/domain/dist/index.js"
   },
   "dependencies": {

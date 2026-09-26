@@ -537,6 +537,7 @@ export function LockerDetail({ lockerId }: LockerDetailProps) {
                   },
                 ]}
                 selectedLockerId={locker.id}
+                pinStyle="network"
                 height="100%"
               />
             </div>

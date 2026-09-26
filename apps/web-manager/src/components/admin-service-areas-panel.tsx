@@ -934,6 +934,7 @@ function CityMapPreview({
             lockers={markers}
             height={200}
             interactive={false}
+            pinStyle="network"
           />
         </div>
       ) : (
